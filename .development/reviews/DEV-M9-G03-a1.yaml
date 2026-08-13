@@ -1,0 +1,237 @@
+review_id: DEV-M9-G03-a1
+goal_id: DEV-M9-G03
+attempt_id: DEV-M9-G03-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_statistic_ac01_verdict_vocabulary_has_no_reproduced_value
+    - test_statistic_ac01_decision_api_has_no_p_value_path
+    - test_statistic_ac01_non_significant_without_equivalence_never_equivalent
+      (parametrized x6: every non-significant shape without equivalence
+      evidence -> INCONCLUSIVE, R-EQ-3)
+    - test_statistic_ac01_non_significant_inside_region_is_equivalence_evidence
+      (TOST distinction: p > 0.05 WITH the interval fully inside the frozen
+      region IS equivalence evidence -- the region, not the p-value, decides)
+    - test_statistic_ac01_all_non_significant_shapes_never_equivalent_grid
+      (3x3x3 shape grid: every crossing-zero interval not fully inside ->
+      INCONCLUSIVE, never EQUIVALENT)
+    notes: >-
+      AC-01 holds BY CONSTRUCTION, verified in source and by tests: (1) the
+      EquivalenceVerdict vocabulary has exactly 3 members (EQUIVALENT /
+      NOT_EQUIVALENT / INCONCLUSIVE) -- no REPRODUCED, no NOT_REPRODUCED
+      (asserted by set-membership test); (2) no public decision API accepts
+      a p-value: decide_equivalence signature is exactly {effect, ci,
+      bounds} (proven by inspect.signature), and EquivalenceDecisionInput /
+      EquivalenceAssessment carry no p_value field (proven by dataclass
+      fields inspection); (3) the only non-significance shape is a CI
+      crossing zero (ConfidenceInterval.crosses_zero, documented as the
+      p > alpha reading); such an interval is EQUIVALENT only when it lies
+      entirely inside the frozen bounds (R-EQ-1, TOST) and INCONCLUSIVE
+      otherwise (R-EQ-3) -- verified across the parametrized shapes and the
+      grid. The module docstring explicitly documents that statistics
+      decides but never closes outcomes (RequirementOutcome mapping lives
+      at the outcome layer).
+  AC-02:
+    status: PASS
+    evidence:
+    - test_statistic_ac02_interval_crossing_bounds_inconclusive
+      (parametrized x7: straddling/larger-than-region shapes -> INCONCLUSIVE)
+    - test_statistic_ac02_wide_interval_crossing_both_bounds_inconclusive
+      (interval wider than the whole region -> INCONCLUSIVE, explicitly
+      not EQUIVALENT and not NOT_EQUIVALENT; "REPRODUCED" not in the verdict)
+    - test_statistic_ac02_never_equivalent_for_any_straddling_shape
+      (all 7 straddling shapes: never EQUIVALENT)
+    notes: >-
+      The rule predicates enforce AC-02 exactly: R-EQ-1 (EQUIVALENT)
+      requires BOTH endpoints strictly inside the region (i.ci.lower >
+      i.bounds.lower AND i.ci.upper < i.bounds.upper); R-EQ-2
+      (NOT_EQUIVALENT) requires the whole interval on one side; any
+      interval that straddles at least one bound -- including intervals
+      wider than the region -- falls through to R-EQ-3 (INCONCLUSIVE).
+      Boundary-touching intervals (e.g. exactly equal to the region) are
+      also INCONCLUSIVE (test_statistic_equivalence_interval_exactly_region_is_inconclusive)
+      -- "sufficiently inside" is strict. The full 7x7 lower/upper grid
+      (test_statistic_equivalence_decision_rule_default_is_total) proves
+      the mapping is total and reaches all three verdicts.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_statistic_ac03_margins_read_from_registered_acceptance_verbatim
+    - test_statistic_ac03_margin_honored_when_differing_from_result_derived
+    - test_statistic_ac03_margin_honored_when_wider_than_result_spread
+    - test_statistic_ac03_bounds_never_derived_from_result
+    - test_statistic_ac03_different_margins_yield_different_bounds
+    - test_statistic_ac03_no_margin_entry_rejected
+    - test_statistic_ac03_non_numeric_margin_rejected
+    - test_statistic_ac03_non_positive_margin_rejected
+    - test_statistic_ac03_ambiguous_margins_rejected
+    - test_statistic_ac03_acceptance_type_boundary
+    - test_statistic_ac03_decision_uses_given_bounds_only
+    notes: >-
+      equivalence_bounds_from_acceptance is a PURE FUNCTION of the frozen
+      AcceptanceCriteria record (signature == {acceptance}, proven by
+      inspect.signature -- the extractor cannot see the result). It reads
+      numeric positive 'margin' entries verbatim (bounds == [-margin,
+      +margin], byte-for-byte the stored value), ignores margin-less
+      criteria entries, and rejects: no margin ("no equivalence margin in
+      the frozen acceptance criteria ... margins are never inferred from
+      the result"), non-numeric ("10%"), non-positive/non-finite, and
+      several DIFFERING margins (ambiguous). The margin-honoring tests
+      construct the result-derived counterfactual (a tight or wide CI)
+      and prove the frozen margin wins in both directions: a result-
+      inferred margin (~2*SE) would flip each verdict, but the frozen
+      0.05 is honored as given. test_statistic_ac03_decision_uses_given_bounds_only
+      additionally proves the decision takes bounds as given: flipping the
+      frozen margin flips the verdict, and the effect/CI never feed the
+      bounds back (assessment records the exact input bounds).
+  paradigm:
+    status: PASS
+    evidence:
+    - test_statistic_ci_mean_interval_math_and_level (Z_095 pinned to
+      1.959963984540054, exact math asserted)
+    - test_statistic_ci_deterministic_and_repeatable
+    - test_statistic_ci_higher_level_wider_interval
+    - test_statistic_z_critical_value_exact_and_monotonic
+    - test_statistic_ci_interval_is_frozen (FrozenInstanceError on mutation)
+    - test_statistic_equivalence_assessment_records_rule_trace
+      (full rule trace: R-EQ-1/2/3 evaluated in order, matched flags, first
+      match wins, trailing default also evaluated)
+    - test_statistic_equivalence_decision_rule_default_is_total
+    - test_statistic_errors_are_valueerror_subclasses_with_stable_messages
+    - test_statistic_module_all_exports_resolve
+    - test_statistic_module_is_pure_no_io_no_randomness (source-scanned for
+      random/time/urllib/requests/socket/open)
+    - test_statistic_report_entries_fit_result_record_shapes (real
+      ResultRecord carrying metrics=effect_metrics(...) and
+      uncertainty=uncertainty_report(...) without reshaping)
+    - test_statistic_report_uncertainty_omits_unknown_standard_error
+    - test_statistic_report_metric_name_validation
+    notes: >-
+      Every established paradigm rule is followed: frozen dataclasses with
+      __post_init__ boundary validation; TypeError at the type boundaries
+      and ValueError-subclass (StatisticsError -> InvalidStatisticInputError
+      / EquivalenceMarginError) with stable one-line messages; ordered
+      rule table (EQUIVALENCE_DECISION_RULES, first match wins, trailing
+      total default with matched_rule_id post-assert); auditable assessment
+      (ruleset_version + exact input + per-rule trace); stdlib-only math
+      (statistics.NormalDist -- no scipy); __all__ with no duplicates;
+      from __future__ import annotations; pure deterministic functions
+      (source-scanned). The deliverable-3 hooks emit exactly the shapes
+      DEV-M9-G02's ResultRecord consumes (metrics: list of {metric,value}
+      dicts; uncertainty: dict), proven end-to-end.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m9-g01 (reinstalled editable from the
+    dev-m9-g03 worktree; import resolution confirmed: statistics.py and
+    results.py both resolve to .worktrees/dev-m9-g03)
+  head_sha: 4f43176818fa7338ff38340df515c7db08faba43
+  commands:
+  - cmd: pytest -q tests/analysis -k statistic
+    result: 68 passed, 85 deselected, exit 0 (matches the worker's total
+      claim exactly; collection breakdown: 55 functions + 13 parametrized
+      instances = 68 -- the worker's stated "57 functions + 11 parametrized"
+      split was mis-stated, the total 68 is correct)
+  - cmd: pytest -q tests
+    result: 1508 passed, 6 skipped, 1 deselected, exit 0 (matches worker
+      claim exactly; base 2c1bf9c = 1440 + 68 new; no lease flake this run)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 62 source files (statistics.py adds
+      one module to the 61 of the base)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG
+      acyclic, all contracts well-formed"
+  - cmd: gh pr checks 39
+    result: "Test, lint, and type check: pass; Validate development
+      contracts: pass"
+  merged_state_note: >-
+    The head is based on 2c1bf9c (1440 tests). Since the branch was cut,
+    main gained the M6-G01 merge (+31 = 1471) and the M9-G02 fix (+24 =
+    1495). The merged tree will be current main (1495) + G03 (+68 = 1563).
+    No file overlap: G03 touches only analysis/statistics.py +
+    tests/analysis/test_statistics.py; M6-G01 touched workers/context.py +
+    its tests; the fix touched analysis/results.py + tests/analysis/test_results.py.
+    test_statistic_report_entries_fit_result_record_shapes constructs a
+    ResultRecord with the safe id 'ART-001', which is unaffected by the
+    post-fix results.py on main (verified here against the pre-fix results.py;
+    the safe-id boundary rejects only unsafe ids). The supervisor will run
+    the full suite on origin/main after the merge as the definitive
+    merged-state check (1563 expected).
+
+design_review:
+  ac01_by_construction: >-
+    The forbidden shortcut (p > 0.05 alone -> REPRODUCED) is impossible by
+    construction, not just untested: the verdict enum cannot hold
+    REPRODUCED, no decision function accepts a p-value, and the only
+    non-significance shape (CI crossing zero) yields EQUIVALENT solely via
+    R-EQ-1's strict-inside predicate. The point estimate never decides
+    alone -- the interval carries the evidence. The module docstring ties
+    every rule to the frozen spec sections (07-STATISTICS-AND-ACCEPTANCE.md
+    SS3/SS4/SS5/SS8/SS9 and 20-ARCHITECTURE-DECISIONS.md items 13-14).
+  ac02_boundary_semantics: >-
+    The R-EQ boundary conventions are precise and consistent: strictly
+    inside -> EQUIVALENT; wholly on one side (touching a bound from
+    outside counts as outside) -> NOT_EQUIVALENT; anything overlapping a
+    bound (including exactly-equal-to-region and wider-than-region) ->
+    INCONCLUSIVE. The 7x7 grid test proves totality.
+  ac03_inputs_not_inferred: >-
+    The extractor is a pure function of the acceptance record with no
+    result-shaped input; ambiguous or missing margins are hard errors
+    (EquivalenceMarginError with stable messages) instead of silent
+    fallbacks -- exactly the "no global +/-10% rule" and "freeze the
+    margin before data are observed" sections (SS8/SS9). No path exists
+    to derive bounds from the effect estimate or its CI.
+  rule_table_paradigm: >-
+    EQUIVALENCE_DECISION_RULES follows the established first-match-wins
+    rule table: ordered entries with descriptive strings, trailing total
+    default (R-EQ-3 predicate True), matched_rule_id post-assert, and the
+    full per-rule trace recorded in the assessment with the ruleset
+    version. Same paradigm as M4-G05/M6-G01 rule engines.
+  reporting_hooks: >-
+    effect_metrics / uncertainty_report emit exactly the DEV-M9-G02
+    result-record shapes, verified by constructing a real ResultRecord in
+    the test -- the M9 series' result/statistics integration point is
+    proven, not assumed.
+  midflight_flags_resolved: >-
+    The pyright flags observed while the worker was mid-flight
+    ("Argument missing for parameter confidence_level" at statistics.py
+    lines 365/388 and "UNCERTAINTY_METHOD is not defined" at line 748)
+    are resolved on the final head: _symmetric_interval receives
+    confidence_level positionally in both callers, and _UNCERTAINTY_METHOD
+    is defined at line 729 (used at 748). mypy is clean on the exact
+    reviewed head 4f43176.
+
+scope_check: PASS
+notes: >-
+  Both files read in full on the reviewed head (statistics.py 791 lines,
+  test_statistics.py 758 lines). Every worker claim reproduced: 68
+  (-k statistic, total correct though the 57/11 split was mis-stated --
+  actual 55 + 13), 1508-6-1 full suite, ruff clean, mypy 62, contracts
+  PASS, CI both jobs PASS, exact head 4f43176, single commit, branch
+  parent = 2c1bf9c (clean rebase onto fresh main -- no stale-base
+  deviation), scope exactly the 2 allowed files (+1549/-0, statistics.py
+  +791, test_statistics.py +758). No forbidden changes; no existing test
+  touched (new file). AC-01/02/03 all satisfied with construction-level
+  and grid-level evidence. Decision: PASS; merge authorized as squash
+  with subject "feat(analysis): confidence interval and equivalence
+  testing primitives [DEV-M9-G03]".
+
+git_review:
+  pr_number: 39
+  pr_title: 'feat(analysis): confidence interval and equivalence testing primitives [DEV-M9-G03]'
+  branch: feat/dev-m9-g03-statistics
+  base_sha: 2c1bf9c71e2839cee0743286373bd42395f80e2c
+  reviewed_head_sha: 4f43176818fa7338ff38340df515c7db08faba43
+  changed_files: 2 (src/scientific_reproduction/analysis/statistics.py
+    +791/-0, tests/analysis/test_statistics.py +758/-0)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
