@@ -36,8 +36,8 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import yaml
     import jsonschema
+    import yaml
 except ImportError as exc:  # pragma: no cover - environment error path
     raise SystemExit(
         "Install PyYAML and jsonschema to validate development contracts: "

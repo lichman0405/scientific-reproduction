@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-platform repository verification entry point (DEV-M0-G01).
+"""Cross-platform repository verification entry point (DEV-M0-G01, extended by DEV-M0-G02).
 
 Usage:
     python scripts/verify.py [--reuse-venv]
@@ -10,9 +10,18 @@ Behavior:
        given, in which case an existing one is reused).
     2. Installs the package in editable mode with dev extras
        (``python -m pip install -e ".[dev]"``).
-    3. Runs the test suite (``python -m pytest -q``).
-    4. Prints ``[verify] PASS`` and exits 0 on success; prints
-       ``[verify] FAIL`` and exits non-zero on failure.
+    3. Runs the unit test suite (``python -m pytest -q``).
+    4. Runs the lint gate (``python -m ruff check .``).
+    5. Runs the type/static check (``python -m mypy src/``).
+    6. Prints ``[verify] PASS`` and exits 0 on success; prints
+       ``[verify] FAIL`` and exits non-zero on any failing step.
+
+Checker choice (AC-03 of DEV-M0-G02): mypy is used as the type/static
+checker. It is pip-installable and deterministic, and -- unlike pyright /
+basedpyright -- needs no Node.js toolchain, so the CI environment stays
+pure-Python. It is intentionally configured non-strict
+(``strict = false``) with ``check_untyped_defs = true``; see [tool.mypy]
+in pyproject.toml.
 
 Works on Windows (PowerShell / cmd), Git Bash, and POSIX shells.
 Requires only the Python standard library plus a working ``python``
@@ -44,10 +53,15 @@ def venv_python(venv_dir: Path) -> Path:
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    """Run a command with the repository root as cwd; raise on failure."""
+    """Run a command with the repository root as cwd; raise on failure.
+
+    ``text=True`` makes the captured output decode as text on every
+    platform, so the return type is deterministic (``CompletedProcess[str]``
+    on Windows and POSIX alike).
+    """
     display = subprocess.list2cmdline(cmd) if cmd else "<empty>"
     print(f"$ {display}")
-    return subprocess.run(cmd, cwd=REPO_ROOT, check=True)
+    return subprocess.run(cmd, cwd=REPO_ROOT, check=True, text=True)
 
 
 def main() -> int:
@@ -79,8 +93,16 @@ def main() -> int:
             [str(python), "-m", "pip", "install", "-e", ".[dev]"],
         ),
         (
-            "run test suite",
+            "run unit tests",
             [str(python), "-m", "pytest", "-q"],
+        ),
+        (
+            "lint with ruff",
+            [str(python), "-m", "ruff", "check", "."],
+        ),
+        (
+            "type check with mypy",
+            [str(python), "-m", "mypy", "src/"],
         ),
     ]
     for name, cmd in steps:

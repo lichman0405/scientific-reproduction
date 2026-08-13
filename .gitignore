@@ -14,6 +14,12 @@ venv/
 .coverage
 htmlcov/
 
+# --- Verification / tooling runtimes and caches (never committed) ---
+.verify-venv/
+.sup-verify-venv/
+.mypy_cache/
+.ruff_cache/
+
 # --- OS / editors ---
 .DS_Store
 Thumbs.db
