@@ -1,0 +1,152 @@
+goal_id: DEV-M4-G03
+attempt_id: DEV-M4-G03-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      One intentionally unmapped item prevents freeze eligibility:
+      test_completeness_ac01_single_unmapped_item_blocks_freeze_eligibility
+      (verdict FAIL, freeze_eligible False, matched R-AUD-U1, the
+      offending id named in the evidence),
+      test_completeness_ac01_unmapped_item_blocks_even_with_other_mapped_
+      items (100% coverage is necessary but not sufficient — 1 mapped + 1
+      unmapped, coverage 0.5, still FAIL),
+      test_completeness_ac01_multiple_unmapped_items_block_and_list_all_
+      ids (every offending id listed in deterministic sorted order). The
+      rule R-AUD-U1 (any UNMAPPED formal item -> FAIL) is the first rule of
+      the ordered verdict table; the freeze gate of 14-STATE-GIT-ARTIFACTS
+      .md SS5 ("Inventory audit passed" checkpoint) is enforced by the
+      verdict.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      100% mapped and zero ambiguous passes:
+      test_completeness_ac02_full_mapping_zero_ambiguous_passes (verdict
+      PASS, matched R-AUD-P1, coverage 1.0),
+      test_completeness_ac02_ambiguous_item_blocks_freeze_eligibility
+      (unresolved requirement reference -> R-MAP-A1 -> FAIL, matched
+      R-AUD-A1, the ambiguous id named),
+      test_completeness_ac02_empty_inventory_passes_vacuously (zero formal
+      items -> no coverage obligation; 0.0 coverage convention of
+      inventory.py),
+      test_completeness_ac02_nonformal_only_inventory_passes (R-MAP-X1
+      items never fail the audit even when carrying requirement ids),
+      plus test_completeness_empty_registry_passes_on_initialized_
+      workspace (registry path agrees). Statuses are always recomputed
+      from the given state by the M4-G02 mapping rules — stored
+      mapping_status snapshots never trusted
+      (test_completeness_verdict_recomputed_from_state_not_stored_
+      snapshots: a snapshot-AMBIGUOUS item passes once the requirement is
+      registered; test_completeness_stored_mapping_status_snapshot_not_
+      trusted: a snapshot-claiming-MAPPED item with an unresolved reference
+      still fails).
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Audit evidence lists offending item IDs:
+      test_completeness_ac03_evidence_lists_offending_item_ids (evidence
+      names exactly the unmapped and ambiguous ids — mapped and non-formal
+      items never appear),
+      test_completeness_ac03_evidence_is_deterministic_and_sorted
+      (unique ids, sorted by inventory_id — the registry order of
+      load_inventory_registry — independent of input order, stable across
+      repeated calls). The record carries unmapped_item_ids /
+      ambiguous_item_ids / offending_item_ids (their union) plus the full
+      verdict rule trace (decisions in table order, matched_rule_id,
+      AUDIT_RULESET_VERSION) for auditability.
+verification_rerun:
+  - command: python -m pytest -q tests/planning -k completeness
+    exit_code: 0
+  - command: python -m pytest -q tests/planning
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed, both ADDED —
+    src/scientific_reproduction/planning/audit.py (+417),
+    tests/planning/test_completeness.py (+616). The helper import
+    (tests/planning/inventory_helpers.py, the M4-G02 precedent) is
+    read-only reuse; planning/init.py, planning/inventory.py,
+    planning/__init__.py, core/models.py and schemas/ untouched (frozen).
+    Single conventional commit 4f2013f [DEV-M4-G03] above merge base
+    e55407f, no amend, no force-push, no tests deleted or weakened
+    (purely additive, +21 tests). PR #30 mergeStateStatus CLEAN; CI both
+    jobs SUCCESS; head equals the reviewed head.
+  - >-
+    Flake documented and re-run verified: the first full-suite run of this
+    review failed 1 test —
+    tests/state/test_leases.py::test_concurrent_takeover_of_expired_
+    lease_single_winner (both concurrent claimers hit the "contested;
+    retry the acquisition" LeaseHeldError path — a timing-sensitive
+    thread-concurrency test). Root cause: the run executed while a second
+    full pytest suite ran concurrently on the same machine (M5-G04 review
+    verification) — CPU contention shifted the takeover handoff. The
+    M4-G03 PR does not touch the leases module or its tests (scope is
+    planning/audit.py + test_completeness.py only); the worker's own
+    isolated run passed 1196; CI on PR #30 (ubuntu-latest, isolated)
+    passed both jobs; and the reviewer's isolated re-run passed the leases
+    file 29/29 and the full suite 1196 passed / 6 skipped / 1 deselected,
+    exit 0. No flake occurrence on the re-run. The authoritative
+    verification numbers below are from the isolated re-run.
+  - >-
+    Design reviewed — the verdict is a pure function of the registered
+    state: R-AUD-U1 (any UNMAPPED formal item -> FAIL, AC-01) / R-AUD-A1
+    (any AMBIGUOUS item -> FAIL; unresolved mappings cannot be decided) /
+    R-AUD-P1 (total default: all formal items MAPPED, zero ambiguous ->
+    PASS). The table is ordered, first-match-wins and total; the
+    non-mutually-exclusive predicates (both blockers fire when both
+    classes are present; first match decides) are documented and tested
+    (test_completeness_first_match_wins_verdict_semantics). The AuditInput
+    is frozen with deterministically sorted evidence ids, so "same state
+    -> same verdict" is directly testable and order-independent
+    (test_completeness_audit_is_pure_and_order_independent). The frozen
+    PlanInventoryAudit carries counts + status but no evidence list, so it
+    cannot be the record: AC-03 evidence lives in CompletenessAudit, and
+    plan_inventory_audit() exposes the schema-compatible view embedded by
+    the Plan freeze flow (validated end-to-end via validate_and_reject
+    "plan" in test_completeness_plan_inventory_audit_view_is_schema_
+    compatible). The persistence boundary is honest and documented: no
+    standalone audit schema exists (inventory_audit is a nested plan
+    sub-object; 21 known object types), templates/PROJECT-TREE has no
+    audit/ directory, so the module persists nothing and performs no Git
+    operations — the "Inventory audit passed" git checkpoint
+    (audit/git.py kind inventory.audit.passed) belongs to the supervisor
+    state flow. Empty inventory passes vacuously (coverage gate, not an
+    existence check — consistent with inventory.py's 0.0 coverage
+    convention). Error discipline: TypeError at public boundaries
+    (str/bytes explicitly rejected for sequences, non-str root), errors
+    from inventory.py propagated unchanged (ProjectNotInitializedError
+    with stable message; corrupt-record ValueError documented as the
+    generic path-carrying class). Paradigm: frozen dataclasses, pure
+    deterministic functions, __all__ exports, docstrings citing
+    01-PRODUCT-REQUIREMENTS.md SS5, 14-STATE-GIT-ARTIFACTS.md SS5,
+    core/models.py (PlanInventoryAudit/AuditStatus),
+    schemas/plan.schema.yaml, and the M4-G02 mapping layer. The
+    documented readings (non-mutually-exclusive predicates, evidence-in-
+    record-not-in-PlanInventoryAudit, no-persistence boundary, vacuous
+    empty pass) are honest, correct resolutions. No flake occurrence
+    beyond the documented lease test under contention.
+  - >-
+    Pyright IDE diagnostics are the established noise classes: the
+    "unreachable" flags point at the defensive TypeError raises on typed
+    parameters and the "unreachable default" matched_verdict initializer;
+    the unused-lambda-parameter flags come from the uniform rule-table
+    predicate signatures; remaining flags are stale snapshots from pyright
+    resolving against the main repo instead of the worktree. mypy, the
+    configured gate, is clean on 53 source files and CI both jobs PASS.
+git_review:
+  pr_number: 30
+  reviewed_head_sha: 4f2013feb7e1536a553f7c790e9f6d0b9c6446c8
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

@@ -1,0 +1,29 @@
+event_id: EVT-20260813-0031
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M4-G03
+attempt_id: DEV-M4-G03-a1
+pr_number: 30
+head_sha: 4f2013feb7e1536a553f7c790e9f6d0b9c6446c8
+merge_sha: 627bf78348d309c4555d1512dc96484c7404b9be
+summary: >-
+  DEV-M4-G03 merged: inventory completeness audit (2 files:
+  planning/audit.py +417, tests/planning/test_completeness.py +616, 21
+  tests). Versioned ordered verdict rule table R-AUD-U1/A1/P1 (total
+  default, AUDIT_RULESET_VERSION 1.0) over frozen AuditInput; statuses
+  recomputed from state by the M4-G02 mapping rules (stored mapping_status
+  snapshots never trusted). AC-01: one unmapped formal item -> FAIL
+  (R-AUD-U1); AC-02: 100% mapped + zero ambiguous -> PASS (R-AUD-P1),
+  AMBIGUOUS always blocks (R-AUD-A1), empty inventory passes vacuously,
+  non-formal items never fail; AC-03: evidence lists offending ids
+  (unmapped/ambiguous/union), unique and sorted by inventory_id, plus full
+  verdict rule trace. plan_inventory_audit() exposes the schema-compatible
+  PlanInventoryAudit view (validated via validate_and_reject "plan") for
+  the DEV-M4-G04 freeze flow; module persists nothing and performs no Git
+  operations (documented boundary). Full suite 1196/6/1 (base 1175 + 21)
+  on isolated re-run — one timing-sensitive leases concurrency test
+  flaked in the first run under dual-suite CPU contention, confirmed
+  green in isolation and in CI (both jobs PASS); ruff + mypy clean 53
+  files; contracts PASS; supervisor review PASS (incl. re-run of all 6
+  verification commands); squash-merged at exact head 4f2013f. M4
+  progress: 3/6 (G01-G03). M4-G04 now unblocked (dep M4-G03).
