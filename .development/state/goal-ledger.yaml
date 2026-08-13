@@ -588,8 +588,10 @@ goals:
     status: MERGED
     attempts:
     - DEV-M9-G02-a1
+    - DEV-M9-G02-a2
     reviews:
     - DEV-M9-G02-a1
+    - DEV-M9-G02-a2
     merged_sha: 1beec5a
     merged_at: '2026-08-13'
     outcome: PASS

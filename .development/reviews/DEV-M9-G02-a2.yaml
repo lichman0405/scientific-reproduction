@@ -1,0 +1,229 @@
+review_id: DEV-M9-G02-a2
+goal_id: DEV-M9-G02
+attempt_id: DEV-M9-G02-a2
+reviewer: Development Supervisor (independent review on fix PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+finding:
+  id: FND-M9-G02-01
+  severity: MEDIUM
+  source: PostToolUse security review hook (flagged after the a1 merge)
+  summary: >-
+    Unvalidated artifact ids in ResultRecord were passed to the pre-existing
+    ArtifactRegistry.get(), which builds base_dir / f"{artifact_id}.json"
+    with no id validation -- an input_artifact_ids entry like "../EVIL"
+    resolved manifests/../EVIL.json, a crafted manifest-shaped JSON at the
+    workspace root, OUTSIDE the manifests/ registry. Registration succeeded
+    and the result package referenced an entity that was never registered:
+    AC-01 exactness violated, registry boundary bypassed.
+  exploit_path: >-
+    (1) register a legitimate artifact ART-001; (2) craft a valid
+    manifest-shaped JSON at the workspace root as EVIL.json (reachable as
+    manifests/../EVIL.json); (3) register_result with
+    input_artifact_ids=["../EVIL"]. Vulnerable behavior: accepted; stored
+    ref resolves to the crafted file; registry.list() never contains
+    ART-X. Root cause confirmed in source: results.py __post_init__
+    validated run_ref/analysis_id/acceptance_ref with _is_safe_registry_id
+    but artifact ids only with _require_ref_list (str/non-empty/unique);
+    artifacts/registry.py get() has no id validation (validates only at
+    register()); ArtifactRegistry( is constructed only in results.py
+    (grep-verified), so the results.py boundary fully contains the fix.
+  proof_before_fix: >-
+    Supervisor's independent venv script (fnd_m9g02_proof.py, run against
+    merged main 1beec5a): "register_result SUCCEEDED with id '../EVIL'
+    (traversal accepted) / stored input_artifact_ids: ['../EVIL'] /
+    registry.list() after: ['ART-001'] / 'ART-X' in registry.list():
+    False / ==> EXPLOIT CONFIRMED: ref resolved to a manifest-shaped file
+    outside the artifact registry (AC-01 exactness violated, boundary
+    bypassed)".
+  fix_requirements: >-
+    (1) ResultRecord.__post_init__ validates every input_artifact_ids /
+    output_artifact_ids entry with _is_safe_registry_id (reject '', '.',
+    '..', '/', '\', glob metacharacters '*', '?', '[', ']') raising
+    ResultRecordError with a stable message; requirement_refs stays pure
+    linkage (AC-03, no safe-id check). (2) Defense-in-depth:
+    _resolve_artifact_refs re-checks each id before ArtifactRegistry.get,
+    raising UnresolvedResultReferenceError naming the result id and the
+    artifact id, so the loop never constructs a registry path from an
+    unsafe id. (3) Docstrings updated (module AC-01 section, ResultRecord
+    field docs, register_result Raises, ResultRecordError class doc).
+    (4) Parametrized boundary tests + a crafted-file regression test
+    reproducing the proof. (5) All test names contain "result"; scope
+    strictly results.py + test_results.py.
+  proof_after_fix: >-
+    Same script re-run by the supervisor against the fix head 31d94a04:
+    "registry.list() before: ['ART-001'] / crafted file at:
+    ...\EVIL.json (outside manifests/) / register_result RAISED:
+    ResultRecordError ResultRecord.input_artifact_ids entry '../EVIL' is
+    not a safe registry id (no '/', no '\', not '.' or '..', no glob
+    metacharacters '*', '?', '[' or ']') / ==> NO EXPLOIT (boundary
+    rejected the id)". The rejection fires at record construction
+    (__post_init__), i.e. the earliest possible entry point.
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_result_unsafe_input_artifact_id_rejected_at_record_boundary
+    - test_result_unsafe_output_artifact_id_rejected_at_record_boundary
+    - test_result_register_result_rejects_unsafe_input_artifact_ids
+    - test_result_register_result_rejects_unsafe_output_artifact_ids
+    - test_result_regression_traversal_artifact_id_cannot_escape_manifests
+    - test_result_defense_in_depth_unsafe_artifact_id_rejected_at_resolution_gate
+    notes: >-
+      The fix restores AC-01 exactness at both layers. Record boundary:
+      __post_init__ calls _require_safe_registry_id_entries on
+      input_artifact_ids and output_artifact_ids (after _require_ref_list),
+      raising ResultRecordError with the stable message naming the field
+      and the offending value (verified verbatim in the proof output). The
+      9-entry unsafe-id matrix ('../x', 'a/b', 'a\b', '.', '..', 'ANL*',
+      'ANL?', 'ANL[1', 'ANL]1') is rejected at construction, via mapping
+      input through register_result (nothing written, result registry
+      empty), and via dataclasses.replace / ResultRecord.from_dict (no
+      public bypass: both re-run the frozen constructor). Resolution gate:
+      _resolve_artifact_refs re-checks _is_safe_registry_id before
+      ArtifactRegistry.get and raises UnresolvedResultReferenceError
+      naming the result id and the artifact id -- proven directly by
+      invoking the gate with a bypassed id. The crafted-file regression
+      test reproduces the original exploit and asserts the crafted file's
+      bytes are never read (byte-identical after the attempt) and both
+      registries are unchanged.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_result_ac02_protocol_version_immutable_in_memory
+    - test_result_ac02_duplicate_registration_rejected_bytes_untouched
+    - test_result_ac02_re_registration_with_different_version_rejected
+    - test_result_ac02_duplicate_error_is_stable_across_attempts
+    - test_result_ac02_stored_record_is_immutable_replacement_never_written
+    notes: >-
+      Unchanged from a1 (the fix touches no AC-02 surface); all 5 tests
+      still pass on the fix head.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_result_ac03_registration_leaves_referenced_requirement_open
+    - test_result_ac03_exposes_requirement_linkage_without_closure
+    - test_result_ac03_result_requires_no_requirement_at_all
+    notes: >-
+      Unchanged from a1; requirement_refs explicitly excluded from the new
+      safe-id validation (pure linkage, AC-03) -- documented in the
+      __post_init__ comment and the helper docstring.
+  paradigm:
+    status: PASS
+    evidence:
+    - test_result_registry_canonical_json_and_roundtrip
+    - test_result_mapping_input_coerced_with_defaults
+    - test_result_mapping_invalid_enum_value_rejected
+    - test_result_deterministic_listing_sorted_by_id
+    - test_result_deterministic_same_state_same_bytes
+    - test_result_read_roundtrip_and_not_found
+    - test_result_type_error_boundaries
+    - test_result_record_shape_validation_rejects_bad_values
+    - test_result_error_hierarchy_and_stable_messages
+    - test_result_requires_initialized_project
+    - test_result_rejects_unsafe_ids_at_every_boundary
+    - test_result_corrupt_registry_records_rejected
+    - test_result_protocol_and_result_registries_are_isolated
+    notes: >-
+      The 13 a1 paradigm tests unchanged; the fix adds the FND-M9-G02-01
+      boundary group (6 functions / 24 parametrized cases). No a1 test
+      deleted, renamed or weakened: function-name diff 31 original -> 31 +
+      6 new (verified via the PR diff: the only non-additive line in
+      test_results.py is a module-docstring edit, +3/-1). The mid-flight
+      pyright flag "_require_safe_registry_id_entries is not defined" was
+      an intermediate-iteration state; on the final head the helper is
+      defined (line ~527) and called from __post_init__ (lines 367-368).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m9-g01 (reinstalled editable from the
+    M9-G02 fix worktree; import resolution confirmed to the fix head)
+  head_sha: 31d94a040a1710a84d9127b2f81e1342bbe92240
+  commands:
+  - cmd: pytest -q tests/analysis -k result
+    result: 56 passed, 53 deselected, exit 0 (matches worker claim
+      exactly; 32 pre-existing + 24 new fix cases)
+  - cmd: pytest -q tests
+    result: 1464 passed, 6 skipped, 1 deselected, exit 0 (matches worker
+      claim exactly; base 2c1bf9c = 1440 + 24 new; no lease flake this run)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 61 source files (results.py
+      already counted; fix adds no module)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed"
+  - cmd: gh pr checks 38
+    result: "Test, lint, and type check: pass; Validate development
+      contracts: pass"
+  - cmd: python fnd_m9g02_proof.py (supervisor's empirical proof, same
+    script that produced EXPLOIT CONFIRMED on merged main 1beec5a)
+    result: "==> NO EXPLOIT (boundary rejected the id)" with
+      ResultRecordError: ResultRecord.input_artifact_ids entry '../EVIL'
+      is not a safe registry id (...) raised at record construction
+  merged_state_note: >-
+    The fix head is based on 2c1bf9c (1440 tests). The merged tree will be
+    current main (which gained the M6-G01 merge: +31 tests = 1471) plus
+    the fix (+24 = 1495). The fix touches only analysis/results.py and
+    tests/analysis/test_results.py; M6-G01 touched only workers/** -- no
+    overlap. The supervisor will run the full suite on origin/main after
+    the merge as the definitive merged-state check.
+
+design_review:
+  two_layer_defense: >-
+    The fix follows the DEV-M9-G01 glob-injection precedent exactly:
+    validation at the record boundary (every artifact id is a safe single
+    path segment or the record cannot be constructed) AND re-validation at
+    the resolution gate (the loop never builds a registry path from an
+    unsafe id even if the boundary were somehow bypassed). Both layers use
+    the shared _is_safe_registry_id rule, so the vocabulary is
+    consistent: '', '.', '..', '/', '\', and glob metacharacters are all
+    rejected. The rejection point (construction) is earlier than the
+    original fix requirement (registration) -- strictly stronger.
+  ac03_preserved: >-
+    requirement_refs is deliberately exempt from the safe-id check:
+    requirement refs are pure linkage (AC-03), not registry paths, so the
+    check would reject nothing meaningful and could only break the linkage
+    semantics. The exemption is documented in code.
+  scope_discipline: >-
+    ArtifactRegistry itself is pre-existing merged code (DEV-M3-G02) and
+    is NOT modified; its get() semantics are unchanged. The fix is
+    contained entirely at the results.py boundary, which grep-verified is
+    the only construction site of ArtifactRegistry -- the boundary fully
+    contains the vulnerability. Only results.py + test_results.py changed
+    (+226/-12; the -1 in tests is a docstring line, no test removed).
+  audit_trail: >-
+    The a1 review (DEV-M9-G02-a1) documented the design and the merge;
+    this a2 review documents the post-merge security finding, the
+    empirical proof before/after, the fix, and the re-verification --
+    superseding the a1 PASS's follow-up status. The proof script and both
+    outputs are quoted verbatim for the audit trail.
+
+scope_check: PASS
+notes: >-
+  Both files read in full on the fix head (results.py diff +65/-11, the
+  new test group +161/-1 incl. docstring edit). Every worker claim
+  reproduced: 56/1464-6-1 / ruff clean / mypy 61 / contracts PASS / CI
+  both jobs PASS, exact head 31d94a04, single commit, scope exactly the 2
+  allowed files, no test deleted or weakened (31 original all present).
+  The empirical proof transitioned from EXPLOIT CONFIRMED (merged main
+  1beec5a) to NO EXPLOIT (fix head 31d94a04) with the stable
+  ResultRecordError at the record boundary. Decision: PASS; merge
+  authorized as squash with subject "fix(analysis): validate artifact ids
+  at result registration [DEV-M9-G02]".
+
+git_review:
+  pr_number: 38
+  pr_title: 'fix(analysis): validate artifact ids at result registration [DEV-M9-G02]'
+  branch: fix/dev-m9-g02-result-ids
+  base_sha: 2c1bf9c71e2839cee0743286373bd42395f80e2c
+  reviewed_head_sha: 31d94a040a1710a84d9127b2f81e1342bbe92240
+  changed_files: 2 (src/scientific_reproduction/analysis/results.py
+    +65/-11, tests/analysis/test_results.py +161/-1)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

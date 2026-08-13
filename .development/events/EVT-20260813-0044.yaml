@@ -1,0 +1,28 @@
+event_id: EVT-20260813-0044
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M9-G02
+attempt_id: DEV-M9-G02-a2
+pr_number: 38
+head_sha: 31d94a040a1710a84d9127b2f81e1342bbe92240
+merge_sha: 8967f9ca76c6ab77aaf0fe6e1dda7c48b40c66f2
+summary: >-
+  FND-M9-G02-01 fix merged (post-merge security finding on DEV-M9-G02):
+  artifact ids in ResultRecord were passed unvalidated to
+  ArtifactRegistry.get(), so input_artifact_ids=["../EVIL"] resolved
+  manifests/../EVIL.json (crafted manifest-shaped JSON at the workspace
+  root, outside the registry) -- AC-01 exactness violated, registry
+  boundary bypassed. Empirically proven by the supervisor's venv script
+  (EXPLOIT CONFIRMED on merged main 1beec5a). Fix (results.py +65/-11,
+  test_results.py +161/-1 incl. docstring edit): __post_init__ validates
+  every artifact id with _is_safe_registry_id (ResultRecordError, stable
+  message); _resolve_artifact_refs re-checks at the resolution gate
+  (UnresolvedResultReferenceError naming result + artifact id);
+  requirement_refs exempt (pure linkage, AC-03); 6 new test functions /
+  24 cases incl. crafted-file regression + defense-in-depth (replace/
+  from_dict re-run the frozen constructor -- no bypass). Re-proof on fix
+  head: "==> NO EXPLOIT (boundary rejected the id)". Review
+  DEV-M9-G02-a2 PASS. Verification: 56 (k result) + 1464-6-1 + ruff clean
+  + mypy 61 + contracts PASS + CI both jobs PASS; merged-state suite on
+  origin/main 8967f9c = 1495-6-1. FND-M9-G02-01 CLOSED (FIXED). M9
+  progress: G01 + G02 (incl. fix) merged; G03/G05 in review/flight.
