@@ -5,5 +5,15 @@ base_branch: main
 base_sha: 5d8f5c2fe6296b1aebfd04e9e70de8bf2240a212
 branch: feat/dev-m5-g01-sources
 worktree: .worktrees/dev-m5-g01
-status: WORKING
-commit_shas: []
+status: MERGED
+commit_shas:
+- 253860ee5e1bfae1ea662443a0edc00093859f53
+pr:
+  number: 23
+  url: https://github.com/lichman0405/scientific-reproduction/pull/23
+  head_sha: 253860ee5e1bfae1ea662443a0edc00093859f53
+  state: closed
+  ci_status: PASS
+merge_method: squash
+merge_commit_sha: f28d19ca67718082bec503b4ff0faf8cceec89ac
+merged_at: '2026-08-13'
