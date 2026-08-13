@@ -1,0 +1,22 @@
+event_id: EVT-20260813-0039
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M4-G05
+attempt_id: DEV-M4-G05-a1
+pr_number: 34
+head_sha: 15835c84a6e962101205a75c7a00a0c0f001441f
+merge_sha: 3c49192ba290317f757b0ddadf99bec9b3e514e7
+summary: >-
+  DEV-M4-G05 (resource blockers + planning DAG export, planning/dag.py
+  1215 lines + planning/resources.py 361 lines + tests/planning/test_dag.py
+  1117 lines 35 tests) merged via squash after supervisor review
+  DEV-M4-G05-a1 (PASS). AC-01/02/03 verified: 9 + 8 + 7 AC tests + 11
+  paradigm, all claims exact. Verification: 35 (k dag) + 178
+  (tests/planning) + 1350-6-1 full suite (no flake this run; the lease
+  flake the worker documented occurred in its baseline run only) + ruff
+  clean + mypy 59 files (57 base + resources.py/dag.py) + contracts PASS
+  + CI both jobs PASS. Merged at origin/main 3c49192b; base was d6694f6
+  (state after M4-G04 merge; branch reconciled onto a5e62b9 dispatch
+  commit). M4 progress: 5/6 merged (G01-G05); M4-G06 ready to dispatch
+  next (depends on G05). M9-G01 fix (FND-M9-G01-01) delivered on PR #33
+  head 4d6670a -- re-review DEV-M9-G01-a1-r2 in progress.
