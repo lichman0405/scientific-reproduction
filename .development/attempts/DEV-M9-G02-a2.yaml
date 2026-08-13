@@ -1,0 +1,9 @@
+goal_id: DEV-M9-G02
+attempt_id: DEV-M9-G02-a2
+change_type: FIX
+base_branch: main
+base_sha: 5bea29c318ba1af65f663e15639796cd3da9e4e3
+branch: fix/dev-m9-g02-result-ids
+worktree: .worktrees/dev-m9-g02-fix
+status: WORKING
+commit_shas: []
