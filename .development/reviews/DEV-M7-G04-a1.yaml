@@ -1,0 +1,229 @@
+review_id: DEV-M7-G04-a1
+goal_id: DEV-M7-G04
+attempt_id: DEV-M7-G04-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: REJECT
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_slurm_ac01_submit_persists_external_slurm_job_id
+    - test_slurm_ac01_submit_outcome_carries_external_id
+    - test_slurm_ac01_fresh_instance_statuses_collects_and_cancels_from_record
+    - test_slurm_ac01_fresh_instance_collects_from_record
+    - test_slurm_ac01_dropped_connection_is_transport_failure_not_job_failure
+    - test_slurm_ac01_unreachable_host_is_connection_failure
+    - test_slurm_ac01_sbatch_refusal_is_job_level_not_transport
+    - test_slurm_ac01_mkdir_refusal_is_launch_error_not_transport
+    - test_slurm_ac01_unparseable_submission_is_launch_error
+    - test_slurm_ac01_dropped_mid_pull_is_transfer_failure
+    - test_slurm_ac01_missing_remote_output_is_job_level_not_transport
+    - test_slurm_ac01_status_of_failed_job_carries_classification
+    - test_slurm_ac01_failure_classification_survives_rehydration
+    - test_slurm_ac01_healthy_submit_clears_stale_transport_marker
+    - test_slurm_resume_from_durable_record_alone
+    notes: >-
+      The external Slurm job id is a first-class durable field: submit
+      parses "Submitted batch job <id>" (regex anchored on the full line)
+      into record.external_id (positive int, re-validated by from_dict),
+      and a FRESH adapter instance over the same state directory drives
+      status/collect/cancel/resume from the record alone -- squeue --jobs
+      and scancel derive from the persisted external id, terminal records
+      are answered with zero remote contact (transport log empty).
+      Failure classification mirrors the ssh adapter: SSHTransportError
+      hierarchy (connection/transfer/timeout) is the retryable TRANSPORT
+      class recorded as failure_class="transport" via
+      _classify_transport_failure; clean remote answers (mkdir/sbatch
+      refusal, unparseable submission line) are the stable
+      SlurmJobLaunchError with failure_class="job", never retried (exactly
+      one sbatch attempt asserted); a definitively absent remote output is
+      SSHRemoteFileNotFoundError -> ComputeCollectError with exactly one
+      pull attempt and one session; classifications survive re-hydration;
+      a healthy resubmit clears the stale transport marker. Test
+      evidence: exact connect/disconnect sequences, RecordingBackoff
+      attempts [1,2], no sleeps, no network.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_slurm_ac02_active_states_normalize_to_running (12 tokens)
+    - test_slurm_ac02_completed_states_normalize_to_completed (2 tokens)
+    - test_slurm_ac02_failed_states_normalize_to_failed (10 tokens)
+    - test_slurm_ac02_cancelled_states_normalize_to_cancelled (2 tokens)
+    - test_slurm_ac02_unknown_state_defaults_to_failed
+    - test_slurm_ac02_squeue_active_state_never_queries_sacct
+    - test_slurm_ac02_terminal_record_answered_from_record_alone
+    - test_slurm_ac02_job_left_scheduler_view_records_recovery_note
+    - test_slurm_ac02_sacct_reason_suffix_and_exit_code_parsing
+    - test_slurm_ac02_identical_observations_byte_identical_decisions
+    - test_slurm_normalize_scheduler_state_boundaries
+    - test_slurm_state_rule_table_is_well_formed_and_total
+    - test_slurm_state_rule_table_validator_rejects_malformed_tables
+    notes: >-
+      The full scheduler vocabulary (PENDING/PD/CONFIGURING/CF/SUSPENDED/
+      S/RUNNING/R/COMPLETING/CG/REQUEUED/RQ active; COMPLETED/CD,
+      CANCELLED/CA, FAILED/F/TIMEOUT/TO/NODE_FAIL/NF/OUT_OF_MEMORY/OOM/
+      PREEMPTED/PR terminal) normalizes through the ordered rule table
+      R-SLURM-S1..S27 (first match wins, trailing total default S27 ->
+      FAILED + unknown=True): queued states are running with the raw
+      observed state carried on the status outcome and nothing persisted;
+      terminal decisions are persisted once and answered from the record
+      alone (transport never contacted again); an unrecognized state is a
+      clean remote answer classified as a job-level failure with the raw
+      state in the stable error, never a transport failure. validate_
+      slurm_state_rules proves totality (unique ids, unique uppercase
+      states, exactly one trailing default) and rejects malformed tables;
+      normalization is deterministic and case-insensitive (byte-identical
+      decisions); sacct reason suffixes ("CANCELLED by 1000") and
+      code:signal exit fields are parsed. A job absent from both squeue
+      and sacct is completed with the stable SLURM_STATE_UNAVAILABLE_NOTE
+      and collect verifies declared outputs independently.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_slurm_ac03_input_bytes_identical_after_retry_cycles
+    - test_slurm_ac03_input_bytes_identical_after_failed_outcome
+    notes: >-
+      Scientific inputs are never modified by scheduler retry logic: a
+      real input file is byte-identical after scripted transport-failure/
+      retry cycles across submit/status/collect, after a FAILED outcome
+      and after a launch refusal; a full state-directory walk (records,
+      scripts, manifests, staging) proves the input's content appears in
+      no state file, and the staging directory contains exactly the
+      declared outputs (never the input).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m7-g04 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: 8505381c49f60667c894a72c6782c62513ddb18c
+  commands:
+  - cmd: pytest -q tests/adapters/compute -k slurm
+    result: 81 passed, 81 deselected (matches the worker claim exactly;
+      -k slurm matches the test_slurm_ssh_adapter.py nodeids only)
+  - cmd: pytest -q tests/adapters
+    result: 265 passed (adapters dir: research + lab + local + ssh +
+      slurm suites)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 83 source files (82 on main
+      b7d4b7c + 1 new slurm_ssh.py)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: gh pr checks 54
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs)'
+  pending: >-
+    scratch merged-state full suite (branch parent b7d4b7c == origin/main
+    at dispatch, so the merged state == the head; full suite to run after
+    the fix round at head)
+
+design_review:
+  rule_table: >-
+    R-SLURM-S1..S27 is a first-match-wins ordered table (S1-12 active ->
+    running, S13-14 COMPLETED -> completed, S15-16 CANCELLED -> cancelled,
+    S17-26 FAILED-family -> failed, S27 total default -> failed +
+    unknown=True), exactly one trailing default, validated by
+    validate_slurm_state_rules (proves uniqueness + totality); decisions
+    are frozen SlurmStateDecision records with the rule trace; the
+    normalization strips, upper-cases and first-token-splits before
+    matching (case-insensitive, reason suffixes stripped) with a
+    post-assert that the default always matched.
+  batch_script: >-
+    _build_batch_script generates #!/bin/bash, set -e (module-load
+    failures abort the launch), module load lines in order, key-sorted
+    export KEY='value' lines (_single_quote escapes), set +e, then the
+    shlex.joined command with `; _sr_exit_code=$?; echo $_sr_exit_code >
+    <quoted statusfile>; exit $_sr_exit_code` so the scheduler's terminal
+    state always agrees with the command's exit status. Every
+    interpolated value is shell-quoted; space-bearing working directories
+    are quoted (tested); environment values are validated (no NUL/
+    newline) and keys are POSIX-safe names.
+  six_operation_surface: >-
+    prepare stages the durable record only (never touches the remote,
+    asserted); submit writes the script locally, mkdir -p the remote
+    workdir, pushes the script and invokes sbatch --chdir with absolute
+    output log -- each step its own session under the retry policy
+    (exact connect/run/disconnect sequence asserted), a mid-operation
+    drop reconnects and re-runs the pending step; status probes squeue
+    (active) then sacct (terminal) -- squeue active never queries sacct;
+    collect pulls declared outputs to <state_dir>/staging/<job_id>/ and
+    registers through the REAL DEV-M3-G02 ArtifactRegistry with
+    deterministic generate_id("artifact", job_id, output_name), real
+    SHA-256/size, producer stamp adapter:compute/slurm_ssh@v1.0 and
+    idempotent re-collection with no remote contact (conflicting
+    registration -> ComputeCollectError); cancel is local for prepared
+    and scancel + post-probe for running (confirmed terminal -> no note,
+    unconfirmed -> stable TERMINATE_PENDING_NOTE); resume re-attaches
+    from the record alone. Frozen decision records with strict to_dict;
+    byte-identical records/scripts/statuses for identical inputs;
+    injectable clock (6 identical fixed reads in the full cycle);
+    TypeError at type boundaries, ValueError-subclass stable errors.
+  credential_discipline: >-
+    Credentials live only on the constructor boundary: the durable record
+    schema is asserted to be exactly the 18 documented keys with no
+    credential-shaped tokens; the full-cycle state-file walk, the
+    transport call log repr and every pushed script are asserted free of
+    all four credential values; launch commands embed none (asserted via
+    the shell lines).
+  modules_environment: >-
+    Modules (validated against a widened but metacharacter-free name
+    alphabet) and key-sorted environment snapshots are captured on the
+    durable record, re-validated by from_dict, embedded in the batch
+    script, and part of the staged content (restaging with a different
+    module set is rejected; identical restaging accepted).
+
+scope_check: PASS
+notes: >-
+  Full 2-file review completed line by line (src slurm_ssh.py 2268 lines,
+  tests test_slurm_ssh_adapter.py 2054 lines). Every test injects a
+  scripted FakeSlurmTransport/FakeClock/RecordingBackoff (no network, no
+  sleeps, no randomness); every artifact assertion exercises the REAL
+  modules (core.ids.generate_id, artifacts.checksum.compute_sha256,
+  artifacts.registry.ArtifactRegistry, core.models.ArtifactManifest) --
+  no mocks, no parallel stores. The three `# type: ignore[arg-type]`
+  comments in the test file are deliberate boundary-test noise (passing
+  None/5/object() to prove TypeError at type boundaries), not evasion --
+  mypy 83 files passes with them exercised. Stale-base handling
+  compliant: branch parent b7d4b7c == origin/main at dispatch (no rebase,
+  no force-push, no amended history); three-dot diff origin/main...HEAD =
+  exactly the 2 new files +4322/-0; CI both jobs PASS. No deviations
+  from the frozen contract: allowed_scope respected
+  (adapters/compute/slurm_ssh.py + test_slurm_ssh_adapter.py only), no
+  existing test modified, no --no-verify, Draft PR, conventional commit
+  message with [DEV-M7-G04]. One finding: a dead module-level constant
+  (see findings). Decision: REJECT pending the fix.
+
+findings:
+- id: FND-M7-G04-01
+  severity: LOW
+  category: dead-code
+  file: src/scientific_reproduction/adapters/compute/slurm_ssh.py
+  line: 220
+  summary: >-
+    The module-level constant _ENV_VALUE_UNSAFE is never used:
+    _is_safe_env_value (line 288-291) inlines the same checks
+    ("\x00"/"\n"/"\r" not in value), and a worktree-wide grep finds only
+    the definition site. It is dead code -- the same category as
+    FND-M11-G03-02.
+  required_fix: >-
+    Delete the constant and its docstring (lines 218-220); no behavioral
+    change. Verification: ruff + mypy + `pytest -q tests/adapters/compute
+    -k slurm` (test_slurm_environment_validation exercises
+    _is_safe_env_value directly) must stay green.
+
+git_review:
+  pr_number: 54
+  pr_title: 'feat(adapters): slurm-over-ssh compute adapter [DEV-M7-G04]'
+  branch: feat/dev-m7-g04-slurm-ssh
+  base_sha: b7d4b7cec1cfcb857f660bc3eae6435b6d0c2589
+  reviewed_head_sha: 8505381c49f60667c894a72c6782c62513ddb18c
+  changed_files: 2 (src/scientific_reproduction/adapters/compute/
+    slurm_ssh.py, tests/adapters/compute/test_slurm_ssh_adapter.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: false
+  merge_method: squash

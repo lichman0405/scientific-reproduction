@@ -1,0 +1,61 @@
+event_id: EVT-20260814-0060
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M7-G04
+attempt_id: DEV-M7-G04-a1
+pr_number: 54
+head_sha: 788df929ac58f956a3d25a9f7825a4053e8d0aa4
+merge_sha: d7946473457ff6bc61bfb6449a3eb495da712d70
+summary: >-
+  DEV-M7-G04 merged (slurm-over-SSH compute adapter): 2 new files +4318/-0
+  (src/adapters/compute/slurm_ssh.py 2264; tests/adapters/compute/
+  test_slurm_ssh_adapter.py 2054). Review DEV-M7-G04-a1 REJECT with one
+  finding (FND-M7-G04-01: dead module-level constant _ENV_VALUE_UNSAFE,
+  grep proves only the definition site; _is_safe_env_value inlines the
+  checks); fix 788df92 deletes the constant (4 deletions, minimal
+  change); re-review DEV-M7-G04-a1-r2 PASS. AC-01 external Slurm job id:
+  submit parses "Submitted batch job <id>" into the durable record's
+  first-class external_id; a fresh adapter instance over the same state
+  directory drives status/collect/cancel/resume from the record alone
+  (squeue --jobs and scancel derived from the persisted id; terminal
+  records answered with zero remote contact); SSHTransportError
+  hierarchy is the retryable TRANSPORT class (failure_class="transport"),
+  clean remote answers (mkdir/sbatch refusal, unparseable submission) are
+  the stable SlurmJobLaunchError with failure_class="job", never retried
+  (exactly one sbatch attempt asserted), a definitively absent remote
+  output is SSHRemoteFileNotFoundError -> ComputeCollectError with one
+  pull attempt and one session; classifications survive re-hydration;
+  healthy resubmit clears the stale marker. AC-02 normalization: the
+  full scheduler vocabulary (12 active + 15 terminal tokens) normalizes
+  through the ordered rule table R-SLURM-S1..S27 (first-match-wins,
+  trailing total default S27 -> FAILED + unknown=True); queued states are
+  running with the raw state on the status outcome; terminal decisions
+  persisted once, answered from the record alone; unrecognized states
+  are job-level failures never transport; validate_slurm_state_rules
+  proves totality and rejects malformed tables; deterministic
+  case-insensitive normalization with byte-identical decisions; sacct
+  reason suffixes and code:signal exit fields parsed; a job absent from
+  both squeue and sacct is completed with the stable
+  SLURM_STATE_UNAVAILABLE_NOTE and collect verifies outputs
+  independently. AC-03 inputs immutable: byte-identical after retry
+  cycles, failed outcomes and launch refusals; full state-directory walk
+  proves no content leakage; staging holds exactly the declared outputs.
+  Batch script: module loads before key-sorted exports before the
+  shlex.joined command with `; _sr_exit_code=$?; echo $_sr_exit_code >
+  status; exit $_sr_exit_code` (scheduler terminal state always agrees
+  with the command's status); all values shell-quoted; space-bearing
+  workdirs quoted. Six-operation surface mirrors DEV-M7-G02/M7-G03 with
+  the REAL ArtifactRegistry (deterministic ids, real SHA-256/size,
+  producer stamp adapter:compute/slurm_ssh@v1.0, idempotent
+  re-collection); cancel local for prepared / scancel + post-probe for
+  running (TERMINATE_PENDING_NOTE when unconfirmed); resume from the
+  record alone. Credentials never persisted (exact 18-key record schema
+  asserted, full state-file + transport log + pushed script walk).
+  Verification: -k slurm 81 passed; tests/adapters 265; ruff clean; mypy
+  83 head/83 scratch; contracts PASS; scratch full suite 2591 passed, 6
+  skipped, 1 deselected (= 2510 base + 81, exact prediction; merged
+  state == head since branch parent b7d4b7c == origin/main); CI both
+  jobs PASS on head 788df92. Branch parent b7d4b7c (dispatch-time
+  origin/main; direct ancestor; no rebase). The three type: ignore
+  [arg-type] comments in the test file are deliberate boundary-test
+  noise, not evasion. Merged count 53/80.
