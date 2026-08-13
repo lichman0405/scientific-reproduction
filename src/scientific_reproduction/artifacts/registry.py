@@ -129,7 +129,12 @@ class ArtifactRegistry:
         artifact_id = manifest.artifact_id
         if not artifact_id or artifact_id in {".", ".."}:
             raise InvalidManifestError(f"invalid artifact_id {artifact_id!r}")
-        if Path(artifact_id).name != artifact_id:
+        # Backslash is rejected on EVERY platform, not only Windows: it is a
+        # path separator on Windows (and so a traversal vector there), while
+        # ``Path(artifact_id).name`` treats it as a plain filename character
+        # on POSIX. The per-object store is shared between OSes (e.g. a
+        # cloned state dir), so id validation must behave identically.
+        if Path(artifact_id).name != artifact_id or "\\" in artifact_id:
             raise InvalidManifestError(
                 f"artifact_id {artifact_id!r} must not contain path separators"
             )
