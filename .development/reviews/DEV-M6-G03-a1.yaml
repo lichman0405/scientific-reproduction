@@ -1,0 +1,115 @@
+review_id: DEV-M6-G03-a1
+goal_id: DEV-M6-G03
+attempt_id: DEV-M6-G03-a1
+reviewer: supervisor
+reviewed_at: '2026-08-14'
+verdict: PASS
+head_sha: e599a69d9e2ab77f6542399bcc52afc915a8eeca
+base_sha: dfbfe639c98a53a4b743ba5261155128783a5499
+pr_number: 43
+verification:
+- command: python -m pytest -q tests/workers -k permission
+  result: '95 passed, 69 deselected'
+- command: python -m pytest -q tests
+  result: '1797 passed, 6 skipped, 1 deselected (2nd authoritative run)'
+- command: ruff check .
+  result: 'All checks passed!'
+- command: mypy src/
+  result: 'Success: no issues found in 68 source files (66 base @ dfbfe63 + core/permissions.py + workers/permissions.py)'
+- command: scripts/validate_development_contracts.py
+  result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed'
+- command: gh pr checks 43
+  result: 'CI both jobs PASS (Test/lint/type-check 37s; contracts 9s)'
+ac_evidence:
+  AC-01: >-
+    enforce_goal_mutation selects FROZEN_GOAL_MUTATE for frozen GoalContract
+    (goal.frozen True -- the plan-freeze record) and GOAL_MUTATE for drafts;
+    matrix grants both to Supervisor alone (R-PRM-SUP1 first-match). All four
+    worker roles denied with matched_rule_id R-PRM-D1 (frozen and draft
+    variants). Evidence: test_permission_ac01_experiment_worker_guard_rejects_
+    frozen_goal_mutation, ..._computation_worker_guard_rejects_frozen_goal_
+    mutation, ..._analysis_and_diagnosis_workers_guard_reject_frozen_goal_
+    mutation, ..._worker_guard_rejects_draft_goal_mutation_too, ..._supervisor_
+    guard_allows_frozen_goal_mutation, ..._denied_message_is_stable_and_single_
+    line (message pinned verbatim), ..._workers_cannot_mutate_frozen_goals_by_
+    the_matrix, ..._guard_rejects_non_role_and_non_goal_inputs.
+  AC-02: >-
+    enforce_recovery_goal_creation (RECOVERY_GOAL_CREATE) and
+    enforce_requirement_closure (REQUIREMENT_CLOSE) reject every worker role
+    (parametrized x4), Research and Monitor; Supervisor allowed. No v0.1
+    recovery-goal/closure API exists -- checks are the deliverable per
+    08-STRICT-RECOVERY-CLOSURE.md SS1/SS2. Evidence: test_permission_ac02_
+    worker_guard_rejects_recovery_goal_creation (x4), ..._research_and_monitor_
+    guard_reject_recovery_goal_creation, ..._supervisor_guard_allows_recovery_
+    goal_creation, ..._worker_guard_rejects_requirement_closure (x4), ..._research_
+    guard_rejects_requirement_closure, ..._supervisor_guard_allows_requirement_
+    closure, ..._guard_type_error_boundaries, ..._workers_denied_closure_and_
+    recovery_actions_by_the_matrix.
+  AC-03: >-
+    enforce_plan_decision maps every core.models.DecisionType 1:1 to its matrix
+    action (action_for_decision_type, verbatim values; injectivity tested) and
+    denies research-role callers for all 11 decision types; research keeps its
+    SS3 propose/prepare actions (RESEARCH_ACTIONS). Evidence: test_permission_
+    ac03_research_guard_rejects_every_plan_decision (parametrized over all
+    DecisionType), ..._supervisor_guard_allows_every_plan_decision, ..._research_
+    can_propose_and_prepare_but_not_decide, ..._workers_guard_rejects_plan_
+    decisions, ..._plan_decision_guard_type_error_boundaries, ..._research_
+    decision_denied_message_is_stable.
+  AC-04: >-
+    enforce_scientific_interpretation (SCIENTIFIC_INTERPRETATION -- PASS/FAIL
+    is a review decision, 05-GOAL-RUN-SCHEMA.md SS7) denied to Monitor; monitor
+    observation actions (MONITOR_ACTIONS) stay allowed. Evidence: test_permission_
+    ac04_monitor_guard_rejects_scientific_interpretation, ..._monitor_guard_
+    rejects_interpretation_of_observed_runs (target RUN-COMP-017-01), ..._monitor_
+    observation_actions_stay_allowed, ..._monitor_cannot_interpret_or_alter_
+    scientific_inputs, ..._supervisor_guard_allows_interpretation, ..._
+    interpretation_guard_type_error_boundaries, ..._monitor_interpretation_
+    denied_message_is_stable.
+review_notes:
+- >-
+  Matrix grounding: Role worker members 1:1 verbatim from core.models.WorkerRole
+  (role_from_worker_role); 11 decision actions 1:1 verbatim from
+  core.models.DecisionType (action_for_decision_type); both mappings
+  injectivity-tested. No invented vocabulary.
+- >-
+  Rule-table paradigm matches the established rule-engine style: frozen
+  PermissionRule dataclasses, ordered table (R-PRM-SUP1 heads; per-role
+  may-lists; trailing total default R-PRM-D1 denies everything ungranted --
+  least privilege, SS3-SS8 'may not' lists are denials by default),
+  first-match-wins, matched_rule_id post-asserted (never None) on the full
+  7x46 product, ROLE_ACTION_RULESET_VERSION='1.0' stamped in every assessment,
+  validate_permission_ruleset (unique ids / non-empty / total-default-last)
+  with stable PermissionRulesetError messages.
+- >-
+  Guard purity proven by module-dict inspection test: core/permissions.py and
+  workers/permissions.py import no os/sys/time/datetime/random/socket/pathlib/
+  json/hashlib -- state enters only through injected arguments; guards are pure
+  functions of (role, target). PermissionDeniedError (ValueError subclass)
+  carries the full PermissionAssessment (exc.assessment); stable one-line
+  messages pinned verbatim in tests; TypeError at every public boundary.
+- >-
+  Branch history: head e599a69 is a merge of the worker commit (52ab408) with
+  origin/main (dfbfe63) -- origin/main advanced mid-work (DEV-M9-G04 landed);
+  the worker fetched and merged instead of rebasing (rebase forbidden by
+  policy). PR diff origin/main...HEAD = exactly the 4 new files (2028 insertions,
+  0 deletions) -- no conflict residue; merge-base = dfbfe63 (clean ancestry);
+  squash merge of PR #43 reproduces the identical merged tree that was fully
+  gate-verified. Acceptable deviation, documented.
+- >-
+  Worker self-caught and fixed two test defects pre-commit: (a) frozen-table
+  mutation test used object.__setattr__ which bypasses frozen dataclass
+  __setattr__ and could corrupt the shared module table -- replaced with plain
+  rule.rule_id assignment raising FrozenInstanceError without mutation; (b)
+  AC-04 stable-message assertion aligned with the implemented label-verbatim
+  message. Both fixes verified in final head.
+- >-
+  Flaky note: first authoritative full-suite run reported 1 failure
+  (test_leases.py::test_concurrent_takeover_of_expired_lease_single_winner) --
+  a state-subsystem concurrency/timing test disjoint from this change; isolated
+  rerun passed (4.36s) and the second full-suite run passed 1797/6/1. Classified
+  as load-dependent flake (M9-G06 worker ran its own full suite concurrently on
+  the same machine), not a regression; no fix action taken.
+- >-
+  mypy file count reconciled: 66 src files at dfbfe63 + 2 new = 68 (git
+  ls-tree verified); worker's '68' matches the authoritative head run.
+claim_corrections: []
