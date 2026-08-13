@@ -353,8 +353,9 @@ goals:
     merged_at: '2026-08-13'
     outcome: PASS
   DEV-M4-G01:
-    status: READY
-    attempts: []
+    status: WORKING
+    attempts:
+    - DEV-M4-G01-a1
     reviews: []
     merged_sha: null
     merged_at: null
@@ -395,8 +396,9 @@ goals:
     merged_at: null
     outcome: null
   DEV-M5-G01:
-    status: READY
-    attempts: []
+    status: WORKING
+    attempts:
+    - DEV-M5-G01-a1
     reviews: []
     merged_sha: null
     merged_at: null

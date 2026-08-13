@@ -1,0 +1,9 @@
+goal_id: DEV-M4-G01
+attempt_id: DEV-M4-G01-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 5d8f5c2fe6296b1aebfd04e9e70de8bf2240a212
+branch: feat/dev-m4-g01-init
+worktree: .worktrees/dev-m4-g01
+status: WORKING
+commit_shas: []
