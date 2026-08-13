@@ -1,0 +1,274 @@
+review_id: DEV-M10-G03-a1
+goal_id: DEV-M10-G03
+attempt_id: DEV-M10-G03-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_claude_ac01_capability_declares_the_native_operations
+    - test_claude_ac01_adapter_implements_the_locked_interface_surface
+    - test_claude_ac01_spawn_persistent_role_is_a_native_team_task
+    - test_claude_ac01_spawn_worker_is_a_native_team_task
+    - test_claude_ac01_spawn_task_id_is_a_pure_function_of_session_ref
+    - test_claude_ac01_fallback_subagent_is_the_explicit_fallback_path
+    - test_claude_ac01_refused_subagent_spawn_keeps_the_durable_identity
+    - test_claude_ac01_unavailable_store_answers_explicit_unsupported
+    - test_claude_ac01_default_adapter_without_sdk_answers_explicitly
+    - test_claude_sdk_guard_raises_typed_refusal_when_sdk_absent
+    - test_claude_task_bundle_is_canonical_and_carries_the_contract
+    - test_claude_unknown_session_is_session_not_found
+    - test_claude_invalid_inputs_raise_type_and_data_errors
+    notes: >-
+      The adapter demonstrates the spawn path both natively and through
+      the hermetic mock: spawn_persistent_role / spawn_worker are NATIVE
+      Agent Teams task spawns (task id derived deterministically from the
+      canonical session_ref via generate_id("team_task", session_ref); the
+      task bundle carries the durable identity plus the frozen role
+      contract directives -- contract_id, contract_version, state_truth_rule,
+      prompt_obligations/prohibitions -- the agent-team task mapping
+      deliverable); the capability record declares the six orchestration
+      operations native and deliberately excludes fallback_subagent (the
+      explicit fallback channel itself, always answered FALLBACK);
+      fallback_subagent always answers FALLBACK with a reason naming the
+      channel and carries the same canonical session_ref as a native spawn
+      of the same logical context; a refused subagent spawn, an
+      unavailable store (SDK absent) and a refusing store all answer the
+      explicit typed UNSUPPORTED/FALLBACK with a reason -- never a
+      fabricated session (AC-03); the default adapter (real thin wrapper
+      clients, no live SDK in the test runtime) honors the contract; the
+      SDK guard test pins AgentTeamTaskStore's typed TeamStoreUnavailableError
+      when the Agent SDK is absent. The concrete adapter implements the
+      full locked PlatformAdapter abstract surface plus the explicit
+      replacement path, and capability answers stay distinct from data
+      errors (SessionNotFoundError / PlatformAdapterDataError / TypeError
+      at the public boundaries).
+  AC-02:
+    status: PASS
+    evidence:
+    - test_claude_ac02_replaced_session_carries_the_same_session_ref
+    - test_claude_ac02_missing_task_record_does_not_rewrite_identity
+    - test_claude_ac02_task_record_alone_never_creates_identity
+    - test_claude_ac02_adapter_never_queries_the_store_by_identity_fields
+    - test_claude_ac02_replacement_reconstructs_from_workspace_snapshot
+    - test_claude_ac02_fallback_replacement_keeps_identity_and_outbox
+    - test_claude_ac02_snapshot_round_trips_and_corrupt_state_is_a_data_error
+    - test_claude_ac02_replace_unknown_or_unavailable
+    notes: >-
+      The Agent Teams task store is never authoritative for identity: the
+      durable identity is the Core's WorkerSessionHandle.session_ref,
+      reflected workspace-side in the SessionRegistry (the adapter's
+      shared-workspace slice, 13-EXECUTION-MONITOR.md SS3-SS4). The
+      direction of the dependency is pinned: the transport task id derives
+      from the session_ref (never the reverse), every store interaction is
+      keyed by the derived task id only (recorded by the fake), a replaced
+      session carries the byte-identical same session_ref (Run.
+      worker_session_ref never changes), a missing task-store record never
+      nullifies or rewrites the identity (resume still answers the typed
+      FALLBACK with the same durable handle), and a stray task record
+      alone never creates an identity (SessionNotFoundError). The
+      scenario-G reconstruction flow is pinned end to end: a crash-time
+      durable snapshot (to_records) replayed into a fresh registry
+      (from_records) with a fresh task store whose live sessions are gone
+      answers the same identity, the durable outbox survives the
+      replacement, and the replacement session takes over without
+      chat-memory access. Snapshot round-trips losslessly; corrupt
+      workspace state is the stable PlatformAdapterDataError.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_claude_ac03_resume_returns_fallback_naming_the_limitation
+    - test_claude_ac03_resume_is_native_when_a_live_session_is_attached
+    - test_claude_ac03_resume_with_unavailable_store_preserves_identity
+    - test_claude_ac03_is_session_alive_never_fabricates_liveness
+    - test_claude_ac03_terminated_session_is_never_resumed_or_replaced
+    - test_claude_ac03_terminate_is_native_when_a_live_session_is_stopped
+    - test_claude_expose_command_native_when_live_and_outboxed_when_not
+    - test_claude_deterministic_flow_repeatable
+    notes: >-
+      The known Agent Teams resume limitation (documented by Claude Code:
+      "/resume and /rewind do not restore in-process teammates" -- the
+      task record survives but the live in-process session object is gone
+      after a lead-process restart) is reconciled explicitly and pinned by
+      tests: resume_session answers FALLBACK with a fallback_reason naming
+      the limitation in three distinct states (task record present but no
+      live session; task record missing; store unavailable) and always
+      returns the durable identity -- never nullified; is_session_alive
+      never fabricates liveness -- NATIVE only with an observed boolean
+      (True when a live session is attached, False exactly for a durably
+      terminated session) and UNSUPPORTED with alive=None whenever the
+      liveness is unobservable; a terminated session is a durable fact
+      (resume/replace/command refused with typed reasons, second terminate
+      idempotent FALLBACK); the explicit replacement path (replace_session)
+      and fallback_subagent create replacements carrying the same canonical
+      session_ref reconstructing from the shared workspace with the durable
+      outbox preserved; expose_command delivers NATIVE into a live session
+      or preserves the directive in the durable outbox (FALLBACK, the
+      adapter-defined fallback channel); the whole flow is a pure function
+      of the inputs (byte-identical repeatability test).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m10-g03 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: b1709d073fe2b6d6e8bbfc63f0547e97424feaf9
+  commands:
+  - cmd: pytest -q tests/platform -k claude
+    result: '35 passed, 53 deselected in 0.14s (the goal verification
+      command, matches the worker claim exactly)'
+  - cmd: pytest -q tests/platform
+    result: '88 passed in 0.23s (platform suite = 55 baseline + 33 new
+      claude tests; no regression)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 98 source files (92 baseline + 6
+      new claude_code modules)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (scratch worktree at b1709d0)
+    result: '2859 passed, 6 skipped, 1 deselected in 141.34s -- exactly
+      the expected count (2826 base at e781573 + 33 new), zero failures,
+      no lease flake this run'
+  - cmd: gh pr checks 64
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head b1709d0)'
+
+design_review:
+  mechanism_mapping_honest: >-
+    The operation-to-mechanism mapping (the goal deliverable) is explicit
+    and honest about the v0.1 product surface: persistent roles and
+    goal-scoped workers map to Agent Teams task-store sessions
+    (worker_mode: agent_team_task; file-based task list surviving
+    restarts, in-process teammate session objects not surviving), the
+    explicit fallback channel maps to a short-lived headless single-shot
+    subagent run (claude -p style), terminate maps to the SDK stop_task
+    surface. All real Claude-specific interaction sits behind two
+    hermetically mockable boundaries (TeamStoreClient, ProcessRunner) the
+    tests fake deterministically -- the M8-G06 SlurmClusterMock precedent
+    -- and the real wrappers answer typed refusals in the deterministic
+    runtime (AgentTeamTaskStore raises the typed TeamStoreUnavailableError
+    when the SDK is absent; ClaudeSubprocessRunner answers accepted=False
+    without running a live process). The NATIVE spawn path is demonstrated
+    through the scripted fake exactly as AC-01 permits ("real or
+    hermetically mocked spawn path"), and the default adapter without a
+    live SDK still honors the full contract explicitly.
+  task_store_never_authoritative: >-
+    AC-02 is enforced structurally: derive_task_id(session_ref) is a pure
+    function of the durable identity (the direction of the dependency can
+    never invert -- the task id cannot influence the session_ref), the
+    SessionRegistry is the workspace-side reflection of the Core's
+    identity, rehydratable from a durable snapshot via from_records
+    (13-EXECUTION-MONITOR.md SS3-SS4 reconstruction), every store
+    interaction is keyed only by the derived task id, and the tests pin
+    the three dangerous directions: replacement preserves the same
+    byte-identical identity, a missing record does not rewrite it, and a
+    stray record does not create one. The registry's put() preserves the
+    durable outbox on re-registration so a replacement never loses the
+    pending commands preserved for it.
+  resume_limitation_reconciled: >-
+    AC-03 is reconciled explicitly and mechanically: the module docstring
+    documents the Claude Code limitation verbatim; resume_session answers
+    the typed FALLBACK with a fallback_reason naming the limitation in
+    three distinct states (record present / record missing / store
+    unavailable -- each with its own stable reason constant); liveness is
+    never fabricated (NATIVE only with an observed boolean, UNSUPPORTED
+    alive=None otherwise); a terminated session is a durable fact in the
+    registry (never resumed, never replaced, never commanded, idempotent
+    terminate); replace_session and fallback_subagent create replacements
+    with the same canonical session_ref reconstructing from the shared
+    workspace including the durable outbox; and the whole flow is pinned
+    by a byte-identical repeatability test. The sixteen stable reason
+    constants are exported for callers and asserted verbatim by tests.
+  house_style: >-
+    The package follows the house style exactly: frozen dataclass records
+    (TaskStoreProbe, SubprocessSpawn, SessionRecord), StrEnum vocabulary
+    (SessionState ACTIVE/TERMINATED), TypeError at the public boundaries,
+    stable ValueError-subclassed errors (TeamStoreUnavailableError extends
+    PlatformAdapterError; PlatformAdapterDataError for corrupt data),
+    deterministic ids via core.ids.generate_id (team_task / subagent_spawn
+    kinds), canonical serialization with lossless round-trip and
+    corrupt-state wrapping into the stable error, and no wall clock, no
+    randomness, no I/O anywhere in the package -- the determinism hygiene
+    is asserted by import scans over every module of the package.
+  neutrality_containment: >-
+    The Claude-specific containment is enforced by a custom AST scan
+    (test_claude_hygiene_no_claude_specific_imports_at_module_level): in
+    every claude_code module, module-level imports are stdlib or
+    scientific_reproduction only, and Claude-specific roots (anthropic /
+    claude_code / claude / us.anthropic / claude_agent_sdk) may appear
+    only inside function bodies -- the real SDK import is a guarded
+    importlib.import_module inside AgentTeamTaskStore._load_sdk, so the
+    package imports and the adapter functions without the Agent SDK. The
+    neutrality test vocabulary extends test_base_neutrality with the SDK
+    package name, and test_claude_hygiene_no_wall_clock_and_no_randomness
+    scans every module for random/uuid/time/datetime.
+  observations: >-
+    The pyright diagnostics seen during development are all known noise
+    classes, not defects: the unreachable marks in the claude_code modules
+    are the standard TypeError-boundary static narrowing (raise
+    TypeError(...) followed by code pyright cannot see past), the
+    "task_id is not accessed" marks were mid-development interface-stub
+    snapshots (the final head is clean under the authoritative gates:
+    ruff with F401 selected, mypy, pytest, CI), and the "import ... could
+    not be resolved" for task_bundle in adapter.py is the known scanner
+    artifact of running pyright without an editable install. Two harmless
+    notes, not findings: (1) a fresh spawn_worker / spawn_persistent_role
+    of the exact same logical context after a termination re-registers the
+    deterministic identity as ACTIVE (the durable outbox is preserved);
+    this is defensible -- identity is a deterministic function of the
+    logical context and the Core controls contexts -- but no test pins it
+    either way; the M12 monitor work should be aware of it. (2)
+    ClaudeSubprocessRunner.spawn_subagent and derive_spawn_id raise the
+    documented ValueError for malformed input rather than
+    PlatformAdapterDataError -- consistent within the module and
+    unreachable from the adapter's validated paths. The worker also
+    correctly reported that origin/main advanced by the .development/-only
+    state commit eadbce46 and did not rebase; the merge guard
+    (--match-head-commit) keeps the chain exact.
+
+findings: []
+
+scope_check: PASS
+notes: >-
+  Full review of all eight new files completed line by line
+  (src/.../adapters/platform/claude_code/: team_store.py 252 new,
+  process_runner.py 153 new, session_registry.py 260 new, task_bundle.py
+  141 new, adapter.py 759 new, __init__.py 104 new;
+  tests/platform/test_claude_adapter.py 684 new (17 tests),
+  test_claude_resume.py 591 new (16 tests); 33 tests total). Three-dot
+  diff origin/main...HEAD = exactly these 8 files +2936/-0, all within
+  the frozen allowed_scope (adapters/platform/claude_code/** +
+  tests/platform/test_claude*). Stale-base handling compliant: the branch
+  parent b1709d0~1 = e781573 == origin/main at dispatch time; origin/main
+  then advanced by the single .development/-only state commit eadbce46,
+  which has no scope overlap -- the worker correctly did not rebase, and
+  the merge guard keeps the chain exact. No deviations from the frozen
+  contract: allowed_scope respected, no existing test modified, no
+  --no-verify, Draft PR (no reviewers), a conventional subject-only
+  commit message with [DEV-M10-G03], and the PR was opened via the gh CLI
+  (the MCP token lacks PR scope; the Draft PR itself is correct). The
+  plan_approval_required goal contract was satisfied: the implementation
+  plan (operation-by-operation mechanism mapping, the resume-limitation
+  reconciliation design, the hermetic mock boundary, the test plan) was
+  delivered in the PR description and reviewed as part of this review.
+  All worker-reported gates independently confirmed (35 / 88 / ruff /
+  mypy 98 / contracts; full suite 2859 passed exactly with no flake in
+  this run; CI both jobs PASS on head b1709d0). Zero findings. Decision:
+  PASS; merge authorized as squash.
+
+git_review:
+  pr_number: 64
+  pr_title: 'feat(platform): claude code orchestration adapter [DEV-M10-G03]'
+  branch: feat/dev-m10-g03-claude-code-adapter
+  base_sha: e781573e8088c3227323405f5d15c72efbd231b3
+  reviewed_head_sha: b1709d073fe2b6d6e8bbfc63f0547e97424feaf9
+  changed_files: 8 (adapters/platform/claude_code/ x6, tests/platform/test_claude_*.py x2)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
