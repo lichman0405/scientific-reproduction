@@ -571,12 +571,15 @@ goals:
     merged_at: null
     outcome: null
   DEV-M9-G01:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M9-G01-a1
+    reviews:
+    - DEV-M9-G01-a1
+    - DEV-M9-G01-a1-r2
+    merged_sha: 0429b18
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M9-G02:
     status: READY
     attempts: []
