@@ -1,0 +1,9 @@
+goal_id: DEV-M9-G01
+attempt_id: DEV-M9-G01-a1
+change_type: FEATURE
+base_branch: main
+base_sha: d6694f6e4216e64dfb5b4bcfbe30b8bb452fcb10
+branch: feat/dev-m9-g01-protocols
+worktree: .worktrees/dev-m9-g01
+status: WORKING
+commit_shas: []
