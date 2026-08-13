@@ -1,0 +1,20 @@
+goal_id: DEV-M7-G05
+attempt_id: DEV-M7-G05-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 48c4c6c31bb2b242134380eda650d5dbde3caa6b
+branch: feat/dev-m7-g05-adapter-e2e
+worktree: .worktrees/dev-m7-g05
+status: MERGED
+pr:
+  number: 55
+  url: https://github.com/lichman0405/scientific-reproduction/pull/55
+  head_sha: 5dd208d613f2c34757b3379f125d2e9915b25311
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M7-G05-a1
+merge_commit_sha: 320b0b82d3553f760007e38f7f5f67201a9b408f
+merged_at: '2026-08-14'
+commit_shas:
+- 5dd208d613f2c34757b3379f125d2e9915b25311

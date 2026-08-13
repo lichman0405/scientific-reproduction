@@ -1,0 +1,50 @@
+event_id: EVT-20260814-0061
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M7-G05
+attempt_id: DEV-M7-G05-a1
+pr_number: 55
+head_sha: 5dd208d613f2c34757b3379f125d2e9915b25311
+merge_sha: 320b0b82d3553f760007e38f7f5f67201a9b408f
+summary: >-
+  DEV-M7-G05 merged (Lab/Compute adapter end-to-end fixtures): 1 new file
+  +1014/-0 (tests/integration/test_external_adapters.py, 9 tests).
+  Review DEV-M7-G05-a1 PASS (no defects). AC-01 lab dispatch outlives
+  the worker: fresh FilesystemLabAdapter instance over the same handoff
+  root answers status from the persisted dispatch record alone
+  (RUNNING_EXTERNAL), detects the returned Result Package
+  (RESULT_AVAILABLE) and collects it, associating it with the correct
+  Run (dispatch id / run_id / manifest package_id); two-run test proves
+  no cross-matching; re-dispatch across instances raises
+  DuplicateDispatchError with the original handoff byte-unchanged
+  (exactly-once). AC-02 Slurm job outlives the worker: fresh
+  SlurmComputeAdapter instance (own transport, own session) over the
+  same state directory reconciles status/resume/collect from the durable
+  record alone -- fresh probe derives squeue --jobs from the record's
+  external id (asserted via the call log); the terminal decision is
+  persisted once and later answered with zero remote contact (status and
+  resume both, transport.log == []); collect registers outputs through
+  the real ArtifactRegistry with deterministic ids and real SHA-256.
+  AC-03 deterministic external ids: dispatch id (generate_id("dispatch",
+  package_id, run_id)) and job id (generate_id("job", run_id)) are pure
+  functions of the run identity, is_valid_id passes, they appear in the
+  persisted dispatch/job records, and a schema-valid Run (RunExternal
+  backend/dispatch_id/job_id) round-trips through validate_object with
+  zero errors; collected artifact ids deterministic and persisted;
+  distinctive injected credentials scanned out of every state file,
+  both transports' logs and the pushed script. Design: integration
+  fixtures over the real state machinery (no core mocks), the DEV-M7-G04
+  scripted-transport pattern mirrored (FakeClock fixed stamp,
+  RecordingBackoff zero delay, strict FakeSlurmTransport), real
+  filesystem lab handoff under tmp_path, no network/sleeps/randomness.
+  Verification: new file 9 passed; tests/adapters tests/integration 408
+  (= 399 baseline + 9); ruff clean; mypy 83 head/83 scratch; contracts
+  PASS; scratch full suite 2600 passed, 6 skipped, 1 deselected (= 2591
+  base + 9, exact prediction; merged state == head since branch parent
+  48c4c6c == origin/main); CI both jobs PASS on head 5dd208d. Branch
+  parent 48c4c6c (dispatch-time origin/main; direct ancestor; no rebase).
+  Worker self-caught 3 issues pre-report (FakeTransport run_command
+  stub, ruff F821/I001, DuplicateDispatchError message assertion) --
+  verified fixed on head. Supervisor merge retry after a guard-SHA typo
+  (correct head verified via git rev-parse before the second attempt).
+  Zero type: ignore / noqa. Merged count 54/80.
