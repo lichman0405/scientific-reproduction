@@ -1,0 +1,245 @@
+review_id: DEV-M9-G01-a1
+goal_id: DEV-M9-G01
+attempt_id: DEV-M9-G01-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-13'
+decision: REJECT
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_protocol_ac01_gate_blocks_acceptance_when_no_protocol_registered
+    - test_protocol_ac01_gate_blocks_unfrozen_primary_draft
+    - test_protocol_ac01_gate_blocks_exploratory_only_protocol
+    - test_protocol_ac01_gate_allows_only_after_frozen_primary_protocol
+    - test_protocol_ac01_freeze_creates_frozen_record_with_metadata
+    - test_protocol_ac01_freeze_persists_schema_valid_canonical_record
+    - test_protocol_ac01_freeze_does_not_touch_draft_file
+    - test_protocol_ac01_freeze_requires_primary_protocol
+    - test_protocol_ac01_freeze_rejects_already_frozen_and_second_freeze
+    - test_protocol_ac01_freeze_rejects_non_draft_version
+    - test_protocol_ac01_freeze_rejects_unregistered_and_stale_drafts
+    - test_protocol_ac01_frozen_commit_none_outside_git_repository
+    - test_protocol_ac01_gate_decision_trace_and_ruleset_version
+    - test_protocol_ac01_deterministic_freeze_across_workspaces
+    notes: >-
+      14 tests (matches claim exactly). The acceptance gate is the ordered
+      ACCEPTANCE_GATE_RULES table R-ACC-N1/E1/U1/A1 (trailing total
+      default): blocks with no registered protocol (N1), with only
+      exploratory records (E1), with an unfrozen primary draft (U1);
+      allows only after freeze_primary_protocol (A1). assert_acceptance_
+      eligible raises AcceptanceGateProhibitedError naming the deciding
+      rule. freeze_primary_protocol requires PRIMARY (ProtocolNotPrimary
+      Error), pre-freeze (ProtocolNotDraftError), registered draft
+      (ProtocolNotFoundError / ProtocolStateMismatchError), draft version
+      (InvalidProtocolVersionError), formal version not already frozen
+      (ProtocolAlreadyFrozenError); persists schema-validated canonical
+      JSON with freeze metadata (frozen_at fixed 2026-06-01T00:00:00Z,
+      frozen_commit = pre-freeze git HEAD, None outside a Git repository
+      verified by the suspended-.git test); draft file never rewritten;
+      deterministic across workspaces.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_protocol_ac02_exploratory_record_accepted_and_isolated
+    - test_protocol_ac02_replacing_primary_protocol_rejected
+    - test_protocol_ac02_exploratory_write_to_primary_id_rejected
+    - test_protocol_ac02_primary_result_immutable_and_authoritative
+    - test_protocol_ac02_exploratory_write_after_freeze_isolated
+    - test_protocol_ac02_frozen_primary_rejects_direct_mutation
+    - test_protocol_ac02_no_clobber_any_analysis_id
+    - test_protocol_ac02_primary_authority_rule_table_first_match_and_total
+    - test_protocol_ac02_primary_still_authoritative_after_revision
+    notes: >-
+      9 tests (the commit message body said "AC-02 x10" -- a miscount; the
+      Result Package count of 9 is correct, verified by reading the file:
+      9 ac02-named tests). The primary-authority table PRIMARY_AUTHORITY_
+      RULES R-AUTH-P1/P2/D1/A1 is enforced at every register_analysis_
+      record write: exploratory write where a primary record is registered
+      (P1), primary write where a primary record is registered (P2),
+      exactly-once per id (D1), total allowed default (A1). Exploratory
+      records are accepted only under their own id, isolated files, the
+      primary record byte-untouched; the frozen primary stays authoritative
+      after revision; direct mutation of frozen records raises
+      FrozenInstanceError; the rule table is total (default predicate
+      matches every input, asserted for all four input combinations).
+  AC-03:
+    status: PASS
+    evidence:
+    - test_protocol_ac03_revision_creates_next_draft_with_parent_link
+    - test_protocol_ac03_revision_preserves_old_record_untouched
+    - test_protocol_ac03_old_version_reported_superseded_in_lineage
+    - test_protocol_ac03_lineage_shows_frozen_until_revision
+    - test_protocol_ac03_revision_requires_registered_frozen_protocol
+    - test_protocol_ac03_revision_rejects_stale_plan_object
+    - test_protocol_ac03_revision_of_revision_extends_lineage
+    - test_protocol_ac03_revision_freeze_produces_formal_next_version
+    - test_protocol_ac03_revision_rejects_duplicate_next_version
+    - test_protocol_ac03_revision_rejects_drafts_and_exploratory
+    - test_protocol_ac03_protocol_status_ruleset_versioned_and_total
+    - test_protocol_ac03_protocol_status_first_match_wins
+    - test_protocol_ac03_protocol_status_assessment_records_decision_trace
+    notes: >-
+      13 tests (the Result Package label "(12)" and the commit message
+      "AC-03 x12" are miscounts; the package's own list of 13 names is
+      correct, verified by reading the file). revise_protocol requires a
+      REGISTERED FROZEN formal PRIMARY protocol (ProtocolNotFoundError /
+      ProtocolNotFrozenError / ProtocolStateMismatchError /
+      ProtocolNotPrimaryError / InvalidProtocolVersionError /
+      DuplicateProtocolVersionError) and creates v<N+1>-draft with
+      parent_protocol_version = the frozen version; the old record stays
+      byte untouched. The PROTOCOL_STATUS_RULES table R-PROT-D1/P1/F1
+      (first match wins, total default) computes the effective lineage
+      status -- SUPERSEDED is computed, never stored. Revision chains
+      verified to v3-draft with supersession at each frozen step;
+      revision-of-revision freeze produces formal v2 with parent link.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m9-g01 (fresh venv, editable install
+    from the worktree)
+  head_sha: 1712b33d4c77bd19a749ef128bf8a4deedc5ce3d
+  commands:
+  - cmd: pytest -q tests/analysis -k protocol
+    result: 49 passed (matches worker claim exactly)
+  - cmd: pytest -q tests/analysis
+    result: 49 passed (matches worker claim exactly; the whole
+      tests/analysis directory is the 49 new tests)
+  - cmd: pytest -q tests
+    result: 1364 passed, 6 skipped, 1 deselected, exit 0 (matches worker
+      claim exactly; arithmetic: 1315 base at d6694f6 + 49 new = 1364; no
+      flake on this run)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 58 source files (matches worker
+      claim; arithmetic verified: 57 source files at base d6694f6 + 1 new
+      src file protocols.py = 58)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed"
+  - cmd: gh pr checks 33
+    result: "Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head 1712b33)"
+  counts_notes: >-
+    Test count reconciliation (read the file directly): AC-01 x14,
+    AC-02 x9, AC-03 x13, paradigm x13 = 49 total. The commit message body
+    ("AC-02 x10", "AC-03 x12") and the Result Package label ("AC-03 (12)")
+    miscounted; all 49 tests exist and are named per convention (every
+    name contains "protocol" so -k protocol selects the whole suite). The
+    pyright flag "protocols.py:1330:60 Expected 1 positional argument"
+    observed during the worker run is stale: line 1330 is blank on the
+    final head; mypy and ruff pass on the head.
+
+design_review:
+  acceptance_gate: >-
+    AC-01 gate is a pure function of the registered lineage: protocol_
+    registered / primary_protocol_registered / primary_protocol_frozen
+    recomputed from list_protocol_versions at call time, decided by the
+    ordered ACCEPTANCE_GATE_RULES table with a trailing total default;
+    assessments record the exact input, every rule decision, matched_rule_
+    id and ruleset_version "1.0".
+  primary_authority: >-
+    AC-02 authority table decided at every register_analysis_record write
+    (R-AUTH-P1 exploratory-vs-primary, R-AUTH-P2 primary-vs-primary,
+    R-AUTH-D1 exactly-once, R-AUTH-A1 total default) with stable
+    PrimaryRecordReplaceProhibitedError naming the matched rule; the
+    registry holds pre-freeze records only (frozen=True rejected with
+    ProtocolAlreadyFrozenError) and freezing happens solely through
+    freeze_primary_protocol.
+  versioned_storage: >-
+    Versioned records live at protocols/versions/<id>@<version>.json -- a
+    sibling subdirectory invisible to the DEV-M4-G04 non-recursive
+    "*.json" glob (proven by test_protocol_versioned_records_invisible_
+    to_planning_registry). The id-keyed draft keeps its M4-G04 meaning
+    and is never rewritten; revision writes one new file per version;
+    metadata (metadata_version, parent_protocol_version, frozen_at,
+    frozen_commit) rides on schema-permitted extra keys, validated by
+    validate_and_reject and ignored by the model layer.
+  supersession: >-
+    PROTOCOL_STATUS_RULES R-PROT-D1/P1/F1: drafts never superseded;
+    frozen + newer version registered -> SUPERSEDED; total default
+    FROZEN. SUPERSEDED is a computed lineage status -- stored record
+    bytes are never rewritten (AC-03).
+  determinism: >-
+    All decisions are pure functions of registered state; timestamps are
+    injectable (naive datetimes rejected with ValueError); canonical JSON
+    (sorted keys, indent 2); identical state across workspaces produces
+    identical drafts, freezes and lineages.
+  paradigm: >-
+    TypeError at public boundaries; ValueError-subclass error hierarchy
+    (all 12 protocol error types subclass AnalysisProtocolError ->
+    ValueError, verified); stable messages; frozen dataclasses; rule
+    tables with RULESET_VERSION constants; from __future__ import
+    annotations; __all__ exports.
+
+findings:
+- id: FND-M9-G01-01
+  severity: MEDIUM
+  title: Glob wildcard injection / incomplete id validation in list_protocol_versions
+  location: >-
+    protocols.py _is_safe_registry_id / _validate_protocol_id (lines
+    319-343) and list_protocol_versions (line 1325:
+    versions_dir.glob(f"{analysis_id}@*.json"))
+  description: >-
+    The id validator rejects only "", ".", "..", "/", "\" and "@"; glob
+    metacharacters (*, ?, [, ]) pass. Because the id is interpolated
+    into the glob, a wildcard query returns records of OTHER analyses.
+  empirical_proof: >-
+    Executed on head 1712b33 in the review venv: after registering and
+    freezing ANL-1, list_protocol_versions(root, "ANL*") and
+    list_protocol_versions(root, "*") both returned ANL-1@v1 -- foreign
+    records the caller never asked about. The acceptance gate and
+    primary-authority checks evaluate over this list, so a wildcard id
+    silently changes decisions (acceptance can be granted for a
+    never-registered analysis id; lineage/status computed over mixed
+    records).
+  secondary_defect: >-
+    Same root cause: registering an id containing "*" on Windows leaks a
+    raw OSError (Errno 22, illegal filename char) instead of a clean
+    InvalidProtocolIdError, and would succeed outright on POSIX. Ids
+    with glob metacharacters must be rejected deterministically at the
+    API boundary on every platform.
+  scope_note: >-
+    planning/plan.py (DEV-M4-G04, merged) has the same weak validator
+    but only globs fixed patterns ("*.json") -- the id is never
+    interpolated into a glob there, so it is not affected and must NOT
+    be modified by this fix. The fix is confined to M9-G01's own new
+    module.
+  required_fix: >-
+    1) Reject *, ?, [, ] in _validate_protocol_id with the stable
+    InvalidProtocolIdError message pattern; update the docstrings that
+    describe the id rule. 2) Tests (every name still containing
+    "protocol"): InvalidProtocolIdError for ids containing each of * ? [
+    ] at register_analysis_record, read_protocol_version,
+    list_protocol_versions and freeze_primary_protocol. 3) Re-run the
+    full verification set and push a new commit to
+    feat/dev-m9-g01-protocols (no force-push, no --no-verify, no
+    deleted tests, no scope expansion). 4) Wait for CI PASS on the PR
+    and report the new head SHA + results.
+
+scope_check: PASS
+notes: >-
+  Scope exactly matches DEV-M9-G01: src/scientific_reproduction/analysis/
+  protocols.py (1608 lines) + tests/analysis/test_protocols.py (960
+  lines, 49 tests) + tests/analysis/protocol_helpers.py (86 lines). No
+  changes to frozen ACs, no deleted tests, no --no-verify, no force-push
+  (single commit 1712b33). The frozen_commit_none_outside_git_repository
+  test uses the Windows-safe suspended-.git technique (rename, not
+  delete -- Git object files are read-only on Windows). No flake on the
+  full-suite run. REJECT is issued for FND-M9-G01-01 only; the fix
+  brief has been dispatched to the worker; a re-review (-r2) will follow
+  on the updated head.
+
+git_review:
+  pr_number: 33
+  pr_title: 'feat(analysis): frozen primary analysis protocol records [DEV-M9-G01]'
+  branch: feat/dev-m9-g01-protocols
+  base_sha: d6694f6e4216e64dfb5b4bcfbe30b8bb452fcb10
+  reviewed_head_sha: 1712b33d4c77bd19a749ef128bf8a4deedc5ce3d
+  changed_files: 3 (src/scientific_reproduction/analysis/protocols.py,
+    tests/analysis/test_protocols.py, tests/analysis/protocol_helpers.py)
+  ci_status: PASS
+  merge_authorized: false
+  merge_method: squash (pending fix and re-review)

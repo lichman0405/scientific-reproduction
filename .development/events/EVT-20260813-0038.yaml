@@ -1,0 +1,27 @@
+event_id: EVT-20260813-0038
+timestamp: '2026-08-13'
+type: GOAL_REJECTED
+goal_id: DEV-M9-G01
+attempt_id: DEV-M9-G01-a1
+pr_number: 33
+head_sha: 1712b33d4c77bd19a749ef128bf8a4deedc5ce3d
+merge_sha: null
+summary: >-
+  DEV-M9-G01-a1 (PR #33, head 1712b33d) rejected by supervisor review with
+  one MEDIUM finding FND-M9-G01-01: glob wildcard injection / incomplete
+  id validation in analysis/protocols.py -- _validate_protocol_id rejects
+  only "", ".", "..", "/", "\", "@", so glob metacharacters (*, ?, [, ])
+  pass and list_protocol_versions globs f"{analysis_id}@*.json" with the
+  id interpolated; empirically proven on the head (queries "ANL*" and "*"
+  both returned ANL-1@v1, foreign records; acceptance gate and
+  primary-authority decisions silently contaminated; registering "*"-ids
+  leaks raw OSError on Windows instead of InvalidProtocolIdError).
+  Verification otherwise fully green: 49 (k protocol) + 49 (tests/analysis)
+  + 1364-6-1 full suite + ruff clean + mypy 58 files + contracts PASS +
+  CI both jobs PASS; AC evidence verified AC-01x14 / AC-02x9 / AC-03x13 /
+  paradigm x13 (commit/package count labels were miscounts; tests
+  correct). Fix brief dispatched to worker (reject *, ?, [, ] in
+  _validate_protocol_id + tests + docstrings, re-run verification, push
+  to feat/dev-m9-g01-protocols); re-review DEV-M9-G01-a1-r2 to follow.
+  planning/plan.py unaffected (no id-interpolated glob there; fix
+  confined to M9-G01 module).
