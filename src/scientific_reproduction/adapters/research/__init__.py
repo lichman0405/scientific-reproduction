@@ -1,8 +1,72 @@
+"""research adapters subsystem package (DEV-M5-G06).
+
+Implements the public ResearchAdapter interface for open scholarly /
+public database acquisition (09-RESEARCH-SUBSYSTEM.md section 4;
+15-ADAPTER-SPEC.md section 4): the adapter contract and capability
+vocabulary (``base.py``), the registry with defined absence semantics
+for optional commercial adapters (``registry.py``), the deterministic
+offline fixtures (``fixtures.py``) and the first open-source adapter
+skeletons (``public.py``). Commercial adapters remain optional and
+absent in v0.1; missing paid access degrades gracefully and never
+blocks the core research workflow (AC-01).
 """
-adapters/research subsystem package (skeleton).
 
-No scientific runtime behavior is implemented in this milestone (DEV-M0-G01).
-"""
+from scientific_reproduction.adapters.research.base import (
+    ADAPTER_CONTRACT_VERSION,
+    AdapterAcquisitionResult,
+    AdapterCapability,
+    AdapterDataError,
+    AdapterError,
+    AdapterOperation,
+    AdapterRawRecord,
+    AdapterRecordNotFoundError,
+    AdapterRegistrationError,
+    AdapterSearchQuery,
+    AdapterSearchResult,
+    AdapterSourceRef,
+    AdapterState,
+    ResearchAdapter,
+)
+from scientific_reproduction.adapters.research.fixtures import (
+    FIXTURE_VERSION,
+    PUBLIC_SOURCE_FIXTURES,
+)
+from scientific_reproduction.adapters.research.public import (
+    PUBLIC_ADAPTERS,
+    CrossrefOpenAlexAdapter,
+    CrystallographicDatabaseAdapter,
+    FixtureResearchAdapter,
+    PublicRepositoryAdapter,
+)
+from scientific_reproduction.adapters.research.registry import (
+    OPTIONAL_COMMERCIAL_ADAPTERS,
+    ResearchAdapterRegistry,
+    acquire_available_sources,
+)
 
-__all__: list[str] = []
-
+__all__ = [
+    "ADAPTER_CONTRACT_VERSION",
+    "FIXTURE_VERSION",
+    "AdapterError",
+    "AdapterDataError",
+    "AdapterRecordNotFoundError",
+    "AdapterRegistrationError",
+    "AdapterState",
+    "AdapterOperation",
+    "AdapterSearchQuery",
+    "AdapterSourceRef",
+    "AdapterRawRecord",
+    "AdapterSearchResult",
+    "AdapterAcquisitionResult",
+    "AdapterCapability",
+    "ResearchAdapter",
+    "FixtureResearchAdapter",
+    "CrossrefOpenAlexAdapter",
+    "PublicRepositoryAdapter",
+    "CrystallographicDatabaseAdapter",
+    "PUBLIC_ADAPTERS",
+    "OPTIONAL_COMMERCIAL_ADAPTERS",
+    "ResearchAdapterRegistry",
+    "acquire_available_sources",
+    "PUBLIC_SOURCE_FIXTURES",
+]
