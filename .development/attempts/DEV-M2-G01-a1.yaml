@@ -1,0 +1,9 @@
+goal_id: DEV-M2-G01
+attempt_id: DEV-M2-G01-a1
+change_type: FEATURE
+base_branch: main
+base_sha: cb17406eca8fbb288422fe73ce22caef30fbc0ca
+branch: feat/dev-m2-g01-lifecycle-transitions
+worktree: .worktrees/dev-m2-g01
+status: WORKING
+commit_shas: []

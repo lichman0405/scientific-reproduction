@@ -3,7 +3,6 @@ total_frozen_goals: 80
 ready_to_dispatch:
 - DEV-M2-G01
 - DEV-M2-G03
-- DEV-M2-G04
 - DEV-M2-G07
 - DEV-M3-G01
 waiting_on_dependencies:
@@ -83,5 +82,6 @@ merged:
 - DEV-M1-G04
 - DEV-M1-G05
 - DEV-M1-G06
+- DEV-M2-G04
 - DEV-M3-G02
 blocked_human: []

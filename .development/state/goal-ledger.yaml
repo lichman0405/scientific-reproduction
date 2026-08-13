@@ -277,12 +277,13 @@ goals:
     merged_at: null
     outcome: null
   DEV-M2-G04:
-    status: READY
-    attempts: []
+    status: MERGED
+    attempts:
+    - DEV-M2-G04-a1
     reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    merged_sha: 3db8a8c
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M2-G05:
     status: READY
     attempts: []

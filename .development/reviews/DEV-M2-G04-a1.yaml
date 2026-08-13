@@ -1,0 +1,89 @@
+goal_id: DEV-M2-G04
+attempt_id: DEV-M2-G04-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Main-figure location alone can never force CRITICAL: the
+      single-condition battery (6 cases, each single checklist input alone
+      including main-figure-only) proves no single input classifies
+      CRITICAL; the grid bi-implication invariant over the exhaustive 2^5
+      input grid pins CRITICAL ⟺ affects_main_figure AND
+      (invalidates_main_result OR changes_paper_conclusion); main-figure
+      alone classifies REQUIRED with matched rule R-REQ-1; main figure
+      plus a non-conclusion input (affects_required_step) stays below
+      CRITICAL. Independent rerun at head 0435a84: 20 passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Same checklist yields the identical classification: exact equality
+      of full assessments (criticality, matched_rule_id, complete decision
+      trace) over the exhaustive 32-element grid on repeat evaluation;
+      100x repeated evaluations on a representative subset; checklist
+      reconstructed from its recorded to_dict() form classifies
+      identically (input-equivalence determinism); full enum coverage over
+      the grid; first-matching-rule-wins pinned (all-true checklist →
+      R-CRIT-1). Pure functions only — no LLM, no randomness, no
+      wall-clock dependence anywhere in the module (verified by review of
+      the code). Independent rerun: 20 passed, exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Classification inputs remain auditable: every assessment records the
+      exact input checklist (asserted equal over the whole grid), all 7
+      rule decisions in evaluation order with rule_id/description/
+      criticality, the matched rule id, and RULESET_VERSION; the audit
+      trail is self-consistent for every grid element — the matched rule
+      is the first rule whose predicate holds, every earlier decision is
+      not matched, and the matched rule's criticality equals the returned
+      classification. Independent rerun: 20 passed, exit 0.
+verification_rerun:
+  - command: python -m pytest -q tests/rules -k critical
+    exit_code: 0
+  - command: python -m pytest -q tests/rules
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed (core/rules/criticality.py,
+    tests/rules/test_criticality.py) — all inside allowed_scope;
+    core/rules/__init__.py NOT created (coordination constraint
+    respected — DEV-M2-G01 owns it); frozen paths untouched; single
+    conventional commit with [DEV-M2-G04], no force-push, no amend; no
+    tests deleted or weakened (tests/rules at base had 0 tests — this
+    goal adds the first rules suite).
+  - >-
+    Design reviewed: frozen all-bool checklist model; ordered 7-rule
+    table (first match wins) with a trailing unconditional default rule
+    making classification total; rule ordering is normative and
+    documented (R-CRIT-1/2 → R-REQ-1/2/3 → R-SUP-1/2); the R-REQ-2
+    corner case (main result invalidated OUTSIDE a main-figure position
+    → REQUIRED) is a strict-contract deterministic default, documented
+    in the PR as a known limitation; the post-loop "assert matched_rule_
+    id is not None" is the project's accepted runtime-contract-check
+    pattern. Reuses the frozen Criticality enum from core/models.py —
+    no schema/model changes.
+  - >-
+    Pyright IDE diagnostics seen during development (undefined _Rule at
+    what is now the CRITICALITY_RULES table, __all__ mismatch) do not
+    exist in the reviewed head — stale mid-edit snapshots; the final
+    file defines CriticalityRule at module level, listed in __all__,
+    and mypy (the configured gate) is green on 30 files.
+  - >-
+    Worker followed contract: conventional commit, draft PR #13 with
+    template fields, CI both jobs PASS at reviewed head, no self-approval,
+    no merge; no test-deletion; coordination constraint honored.
+git_review:
+  pr_number: 13
+  reviewed_head_sha: 0435a84f975e5d3a0364c29f39de6f95fd3dcd0a
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

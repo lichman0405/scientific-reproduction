@@ -1,0 +1,9 @@
+goal_id: DEV-M2-G03
+attempt_id: DEV-M2-G03-a1
+change_type: FEATURE
+base_branch: main
+base_sha: cb17406eca8fbb288422fe73ce22caef30fbc0ca
+branch: feat/dev-m2-g03-evidence-rules
+worktree: .worktrees/dev-m2-g03
+status: WORKING
+commit_shas: []

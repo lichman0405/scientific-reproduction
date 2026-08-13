@@ -1,0 +1,21 @@
+event_id: EVT-20260813-0012
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M2-G04
+attempt_id: DEV-M2-G04-a1
+pr_number: 13
+head_sha: 0435a84f975e5d3a0364c29f39de6f95fd3dcd0a
+merge_sha: 3db8a8c652ea7da30a94d7fd019571bb60c1521e
+summary: >-
+  DEV-M2-G04 merged: checklist-driven criticality classification
+  (core/rules/criticality.py + tests/rules/test_criticality.py, 20
+  tests). Frozen all-bool CriticalityChecklist; ordered 7-rule table
+  (first match wins, trailing default makes classification total);
+  CriticalityAssessment carries exact checklist, all rule decisions,
+  matched_rule_id, RULESET_VERSION. AC-01 bi-implication invariant over
+  exhaustive 2^5 grid; AC-02 exact-equality determinism; AC-03 auditable
+  trace self-consistency. First rules suite in repo. No
+  core/rules/__init__.py created (DEV-M2-G01 owns it). Verification at
+  head: 20/20 rules, 490 passed/6 skipped/1 deselected full suite, ruff +
+  mypy clean, CI both jobs PASS; supervisor review PASS; squash-merged
+  with head-commit match. Batch: 1 of 4 M2/M3 goals merged.
