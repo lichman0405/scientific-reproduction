@@ -1,0 +1,69 @@
+goal_id: DEV-M0-G02
+attempt_id: DEV-M0-G02-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Independent rerun at head 31e76b4 in supervisor-created venv:
+      python -m pytest -q -> "2 passed in 0.01s" (exit 0).
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Independent rerun: python -m ruff check . -> "All checks passed!"
+      (exit 0) at head 31e76b4. [tool.ruff] target-version py311,
+      lint.select E4/E7/E9/F/I; development/ and .development/ excluded via
+      extend-exclude with documented frozen-content reason.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Independent rerun: python -m mypy src/ -> "Success: no issues found in
+      16 source files" (exit 0). mypy chosen over pyright (pip-only env,
+      no Node for CI) and documented in scripts/verify.py docstring;
+      [tool.mypy] python_version 3.11, strict=false, check_untyped_defs=true.
+  - criterion_id: AC-04
+    result: PASS
+    evidence: >-
+      scripts/verify.py runs fresh-venv install -e .[dev], pytest -q,
+      ruff check ., mypy src/ in order, prints [verify] PASS / non-zero on
+      failure; worker exercised end-to-end on Windows (exit 0). text=True
+      added -> deterministic CompletedProcess[str] on Windows+POSIX (fixes
+      DEV-M0-G01 review note).
+  - criterion_id: AC-05
+    result: PASS
+    evidence: >-
+      .github/workflows/ci.yml extended with "Test, lint, and type check" job
+      (install -e .[dev] -> pytest -> ruff -> mypy); existing
+      validate-development-contracts job unchanged. Both checks PASS on
+      PR #4 (runs 31689008281).
+verification_rerun:
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 5 files changed — .github/workflows/ci.yml, .gitignore,
+    pyproject.toml, scripts/validate_development_contracts.py,
+    scripts/verify.py — all inside allowed_scope; README.md untouched
+    (owned by DEV-M0-G03, no conflict).
+  - >-
+    Declared change: import-order (I001) fix inside
+    scripts/validate_development_contracts.py to satisfy the new ruff gate —
+    within allowed_scope (scripts/**), no behavioral change; validator
+    independently rerun: PASS (14 milestones, 80 goals, DAGs acyclic).
+  - >-
+    G01 review follow-ups all resolved: text=True annotation fix,
+    .verify-venv/ + .sup-verify-venv/ + caches added to .gitignore.
+git_review:
+  pr_number: 4
+  reviewed_head_sha: 31e76b4e9da156a1fc2e3c0dba63d189abbb8c25
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

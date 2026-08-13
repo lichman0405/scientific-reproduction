@@ -1,10 +1,8 @@
 dag_version: 1
 total_frozen_goals: 80
 ready_to_dispatch:
-- DEV-M0-G02
-- DEV-M0-G03
-waiting_on_dependencies:
 - DEV-M0-G04
+waiting_on_dependencies:
 - DEV-M1-G01
 - DEV-M1-G02
 - DEV-M1-G03
@@ -84,4 +82,6 @@ passed_not_merged: []
 merged:
 - DEV-M0-G00
 - DEV-M0-G01
+- DEV-M0-G02
+- DEV-M0-G03
 blocked_human: []

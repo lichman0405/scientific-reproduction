@@ -1,0 +1,18 @@
+goal_id: DEV-M0-G03
+attempt_id: DEV-M0-G03-a1
+change_type: DOCUMENTATION
+base_branch: main
+base_sha: bf75d612b265
+branch: docs/dev-m0-g03-spec-docs
+worktree: .worktrees/dev-m0-g03
+status: MERGED
+commit_shas: []
+merge_method: squash
+merge_commit_sha: aea8420
+merged_at: '2026-08-13'
+pr:
+  number: 3
+  url: https://github.com/lichman0405/scientific-reproduction/pull/3
+  head_sha: 475915d2764fe84b2a58412a200450a02e4fa65a
+  state: merged
+  ci_status: pass

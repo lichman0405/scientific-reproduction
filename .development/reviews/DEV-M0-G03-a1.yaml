@@ -1,0 +1,54 @@
+goal_id: DEV-M0-G03
+attempt_id: DEV-M0-G03-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Root README.md links "Normative specification index — locked
+      architecture decisions" -> docs/spec/index.md and the ADR directory
+      docs/adr/; docs/spec/index.md maps every locked spec document (00-26,
+      CLAUDE-CODE-HANDOFF, IMPLEMENTATION-CHECKLIST, PACKAGE-MANIFEST,
+      SPEC-CHANGELOG, development/ plan+goals+milestones+schemas, schemas/,
+      agent-contracts/, templates/, examples/fdm-201) to canonical path and
+      purpose — locked decisions discoverable from repository root.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      docs/spec/index.md is an explicit pointer-only index (states
+      "do not duplicate normative requirements"; verbatim quotes used only
+      where load-bearing, e.g. "Workers report facts. Supervisor makes
+      scientific decisions."); root spec docs untouched (git diff shows only
+      the 4 allowed files). Referencing, not copying — no normative text
+      altered.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      docs/adr/0000-adr-template.md exists: ADR-NNNN, status
+      (proposed/accepted/superseded), date, context, decision, consequences,
+      related change request/goal, reviewer=Development Supervisor,
+      supersedes links. docs/adr/README.md documents when an ADR is required
+      (implementation deviations per 20/21; change requests per
+      DEVELOPMENT-CHANGE-REQUEST.template.yaml) and the lifecycle.
+verification_rerun:
+  - command: python -m pytest -q
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 4 files — README.md, docs/spec/index.md,
+    docs/adr/0000-adr-template.md, docs/adr/README.md — all inside
+    allowed_scope; frozen paths untouched.
+  - >-
+    README ownership respected: concurrent DEV-M0-G02 worker did not touch
+    README.md; no merge conflict risk.
+  - >-
+    Worker followed contract: conventional commit with [DEV-M0-G03], Draft
+    PR #3, CI (Validate development contracts) green, no self-approval.
+git_review:
+  pr_number: 3
+  reviewed_head_sha: 475915d2764fe84b2a58412a200450a02e4fa65a
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
