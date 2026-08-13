@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scientific-reproduction"
+version = "0.1.0"
+description = "Scientific Reproduction Skill - deterministic runtime for auditable scientific reproduction (v0.1)"
+readme = "docs/README.md"
+requires-python = ">=3.11"
+# v0.1 runtime is intentionally stdlib-only; no runtime dependencies yet.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scientific_reproduction"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/scripts",
+    "/docs",
+    "/pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
