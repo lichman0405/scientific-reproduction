@@ -1,0 +1,52 @@
+event_id: EVT-20260814-0063
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M8-G02
+attempt_id: DEV-M8-G02-a1
+pr_number: 57
+head_sha: a80ed7ea9a3ff16dd4b3b63cea9e4d1648d8f7ac
+merge_sha: 0b4983519cd69ba0ac8357255a15bb5a55cc47ba
+summary: >-
+  DEV-M8-G02 merged (reconciliation loop + transition event emission):
+  2 files +1896/-0 (monitoring/reconcile.py 874 new, tests/monitoring/
+  test_reconcile.py 1022 new, 24 tests). Review DEV-M8-G02-a1 PASS (no
+  defects). AC-01 exactly-once completion: ReconcileEngine transitions
+  the Run to RESULT_AVAILABLE through the real core.transitions
+  machinery + schema-validating state backend, appends exactly one
+  external_status_change event (actor execution-monitor, stable reason,
+  sequence 1) through the real ProjectEventLog under the deterministic
+  idempotency key reconcile.completed:<run_id>, and records the
+  checkpoint progress; steady-state re-polls are pure no-ops (event log
+  untouched, bytes identical) and a crash between the Run write and the
+  event/checkpoint bookkeeping converges on the single completion via
+  the deterministic event id. AC-02 no fabrication: COMPLETION_SIGNALS
+  == {"RESULT_AVAILABLE"} only; UNKNOWN/TEMPORARY_UNAVAILABLE/transient
+  probe exceptions (message never persisted -- credential-shaped scan)/
+  unrecognized states are observed and checkpointed, never completing;
+  completion for pre-external or CANCELLED runs raises
+  ReconcileContractError with nothing fabricated; the default probe
+  always reports unknown. AC-03 idempotent across restart: a fresh
+  engine over the same state dir reconstructs progress from durable
+  state alone and re-reconciling yields identical outcomes and
+  byte-identical durable state (runs/events/state trees; two-directory
+  byte-equality proven; empty watch set deterministic). Design: injected
+  ExternalStateProbe (Callable[[RunExternal], str]) -- the monitoring
+  package never imports adapters (proven in a fresh interpreter); the
+  engine persists nothing itself (all writes through registry/
+  checkpoint/run store/event log); identity-mismatch guard
+  (ReconcileContractError); corrupt progress fails loudly
+  (CorruptProgressError); injected clock; canonical sorted JSON;
+  ValueError-based ReconcileError hierarchy; TypeError at public
+  boundaries. Verification: -k reconcile 24 passed/40 deselected;
+  tests/monitoring 64 passed (= 40 + 24); tests/adapters tests/
+  integration 408 (= 399 + 9, no regression); ruff clean; mypy 86
+  head/86 scratch (= 85 + 1); contracts PASS; scratch full suite 2664
+  passed, 6 skipped, 1 deselected (= 2640 base + 24, exact prediction;
+  no flake on the independent run -- the worker's single full-suite
+  failure was the known load flake, re-run alone passed in 0.12s); CI
+  both jobs PASS on head a80ed7e. Branch parent 2ea99ad
+  (dispatch-time origin/main; single commit; no rebase). No worker
+  deviations; stale pyright diagnostics from the worker's editing
+  window confirmed non-issues on the final head (mypy 86 clean, all
+  referenced methods defined). All 6 type: ignore[arg-type] are
+  deliberate boundary tests. Merged count 56/80.
