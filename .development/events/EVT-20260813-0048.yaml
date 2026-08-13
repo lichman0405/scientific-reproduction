@@ -1,0 +1,34 @@
+event_id: EVT-20260813-0048
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M9-G04
+attempt_id: DEV-M9-G04-a1
+pr_number: 42
+head_sha: 1122b0327430f84d8d95ccb6732e3ab74f738d10
+merge_sha: aa796272a9c020171a3b96b9e3d296063bb08b36
+summary: >-
+  DEV-M9-G04 merged (replicate sufficiency + additional-run decision
+  hook): replication.py +1196/-0, test_replication.py +1028/-0. Review
+  DEV-M9-G04-a1 PASS. AC-01 grouping is input (independent/technical
+  fields; only independent enters _measures; technical-only never
+  satisfies the floor; empty independent stable-rejected). AC-02
+  DEFAULT_MIN_INDEPENDENT=3 gate; override read verbatim from frozen
+  acceptance; never weakened below 1; ambiguous/non-numeric rejected;
+  max(floor,2) determination gate (single replicate INDETERMINATE even
+  with floor 1). AC-03 ReplicateStatus SUFFICIENT/INSUFFICIENT/
+  INDETERMINATE (no PASS/FAIL/REPRODUCED; no collision with
+  RequirementOutcome strings); requested_additional_runs 0 iff SUFFICIENT
+  (INSUFFICIENT: ceil(n*(h/th)^2)-n pinned in test; INDETERMINATE:
+  floor-n, min 1); precision read verbatim from frozen acceptance
+  (required, missing/ambiguous/non-numeric rejected); module imports
+  core.models only (outcome closure impossible); reporting hooks feed
+  exact G02 ResultRecord shapes proven end-to-end through real
+  register_result; validate_replication_mode consumes frozen
+  DecisionMode (EQUIVALENCE/BOUNDED_INTERVAL only, never invents
+  REPLICATION). Verification on head: 47 (-k replic, tests/analysis) /
+  1610-6-1 full / ruff clean / mypy 64 (worker's scratch '66' was a
+  scratch-context artifact) / contracts PASS / CI both jobs PASS.
+  Branch parent 73690579 (ancestor of origin/main; no rebase --
+  forbidden; worker scratch-verified merged state at 177c4ac: 1702).
+  M9 progress: G01+G02+G03+G04+G05 merged; G06 now ready (depends on
+  G04+G05).
