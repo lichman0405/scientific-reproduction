@@ -33,6 +33,14 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Slow tests (DEV-M0-G04): long-running tests that create fresh virtual
+# environments and hit the network. Excluded from the default run to keep
+# the deterministic gate fast; run them with `python -m pytest -m slow`.
+# A CLI `-m` option overrides this addopts expression (last one wins).
+markers = [
+    "slow: long-running tests requiring network access (run with pytest -m slow)",
+]
+addopts = ["-m", "not slow"]
 
 # Ruff linter (DEV-M0-G02): deterministic lint gate for the repository's
 # owned code (scripts/, src/, tests/).
