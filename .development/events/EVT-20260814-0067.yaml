@@ -1,0 +1,48 @@
+event_id: EVT-20260814-0067
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M8-G05
+attempt_id: DEV-M8-G05-a1
+pr_number: 60
+head_sha: ed2dc18accb27a01f3ccc4b752c318cff41daa83
+merge_sha: ddb8e81d4aa4811e8df31148e702bd1186171ee9
+summary: >-
+  DEV-M8-G05 merged (duplicate-trigger protection and follow-up request):
+  2 files +1570/-1 (monitoring/triggers.py 796 new, tests/monitoring/
+  test_triggers.py 808 new, 23 tests) after a REJECT -> -r2 fix cycle.
+  Review DEV-M8-G05-a1 REJECT (FND-M8-G05-01: _existing_record treated an
+  existing non-regular file at the record path as "never triggered", so
+  scan()/trigger() surfaced a raw OSError from atomic_write/os.replace
+  instead of the documented stable CorruptTriggerStateError -- inconsistent
+  with the module's own get()/list_triggered() and its "corrupt state
+  fails loudly, never silently" contract); fix ed2dc18 (+34/-1) added the
+  non-regular-file guard mirroring get()/_read_record (same wording) and
+  test_triggers_non_regular_record_path_fails_loudly (directory at record
+  path: scan() AND trigger() raise CorruptTriggerStateError, hook never
+  invoked, nothing persisted). Re-review DEV-M8-G05-a1-r2 PASS (FND
+  CLOSED). AC-01 exactly-once via the durable record: first scan invokes
+  the injected follow-up hook exactly once (counting proof) and persists
+  the deterministic record (generate_id("trigger", run_id, kind)); every
+  repeated scan/restarted registry replays the single original record
+  (replayed=True, zero hook calls, byte-identical bytes); result-bearing
+  states mirror recovery's durably-completed set; non-result runs are
+  observed and ignored (never fabricated); hook-before-write with the
+  crash-window disclosure (hook failure propagates loudly, nothing
+  recorded, decision re-issuable). AC-02: fresh registry reconstructs the
+  trigger set from persisted records alone; raw-JSON audit (record_
+  version, deterministic id, run id, kind vocabulary, injected-clock
+  stamp, receipt). TriggerContractError for strict triggering of
+  non-result runs; CorruptTriggerStateError for corrupt records (fails
+  loudly, never overwritten); TypeError at boundaries; no adapters import
+  (fresh-interpreter proof); deterministic ids/clock/canonical bytes; no
+  secrets (byte walk). Verification (head ed2dc18): -k trigger 24
+  passed/112 deselected; tests/monitoring 136 (= 86 G01/G02/G04 + 27 G03
+  + 23 new); tests/adapters tests/integration 408; ruff clean; mypy 89
+  files; contracts PASS; scratch full suite 2736 passed, 6 skipped, 1
+  deselected (= 2713 base at 9a4d8e9 + 23 new, exact prediction; no lease
+  flake); CI both jobs PASS. Branch parent 9a4d8e9 (dispatch-time
+  origin/main; two clean commits, no rebase/force-push). 8 deliberate
+  type: ignore boundary tests; pyright noise (unreachable = boundary
+  raises' narrowing, unresolved imports = scanner context, NonStringHook
+  = deliberate boundary test, _run unused = underscore params) judged
+  non-defects. Merged count 59/80.

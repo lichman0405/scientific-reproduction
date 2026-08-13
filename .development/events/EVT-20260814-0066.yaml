@@ -1,0 +1,47 @@
+event_id: EVT-20260814-0066
+timestamp: '2026-08-14'
+type: GOAL_REJECTED
+goal_id: DEV-M8-G05
+attempt_id: DEV-M8-G05-a1
+pr_number: 60
+head_sha: c8aa46c45aa0a32ea32d10820092a60ee3763ee0
+merge_sha: null
+summary: >-
+  DEV-M8-G05-a1 (PR #60, head c8aa46c) rejected by supervisor review with
+  one LOW finding FND-M8-G05-01: _existing_record (triggers.py lines
+  724-731) returns None for a path that exists but is not a regular file
+  (e.g. a directory at <state_dir>/trigger/<run_id>.json), so scan()/
+  trigger() proceed to _issue_trigger -> atomic_write -> os.replace and
+  raise a raw OSError (PermissionError on Windows) -- not the module's
+  documented stable CorruptTriggerStateError -- while get() (695-701) and
+  _read_record (570-574) raise CorruptTriggerStateError for exactly this
+  corrupt state; inconsistent with the module's own contract ("corrupt
+  state fails loudly, never silently"). Corrupt directory is still never
+  overwritten, so AC-01/AC-02 safety hold (LOW, stable-error discipline).
+  Verification otherwise fully green on head c8aa46c: -k trigger 23
+  passed/112 deselected (22 new + 1 G03 name match); tests/monitoring 135
+  (= 86 G01/G02/G04 + 27 G03 + 22 new); tests/adapters tests/integration
+  408 (no regression); ruff clean; mypy 89 files; contracts PASS; full
+  suite 2735 passed, 6 skipped, 1 deselected (= 2713 base at 9a4d8e9 + 22
+  new; no lease flake); CI both jobs PASS. AC evidence verified: AC-01 x3
+  (repeated scan single follow-up with counting hook + byte-identity,
+  later result states exactly-once, non-result runs ignored with zero
+  hook calls/zero files), AC-02 x3 (fresh-registry reconstruction,
+  restart rescan never duplicates, raw-JSON audit). Design review:
+  exactly-once IS the durable record (hook-before-write with the same
+  crash-window disclosure as G03 -- hook failure propagates loudly,
+  nothing recorded, decision stays re-issuable; once recorded every
+  re-scan is a pure replay); non-fabrication safe by construction
+  (result-bearing states mirror recovery's durably-completed set;
+  TriggerContractError for the strict entry; frozenset-singleton kind
+  vocabulary; no adapters import proven in a fresh interpreter);
+  deterministic ids/clock/canonical bytes; TypeError at boundaries; 8
+  deliberate type: ignore boundary tests; pyright diagnostics (6
+  unreachable = boundary raises' static narrowing, unresolved imports =
+  scanner lacks editable install, NonStringHook = deliberate wrong-type
+  boundary test invisible to mypy) judged non-defects. Branch parent
+  9a4d8e9 == origin/main at commit time (worker fast-forwarded to the
+  G03 merge before its single commit; no rebase/force-push/amended
+  history). Fix brief dispatched to worker: mirror the non-regular-file
+  check in _existing_record + one test + re-run verification + push new
+  commit; re-review DEV-M8-G05-a1-r2 to follow.

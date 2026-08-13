@@ -1,0 +1,21 @@
+goal_id: DEV-M8-G05
+attempt_id: DEV-M8-G05-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 9a4d8e9424acf97f779032cb6dc8af4900e33096
+branch: feat/dev-m8-g05-trigger-registry
+worktree: .worktrees/dev-m8-g05
+status: MERGED
+pr:
+  number: 60
+  url: https://github.com/lichman0405/scientific-reproduction/pull/60
+  head_sha: ed2dc18accb27a01f3ccc4b752c318cff41daa83
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M8-G05-a1-r2
+merge_commit_sha: ddb8e81d4aa4811e8df31148e702bd1186171ee9
+merged_at: '2026-08-14'
+commit_shas:
+- c8aa46c45aa0a32ea32d10820092a60ee3763ee0
+- ed2dc18accb27a01f3ccc4b752c318cff41daa83

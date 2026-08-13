@@ -1,0 +1,160 @@
+review_id: DEV-M8-G05-a1-r2
+goal_id: DEV-M8-G05
+attempt_id: DEV-M8-G05-a1
+reviewer: Development Supervisor (independent re-review on fix head)
+reviewed_at: '2026-08-14'
+decision: PASS
+supersedes: DEV-M8-G05-a1
+prior_decision: REJECT (FND-M8-G05-01, see
+  .development/reviews/DEV-M8-G05-a1.yaml)
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_ac01_trigger_repeated_scan_spawns_single_followup
+    - test_ac01_trigger_later_result_states_also_trigger_exactly_once
+    - test_ac01_trigger_scan_ignores_every_non_result_run
+    notes: >-
+      Unchanged from the a1 review: exactly-once is the durable record --
+      scan() resolves the existing record from disk before anything, the
+      first scan of a result-bearing Run invokes the injected hook exactly
+      once (counting proof) and persists the deterministic record, repeated
+      scans replay the single original record with byte-identical state;
+      every result-bearing state triggers exactly once; every non-result
+      Run is observed and ignored (zero hook calls, zero files). All
+      AC-01 tests still pass on the fix head (24 in the -k trigger gate
+      including the new corrupt-path test).
+  AC-02:
+    status: PASS
+    evidence:
+    - test_ac02_trigger_fresh_registry_reconstructs_trigger_set_after_restart
+    - test_ac02_trigger_restart_rescan_never_duplicates_existing_followup
+    - test_ac02_trigger_record_is_auditable_from_durable_state_alone
+    notes: >-
+      Unchanged from the a1 review: a fresh registry reconstructs the
+      trigger set from the persisted records alone; restart re-scans
+      replay with zero fresh-hook calls and byte-identical state; the
+      record is auditable from raw JSON (deterministic id, run id, kind
+      vocabulary, injected-clock stamp, receipt). All AC-02 tests still
+      pass on the fix head.
+  FND-M8-G05-01:
+    status: PASS
+    evidence:
+    - >-
+      _existing_record (triggers.py, now lines 731-742) raises
+      CorruptTriggerStateError("trigger record at <path> is not a regular
+      file") when the record path exists but is not a regular file,
+      mirroring get()/_read_record exactly (same stable wording), with the
+      new Raises clause in the docstring.
+    - >-
+      test_triggers_non_regular_record_path_fails_loudly: a directory at
+      <state_dir>/trigger/<run_id>.json makes scan() AND trigger() raise
+      CorruptTriggerStateError (message matched against "not a regular
+      file"); the follow-up hook is never invoked (hook.calls == []) and
+      nothing is persisted (tree_bytes(state) == []).
+    notes: >-
+      Fix verified in full: the fix commit ed2dc18 touches exactly the two
+      in-scope files (+34/-1): the 11-line _existing_record guard +
+      docstring and the 23-line new test. The module-wide contract
+      ("corrupt state fails loudly, never silently -- it is never
+      overwritten") now holds across all four entry points
+      (scan/trigger/get/list_triggered), and the corrupt path is proven
+      never overwritten and never followed up. No other behavior changed.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m8-g05 (editable install resolves to
+    the M8-G05 worktree at the fix head ed2dc18; identical tree as the
+    scratch worktree)
+  head_sha: ed2dc18accb27a01f3ccc4b752c318cff41daa83
+  commands:
+  - cmd: pytest -q tests/monitoring -k trigger
+    result: '24 passed, 112 deselected (23 AC/contract tests + the new
+      corrupt-path test; matches the worker claim exactly)'
+  - cmd: pytest -q tests/monitoring
+    result: '136 passed (135 at a1 + 1 new)'
+  - cmd: pytest -q tests/adapters tests/integration
+    result: '408 passed (no regression, unchanged from a1)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 89 source files (unchanged from
+      a1)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests/monitoring/test_triggers.py::test_triggers_non_regular_record_path_fails_loudly
+    result: 1 passed (the new test, isolated)
+  - cmd: pytest -q tests (scratch worktree at ed2dc18; branch parent ==
+      origin/main 9a4d8e9, so the merged state == the head)
+    result: >-
+      2736 passed, 6 skipped, 1 deselected (= 2713 base at 9a4d8e9 + 23
+      new, exact prediction; no lease flake on the independent run -- the
+      worker's own full suite also passed 2736/6/1 with no flake)
+  - cmd: gh pr checks 60
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head ed2dc18)'
+  pyright_notes: >-
+    The pyright diagnostics on the fix head are unchanged noise classes:
+    the 6 "unreachable" markers at triggers.py 306/473/478/482/529/540
+    (TypeError boundary raises under static narrowing), the test import
+    resolution failures (scanner context without an editable install),
+    the NonStringHook reportArgumentType at test line 561 (the deliberate
+    wrong-type boundary test, invisible to mypy which checks src/ only),
+    and the 4 "_run is not accessed" infos (intentional underscore-named
+    unused parameters). None are defects -- mypy/ruff/pytest/CI are the
+    authoritative gates and all pass on the head.
+
+design_review:
+  fix_boundary: >-
+    The fix is exactly the briefed stable-error discipline correction,
+    strictly inside the two in-scope files: _existing_record now mirrors
+    the non-regular-file check of get()/_read_record (same stable wording
+    "is not a regular file", same CorruptTriggerStateError), and one test
+    proves scan()/trigger() raise it with the hook never invoked and
+    nothing persisted. No schema change, no storage-format change, no
+    frozen AC reinterpretation, no flow-path change, no behavior change
+    outside the corrupt-state path.
+  no_scope_creep: >-
+    Fix commit ed2dc18 is exactly 2 files +34/-1 (triggers.py guard +
+    docstring, test_triggers.py new test). No --no-verify, no force-push,
+    no amended history (two clean commits on the branch), no deleted
+    tests (22 -> 23, monotonic), no scope expansion. Branch parent
+    9a4d8e9 == origin/main at dispatch and at merge review time.
+  determinism_preserved: >-
+    The deterministic record ids, injected clock, canonical sorted bytes,
+    sorted list_triggered, byte-identity across directories and the
+    no-secrets walk all still PASS on the fix head -- the fix adds only a
+    loud-failure branch on corrupt state and its test.
+
+scope_check: PASS
+notes: >-
+  Re-review of the fix for FND-M8-G05-01 (LOW, stable-error discipline).
+  The fix delivers exactly the briefed requirements: the non-regular-file
+  guard in _existing_record (same wording as get()/_read_record, so the
+  documented contract now holds across all four entry points) and one new
+  test proving scan() and trigger() fail loudly with the hook never
+  invoked and nothing persisted. All 7 head gates re-verified
+  independently on ed2dc18 (24 / 136 / 408 / ruff / mypy 89 / contracts /
+  new-test isolated), the scratch full suite confirms the exact
+  merged-state prediction 2736 (= 2713 + 23) with no lease flake, and CI
+  both jobs PASS on the head. AC-01/AC-02 coverage unchanged and passing.
+  FND-M8-G05-01 CLOSED (FIXED). The pyright noise classes are unchanged
+  and judged non-defects (see pyright_notes). Decision: PASS; merge
+  authorized as squash with subject "feat(monitoring): duplicate-trigger
+  protection and follow-up request [DEV-M8-G05]".
+
+git_review:
+  pr_number: 60
+  pr_title: 'feat(monitoring): duplicate-trigger protection and follow-up request [DEV-M8-G05]'
+  branch: feat/dev-m8-g05-trigger-registry
+  base_sha: 9a4d8e9424acf97f779032cb6dc8af4900e33096
+  reviewed_head_sha: ed2dc18accb27a01f3ccc4b752c318cff41daa83
+  changed_files: 2 (monitoring/triggers.py,
+    tests/monitoring/test_triggers.py; the fix commit ed2dc18 touches
+    only these same two files)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
