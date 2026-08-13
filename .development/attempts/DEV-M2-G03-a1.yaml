@@ -5,5 +5,15 @@ base_branch: main
 base_sha: cb17406eca8fbb288422fe73ce22caef30fbc0ca
 branch: feat/dev-m2-g03-evidence-rules
 worktree: .worktrees/dev-m2-g03
-status: WORKING
-commit_shas: []
+status: MERGED
+commit_shas:
+- 07e4968882ca8462f2e8cad63bcfe90bdfe33558
+pr:
+  number: 16
+  url: https://github.com/lichman0405/scientific-reproduction/pull/16
+  head_sha: 07e4968882ca8462f2e8cad63bcfe90bdfe33558
+  state: closed
+  ci_status: PASS
+merge_method: squash
+merge_commit_sha: 8980f9dfe2282b4dd063ccdf4ca7191f690e37d4
+merged_at: '2026-08-13'

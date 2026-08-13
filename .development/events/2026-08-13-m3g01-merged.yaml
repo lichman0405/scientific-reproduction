@@ -1,0 +1,23 @@
+event_id: EVT-20260813-0014
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M3-G01
+attempt_id: DEV-M3-G01-a1
+pr_number: 15
+head_sha: d9d824897de9591b1061ba00c705e7cbc0d16276
+merge_sha: 229699405eda67765553c65a5d8a1940abee3b12
+summary: >-
+  DEV-M3-G01 merged: deterministic Git init + audit commit helper
+  (audit/git.py + audit/__init__.py + tests/audit, 38 tests).
+  Stdlib-only subprocess, explicit args, GIT_TERMINAL_PROMPT=0;
+  identity injected via GIT_AUTHOR_*/GIT_COMMITTER_* env (never
+  config); injectable tz-aware commit_time; 8 commit checkpoint
+  kinds mirroring 14-STATE-GIT-ARTIFACTS.md SS5 + record-only
+  heartbeat checkpoint (AC-03: no commit-creation path for
+  heartbeats); unknown event types raise UnknownEventTypeError
+  (fail-closed); render never emits None placeholders. Helpers file
+  named git_helpers.py to avoid pytest module-name collision with
+  tests/artifacts/helpers.py (lesson propagated to future workers).
+  Full suite 508/6/1, ruff + mypy clean 31 files, contracts PASS;
+  CI both jobs PASS; supervisor review PASS; squash-merged at exact
+  head. M3-G03 now unlocked (deps M3-G01 + M3-G02 both merged).

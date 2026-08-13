@@ -1,0 +1,21 @@
+event_id: EVT-20260813-0015
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M2-G03
+attempt_id: DEV-M2-G03-a1
+pr_number: 16
+head_sha: 07e4968882ca8462f2e8cad63bcfe90bdfe33558
+merge_sha: 8980f9dfe2282b4dd063ccdf4ca7191f690e37d4
+summary: >-
+  DEV-M2-G03 merged: evidence rubric engine (core/rules/evidence.py
+  + 2 test files, 61 tests). Reliability exclusively checklist-derived
+  (no direct-assignment API anywhere; mandatory checklist_ref;
+  versioned reliability-rule-v1 bands; defect signal -> 0);
+  assess() -> frozen EvidenceAssessment triple (authority rubric by
+  source_type with judgment types open, directness per source x
+  claim, schema-valid output); standalone hard gates never read
+  ranking_score (invariance under None/0/49/100); ranking-rule-v1
+  SS3 weights. criticality.py paradigm; no core/rules/__init__.py
+  (G01 owns it). Full suite 531/6/1, ruff + mypy clean 30 files,
+  contracts PASS; CI both jobs PASS; supervisor review PASS;
+  squash-merged at exact head. Batch: 3 of 4 M2/M3 goals merged.

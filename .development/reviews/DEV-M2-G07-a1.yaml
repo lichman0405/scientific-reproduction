@@ -1,0 +1,101 @@
+goal_id: DEV-M2-G07
+attempt_id: DEV-M2-G07-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      An empty assumption set and an A0-only set both keep the pure
+      strict label: R-STRICT-1 (no assumptions -> STRICT) and R-STRICT-4
+      (only A0 -> STRICT) with every A0 recorded as effect NONE via
+      R-EFF-3; tests: test_assumptions_empty_set_keeps_pure_strict_
+      label, test_assumptions_a0_only_keeps_pure_strict_label,
+      test_assumptions_a0_only_label_is_identical_to_no_assumptions,
+      test_assumptions_a0_effect_is_none_for_any_a0_entry. Independent
+      rerun at head 2cb755c: 31 assumption tests passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      An A1 methodological default (alone, with A0, or multiple)
+      classifies STRICT_WITH_ASSUMPTIONS — distinct from STRICT — and
+      the exact A1 assumption(s) are carried back in the assessment's
+      assumptions and effects tuples (R-EFF-2, R-STRICT-3); tests:
+      test_assumptions_a1_classifies_strict_with_assumptions,
+      test_assumptions_a1_is_recorded_in_the_result,
+      test_assumptions_a0_plus_a1_classifies_strict_with_assumptions,
+      test_assumptions_multiple_a1_still_strict_with_assumptions. 31
+      assumption tests passed at head, exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Any A2 scientific assumption disqualifies pure strict
+      reproduction: the label is never STRICT — always NOT_STRICT with
+      DISQUALIFIES_PURE_STRICT recorded per assumption (R-EFF-1); A2
+      dominates A1 by rule ordering (R-STRICT-2 before R-STRICT-3), so
+      an A1+A2 set is NOT_STRICT, never STRICT_WITH_ASSUMPTIONS; tests
+      cover A2 alone, A0+A2, A1+A2, all three, duplicated entries and
+      the frozen FDM-201 example; the label bi-implication is asserted
+      over the exhaustive classification grid (121 assumption-set
+      inputs, sizes 0-4). Independent rerun at head: full suite
+      521 passed / 6 skipped / 1 deselected, ruff + mypy clean on 31
+      source files, contracts validator PASS.
+verification_rerun:
+  - command: python -m pytest -q tests/rules -k assumption
+    exit_code: 0
+  - command: python -m pytest -q tests/rules
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed — core/rules/assumptions.py,
+    tests/rules/test_assumptions.py — all inside allowed_scope;
+    core/rules/__init__.py NOT created (coordination constraint
+    respected); frozen paths untouched; conventional commits
+    [DEV-M2-G07] (feat + chore), no force-push, no amend; no tests
+    deleted or weakened (purely additive).
+  - >-
+    Design reviewed: exact criticality.py pattern — RULESET_VERSION
+    "1.0", two ordered rule tables with first-match-wins and trailing
+    unconditional defaults (R-EFF-3, R-STRICT-4) making classification
+    total, frozen StrictLabelAssessment recording the exact input tuple
+    plus every rule decision plus matched_label_rule_id; the post-loop
+    "assert matched_label_rule_id is not None" is the project's
+    accepted runtime-contract-check pattern. StrictLabel is a StrEnum
+    whose STRICT_WITH_ASSUMPTIONS value is the exact frozen schema
+    enum value (schemas/assumption.schema.yaml); vocabulary comes only
+    from frozen AssumptionClassification (A0/A1/A2) and
+    StrictStatusEffect. Pure functions, no LLM/randomness/wall-clock.
+  - >-
+    The feat commit briefly included pr_body.md; the worker corrected
+    it with a NEW chore commit removing it (no amend — the project
+    rule forbids amending), so the net diff is clean (files list
+    shows only the two source files) and the merged history will
+    contain neither the artifact nor any amend. Correct handling.
+  - >-
+    The worker's full-suite run hit the known pre-existing
+    tests/state/test_leases.py takeover timing flake once (5/5 clean
+    in isolation, final full run clean); diff is two new files nothing
+    imports — consistent with DEV-DEFECT-002 (documented, out of
+    scope). Note: the automated safety classifier was unavailable for
+    this subagent's result; the supervisor therefore re-verified the
+    work end-to-end: read assumptions.py in full (design matches the
+    declared contract), recreated a fresh venv from the worktree
+    (import path confirmed into .worktrees/dev-m2-g07), and reran all
+    suites at the exact reviewed head 2cb755c489c909c906c54bc8c724b1
+    747e351e8f which also equals the PR head per gh (state OPEN,
+    mergeStateStatus CLEAN, CI both jobs PASS).
+git_review:
+  pr_number: 17
+  reviewed_head_sha: 2cb755c489c909c906c54bc8c724b1747e351e8f
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

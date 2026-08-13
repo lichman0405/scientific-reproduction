@@ -5,5 +5,15 @@ base_branch: main
 base_sha: cb17406eca8fbb288422fe73ce22caef30fbc0ca
 branch: feat/dev-m2-g01-lifecycle-transitions
 worktree: .worktrees/dev-m2-g01
-status: WORKING
-commit_shas: []
+status: MERGED
+commit_shas:
+- 01f2fa0dad460d57993fed6681907c39e462102b
+pr:
+  number: 14
+  url: https://github.com/lichman0405/scientific-reproduction/pull/14
+  head_sha: 01f2fa0dad460d57993fed6681907c39e462102b
+  state: closed
+  ci_status: PASS
+merge_method: squash
+merge_commit_sha: e38cd862a49401f13c1b7feb1043e59126b11648
+merged_at: '2026-08-13'

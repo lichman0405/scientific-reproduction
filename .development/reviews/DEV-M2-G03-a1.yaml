@@ -1,0 +1,95 @@
+goal_id: DEV-M2-G03
+attempt_id: DEV-M2-G03-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Reliability is exclusively checklist-derived — no API accepts a
+      directly assigned reliability score: reliability_score(checklist)
+      and assess(...) have no reliability parameter; ReliabilityChecklist
+      (frozen, 9 spec dimensions) requires a mandatory checklist_ref
+      (no default; whitespace-only refs rejected via __post_init__);
+      from_dict requires the reference; the versioned rule
+      reliability-rule-v1 bands the 8 positive dimensions (8 -> 4, 6-7
+      -> 3, 4-5 -> 2, 2-3 -> 1, 0-1 -> 0) and a defect signal forces 0;
+      validate_assessment_against_checklist links any score back to its
+      inputs and requires an assessment reference. Independent rerun at
+      head 07e4968: 61 evidence tests passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      assess(source, claim_id, checklist, directness, ...) produces the
+      frozen EvidenceAssessment triple: authority rubric derived from
+      source_type via AUTHORITY_BY_SOURCE_TYPE (judgment source types
+      map to None — left open), directness evaluated per (source,
+      claim), reliability checklist-derived with reliability_checklist_
+      ref resolved from a checklist object or explicit reference; the
+      output validates against the frozen evidence schema; assessment is
+      Source x Claim (never a global score) and deterministic. 61
+      evidence tests passed at head, exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Hard gates are standalone predicates that never read the ranking:
+      reliability_gate_passes (R >= 3), directness_gate_passes (D >= 2),
+      recovery_hypothesis_eligible (v0.1: R >= 3, D >= 2, actionable),
+      acceptance_support_qualifies (R >= 3 with documented exceptions),
+      count_independent_qualifying_sources — gate results are invariant
+      under ranking_score None/0/49/100 and the gate predicates take no
+      weight parameters; ranking_score itself is versioned
+      (ranking-rule-v1, SS3 weights); malformed assessment mappings are
+      rejected. Independent rerun at head: full suite 531 passed /
+      6 skipped / 1 deselected, ruff + mypy clean on 30 source files,
+      contracts validator PASS.
+verification_rerun:
+  - command: python -m pytest -q tests/rules -k evidence
+    exit_code: 0
+  - command: python -m pytest -q tests/rules
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 3 files changed — core/rules/evidence.py,
+    tests/rules/test_evidence_reliability.py,
+    tests/rules/test_evidence_assessment.py — all inside
+    allowed_scope; core/rules/__init__.py NOT created (coordination
+    constraint respected — DEV-M2-G01 owns it); frozen paths untouched;
+    single conventional commit [DEV-M2-G03], no force-push, no amend;
+    no tests deleted or weakened (purely additive).
+  - >-
+    Design reviewed: follows the criticality.py paradigm — frozen
+    all-bool checklist, ordered rule tables with first-match-wins and a
+    trailing default making classification total, versioned ruleset
+    (RULESET_VERSION), audit-trail-bearing assessment dataclass. The
+    directness axis is per (source, claim) as contracted; authority
+    rubric keeps judgment source types open (None) rather than guessing
+    a grade. Gates decoupled from ranking_score as AC-03 requires.
+    Reuses frozen enums from core/models.py and the frozen evidence
+    schema — no schema/model changes.
+  - >-
+    Worker hit the known pre-existing tests/state/test_leases.py
+    takeover timing flake once in a full-suite run, then 5/5 clean
+    isolation reruns and a clean final full run; diff is two new
+    files nothing imports — consistent with DEV-DEFECT-002 (documented,
+    out of scope, safe direction). Verified independently in a fresh
+    venv installed from the worktree (import path confirmed into
+    .worktrees/dev-m2-g03); all suites rerun at the exact reviewed
+    head 07e4968882ca8462f2e8cad63bcfe90bdfe33558 which also equals
+    the PR head per gh (state OPEN, mergeStateStatus CLEAN, CI both
+    jobs PASS).
+git_review:
+  pr_number: 16
+  reviewed_head_sha: 07e4968882ca8462f2e8cad63bcfe90bdfe33558
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

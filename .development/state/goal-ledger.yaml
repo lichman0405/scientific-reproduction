@@ -256,12 +256,14 @@ goals:
     merged_at: null
     outcome: null
   DEV-M2-G01:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M2-G01-a1
+    reviews:
+    - DEV-M2-G01-a1
+    merged_sha: e38cd86
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M2-G02:
     status: READY
     attempts: []
@@ -270,12 +272,14 @@ goals:
     merged_at: null
     outcome: null
   DEV-M2-G03:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M2-G03-a1
+    reviews:
+    - DEV-M2-G03-a1
+    merged_sha: 8980f9d
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M2-G04:
     status: MERGED
     attempts:
@@ -299,12 +303,14 @@ goals:
     merged_at: null
     outcome: null
   DEV-M2-G07:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M2-G07-a1
+    reviews:
+    - DEV-M2-G07-a1
+    merged_sha: 4150a23
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M2-G08:
     status: READY
     attempts: []
@@ -313,12 +319,14 @@ goals:
     merged_at: null
     outcome: null
   DEV-M3-G01:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M3-G01-a1
+    reviews:
+    - DEV-M3-G01-a1
+    merged_sha: 2296994
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M3-G02:
     status: MERGED
     attempts:
