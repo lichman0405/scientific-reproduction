@@ -1,0 +1,280 @@
+review_id: DEV-M9-G05-a1
+goal_id: DEV-M9-G05
+attempt_id: DEV-M9-G05-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_computational_ac01_not_converged_failure_representable
+    - test_computational_ac01_diverging_drift_failure_representable
+    - test_computational_ac01_converged_within_tolerance
+    - test_computational_ac01_window_changes_verdict
+    - test_computational_ac01_late_settling_is_not_diverging
+    - test_computational_ac01_observation_inputs_only_no_parameter_surface
+    - test_computational_ac01_no_auto_tuning_restart_api
+    - test_computational_ac01_assessment_is_frozen
+    - test_computational_ac01_input_series_never_mutated
+    - test_computational_ac01_no_io_no_persistence_in_source
+    - test_computational_ac01_typeerror_at_boundaries
+    - test_computational_ac01_contradictory_inputs_rejected
+    - test_computational_ac01_stable_error_messages
+    - test_computational_ac01_budget_exhausted_reported
+    notes: >-
+      Convergence failure is representable as a first-class typed result:
+      evaluate_convergence classifies the observed iteration series via the
+      ordered CONVERGENCE_RULES table into ConvergenceStatus
+      (CONVERGED / NOT_CONVERGED / DIVERGING), and ConvergenceAssessment
+      exposes a `failure` property (True for NOT_CONVERGED and DIVERGING).
+      Purity by construction: the public signature is exactly
+      {iterations, tolerance, window, max_iterations} (proven by
+      inspect.signature -- no parameter object exists to change); a
+      public-name source scan proves no tune/adjust/restart/rerun/
+      resubmit/set_/alter callable exists; the input series is COPIED to a
+      tuple in __post_init__ (object.__setattr__) so later caller mutation
+      cannot change the assessment (proven by test); every record is a
+      frozen dataclass (FrozenInstanceError on mutation, including nested
+      state.input.tolerance); a source scan proves no I/O/persistence
+      (no open(), pathlib, atomic_write, write_text, os., sys., socket,
+      urllib, json). Degenerate inputs (single iteration, zero/negative/
+      non-finite tolerance, window<1, budget<1, series longer than the
+      declared budget) are rejected with stable one-line
+      InvalidConvergenceInputError messages; TypeError at type boundaries
+      (strings, bools, floats for window). DIVERGING requires the final
+      drift to exceed BOTH the frozen tolerance AND every earlier drift
+      ("drift not settling") -- an early large drift with late settling is
+      NOT_CONVERGED, never DIVERGING (test proves the distinction).
+  AC-02:
+    status: PASS
+    evidence:
+    - test_computational_ac02_sampling_mean_se_spread_values
+    - test_computational_ac02_confidence_interval_math
+    - test_computational_ac02_higher_confidence_wider_interval
+    - test_computational_ac02_determinism_repeated_calls
+    - test_computational_ac02_empty_samples_stable_error
+    - test_computational_ac02_single_sample_stable_error
+    - test_computational_ac02_nan_sample_stable_error
+    - test_computational_ac02_inf_sample_stable_error
+    - test_computational_ac02_non_numeric_samples_typeerror
+    - test_computational_ac02_confidence_level_boundary_rejected
+    - test_computational_ac02_zero_spread_point_interval
+    - test_computational_ac02_samples_never_mutated
+    - test_computational_ac02_stdlib_only_no_numpy_scipy
+    notes: >-
+      sampling_uncertainty reports n, mean, sample stdev, standard error
+      (stdev/sqrt(n)), spread, extrema and a normal-approximation CI
+      (mean +/- z*se with z from statistics.NormalDist) -- stdlib only
+      (fmean/stdev/NormalDist; source-scanned: no numpy/scipy/pandas).
+      Deterministic and frozen (repeated calls equal, records frozen).
+      Degenerate inputs rejected with stable one-line
+      InvalidSamplingInputError messages: empty series ("at least two
+      samples ... got 0"), single sample, nan/inf samples (naming the
+      sample index), confidence levels outside (0,1); TypeError for
+      non-numeric samples (including bools) and non-number levels. A
+      constant series yields a zero-spread point interval (se = 0) --
+      explicitly allowed, not silently degraded. Input samples never
+      mutated (test mutates the caller's list after the call). The
+      classic 8-sample series asserts exact stdlib agreement (mean 5.0,
+      spread 7.0).
+  AC-03:
+    status: PASS
+    evidence:
+    - test_computational_ac03_metrics_shape_fits_result_record
+    - test_computational_ac03_uncertainty_shape_fits_result_record
+    - test_computational_ac03_qc_findings_shape_fits_result_record
+    - test_computational_ac03_register_result_accepts_validation_output
+    - test_computational_ac03_validation_decision_mode_is_convergence
+    - test_computational_ac03_validate_acceptance_mode_accepts_convergence
+    - test_computational_ac03_validate_acceptance_mode_rejects_other_modes
+    - test_computational_ac03_validate_acceptance_mode_typeerror
+    - test_computational_ac03_tolerance_read_from_acceptance_verbatim
+    - test_computational_ac03_criterion_tolerance_reproduces_verdict
+    - test_computational_ac03_no_tolerance_entry_rejected
+    - test_computational_ac03_ambiguous_tolerances_rejected
+    - test_computational_ac03_non_numeric_or_non_positive_tolerance_rejected
+    - test_computational_ac03_never_decides_acceptance
+    notes: >-
+      The validation output feeds the DEV-M9-G02 acceptance path in the
+      exact shapes: convergence_metrics/sampling_metrics emit
+      ResultRecord.metrics (list of {"metric","value"} dicts),
+      sampling_uncertainty_payload emits ResultRecord.uncertainty (dict),
+      convergence_findings/sampling_findings emit qc_findings (list of
+      one-line strings) -- each proven by a shape test AND the end-to-end
+      test_computational_ac03_register_result_accepts_validation_output
+      which registers a real ResultRecord (frozen PRIMARY protocol ANL-1
+      v1 + ART-001 manifest + CONVERGENCE acceptance ACC-1 workspace,
+      safe ids) through the real register_result and reads it back
+      byte-equal. The hook references the frozen DecisionMode.CONVERGENCE
+      (VALIDATION_DECISION_MODE); validate_acceptance_mode accepts a
+      CONVERGENCE record and rejects every other mode (all 6 other
+      DecisionMode members enumerated) with a stable
+      UnsupportedDecisionModeError naming the declared mode.
+      convergence_criterion_from_acceptance reads the frozen tolerance
+      verbatim (byte-for-byte, like the M9-G03 margin pattern; the
+      extracted criterion reproduces the series verdict), and rejects
+      missing ("no convergence tolerance ... never inferred from the
+      run"), ambiguous (differing) and non-numeric/non-positive
+      tolerances. The module never decides acceptance: ConvergenceStatus
+      has no PASS/FAIL/REPRODUCED member, __all__/module has no such
+      token, a source scan proves no RequirementOutcome reference, and
+      the finding text stays scientific (asserted).
+  paradigm:
+    status: PASS
+    evidence:
+    - test_computational_boundary_errors_are_valueerror_subclasses
+    - test_computational_boundary_degenerate_input_grid
+    - test_computational_boundary_determinism_across_repeated_calls
+    - test_computational_boundary_rule_table_first_match_wins_total_default
+    - test_computational_boundary_module_all_exports_resolve
+    - test_computational_boundary_module_is_pure_no_io_no_randomness
+    - test_computational_boundary_frozen_records_reject_mutation
+    - test_computational_boundary_ruleset_version_recorded
+    - test_computational_boundary_findings_stable_one_line_strings
+    - test_computational_boundary_metric_name_validation
+    - test_computational_boundary_assessment_integrity_checks
+    - test_computational_boundary_sampling_interval_validation
+    - test_computational_boundary_int_and_float_tolerances_equal
+    notes: >-
+      Every established paradigm rule is followed, matching the merged
+      M9-G03 style exactly: error hierarchy (ComputationalValidationError
+      -> InvalidConvergenceInputError / InvalidSamplingInputError /
+      ConvergenceCriterionError / UnsupportedDecisionModeError, all
+      ValueError subclasses, stable one-line messages); TypeError at type
+      boundaries; frozen dataclasses with __post_init__ validation;
+      ordered rule table (CONVERGENCE_RULES: R-CONV-D1 -> R-CONV-N1 ->
+      R-CONV-C1 total default, first match wins, matched_rule_id
+      post-assert, per-rule trace + CONVERGENCE_RULESET_VERSION in every
+      assessment); pure deterministic functions (no random/time/io,
+      source-scanned); __all__ with no duplicates; from __future__ import
+      annotations; no type: ignore / noqa. NEW rigor beyond the M9-G03
+      precedent: ConvergenceAssessment.__post_init__ enforces a
+      construction-level invariant (matched_rule_id must name a recorded
+      decision that matched AND whose status equals the assessment status
+      -- proven by boundary_assessment_integrity_checks direct-construction
+      negatives), and the window/budget semantics are fully tested
+      (window 1 = classic last-step criterion; budget_exhausted
+      informational).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m9-g01 (reinstalled editable from the
+    dev-m9-g05 worktree; import resolution confirmed:
+    computational.py resolves to .worktrees/dev-m9-g05)
+  head_sha: 5891f0eadfe3e661360c9749a52d50a9db01b567
+  commands:
+  - cmd: pytest -q tests/analysis -k computational
+    result: 54 passed, 109 deselected, exit 0 (matches worker claim
+      exactly; tests/analysis at the head = 163 collected = 85 base + 24
+      fix + 54 new)
+  - cmd: pytest -q tests
+    result: 1549 passed, 6 skipped, 1 deselected, exit 0 (matches worker
+      claim exactly; base 8a4f794 = 1495 + 54 new; no lease flake this
+      run)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 63 source files (computational.py
+      adds one module to the 62 of the base)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed"
+  - cmd: gh pr checks 40
+    result: "Test, lint, and type check: pass; Validate development
+      contracts: pass"
+  merged_state_note: >-
+    The head is based on 8a4f794 (1495 tests). Since the branch was cut,
+    main gained the DEV-M9-G03 merge (+68 = 1563 at 2178705d). The merged
+    tree will be current main (1563) + G05 (+54 = 1617). No file overlap:
+    G05 touches only analysis/computational.py + tests/analysis/test_computational.py;
+    G03 touched analysis/statistics.py + tests/analysis/test_statistics.py.
+    The G05 tests use the POST-fix results.py (the fix is an ancestor of
+    8a4f794) with safe ids ('ART-001', 'ANL-1', 'RUN-001', 'ACC-1') -- no
+    interaction with the artifact-id boundary. The supervisor will run the
+    full suite on origin/main after the merge as the definitive
+    merged-state check (1617 expected).
+
+design_review:
+  ac01_pure_by_construction: >-
+    No auto-changing-parameters surface is even expressible: the
+    evaluation signature takes observations + frozen protocol values only,
+    and the public-name scan + signature test make the absence
+    structural, not incidental. The input copy-to-tuple and nested
+    frozen-records mutation tests close the two remaining mutation
+    vectors (caller's list, nested state).
+  ac02_stdlib_only: >-
+    The normal-approximation interval is computed with statistics.fmean /
+    statistics.stdev / statistics.NormalDist -- the same z-based shape as
+    the merged M9-G03 CI utilities, keeping the M9 series statistically
+    consistent (the module deliberately does not import statistics.py:
+    G03 is not in its base). No scipy/numpy/pandas -- source-scanned.
+  ac03_feeds_acceptance_never_decides: >-
+    The vocabulary discipline is enforced at four levels: the status enum
+    values, __all__, a source scan for RequirementOutcome, and the
+    emitted finding text. validate_acceptance_mode + the verbatim
+    tolerance extraction mirror the M9-G03 margin pattern exactly (pure
+    function of the AcceptanceCriteria record; missing/ambiguous/
+    non-numeric rejected). The end-to-end register_result roundtrip
+    proves the result package is consumable by the acceptance path.
+  rule_table_paradigm: >-
+    CONVERGENCE_RULES follows the established first-match-wins table with
+    a total default, and ConvergenceAssessment adds a construction-level
+    consistency invariant (matched id must exist, must match, must agree
+    with status) -- strictly stronger than the G03 assessment. The
+    DIVERGING predicate encodes the scientific meaning ("drift not
+    settling": final drift > tolerance AND > every earlier drift) rather
+    than a generic threshold, and the window test proves window>1 is
+    normative (a settled last step alone is not convergence).
+  midflight_flags_resolved: >-
+    The pyright flags observed while the worker was mid-flight are
+    resolved or advisory on the final head 5891f0e: the seven
+    "unreachable" diagnostics (computational.py 879/903/947/970/1004/
+    1030/1092) are the intentional defensive TypeError raises at the
+    public boundaries of the reporting hooks (the parameter annotations
+    already name the concrete type, so pyright considers the branch
+    unreachable -- same pattern as the merged M9-G03 module; mypy, the
+    gating checker, is clean on the exact head); "s is not accessed"
+    (line 440) is the unused lambda parameter of the R-CONV-C1 total
+    default (same shape as M9-G03's R-EQ-3); the test-file flags on
+    DataclassInstance (test_computational.py 249/251) were an
+    intermediate state before make_assessment's return annotation
+    existed -- on the final head the assignments are inside
+    pytest.raises(FrozenInstanceError) blocks against a properly typed
+    ConvergenceAssessment, and mypy is clean.
+  scope_discipline: >-
+    Exactly the two allowed files (+2105/-0: computational.py 1126 lines,
+    test_computational.py 981 lines). No forbidden changes, no existing
+    test touched (new files only). The worker self-corrected onto fresh
+    main (dispatch base 1a28e8d -> branch parent 8a4f794, verified via
+    git log: 5891f0e -> 8a4f794 -> 8967f9c) before committing -- no
+    stale-base deviation.
+
+scope_check: PASS
+notes: >-
+  Both files read in full on the reviewed head (computational.py 1126
+  lines, test_computational.py 981 lines). Every worker claim reproduced:
+  54 (-k computational), 1549-6-1 full suite, ruff clean, mypy 63,
+  contracts PASS, CI both jobs PASS, exact head 5891f0e, single commit,
+  branch parent = 8a4f794 (clean self-correcting reset onto fresh main),
+  scope exactly the 2 allowed files, no test deleted/weakened. Minor
+  claim corrections (both in the worker's own notes, totals correct):
+  "54/139 tests collected in tests/analysis" was a stale-base collect
+  (139 = 85 + 54 without the 24 fix-result tests; the authoritative
+  numbers are 54 passed / 109 deselected = 163 collected). Decision:
+  PASS; merge authorized as squash with subject "feat(analysis):
+  computational convergence and sampling validation hooks [DEV-M9-G05]".
+
+git_review:
+  pr_number: 40
+  pr_title: 'feat(analysis): computational convergence and sampling validation hooks [DEV-M9-G05]'
+  branch: feat/dev-m9-g05-computational
+  base_sha: 8a4f794e2d6860f86b9a99657bc8949035ee6a2c
+  reviewed_head_sha: 5891f0eadfe3e661360c9749a52d50a9db01b567
+  changed_files: 2 (src/scientific_reproduction/analysis/computational.py
+    +1126/-0, tests/analysis/test_computational.py +981/-0)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

@@ -1,0 +1,29 @@
+event_id: EVT-20260813-0046
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M9-G05
+attempt_id: DEV-M9-G05-a1
+pr_number: 40
+head_sha: 5891f0eadfe3e661360c9749a52d50a9db01b567
+merge_sha: 66e0429ea8698c933c3f67029c863880f7eece17
+summary: >-
+  DEV-M9-G05 merged (computational convergence + sampling validation
+  hooks): computational.py +1126/-0, test_computational.py +981/-0.
+  Review DEV-M9-G05-a1 PASS. AC-01 pure by construction (signature
+  {iterations, tolerance, window, max_iterations} only; no tune/adjust/
+  restart API -- public-name scanned; input series copied to tuple;
+  ConvergenceStatus CONVERGED/NOT_CONVERGED/DIVERGING with failure
+  property; no I/O -- source-scanned); AC-02 stdlib-only sampling
+  uncertainty (fmean/stdev/NormalDist; no numpy/scipy; degenerate
+  inputs stable-rejected; zero-spread point interval allowed); AC-03
+  exact ResultRecord shapes proven end-to-end through real
+  register_result (frozen protocol + manifest + CONVERGENCE acceptance
+  workspace); tolerance read verbatim from frozen acceptance;
+  validate_acceptance_mode ties output to DecisionMode.CONVERGENCE;
+  never decides acceptance (no PASS/FAIL/REPRODUCED anywhere). New
+  rigor: ConvergenceAssessment construction-level invariant
+  (matched_rule_id must match status). Verification on head: 54
+  (-k computational) / 1549-6-1 full / ruff clean / mypy 63 / contracts
+  PASS / CI both jobs PASS. Branch parent 8a4f794 (self-correcting
+  reset onto fresh main). M9 progress: G01+G02+G03+G05 merged; G04 in
+  flight; G06 waiting on G04+G05.
