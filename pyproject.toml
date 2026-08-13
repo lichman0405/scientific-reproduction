@@ -17,6 +17,12 @@ dev = [
     "pytest-cov>=4",
     "ruff>=0.6",
     "mypy>=1.10",
+    # DEV-M1-G01: schema validation adapter validates against the frozen
+    # product schemas (YAML) in schemas/; jsonschema is the validator and
+    # PyYAML loads the schema files. scripts/validate_development_contracts.py
+    # already depends on both.
+    "jsonschema>=4.18",
+    "PyYAML>=6.0",
 ]
 
 [tool.hatch.build.targets.wheel]
