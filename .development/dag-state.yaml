@@ -1,9 +1,8 @@
 dag_version: 1
 total_frozen_goals: 80
 ready_to_dispatch:
-- DEV-M6-G02
+- DEV-M6-G03
 - DEV-M9-G04
-- DEV-M9-G05
 waiting_on_dependencies:
 - DEV-M10-G01
 - DEV-M10-G02
@@ -29,7 +28,6 @@ waiting_on_dependencies:
 - DEV-M13-G03
 - DEV-M13-G04
 - DEV-M13-G05
-- DEV-M6-G03
 - DEV-M6-G04
 - DEV-M6-G05
 - DEV-M7-G01
@@ -81,7 +79,9 @@ merged:
 - DEV-M5-G05
 - DEV-M5-G06
 - DEV-M6-G01
+- DEV-M6-G02
 - DEV-M9-G01
 - DEV-M9-G02
 - DEV-M9-G03
+- DEV-M9-G05
 blocked_human: []

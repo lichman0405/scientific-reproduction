@@ -1,0 +1,270 @@
+review_id: DEV-M6-G02-a1
+goal_id: DEV-M6-G02
+attempt_id: DEV-M6-G02-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_result_ac01_package_has_distinct_typed_sections
+    - test_result_ac01_facts_carry_measurements_and_values
+    - test_result_ac01_data_carry_structured_outputs
+    - test_result_ac01_deviations_state_what_was_done_differently_or_not
+    - test_result_ac01_package_carries_no_supervisor_decision_semantics
+    - test_result_ac01_package_cannot_validate_as_a_decision
+    - test_result_ac01_registration_is_pure_with_injectable_timestamp
+    notes: >-
+      The package has distinct, typed, frozen sections: WorkerFact
+      (fact_id/name/scalar value/unit/requirement_refs), WorkerData
+      (data_id/name/format/summary) and WorkerDeviation (deviation_id/kind
+      in the DeviationType factual vocabulary protocol_deviation/failure/
+      interruption/description/requirement_refs). No confusion with
+      Supervisor decisions is structurally possible: the field-set
+      disjointness test enumerates all ten SupervisorDecision fields
+      (decision_id/decision_type/actor/timestamp/affected_refs/rationale/
+      evidence_refs/analysis_refs/previous_version_refs/resulting_version_refs)
+      and proves none exists on any package record; a SupervisorDecision
+      instance is rejected as any section entry or ref-list entry
+      (TypeError); the package JSON fails the frozen decision schema
+      (validate_and_reject("decision", ...) raises SchemaValidationError);
+      decision_refs is the package's only contact with decisions -- opaque
+      string linkage, never decision semantics (raw JSON contains "DEC-1"
+      but never "decision_type"/"rationale"). Purity: completed_at is an
+      injectable string (two identical registrations on different roots
+      produce byte-identical files); a source scan proves no random/time/
+      datetime/socket/urllib anywhere in the module.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_result_ac02_no_outcome_field_anywhere
+    - test_result_ac02_fact_may_reference_requirement_but_never_declare_outcome
+    - test_result_ac02_deviation_may_reference_requirement_but_never_declare_outcome
+    - test_result_ac02_package_cannot_validate_as_a_requirement
+    - test_result_ac02_module_never_imports_requirement_layers
+    - test_result_ac02_requirement_linkage_is_never_resolved_or_closed
+    notes: >-
+      No record carries an outcome/verdict field (field-name scan over all
+      four record types); the module defines no verdict enum for
+      requirement refs (non-string ref entries are TypeError). Facts and
+      deviations may reference Requirements by id (requirement_refs, pure
+      linkage surfaced in the manifest as REQUIREMENT references) but
+      never declare their outcome; the package JSON fails the frozen
+      requirement schema (requires outcome + inventory/goal edges --
+      SchemaValidationError). Module imports verified: only
+      artifacts.exceptions, artifacts.registry, core.atomic, core.ids,
+      core.models (WorkerRole), planning.init -- no core.rules, no
+      planning.inventory, no RequirementOutcome token, no
+      register_requirement. End-to-end closure absence: registering a
+      result whose fact references a REAL registered requirement
+      (REQ-1, OPEN) leaves the requirement file byte-untouched and OPEN;
+      an unregistered requirement id is never resolved (registers
+      normally) -- the module reads no requirement state at all.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_result_ac03_input_artifact_refs_resolve_against_real_registry
+    - test_result_ac03_output_artifact_refs_resolve_against_real_registry
+    - test_result_ac03_unregistered_input_artifact_ref_rejected
+    - test_result_ac03_unregistered_output_artifact_ref_rejected
+    - test_result_ac03_manifest_records_exactly_the_linked_references
+    - test_result_ac03_unsafe_artifact_ids_rejected_at_record_boundary
+    - test_result_ac03_traversal_artifact_id_cannot_escape_manifests
+    - test_result_ac03_defense_in_depth_unsafe_id_rejected_at_resolution_gate
+    notes: >-
+      Every input/output artifact reference resolves against the REAL
+      DEV-M3-G02 ArtifactRegistry (manifests/): register_worker_result
+      calls registry.get() for each id; an unregistered ref raises
+      UnresolvedWorkerResultReferenceError with a stable message naming
+      result id and artifact id, and nothing is written (no file, empty
+      listing). The ResultManifest records exactly the linked references
+      sorted by (kind, ref_id): context + run + artifact_input +
+      artifact_output + requirement (sorted union across facts and
+      deviations) + decision -- proven by the exact-tuple test; manifest
+      is deterministic and hashable (result_hash is a real SHA-256 of the
+      canonical JSON). FND-M9-G02-01 regression present and proven at two
+      levels: (1) record boundary -- every artifact id must be a safe
+      registry id (no /, no \, not . or .., no glob metacharacters), and
+      the traversal test proves ../EVIL is rejected with the stable
+      WorkerResultRecordError while the crafted EVIL.json at the
+      workspace root is never read and the registry listing is unchanged;
+      (2) resolution gate defense-in-depth -- a package constructed via
+      object.__new__ bypassing __post_init__ still has every id
+      re-checked in _resolve_artifact_refs before any ArtifactRegistry.get
+      (UnresolvedWorkerResultReferenceError, nothing written).
+  paradigm:
+    status: PASS
+    evidence:
+    - test_result_registry_canonical_json_and_roundtrip
+    - test_result_mapping_input_coerced_with_defaults
+    - test_result_mapping_invalid_enum_value_rejected
+    - test_result_deterministic_listing_sorted_by_id
+    - test_result_deterministic_same_state_same_bytes
+    - test_result_read_roundtrip_and_not_found
+    - test_result_duplicate_registration_rejected_bytes_untouched
+    - test_result_type_error_boundaries
+    - test_result_record_shape_validation_rejects_bad_values
+    - test_result_error_hierarchy_and_stable_messages
+    - test_result_requires_initialized_project
+    - test_result_rejects_unsafe_ids_at_every_boundary
+    - test_result_corrupt_registry_records_rejected
+    - test_result_frozen_records_reject_mutation
+    - test_result_manifest_is_deterministic_sorted_and_hashable
+    - test_result_worker_results_registry_is_isolated
+    - test_result_registration_answers_a_real_generated_context
+    notes: >-
+      Every established paradigm rule is followed: canonical JSON
+      (sorted keys, 2-space indent, trailing newline) with byte-equal
+      roundtrip; exactly-once registration (DuplicateWorkerResultError
+      with stable message, original bytes untouched, stable across
+      different content); deterministic listing sorted by result_id and
+      same-state-same-bytes across independent roots; frozen records
+      reject mutation including nested sections; corrupt records (bad
+      JSON, non-object, missing field, result_id/file-name mismatch) all
+      raise the stable "corrupt worker result record" ValueError; the
+      error hierarchy is WorkerResultError(ValueError) -> RecordError /
+      Duplicate / InvalidId / NotFound / UnresolvedReference, all
+      ValueError subclasses with stable one-line messages; TypeError at
+      every public boundary (root type, result type, record field types,
+      from_dict non-mapping); safe-id validation at every boundary
+      (register/read/list; InvalidWorkerResultIdError); context_id must
+      be a well-formed generated context id (sr_context_<32hex>; a goal
+      kind id is rejected) and goal_version must be formal v<N>; the
+      worker results registry is isolated from the M9-G02 analysis
+      results registry. End-to-end: test_result_registration_answers_a_
+      real_generated_context registers a package whose context_id comes
+      from the REAL M6-G01 generate_goal_context and proves the package
+      names the exact context (goal_id/goal_version echo the frozen
+      goal; the manifest CONTEXT reference is the generated id).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m9-g01 (reinstalled editable from the
+    dev-m6-g02 worktree; import resolution confirmed: workers.results
+    resolves to .worktrees/dev-m6-g02/src/scientific_reproduction/workers/
+    results.py). Gates run from the worktree directory (test collection
+    uses the working tree, not the editable install).
+  head_sha: 441278d3e493dd0b0c1112be7666b1e726014c00
+  commands:
+  - cmd: pytest -q tests/workers -k result
+    result: 38 passed, 31 deselected, exit 0 (38 tests: 7 AC-01 + 6 AC-02
+      + 8 AC-03 + 17 paradigm; the 31 deselected are the pre-existing
+      M6-G01 context tests)
+  - cmd: pytest -q tests
+    result: 1601 passed, 6 skipped, 1 deselected, exit 0 (base 2178705d =
+      1563 + 38 new; no lease flake this run)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 64 source files (results.py adds
+      one module to the 63 of the base)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed"
+  - cmd: gh pr checks 41
+    result: "Test, lint, and type check: pass; Validate development
+      contracts: pass"
+  claim_corrections:
+  - >-
+    Worker claimed full suite 1509. That number matches an INTERMEDIATE
+    base (1471 = main at a68c0ff + 38 = 1509), i.e. the full-suite run
+    predated the final rebase onto 2178705d. The authoritative head
+    number is 1601 = 1563 (2178705d) + 38, reproduced by the supervisor
+    (all pass). The worker's -k result claim (38 passed) was exact.
+  merged_state_note: >-
+    The head is based on 2178705d (1563 tests). Main has since gained the
+    DEV-M9-G05 merge (66e0429e = 1617 tests). The merged tree will be
+    current main (1617) + G02 (+38 = 1655). No file overlap: G02 touches
+    only workers/results.py + tests/workers/test_results_worker.py; G05
+    touched analysis/computational.py + tests/analysis/test_computational.py;
+    G03 touched analysis/statistics.py + tests/analysis/test_statistics.py.
+    The G02 tests use the pre-G05 base (computational.py absent is fine:
+    G02 never imports analysis). The supervisor will run the full suite
+    on origin/main after the merge as the definitive merged-state check
+    (1655 expected).
+
+design_review:
+  ac01_sections_typed_and_decision_free: >-
+    The three sections are their own frozen classes (not free-form dicts)
+    with per-class __post_init__ validation; section entries must be
+    instances of the section class on direct construction (TypeError
+    otherwise -- even a schema-shaped dict is rejected on direct
+    construction), while the from_dict mapping path coerces dicts through
+    the typed from_dict constructors. The decision-avoidance is enforced
+    structurally: field-set disjointness, type rejection of SupervisorDecision
+    in every section/ref list, and the schema-level impossibility test
+    (the package can never validate as a decision document).
+  ac02_never_declares_outcome: >-
+    Four enforcement layers: field-name scan (no outcome/verdict), no
+    verdict enum (plain-string refs only), import discipline (no
+    requirement outcome/closure layers), and the byte-level closure test
+    (a real registered OPEN requirement stays byte-untouched after a
+    referencing result registers -- the module reads no requirement state
+    at all, so closure is impossible here, not merely unpracticed).
+  ac03_exact_reference_resolution: >-
+    Resolution is exact at registration time against the real manifests
+    registry; the manifest is the auditable record of exactly which
+    references were linked, deterministic (sorted, canonical JSON, real
+    SHA-256 hash). The FND-M9-G02-01 lesson is applied at both levels:
+    safe-id validation at the record boundary (all paths through the
+    frozen constructor: direct, replace, from_dict) AND re-checked at the
+    resolution gate before any registry path is constructed (proven via
+    an object.__new__ bypass that the constructor cannot be trusted as
+    the only defense).
+  design_observation_input_artifacts_required: >-
+    input_artifact_ids is required non-empty (a result package must name
+    at least one input artifact; output_artifact_ids may be empty). The
+    frozen contract does not mandate either shape; this is a deliberate
+    strictness consistent with the doc-grounded model (a result answers a
+    context that consumed registered artifacts; 10-EXPERIMENT-SUBSYSTEM.md
+    SS4 requires operators to report actual quantities and artifacts).
+    Not a contract violation; AC-03 is satisfied. Recorded for downstream
+    goals (M6-G03/G04/G05) that consume this module.
+  rule_table_and_determinism: >-
+    Exactly-once registration with immutable records mirrors the M9
+    registries; no randomness/wall-clock/network anywhere (source-scanned
+    in the purity test); completed_at is caller-injected. The registry
+    isolation test proves the worker results registry and the M9-G02
+    analysis results registry are distinct, deterministic namespaces.
+  scope_discipline: >-
+    Exactly the two allowed files (+2506/-0: results.py 1295 lines,
+    test_results_worker.py 1213 lines). The test file is named
+    test_results_worker.py rather than test_results.py -- inside the
+    frozen glob tests/workers/test_results*; the rename is justified and
+    documented in the file docstring: pytest's default import mode would
+    collide test_results.py with tests/analysis/test_results.py
+    (duplicate basename -> import-file-mismatch). No existing test
+    touched, no forbidden change, branch parent = 2178705d (verified via
+    git log: 441278d -> 2178705d -> 8a4f794; the worker rebased onto
+    post-G03 main and the claimed base is the true branch parent -- no
+    stale-base deviation).
+
+scope_check: PASS
+notes: >-
+  Both files read in full on the reviewed head (results.py 1295 lines,
+  test_results_worker.py 1213 lines). Every worker claim reproduced:
+  38 (-k result, exact), ruff clean, mypy 64, contracts PASS, CI both
+  jobs PASS, exact head 441278d, single commit, branch parent = 2178705d
+  (clean rebase onto post-G03 main), scope exactly the 2 allowed files,
+  no test deleted/weakened. One claim corrected: the worker's full-suite
+  1509 was a stale intermediate-base run (1471 + 38); the authoritative
+  head number is 1601 = 1563 + 38 (supervisor-verified, all pass). The
+  FND-M9-G02-01 regression (traversal artifact id) is covered at both
+  the record boundary and the resolution gate. Decision: PASS; merge
+  authorized as squash with subject "feat(workers): worker result
+  package registration [DEV-M6-G02]".
+
+git_review:
+  pr_number: 41
+  pr_title: 'feat(workers): worker result package registration [DEV-M6-G02]'
+  branch: feat/dev-m6-g02-results
+  base_sha: 2178705d66557958527edaf933e4def2df6acef2
+  reviewed_head_sha: 441278d3e493dd0b0c1112be7666b1e726014c00
+  changed_files: 2 (src/scientific_reproduction/workers/results.py +1295/-0,
+    tests/workers/test_results_worker.py +1213/-0)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
