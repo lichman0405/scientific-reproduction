@@ -1,0 +1,233 @@
+review_id: DEV-M10-G01-a1
+goal_id: DEV-M10-G01
+attempt_id: DEV-M10-G01-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_contracts_ac01_supervisor_boundary_matches_locked_spec_ss2
+    - test_contracts_ac01_research_boundary_matches_locked_spec_ss3
+    - test_contracts_ac01_monitor_boundary_matches_locked_spec_ss4
+    - test_contracts_ac01_worker_boundary_matches_locked_spec_ss5_ss8
+    - test_contracts_ac01_no_contract_crosses_another_roles_exclusive_authority
+    - test_contracts_ac01_every_allowed_action_is_granted_by_the_matrix
+    - test_contracts_ac01_every_forbidden_action_is_denied_by_the_matrix
+    - test_contracts_ac01_decision_verdict_retry_authorities_match_spec
+    - test_contracts_ac01_non_supervisor_contracts_forbid_decision_and_verdict_actions
+    notes: >-
+      The authority boundaries match the locked role spec (03-ROLE-AND-
+      PERMISSION-SPEC.md SS2-SS8) on both sides: every contract's
+      allowed_actions equals its matrix grant (supervisor = all of
+      ACTION_ORDER; research = RESEARCH_ACTIONS; monitor = MONITOR_ACTIONS;
+      worker = the union of the four worker roles' grants) and the spec's
+      "may not" lists appear in forbidden_actions, each denied by the
+      frozen runtime matrix (R-PRM-D1 least privilege on both sides). The
+      cross-boundary test proves no non-Supervisor contract holds any
+      Supervisor-exclusive surface (plan freeze/revision, verdicts,
+      dispatch, research requests), and the typed authority fields
+      (DecisionAuthority SUPERVISOR_ONLY vs NONE; VerdictAuthority
+      SUPERVISOR_ONLY vs REPORT_FACTS; RetryAuthority
+      SUPERVISOR_ONLY/PREAUTHORIZED_ENGINEERING/WHITELISTED_ENGINEERING/
+      NONE) mirror the spec sections role by role; non-Supervisor
+      contracts must explicitly forbid the full decision and verdict
+      action sets -- the boundary is encoded, not implied.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_contracts_ac02_every_contract_names_core_state_api_truth_sources
+    - test_contracts_ac02_state_object_types_are_normative_core_types
+    - test_contracts_ac02_serialized_contracts_contain_no_memory_reference
+    - test_contracts_ac02_truth_rule_names_core_state_and_negates_memory
+    - test_contracts_ac02_prompt_directives_ground_decisions_in_state
+    notes: >-
+      Every contract references Core state as the only truth source,
+      never conversation memory: truth_sources are exactly the two
+      CoreStateApi members (STATE_BACKEND / EVENT_LOG), resolved via
+      importlib against the real modules (StateBackend / ProjectEventLog,
+      a rename breaks the test); state_object_types are normative
+      core.models.SCHEMA_NAMES entries only (enforced both in the record
+      constructor and per test); the canonical serialization and all
+      free-text fields are token-scanned for six memory-reference phrases
+      (conversation memory / chat memory / llm memory / remembered
+      context / recall from conversation / from memory) and contain none;
+      the prompt-facing STATE_TRUTH_RULE names the state backend and the
+      event log and explicitly negates an agent's remembered conversation;
+      prompt directives anchor decisions in persisted state records
+      ("read project state from the Core state backend before acting").
+  AC-03:
+    status: PASS
+    evidence:
+    - test_contracts_ac03_worker_contract_forbids_plan_mutation_actions
+    - test_contracts_ac03_worker_contract_forbids_plan_mutation_practice
+    - test_contracts_ac03_worker_contract_forbids_self_acceptance_practices
+    - test_contracts_ac03_worker_contract_has_no_acceptance_or_verdict_authority
+    - test_contracts_ac03_worker_plan_mutation_is_runtime_denied_for_every_worker_role
+    - test_contracts_ac03_only_worker_contract_carries_the_self_acceptance_prohibition
+    notes: >-
+      The Worker contract forbids plan mutation and self-acceptance
+      explicitly and in its own vocabulary: the plan-mutation action set
+      (PLAN_FREEZE, GOAL_REVISION, ACCEPTANCE_REVISION,
+      ANALYSIS_PROTOCOL_REVISION, GOAL_CREATE/MUTATE/FROZEN_GOAL_MUTATE,
+      RECOVERY_GOAL_CREATE) is fully in forbidden_actions and disjoint
+      from allowed_actions; the practice token plan_mutation and the
+      prompt prohibition "never mutate the frozen Plan" encode the same
+      boundary in contract words; self_acceptance / self_review /
+      self_merge are practice tokens with the prompt prohibition "never
+      declare PASS/FAIL or accept your own output"; the contract carries
+      no acceptance/verdict authority; and a runtime cross-check asserts
+      every worker role of the frozen matrix denies every plan-mutation
+      action, so the contract describes the enforced boundary (DEV-M6-G03/
+      G05) exactly.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m10-g01 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: 4f3cf138b251ad27726445e732c6712c5a0709f5
+  commands:
+  - cmd: pytest -q tests/platform -k contract
+    result: '32 passed in 0.08s (the goal verification command, matches
+      the worker claim exactly)'
+  - cmd: pytest -q tests/platform
+    result: '32 passed in 0.07s (platform suite = the new contract tests;
+      no regression)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 91 source files (89 baseline + 2
+      new contract files)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (scratch worktree at 4f3cf13)
+    result: '2802 passed, 6 skipped, 1 deselected, 1 failed in 143.45s.
+      The single failure is the KNOWN load-sensitive lease flake
+      (tests/state/test_leases.py::
+      test_concurrent_takeover_of_expired_lease_single_winner): isolated
+      re-run passes 2/2 (6.36s / 6.60s). Effective full suite 2803 = 2771
+      base at 84d38e8 + 32 new -- the worker-reported 2803 is confirmed.
+      No flake in any new test.'
+  - cmd: gh pr checks 62
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head 4f3cf13)'
+
+design_review:
+  pure_descriptor_layer: >-
+    The contract layer is a deliberately pure descriptor subsystem: frozen
+    dataclass records with no runtime execution, no file I/O, no wall
+    clock, no randomness (no timestamp-like fields, no random/uuid/time/
+    datetime imports in the module, asserted by import scanning); every
+    record validates its own contract in __post_init__ (str types and
+    shapes, role id pattern and vocabulary, version pattern, frozenset
+    types, Action members, no allowed/forbidden overlap, practice-token
+    pattern, non-empty truth_sources of CoreStateApi members,
+    state_object_types subset of core.models.SCHEMA_NAMES, typed
+    authorities, non-empty prompt directives); deterministic contract ids
+    (generate_id("role_contract", role_id, contract_version),
+    sr_role_contract_<32 hex>, computed once via object.__setattr__ and
+    caller-supplied values rejected); canonical sorted serialization with
+    lossless from_dict round-trip and stable ValueError-subclassed errors
+    (RoleContractError / UnknownRoleContractError) with one-line messages.
+  matrix_grounding_both_directions: >-
+    validate_role_contracts proves AC-01 consistency against the frozen
+    runtime matrix (DEV-M6-G03, core.permissions) in both directions:
+    every allowed_action must be granted to at least one of the
+    contract's matrix role(s) and every forbidden_action must be denied
+    to all of them (least privilege) -- plus the typed-authority closure
+    rules (a contract without Supervisor verdict authority must forbid
+    every VERDICT_ACTIONS member; without Supervisor decision authority
+    must forbid every DECISION_ACTIONS member, the full DecisionType
+    mapping). The frozen table passes; a candidate table granting
+    GOAL_CREATE to Research is rejected with the stable "locked
+    role-action matrix denies" message. The worker contract is the union
+    of the four worker roles' grants, and every union member is verified
+    granted to at least one worker role.
+  core_state_as_truth: >-
+    AC-02 is enforced at every layer: the truth-source vocabulary is a
+    two-member StrEnum (STATE_BACKEND / EVENT_LOG) whose import paths are
+    resolved against the real modules via importlib in the tests;
+    state_object_types are validated against the real core.models
+    SCHEMA_NAMES registry in the constructor itself; the serialized
+    record carries no memory reference (token scan over six memory
+    phrases on both the canonical JSON and every free-text field); and
+    the STATE_TRUTH_RULE names the state backend and the event log and
+    negates remembered conversation in prompt-facing text, identical
+    across all four contracts.
+  worker_boundary_explicit: >-
+    AC-03 is encoded three ways so no platform adapter can drop it: the
+    matrix-action vocabulary (plan-mutation actions fully forbidden,
+    disjoint from allowed), the practice-token vocabulary (plan_mutation,
+    self_acceptance, self_review, self_merge) and the prompt directives
+    ("never mutate the frozen Plan, acceptance criteria or protocol",
+    "never declare PASS/FAIL or accept your own output"). The runtime
+    cross-check pins the contract to the enforced matrix boundary for all
+    four worker roles, and the boundary-hygiene test asserts no other
+    contract silently holds acceptance surfaces (the Supervisor alone is
+    the acceptor).
+  agent_descriptors_consistent: >-
+    The four .claude/agents/ markdown descriptors (supervisor, research,
+    execution-monitor, worker) mirror their RoleContract records field by
+    field: mission text, truth sources with the real Core API paths,
+    authority may/may-not lists matching the matrix grants and
+    forbidden_actions, the forbidden-practice vocabulary and the
+    must/must-not prompt sections -- so a platform adapter derived from
+    either artifact carries the same boundaries.
+  observations: >-
+    The pyright diagnostics reported alongside the worker completion are
+    a pre-fix snapshot: the worker fixed 11 auto-fixable unused-import /
+    import-order issues during development, and the authoritative gates
+    (ruff with F401 selected, mypy, pytest, CI) are all clean on the
+    final head. The remaining pyright noise is the known classes
+    (test-file "import could not be resolved" from a scanner without an
+    editable install; FrozenInstanceError mutation tests on frozen
+    dataclass fields at test_contracts_hygiene lines 62-64; TypeError
+    boundary raises narrowing as "unreachable"). One harmless note, not a
+    finding: RoleContract.contract_id rejects a caller-supplied value
+    only when truthy (an empty-string pass is equivalent to omitting it);
+    the computed value is set at construction either way, so no behavior
+    is affected.
+
+findings: []
+
+scope_check: PASS
+notes: >-
+  Full review of all ten new files completed line by line
+  (adapters/platform/contracts/base.py 1053 new + __init__.py 49 new;
+  tests/platform/test_contracts_authority.py 312 new (8 tests),
+  test_contracts_state_truth.py 154 new (5 tests),
+  test_contracts_worker.py 144 new (6 tests),
+  test_contracts_hygiene.py 307 new (10 tests); 29 tests total;
+  .claude/agents/supervisor.md, research.md, execution-monitor.md,
+  worker.md 248 new; three-dot diff origin/main...HEAD = exactly these
+  10 files +2267/-0). Stale-base handling compliant: the branch parent
+  4f3cf13~1 = c444196 == origin/main at dispatch time; origin/main then
+  advanced by the single .development/-only state commit 84d38e8, which
+  has no scope overlap -- the worker correctly did not rebase, and the
+  merge guard (--match-head-commit) keeps the chain exact. No deviations
+  from the frozen contract: allowed_scope respected
+  (contracts/**, .claude/agents/**, tests/platform/test_contracts* only),
+  no existing test modified, no --no-verify, Draft PR (no reviewers), a
+  conventional subject-only commit message with [DEV-M10-G01], and the
+  PR was opened via the gh CLI after the MCP token lacked PR scope (the
+  Draft PR itself is correct). All worker-reported gates independently
+  confirmed (32 / 32 / ruff / mypy 91 / contracts; full suite 2803
+  effective with the known lease flake passing 2/2 in isolation; CI both
+  jobs PASS on head 4f3cf13). Zero findings. Decision: PASS; merge
+  authorized as squash.
+
+git_review:
+  pr_number: 62
+  pr_title: 'feat(platform): runtime agent role contracts [DEV-M10-G01]'
+  branch: feat/dev-m10-g01-role-contracts
+  base_sha: c444196d6d7fda657311117304fba2fe750650fb
+  reviewed_head_sha: 4f3cf138b251ad27726445e732c6712c5a0709f5
+  changed_files: 10 (adapters/platform/contracts/base.py + __init__.py,
+    tests/platform/test_contracts_*.py x4, .claude/agents/*.md x4)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
