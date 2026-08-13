@@ -1,0 +1,9 @@
+goal_id: DEV-M1-G01
+attempt_id: DEV-M1-G01-a1
+change_type: FEATURE
+base_branch: main
+base_sha: ce7ce3f47bb4
+branch: feat/dev-m1-g01-core-models
+worktree: .worktrees/dev-m1-g01
+status: WORKING
+commit_shas: []

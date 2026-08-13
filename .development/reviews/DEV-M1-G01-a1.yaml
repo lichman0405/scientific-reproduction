@@ -1,0 +1,70 @@
+goal_id: DEV-M1-G01
+attempt_id: DEV-M1-G01-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Independent rerun at head bd35f5d in supervisor venv: python -m pytest
+      -q tests/core -> "229 passed". All 21 normative object types are frozen
+      dataclasses with schema-exact keys, to_dict()/from_dict() round-trips,
+      JSON serialization (test_models.py parametrized over every model);
+      MODEL_REGISTRY has 21 entries each backed by a schemas/<name>.schema.yaml.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      core/ids.py: generate_id(kind, *parts) -> sr_<kind>_<32 hex> via SHA-256
+      over a documented length-prefixed canonical contract; no uuid4/random.
+      test_ids.py: 100x determinism for identical inputs, format regex, kind
+      prefixing, order sensitivity, distinct inputs -> distinct IDs,
+      non-canonical rename does not change a committed ID, invalid kind/parts
+      rejected.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      core/schema_validation.py: validate_object -> list[str], validate_and_reject
+      raises SchemaValidationError; lazy+cached jsonschema 2020-12 loading of
+      schemas/<name>.schema.yaml; SchemaNotFoundError with expected path.
+      test_schema_validation.py: 21 valid docs (incl. 7 frozen fdm-201
+      examples) pass; wrong type, missing required, bad enum, const, minItems,
+      range, pattern violations all rejected; every model's to_dict() output is
+      itself schema-valid (serialization remains schema-conformant).
+verification_rerun:
+  - command: python -m pytest -q tests/core
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 8 files changed — core/{ids,models,schema_validation}.py,
+    tests/core/{fixtures,test_ids,test_models,test_schema_validation}.py,
+    pyproject.toml — all inside allowed_scope. pyproject change declared:
+    dev extras + jsonschema>=4.18 + PyYAML>=6.0 (needed by the schema
+    validation adapter; consistent with scripts/validate_development_contracts.py
+    deps).
+  - >-
+    Pyright IDE diagnostics (field ordering, unknown Enum import, fields()
+    typing) are stale mid-edit snapshots / Pyright-only generic strictness:
+    the head file imports cleanly (verified), 229 tests pass, mypy succeeds on
+    19 files. No pyright gate exists in this repo's configured checks; noted
+    as non-blocking.
+  - >-
+    Frozen spec inconsistency discovered (not modified): examples/fdm-201/
+    goal.example.yaml puts bare strings under outputs while schemas/goal.schema
+    .yaml requires items type object — the raw example fails its own schema.
+    Worker normalized fixtures and pinned the behavior with a test; schemas
+    remain the normative gate. Disposition: backlog — candidate
+    DEVELOPMENT_CHANGE_REQUEST / example normalization, not blocking this goal.
+  - >-
+    to_dict() omits None-valued optional fields (non-nullable optional schema
+    properties would otherwise fail their own schema) — documented design.
+git_review:
+  pr_number: 6
+  reviewed_head_sha: bd35f5dd7154161997caae9cd4c6f2b52e10d135
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
