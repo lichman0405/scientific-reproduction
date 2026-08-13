@@ -1,0 +1,151 @@
+review_id: DEV-M11-G01-a1
+goal_id: DEV-M11-G01
+attempt_id: DEV-M11-G01-a1
+reviewer: supervisor
+reviewed_at: '2026-08-14'
+verdict: PASS
+head_sha: dbe40c54ea132e0426ee75e425defbc1fe752aa7
+base_sha: 0eaacaecea62bcd46f479a1ac430f8783fd090fd
+pr_number: 46
+verification:
+- command: python -m pytest -q tests/domain/materials_chemistry -k synth
+  result: '85 passed in 0.30s (exact prediction)'
+- command: python -m pytest -q tests (scratch merge worktree, 0eaacae + dbe40c5)
+  result: '1969 passed, 6 skipped, 1 deselected (= 1884 base + 85 new, exact prediction)'
+- command: ruff check .
+  result: 'All checks passed!'
+- command: mypy src/
+  result: 'Success: no issues found in 70 source files (69 stale-base + 1 new templates.py)'
+- command: scripts/validate_development_contracts.py
+  result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed'
+- command: gh pr checks 46
+  result: 'CI both jobs PASS on merge-ref state (Test/lint/type-check; contracts)'
+ac_evidence:
+  AC-01: >-
+    Batch planning produces the correct frozen contracts: (a) plan_independent_
+    batches yields RunType.INDEPENDENT_REPLICATE runs with deterministic safe ids
+    (generate_id("run", template_id, f"batch-{index:03d}"), ID_PATTERN safe
+    registry segment -- no slash/backslash/whitespace/glob characters, the
+    FND-M9-G02-01 lesson), carrying the template's goal track and the RECOVERY
+    track when the template declares it (test_synth_batches_*). (b) The
+    replication floor is frozen in the template: BatchReplicationDefaults
+    minimum_n == 3 mirrors GoalReplication, and the batch floor rules
+    (BATCH_FLOOR_RULES R-BF-1 n>=floor sufficient / R-BF-2 total default) decide
+    plan_independent_batches -- a below-floor request is rejected with the
+    decision record, an explicit floor (5) is respected (test_synth_batches_
+    below_floor_request_rejected_with_decision_record,
+    test_synth_batches_explicit_floor_respected). (c) Template freeze is
+    Supervisor-only through the REAL DEV-M6-G03 matrix: freeze_synthesis_template
+    calls check_action_allowed(role, Action.PLAN_FREEZE); the Supervisor's call
+    succeeds (frozen=True, input template unchanged -- pure function, verified by
+    mutation-leak test) and a Research-role call is denied with the complete
+    PermissionDeniedError assessment (R-PRM-D1 denial record)
+    (test_synth_freeze_*). (d) Determinism: identical inputs -> byte-identical
+    capture_protocol output and identical generated ids (test_synth_batches_
+    deterministic_ids, test_synth_templates_deterministic_capture).
+  AC-02: >-
+    Missing parameters create real, retrievable scientific assumptions through
+    the core Assumption Registry pathway: (a) assumptions_for_missing_parameters
+    records genuine Assumption objects (generate_id("assumption", template_id,
+    parameter), is_valid_id verified, default label A2_SCIENTIFIC_ASSUMPTION)
+    for exactly the parameters absent from the template value table, and reads
+    them back through the real core.rules.assumptions API (assumption_effect +
+    evaluate_strict_label) -- A2 -> R-STRICT-2 NOT_STRICT, A1 with evidence ->
+    R-STRICT-3 STRICT_WITH_ASSUMPTIONS, A0 -> R-STRICT-4 STRICT, complete
+    template -> R-STRICT-1 (test_synth_assumptions_ac02_*). (b) The assumption
+    schema is enforced by the real schema persistence gate: a malformed
+    assumption record is rejected by validate_and_reject("assumption")
+    (test_synth_assumptions_malformed_assumption_rejected_by_schema_gate). (c)
+    The routing is a pure function and the registry write is deterministic --
+    same input -> identical records, no randomness, no wall clock
+    (test_synth_assumptions_deterministic). The FDM-201 fixtures (fdm201_mof_
+    synth_template / fictional_oxide) are used only as instance data for the
+    batch/assumption/parameter machinery; no FDM-201 chemistry is hard-coded
+    into the domain pack (AST-segment scan proves no instance tokens: PyBC /
+    zinc / DMF / 393 / 298 / solvothermal / D5TA00771B).
+  AC-03: >-
+    The ruleset is complete, consistent and general -- no instance chemistry
+    embedded: (a) validate_synthesis_rulesets enforces unique template ids,
+    coverage of every unit-process kind (synthesis/activation/solvent_exchange
+    each has exactly one template class with its _ALLOWED_KINDS narrowed),
+    total-default presence for every parameter rule table (TEMPLATE_VALUE_RULES
+    R-TPL-V1..V13, TEMPLATE_PARAMETER_RULES R-TPL-P0 total default + P1..P5
+    per-kind required sets), and exactly one value rule per parameter
+    (test_synth_templates_ruleset_*). (b) Value rules are general scientific
+    constraints -- temperature_K positive, duration_h positive, stoichiometry
+    positive, activation temperatures/durations positive, atmosphere in the
+    CONTROLLED_ATMOSPHERES vocabulary {air, argon, nitrogen, vacuum, sealed},
+    pressure non-negative, exchange_cycles int >= 1, names non-empty -- applied
+    uniformly across 6 material families (MOF, oxide, metal, polymer, cement,
+    electrolyte parametrized test) with no material-specific values in the
+    module (test_synth_templates_value_rules_apply_to_materials_universally).
+    (c) Purity by construction: AST import-root scan of the module allows only
+    __future__/scientific_reproduction/math/dataclasses/enum/typing/collections/
+    re/itertools; token scan forbids randomness/clock/network/IO and materials-
+    chemistry vocabulary in the module; the package __init__ is a pure re-export
+    wiring (no own definitions); capture_protocol output is byte-identical
+    across calls (test_synth_purity_*). (d) Template ids are safe registry
+    segments (9 unsafe ids parametrized -- whitespace, slashes, glob chars --
+    all rejected at construction).
+review_notes:
+- >-
+    AC mapping one-to-one: AC-01 -> plan_independent_batches + BATCH_FLOOR_RULES
+    (R-BF-1/R-BF-2) + freeze_synthesis_template (Supervisor-only via the REAL
+    DEV-M6-G03 matrix, Action.PLAN_FREEZE, R-PRM-D1 denial for Research);
+    AC-02 -> assumptions_for_missing_parameters + core.rules.assumptions real
+    API (assumption_effect/evaluate_strict_label, R-STRICT-1..4) + schema
+    persistence gate (validate_and_reject("assumption")); AC-03 ->
+    validate_synthesis_rulesets + TEMPLATE_VALUE_RULES R-TPL-V1..V13 +
+    TEMPLATE_PARAMETER_RULES R-TPL-P0..P5 + AST purity scans. The goal's
+    verification command (-k synth) selects exactly this suite: 85 = the new
+    tests across the 5 test files (57 functions; fixtures are not counted).
+- >-
+    Boundary alignment with the DEV-M6-G03 role-action matrix tested against the
+    REAL matrix: freeze requires Action.PLAN_FREEZE which the Supervisor holds
+    and Research does not (test_synth_freeze_supervisor_can_freeze /
+    test_synth_freeze_research_denied_with_assessment -- the denial carries the
+    full R-PRM-D1 assessment record, proving the check is real and not a stub).
+    The permission error raised is the real PermissionDeniedError from
+    core.permissions.
+- >-
+    Dead-code note (cosmetic, not a deviation): the private helper
+    _rule_for_kind in templates.py is never called (the value rules are looked
+    up through the frozen rule table directly). Harmless; recorded for
+    completeness. UnknownUnitProcessError is reachable in type space but the
+    ordered rule tables make it unreachable in practice (R-TPL-P0 total default
+    matches any kind); the worker documented this in the module docstring, and
+    validate_synthesis_rulesets pins the kind coverage so the branch is a
+    defensive holdover -- accepted as documented.
+- >-
+    Frozen-contract discipline verified: allowed_scope respected (templates.py +
+    __init__.py + 5 test files = 7 files, +3011/-0); no existing test modified
+    or weakened; no --no-verify; Draft PR with no reviewers; conventional
+    commit message with [DEV-M11-G01]; branch parent 0eaacae (direct ancestor
+    of origin/main f90d177; worker neither rebased nor force-pushed -- the
+    forbidden operations); merge-ref CI both jobs PASS on the merged state;
+    scratch merge worktree (origin/main 0eaacae + head dbe40c5) full suite
+    result below. Stale-base policy: PR #45 (M6-G04) merged during this
+    attempt; files are fully disjoint from this PR (verified three-dot diff
+    origin/main...HEAD shows exactly the 7 new files), so no conflict surface.
+- >-
+    Determinism and purity verified by reading + tests: frozen dataclasses with
+    __post_init__ validation and object.__setattr__ defensive copies; value
+    tables and rule tables are module-level frozen constants; no I/O, no
+    randomness, no wall clock, no network anywhere in the module; caller-owned
+    dicts are copied before storage (mutation-leak test proves isolation);
+    byte-identical capture across calls. from __future__ import annotations;
+    __all__ exports all resolve exactly once (59 names, re-exported through the
+    package __init__).
+claim_corrections:
+- >-
+    Cosmetic deviation recorded (not a contract violation, no REJECT): the
+    Result Package claimed "no deviations" from the frozen brief, but the 5 new
+    test files contain 14 '# type: ignore[arg-type]' comments (lines 281, 288,
+    294, 300, 370 in test_synth_templates.py; 263, 267, 271, 274 in
+    test_synth_assumptions.py; 164, 168 in test_synth_batches.py; 86, 93, 104 in
+    test_synth_freeze.py) while the brief required new test files with no
+    type: ignore / noqa. Evaluated: these are specific-code scoped comments on
+    pytest fixture typing (mypy does not check tests; pyright requires them for
+    strict mode), do not suppress real defects, and do not touch frozen
+    contracts (templates.py has none). Recorded as claim_corrections for audit
+    transparency; no action required.

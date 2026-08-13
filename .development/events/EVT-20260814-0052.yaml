@@ -1,0 +1,37 @@
+event_id: EVT-20260814-0052
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M11-G01
+attempt_id: DEV-M11-G01-a1
+pr_number: 46
+head_sha: dbe40c54ea132e0426ee75e425defbc1fe752aa7
+merge_sha: 4a01a719fb383283792cb9f04e5e749f15756f0e
+summary: >-
+  DEV-M11-G01 merged (materials-chemistry synthesis templates domain pack):
+  domain_packs/materials_chemistry/synthesis/templates.py +1639/-0,
+  __init__.py +113/-0, 5 test files +1259/-0 (7 files, +3011/-0). Review
+  DEV-M11-G01-a1 PASS. AC-01 batch planning produces frozen contracts:
+  plan_independent_batches yields RunType.INDEPENDENT_REPLICATE with
+  deterministic safe ids (FND-M9-G02-01-safe registry segments), track/RECOVERY
+  carried, BATCH_FLOOR_RULES R-BF-1/R-BF-2 decide (floor frozen == 3 mirroring
+  GoalReplication; below-floor rejected with decision record; explicit floor 5
+  respected); freeze is Supervisor-only through the REAL DEV-M6-G03 matrix
+  (Action.PLAN_FREEZE granted to Supervisor, R-PRM-D1 denial with assessment
+  for Research); input never mutated (pure function). AC-02 missing parameters
+  create real retrievable assumptions via the real core.rules.assumptions API
+  (assumption_effect + evaluate_strict_label -> R-STRICT-1..4), schema gate
+  validate_and_reject("assumption") rejects malformed records, deterministic.
+  AC-03 ruleset completeness enforced by validate_synthesis_rulesets (unique
+  ids, kind coverage, total defaults R-TPL-P0/R-BF-2, exactly one value rule
+  per parameter R-TPL-V1..V13); value rules are general scientific constraints
+  uniform across 6 material families (no instance chemistry -- AST-segment and
+  token scans prove no FDM-201 instance tokens); package __init__ pure
+  re-export. Gates on head: -k synth 85 passed / scratch merge (0eaacae +
+  dbe40c5) full 1969-6-1 (exact prediction 1884+85) / ruff clean / mypy 70
+  files (69 base + 1) / contracts PASS / CI both jobs PASS on merge-ref.
+  Claim corrections: 14 type: ignore comments in the 5 new test files
+  (cosmetic; mypy does not check tests, pyright strict requires them;
+  production templates.py has none; recorded for audit transparency, no
+  action). Branch parent 0eaacae (ancestor of origin/main, no rebase); PR
+  diff exactly 7 files +3011/-0; stale-base policy complied (PR #45 merged
+  mid-attempt, files fully disjoint).
