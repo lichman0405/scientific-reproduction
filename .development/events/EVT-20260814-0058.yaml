@@ -1,0 +1,33 @@
+event_id: EVT-20260814-0058
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M11-G03
+attempt_id: DEV-M11-G03-a1
+pr_number: 52
+head_sha: 4785c8e0b40d2b52f13665b7dbe37c9565ef0cb2
+merge_sha: da7beb4a8b7dfc9eafe5718a115401e3aeefa84a
+summary: >-
+  DEV-M11-G03 merged (adsorption templates domain pack): 10 files (2 src
+  + 6 tests + 2 auxiliary). Review DEV-M11-G03-a1 REJECT -> -a1-r2 PASS
+  (FND-M11-G03-01 duplicated R-ADS-P7 description fragment + FND-M11-G03-02
+  unused _rule_for_kind_stage dead code, both LOW, fixed in 4785c8e by 13
+  pure deletions; M11-G04 symmetric helper left untouched). AC-01
+  missing-parameter handling routes through the REAL Assumption Registry
+  (core.models.Assumption, core.rules.assumptions, default A2 ->
+  R-STRICT-2, schema gate validate_and_reject). AC-02 execution/analysis
+  surfaces freeze independently, freeze_adsorption_template gated by
+  Supervisor-only core.permissions Action.PLAN_FREEZE, PermissionDenied
+  Error carries the assessment, frozen copies immutable. AC-03
+  BreakthroughResultTable/PaperResultEntry deterministic paper
+  figure/result mapping with safe-segment keys (FND-M9-G02-01) and
+  byte-identical capture. Ordered first-match-wins rule tables
+  (R-ADS-P0..P10 + R-ADS-V1..V29, totality proven by
+  validate_adsorption_rulesets). Verification: -k adsorption 69 passed;
+  tests/domain 392; ruff clean; mypy 77 head / 81 scratch; contracts
+  PASS; scratch merge (98733e5 = 4785c8e + a809187) full suite 2461 =
+  2392 base + 69 new (2460 passed + 1 known lease flake, re-verified
+  green in isolation); CI both jobs PASS on 4785c8e. Branch root
+  1f37444 (dispatch-time origin/main; direct ancestor of a809187; no
+  rebase); M11-G04/M11-G02/M7-G01/M7-G02 merged mid-attempt with fully
+  disjoint files. Zero type: ignore / noqa in all new files. Merged
+  count 51/80.

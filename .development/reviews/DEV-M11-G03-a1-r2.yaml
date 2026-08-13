@@ -1,0 +1,165 @@
+review_id: DEV-M11-G03-a1-r2
+goal_id: DEV-M11-G03
+attempt_id: DEV-M11-G03-a1
+reviewer: Development Supervisor (independent re-review on fix head)
+reviewed_at: '2026-08-14'
+decision: PASS
+supersedes: DEV-M11-G03-a1
+prior_decision: REJECT (FND-M11-G03-01 / FND-M11-G03-02, see
+  .development/reviews/DEV-M11-G03-a1.yaml)
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_adsorption_assumptions_missing_parameter_creates_real_assumption_record
+    - test_adsorption_assumptions_default_and_explicit_levels
+    - test_adsorption_assumptions_routing_survives_registry_reload
+    - test_adsorption_assumptions_schema_gate_validate_and_reject
+    - test_adsorption_assumptions_strict_status_effect_labels
+    - test_adsorption_templates_missing_parameter_assessment
+    notes: >-
+      Unchanged from the a1 review: missing-parameter handling routes
+      through the REAL Assumption Registry (core.models.Assumption,
+      core.rules.assumptions assumption_effect / evaluate_strict_label,
+      default A2 -> R-STRICT-2, schema gate validate_and_reject against
+      schemas/assumption.schema.yaml, registry read-back through the real
+      API). The fix did not alter any AC-01 behavior; all assumption tests
+      still pass on the fix head.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_adsorption_freeze_supervisor_only_action_gate
+    - test_adsorption_freeze_raises_permission_denied_with_assessment
+    - test_adsorption_freeze_independent_surfaces
+    - test_adsorption_freeze_frozen_copy_is_immutable
+    - test_adsorption_freeze_defensive_parameter_copy
+    - test_adsorption_analysis_execution_analysis_surfaces_disjoint_per_kind
+    notes: >-
+      Unchanged from the a1 review: freeze gated by core.permissions
+      Action.PLAN_FREEZE (Supervisor only), PermissionDeniedError carries
+      the assessment, execution/analysis freeze independently, frozen
+      copies immutable with defensive parameter copy. All freeze tests
+      still pass on the fix head.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_adsorption_breakthrough_paper_mapping_deterministic
+    - test_adsorption_breakthrough_safe_paper_keys
+    - test_adsorption_breakthrough_paper_mapping_sorted_view
+    - test_adsorption_breakthrough_capture_byte_identical
+    - test_adsorption_templates_paper_result_entries_validated
+    notes: >-
+      Unchanged from the a1 review: deterministic paper figure/result
+      mapping with the safe-segment key discipline (FND-M9-G02-01),
+      sorted byte-identical paper_mapping view, byte-identical
+      capture_protocol. All mapping tests still pass on the fix head.
+  FND-M11-G03-01:
+    status: PASS
+    evidence:
+    - R-ADS-P7 description is now a single clean string (the duplicated
+      trailing " inventory)" fragment deleted; diff verified line-by-line)
+    notes: >-
+      Fix verified in full. The fix commit deletes exactly 13 lines from
+      templates.py: the 1 duplicated description fragment and the 12-line
+      dead helper. The R-ADS-P7 description now ends once; the rule table
+      remains a total first-match-wins table (validate_adsorption_rulesets
+      still PASS, totality proof unaffected -- descriptions carry no
+      behavior).
+  FND-M11-G03-02:
+    status: PASS
+    evidence:
+    - _rule_for_kind_stage removed (12 lines); grep confirms zero
+      references remain in the module, tests or any other source file
+    notes: >-
+      Fix verified in full: the unused helper is gone, behavior-neutral
+      (nothing referenced it). The symmetric helper in DEV-M11-G04's
+      merged module was left untouched per the fix brief's scope note
+      (frozen AC boundary).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m11-g03 (reinstalled editable from the
+    M11-G03 worktree before this re-review; import resolution confirmed to
+    the worktree copy)
+  head_sha: 4785c8e0b40d2b52f13665b7dbe37c9565ef0cb2
+  commands:
+  - cmd: pytest -q tests/domain/materials_chemistry -k adsorption
+    result: 69 passed (matches worker claim exactly; unchanged from a1 --
+      the fix adds no tests and deletes none)
+  - cmd: pytest -q tests/domain
+    result: 392 passed (unchanged from a1)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 77 source files (unchanged from
+      a1; templates.py 1937 lines post-fix)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (scratch merge worktree, 98733e5 =
+    4785c8e + origin/main a809187)
+    result: >-
+      2460 passed, 6 skipped, 1 deselected + 1 known flaky
+      (test_concurrent_takeover_of_expired_lease_single_winner_single_
+      object, the load-dependent lease takeover race -- hit under the
+      parallel scratch-suite load, re-verified in isolation: 1 passed in
+      5.40s). Arithmetic: 2392 base at a809187 + 69 new = 2461 exact.
+  - cmd: mypy src/ (scratch merge worktree)
+    result: 'Success: no issues found in 81 source files (79 on main +
+      2 new)'
+  - cmd: gh pr checks 52
+    result: "Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head 4785c8e)"
+  pyright_notes: >-
+    No new pyright noise from the fix (pure deletions). Previously
+    classified noise classes (TypeError boundary guards flagged as
+    "unreachable", stale main-repo snapshot resolution) are unchanged;
+    mypy/ruff/pytest/CI are the authoritative gates and all pass on the
+    head.
+
+design_review:
+  fix_boundary: >-
+    The fix is pure deletion, strictly inside M11-G03's own new module:
+    one duplicated description fragment (documentation text, no behavior)
+    and one unused helper (dead code, no references). No schema changes,
+    no storage-format changes, no frozen AC reinterpretation, no flow-path
+    changes.
+  no_scope_creep: >-
+    Diff of the fix commit 4785c8e is exactly 1 file, 13 deletions
+    (templates.py). The M11-G04 symmetric helper is untouched, as
+    briefed. No --no-verify, no force-push, no amended history, no deleted
+    tests (69 -> 69, stable).
+  determinism_preserved: >-
+    The rule-table totality proof (validate_adsorption_rulesets), the
+    byte-identical capture_protocol and the deterministic paper mapping
+    all still PASS on the fix head -- the deletions touch only
+    documentation text and unreachable code.
+
+scope_check: PASS
+notes: >-
+  Re-review of the fix for FND-M11-G03-01 (duplicated R-ADS-P7 description
+  fragment, LOW) and FND-M11-G03-02 (unused _rule_for_kind_stage dead
+  code, LOW). The fix delivers exactly the briefed requirements: 13 lines
+  deleted (1 + 12), behavior-neutral, confined to templates.py. All 6
+  head gates re-verified independently on 4785c8e (69 / 392 / ruff /
+  mypy 77 / contracts / CI both PASS); the scratch merge full suite
+  (98733e5) confirms the exact merged-state prediction 2461 (2392 + 69)
+  with only the known lease flake, re-verified green in isolation; mypy
+  81 on the merged state. AC-01/02/03 coverage unchanged and passing.
+  FND-M11-G03-01 and FND-M11-G03-02 CLOSED (FIXED). Decision: PASS;
+  merge authorized as squash with subject "feat(domain): adsorption
+  templates [DEV-M11-G03]".
+
+git_review:
+  pr_number: 52
+  pr_title: 'feat(domain): adsorption templates [DEV-M11-G03]'
+  branch: feat/dev-m11-g03-adsorption
+  base_sha: 1f3744423f2b95fad155ed0e6949c578eb9ed381
+  reviewed_head_sha: 4785c8e0b40d2b52f13665b7dbe37c9565ef0cb2
+  changed_files: 10 (2 src + 6 tests + 2 auxiliary; the fix commit
+    4785c8e touches only templates.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

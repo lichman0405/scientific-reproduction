@@ -1,0 +1,21 @@
+goal_id: DEV-M11-G03
+attempt_id: DEV-M11-G03-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 1f3744423f2b95fad155ed0e6949c578eb9ed381
+branch: feat/dev-m11-g03-adsorption
+worktree: .worktrees/dev-m11-g03
+status: MERGED
+pr:
+  number: 52
+  url: https://github.com/lichman0405/scientific-reproduction/pull/52
+  head_sha: 4785c8e0b40d2b52f13665b7dbe37c9565ef0cb2
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M11-G03-a1-r2
+merge_commit_sha: da7beb4a8b7dfc9eafe5718a115401e3aeefa84a
+merged_at: '2026-08-14'
+commit_shas:
+- c64860c72d7ac171818d7afc4868e9fec038a2f6
+- 4785c8e0b40d2b52f13665b7dbe37c9565ef0cb2
