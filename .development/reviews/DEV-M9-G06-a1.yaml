@@ -1,0 +1,132 @@
+review_id: DEV-M9-G06-a1
+goal_id: DEV-M9-G06
+attempt_id: DEV-M9-G06-a1
+reviewer: supervisor
+reviewed_at: '2026-08-14'
+verdict: PASS
+head_sha: 10d6171ad20efffcb391cd1685080c1516da7e56
+base_sha: dfbfe639c98a53a4b743ba5261155128783a5499
+pr_number: 44
+verification:
+- command: python -m pytest -q tests/scenarios -k "D or F"
+  result: '33 passed (18 D + 15 F)'
+- command: python -m pytest -q tests (scratch merge worktree, 1a86dc2 + 10d6171)
+  result: '1830 passed, 6 skipped, 1 deselected (= 1797 base + 33 new, exact prediction)'
+- command: ruff check .
+  result: 'All checks passed!'
+- command: mypy src/
+  result: 'Success: no issues found in 66 source files (stale-base count; tests-only change)'
+- command: scripts/validate_development_contracts.py
+  result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed'
+- command: gh pr checks 44
+  result: 'CI both jobs PASS on merge-ref state (Test/lint/type-check 38s; contracts 9s)'
+ac_evidence:
+  AC-01: >-
+    Scenario D = S3 (adsorption statistically inconclusive), 18 tests in
+    tests/scenarios/test_D_fdm201_adsorption_inconclusive.py. (a) Cannot be
+    coerced to PASS: WIDE_BATCHES (10,15,5) -> equivalence R-EQ-3 INCONCLUSIVE
+    (CI crosses zero, never EQUIVALENT even though the point estimate lies
+    inside the bounds -- test_D_equivalence_verdict_is_inconclusive_not_
+    equivalent); EquivalenceVerdict vocabulary == [EQUIVALENT, NOT_EQUIVALENT,
+    INCONCLUSIVE] with no PASS/FAIL/REPRODUCED member and INCONCLUSIVE string
+    equals RequirementOutcome.INCONCLUSIVE (test_D_equivalence_vocabulary_has_
+    no_pass_or_reproduced_member, test_D_verdict_inconclusive_string_is_frozen_
+    outcome_string); replicate status never SUFFICIENT for wide data (R-REP-I1,
+    relative_half_width > frozen precision -- test_D_wide_data_never_sufficient_
+    not_coerced_to_pass); requirements registry provably empty after the full
+    scenario with requirement_refs pure linkage (test_D_no_requirement_
+    reproduced_written_by_analysis_path); outcome layer stays OPEN/INCONCLUSIVE
+    (R-REQOUT-5 UNDETERMINED / R-REQOUT-4 INCONCLUSIVE -- test_D_outcome_layer_
+    stays_open_or_inconclusive_consistent); registered records carry no verdict
+    words (test_D_registered_results_carry_inconclusive_evidence_no_verdict_
+    words); tight-data contrast EQUIVALENT/SUFFICIENT/0 vs wide INCONCLUSIVE/
+    INSUFFICIENT proves the verdict is evidence-driven (test_D_contrast_tight_
+    data_equivalent_wide_data_inconclusive); AST proof the analysis modules
+    never import rules/inventory closure layers (test_D_analysis_path_never_
+    imports_requirement_closure_layers). (b) Requests more independent Runs:
+    requested_additional_runs == 94 pinned by the frozen formula
+    ceil(n*(h/threshold)**2)-n (test_D_additional_runs_requested_by_frozen_
+    policy); request scales with spread (wide 94 > mid 13, both formula-pinned
+    -- test_D_request_scales_with_spread_per_frozen_formula); precision/floor
+    read verbatim from the frozen acceptance (test_D_request_reads_frozen_
+    precision_and_floor_verbatim); below-floor (n=2) INDETERMINATE still
+    requests the floor run, never PASS/FAIL (test_D_below_floor_indeterminate_
+    requests_runs_not_pass_fail).
+  AC-02: >-
+    Scenario F = S5 (DFT convergence requires parameter change), 15 tests in
+    tests/scenarios/test_F_fdm201_dft_convergence_failure.py. (a) Failure
+    reported as facts/deviations, never a silent retry: NOT_CONVERGED_SERIES
+    (1.0,0.6,0.35) window=1 -> R-CONV-N1 NOT_CONVERGED budget_exhausted with
+    job_technical_status=completed fact (S5 "job technically runs" --
+    test_F_job_runs_technically_but_scientific_convergence_fails); DIVERGING
+    shape R-CONV-D1 representable (test_F_diverging_series_failure_is_
+    representable); real register_worker_result carries facts F-1..F-9 +
+    DeviationType.FAILURE, read back byte-identical (test_F_worker_reports_
+    failure_as_facts_and_deviation); analysis record carries convergence
+    metrics/findings via real register_result (test_F_analysis_record_carries_
+    convergence_failure); exactly one worker + one analysis result, runs/
+    empty, no retry policy files, no retry/resubmit/rerun callable in any of
+    the three modules (test_F_failure_reported_never_silent_retry);
+    DeviationType == [protocol_deviation, failure, interruption] -- execution
+    fact vocabulary, never a verdict (test_F_deviation_type_is_execution_fact_
+    vocabulary_not_verdict). (b) No automatic parameter mutation:
+    evaluate_convergence signature pinned (iterations, tolerance, window,
+    max_iterations) with no set_/adjust/restart/tune/alter/smearing surface
+    (test_F_convergence_module_has_no_parameter_tuning_surface); worker facts
+    carry frozen smearing_width 0.05/pulay/max 3/tol 1e-6 verbatim from the
+    frozen protocol + environment parameter_mutation=none (test_F_worker_does_
+    not_change_smearing_mixing_parameters); byte-snapshot of frozen protocols/
+    acceptance/manifests identical before/after the failure path
+    (test_F_failure_leaves_frozen_protocol_and_acceptance_byte_identical);
+    worker never fabricates a SupervisorDecision: decision_refs empty,
+    decisions/ registry empty, AST identifier scan over worker/analysis/
+    computational modules finds no SupervisorDecision/DecisionType
+    (test_F_supervisor_decision_surface_not_fabricated_by_worker); DecisionType
+    vocabulary is exactly the diagnosis/research/recovery surface (RESEARCH_
+    REQUEST/RECOVERY_ENTRY/METHOD_REDESIGN_ENTRY/GOAL_REVISION/REQUIREMENT_
+    CLOSURE + SupervisorDecision.actor pinned -- test_F_supervisor_decision_
+    vocabulary_is_diagnosis_research_recovery).
+review_notes:
+- >-
+  Scenario mapping verified against examples/fdm-201/simulated-scenarios.md:
+  D = S3 ("Adsorption statistically inconclusive" -- no PASS/FAIL, dynamic
+  additional runs per frozen sample-size policy), F = S5 ("DFT convergence
+  requires parameter change" -- worker reports facts, supervisor decides
+  diagnosis/research/recovery). Both module docstrings document the mapping.
+- >-
+  End-to-end on the REAL merged stack: planning.init/protocols/plan registries,
+  artifacts.registry, analysis.statistics/replication/computational/results,
+  workers.results (WorkerResultPackage strict validation incl. context_id
+  shape), core.rules.outcome -- no mocks; results are the exact registered
+  bytes read back byte-identical. Exactly-once registries used with separate
+  tmp_path sub-workspaces per scenario (correct handling).
+- >-
+  Determinism: fixed AuditIdentity, fixed timestamps (2026-01-01 init /
+  2026-06-01 freeze / 2026-06-01T12:00:00Z completed_at), pinned safe ids only
+  (FND-M9-G02-01 hardened boundary respected; safe-id test enumerates them),
+  pinned generated context id, no randomness/wall clock/network (purity AST
+  checks incl. no timezone/open(/atomic_write on the computational module).
+- >-
+  Numeric spot-checks by reviewer all consistent: wide batches sd=5 ->
+  relative half-width ~0.566 -> ceil(3*(5.66)^2)-3 = 94; mid sd=2 -> 13;
+  NOT_CONVERGED trailing drift 0.25 > 1e-6; DIVERGING drifts strictly
+  increasing.
+- >-
+  Stale-base handling compliant: branch parent dfbfe63 (ancestor of origin/
+  main; worker neither rebased nor force-pushed -- forbidden); PR diff
+  origin/main...HEAD = exactly the 2 new files (+1567/-0); merge-ref CI PASS
+  on the merged state; scratch merge worktree (origin/main 1a86dc2 + head
+  10d6171) full suite 1830/6/1 -- the exact predicted merged-state number.
+- >-
+  First scenario tests of the repo (tests/scenarios/ created). Self-contained
+  fixtures (protocol_helpers not importable under pytest prepend mode from a
+  sibling dir -- correctly handled per brief). All 33 test names carry D/F and
+  the -k "D or F" filter selects exactly the suite (33 passed, 0 deselected
+  from tests/scenarios).
+- >-
+  No deviations from the frozen contract: allowed_scope respected (2 files),
+  no existing test weakened, no --no-verify, Draft PR (not ready, no
+  reviewers), conventional commit message with [DEV-M9-G06]. (gh CLI used
+  instead of GitHub MCP for PR creation -- known token-scope limitation, same
+  as DEV-M6-G03.)
+claim_corrections: []

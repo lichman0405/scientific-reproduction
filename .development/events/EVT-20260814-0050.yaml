@@ -1,0 +1,36 @@
+event_id: EVT-20260814-0050
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M9-G06
+attempt_id: DEV-M9-G06-a1
+pr_number: 44
+head_sha: 10d6171ad20efffcb391cd1685080c1516da7e56
+merge_sha: 0eaacaecea62bcd46f479a1ac430f8783fd090fd
+summary: >-
+  DEV-M9-G06 merged (FDM-201 simulation scenarios D and F): tests/scenarios/
+  test_D_fdm201_adsorption_inconclusive.py +759/-0, test_F_fdm201_dft_
+  convergence_failure.py +808/-0 (first scenario tests of the repo). Review
+  DEV-M9-G06-a1 PASS. AC-01 D=S3 (adsorption statistically inconclusive):
+  wide batches (10,15,5) -> R-EQ-3 INCONCLUSIVE (CI crosses zero, never
+  EQUIVALENT), EquivalenceVerdict has no PASS/FAIL/REPRODUCED member and
+  INCONCLUSIVE string == RequirementOutcome.INCONCLUSIVE, never SUFFICIENT
+  (R-REP-I1), requirements registry provably empty (no REPRODUCED written),
+  outcome layer stays OPEN/INCONCLUSIVE (R-REQOUT-5/4), requested_additional_
+  runs == 94 pinned by frozen formula ceil(n*(h/th)^2)-n, scales with spread
+  (wide 94 > mid 13), precision/floor verbatim from frozen acceptance,
+  below-floor INDETERMINATE requests runs not verdicts, tight contrast
+  EQUIVALENT/SUFFICIENT/0, AST proof analysis path never imports closure
+  layers. AC-02 F=S5 (DFT convergence requires parameter change):
+  NOT_CONVERGED R-CONV-N1 budget_exhausted + job_technical_status=completed,
+  DIVERGING R-CONV-D1, real register_worker_result facts F-1..F-9 +
+  DeviationType.FAILURE byte-identical, exactly-once execution (no silent
+  retry), evaluate_convergence signature pinned (no tuning surface), worker
+  facts carry frozen smearing/mixing verbatim + parameter_mutation=none,
+  frozen protocol/acceptance/manifests byte-identical across failure path,
+  no fabricated SupervisorDecision (empty decision_refs + empty decisions/
+  registry + AST identifier scan), DecisionType = diagnosis/research/recovery
+  surface. Gates on head: 33 (-k "D or F", tests/scenarios) / scratch merge
+  (1a86dc2 + head) full 1830-6-1 (exact prediction 1797+33) / ruff clean /
+  mypy 66 (stale base; tests-only) / contracts PASS / CI both jobs PASS on
+  merge-ref. Branch parent dfbfe63 (ancestor of origin/main, no rebase);
+  PR diff exactly 2 files +1567/-0. M9 COMPLETE: G01-G06 all merged.
