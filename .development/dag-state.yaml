@@ -2,7 +2,6 @@ dag_version: 1
 total_frozen_goals: 80
 ready_to_dispatch:
 - DEV-M11-G02
-- DEV-M11-G04
 - DEV-M11-G05
 - DEV-M7-G01
 - DEV-M7-G02
@@ -50,6 +49,7 @@ merged:
 - DEV-M1-G05
 - DEV-M1-G06
 - DEV-M11-G01
+- DEV-M11-G04
 - DEV-M2-G01
 - DEV-M2-G02
 - DEV-M2-G03

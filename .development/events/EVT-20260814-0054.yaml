@@ -1,0 +1,40 @@
+event_id: EVT-20260814-0054
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M11-G04
+attempt_id: DEV-M11-G04-a1
+pr_number: 48
+head_sha: 87fe2919ece012d2b9e08782a6b927ef15828ecd
+merge_sha: 88c97b4e0acdffafda07455da9b67b9e8d82f61a
+summary: >-
+  DEV-M11-G04 merged (materials-chemistry computation templates): 6 new
+  files +3489/-0 (src/domain_packs/materials_chemistry/computation/
+  templates.py 1846 + __init__.py 96; tests/domain/materials_chemistry/
+  test_computation_templates.py 775 + assumptions 352 + freeze 170 +
+  purity 250). Review DEV-M11-G04-a1 PASS. AC-01 ComputationKind/Stage
+  vocabulary + ordered COMPUTATION_PARAMETER_RULES R-COM-P1..P8 (+P0
+  total default) covering all 8 (kind, stage) pairs with disjoint
+  execution/analysis required sets; missing parameters route through the
+  REAL core.rules.assumptions pathway (A2 default per
+  16-MATERIALS-CHEMISTRY-DOMAIN-PACK SS5; R-STRICT-1..4 labels; safe
+  assumption ids; apply_assumption_routing carries refs without
+  mutation). AC-02 stage-split surface: explicit stage required at
+  construction, per-surface independent freeze gated by
+  check_action_allowed(role, Action.PLAN_FREEZE) (R-PRM-D1 denials,
+  R-PRM-SUP1 positive control), frozen copies immutable, input never
+  mutated. AC-03 universal rule tables with zero instance chemistry
+  (AST segment scans of both tables for fixture tokens; import-root
+  whitelist; no randomness/clock/network/IO), R-COM-V1..V34 value rules
+  (38 parametrized rejections), SchedulerOptions (AC-03 slurm/modules)
+  as template option never entering the Assumption Registry, safe ids
+  (FND-M9-G02-01), byte-identical deterministic capture. Verification:
+  -k comput 113 passed; ruff clean; mypy 73 source files; contracts
+  PASS; scratch merge (58a84d2 + 87fe2919) full suite 2180 passed, 6
+  skipped, 1 deselected (= 2067 + 113, exact prediction); CI both jobs
+  PASS on the merged state. Branch parent 6f1d6c8 (dispatch-time
+  origin/main; direct ancestor of 58a84d2; no rebase); M11-G01/M6-G05
+  merged mid-attempt with fully disjoint files (three-dot diff exactly
+  the 6 new files). Pattern-symmetric with DEV-M11-G01; _rule_for_kind_
+  stage dead code documented (mirrors G01's unused helper). Zero type:
+  ignore / noqa in the new files. With this merge M11-G04 is complete;
+  merged count 47/80.
