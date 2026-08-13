@@ -4,7 +4,8 @@ ready_to_dispatch:
 - DEV-M11-G02
 - DEV-M11-G04
 - DEV-M11-G05
-- DEV-M6-G05
+- DEV-M7-G01
+- DEV-M7-G02
 waiting_on_dependencies:
 - DEV-M10-G01
 - DEV-M10-G02
@@ -26,8 +27,6 @@ waiting_on_dependencies:
 - DEV-M13-G03
 - DEV-M13-G04
 - DEV-M13-G05
-- DEV-M7-G01
-- DEV-M7-G02
 - DEV-M7-G03
 - DEV-M7-G04
 - DEV-M7-G05
@@ -78,6 +77,7 @@ merged:
 - DEV-M6-G02
 - DEV-M6-G03
 - DEV-M6-G04
+- DEV-M6-G05
 - DEV-M9-G01
 - DEV-M9-G02
 - DEV-M9-G03

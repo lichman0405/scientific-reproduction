@@ -1,0 +1,140 @@
+review_id: DEV-M6-G05-a1
+goal_id: DEV-M6-G05
+attempt_id: DEV-M6-G05-a1
+reviewer: supervisor
+reviewed_at: '2026-08-14'
+verdict: PASS
+head_sha: 838c40edec26d9471f8b11b068387ba8bb5f60eb
+base_sha: f90d177ee38f6d70b7def3fb06739f279c3f1072
+pr_number: 47
+verification:
+- command: python -m pytest -q tests/integration -k governance
+  result: '98 passed, 36 deselected (exact prediction)'
+- command: python -m pytest -q tests/workers tests/integration
+  result: '352 passed in 36.31s (exact prediction)'
+- command: python -m pytest -q tests (scratch merge worktree, 6f1d6c8 + 838c40e)
+  result: '2067 passed, 6 skipped, 1 deselected (= 1969 base + 98 new, exact prediction)'
+- command: ruff check .
+  result: 'All checks passed!'
+- command: mypy src/
+  result: 'Success: no issues found in 69 source files (no src changes in this PR)'
+- command: scripts/validate_development_contracts.py
+  result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed'
+- command: gh pr checks 47
+  result: 'CI both jobs PASS (Test/lint/type-check 42s; contracts 10s)'
+ac_evidence:
+  AC-01: >-
+    Forbidden plan mutation is blocked by the RUNTIME, not only by prompt
+    instructions: adversarial "naive worker" fixtures carry instruction
+    documents whose granted_actions WOULD permit the forbidden mutation, and
+    the real runtime guards (workers/permissions.py enforce_* functions,
+    decided by the frozen role-action matrix in core/permissions.py) still
+    raise the stable one-line PermissionDeniedError with the full assessment
+    (R-PRM-D1, input role+action, == check_action_allowed result) --
+    test_governance_ac01_naive_worker_cannot_mutate_the_frozen_goal (6
+    non-Supervisor roles), test_governance_ac01_naive_worker_cannot_make_plan_
+    decisions (6 roles x 11 DecisionTypes = 66 cases), test_governance_ac01_
+    naive_monitor_cannot_classify_pass_or_fail (SCIENTIFIC_INTERPRETATION),
+    test_governance_ac01_naive_worker_cannot_create_a_recovery_goal (6 roles),
+    test_governance_ac01_naive_worker_cannot_close_the_registered_requirement
+    (6 roles against the REAL registered REQ-1 record). The guard protects the
+    REAL frozen contract artifact: the one-shot real plan-freeze flow's Goal
+    (frozen v1) AND the persisted frozen Plan record, plus the registered
+    draft goal (GOAL_MUTATE denied) -- test_governance_ac01_guard_protects_the_
+    real_frozen_contract. Positive control: the Supervisor keeps every
+    governance surface with R-PRM-SUP1 (goal mutation, all plan decisions,
+    Recovery entry, closure, interpretation) -- test_governance_ac01_
+    supervisor_still_holds_every_governance_surface. Two-sided boundary:
+    workers keep exactly their matrix may-lists and nothing beyond
+    (test_governance_ac01_workers_keep_exactly_their_may_lists). Full M6
+    chain (G01 context contract + G03 matrix + G04 evaluator): the context
+    package grants only retry:<failure> engineering actions (forbidden_
+    actions retry:protocol_deviation), the retry evaluator routes the
+    supervisor-required change away from automatic action (R-RET-S1,
+    SUPERVISOR) while authorizing the whitelisted failure (R-RET-A1,
+    AUTOMATIC), and the matrix denies SCIENTIFIC_PARAMETER_CHANGE (R-PRM-D1)
+    -- test_governance_ac01_context_grants_only_engineering_retries_and_no_
+    plan_actions, test_governance_ac01_forbidden_retry_is_contract_
+    prohibition_and_runtime_denial. Denied assessments carry the frozen
+    matrix ruleset version (test_governance_ac01_denied_assessment_carries_
+    the_frozen_ruleset_version).
+  AC-02: >-
+    The worker context leak fixture fails if unrelated refs are exposed: the
+    adversarial workspace seeds unrelated registered state into the REAL
+    registries -- extra goal (GOAL-UNRELATED with artifact), extra protocol
+    (ANP-LEAK-9), extra resource (RES-LEAK-9), unrelated evidence
+    (EVID-LEAK-9/EVID-2), unrelated sources (SRC-LEAK-9/SRC-3), unrelated
+    retry policy (RETRY-LEAK-9) -- and generate_goal_context (the real G01
+    generator with its RELEVANCE_FILTER_RULES minimization) exposes EXACTLY
+    the goal's own reference set: exact-set equality against the canonical
+    EXPECTED_REFERENCES (test_governance_ac02_adversarial_workspace_exposes_
+    exactly_the_goal_refs) plus a leak-gate helper asserting every exposed
+    reference is goal-owned (assert_only_goal_owned_refs_exposed) and a
+    per-kind absence check over every seeded leak id (test_governance_ac02_
+    no_unrelated_registered_document_leaks). Unrelated state does not move
+    the exposed set or the context hash -- the context is a pure function of
+    the goal's references (test_governance_ac02_unrelated_state_does_not_
+    change_the_exposed_context). Boundaries: an unrelated retry policy is
+    never silently substituted (PolicyMismatchError, test_governance_ac02_
+    naive_caller_cannot_swap_an_unrelated_policy); a drifting unfrozen goal
+    cannot produce a context at all (GoalNotFrozenError, test_governance_
+    ac02_draft_goal_cannot_produce_a_worker_context). Isolation holds for
+    every worker role with role-scoped context identity
+    (test_governance_ac02_isolation_holds_for_every_worker_role) and the
+    context hash is a deterministic 64-hex fingerprint that changes iff the
+    exposed reference set changes (test_governance_ac02_context_hash_is_
+    deterministic_fingerprint).
+  AC-03: >-
+    All M6 tests pass: the goal's verification command (python -m pytest -q
+    tests/workers tests/integration) yields 352 passed; the governance
+    subset (-k governance) yields 98 passed; the full suite on the merged
+    state (scratch worktree, origin/main 6f1d6c8 + head 838c40e) yields 2067
+    passed, 6 skipped, 1 deselected -- exactly 1969 base + 98 new. No M6
+    unit test modified or weakened (PR touches only
+    tests/integration/test_worker_governance.py, +820).
+review_notes:
+- >-
+    AC mapping one-to-one: AC-01 -> the runtime guard layer
+    (workers/permissions.py enforce_* + core/permissions.py matrix, R-PRM-D1
+    denials and R-PRM-SUP1 positive control) against naive-worker fixtures;
+    AC-02 -> generate_goal_context (G01) on the adversarial workspace with
+    exact-set equality + leak-gate; AC-03 -> verification command 352 and
+    merged-state full suite 2067. The goal's verification command selects
+    exactly this suite: 98 = 91 AC-01 parametrized cases + 7 AC-02 cases
+    (recounted by hand from the parametrize decorations: 6 mutate + 1 guard +
+    66 decisions + 1 monitor + 6 recovery + 6 closure + 1 supervisor + 1 may
+    lists + 1 context retries + 1 forbidden-retry chain + 1 ruleset version
+    = 91; AC-02 has 7 non-parametrized functions).
+- >-
+    Integration discipline: every layer is the REAL merged M6 module -- no
+    mocks, no stubs, no test doubles anywhere in the file; the workspace is
+    built by the real plan-freeze flow (one-shot, PlanAlreadyFrozenError on
+    second freeze) and the REAL registries (planning.inventory/plan/
+    resources, research.evidence). Adversarial fixtures are structural, not
+    assertional: the naive-worker instruction documents are fixtures whose
+    granted_actions would permit the mutation in a prompt-only governance
+    world; the runtime guards must stop them regardless. The canonical
+    EXPECTED_REFERENCES set mirrors the unit expectation of
+    tests/workers/test_context.py, so the integration suite and the unit
+    suite agree on the minimization contract.
+- >-
+    Stale-base handling compliant: branch parent f90d177 (the origin/main
+    SHA at dispatch; direct ancestor of current origin/main 6f1d6c8 --
+    worker neither rebased nor force-pushed, forbidden); M11-G01 merged
+    mid-attempt (4a01a719) with files fully disjoint from this PR (three-dot
+    diff origin/main...HEAD = exactly the 1 new file, +820/-0); merge-ref CI
+    both jobs PASS on the merged state; scratch merge worktree full suite
+    2067/6/1 -- the exact predicted merged-state number (1969 + 98). No
+    lease flake this run.
+- >-
+    No deviations from the frozen contract: allowed_scope respected (1 file,
+    tests/integration/test_worker_governance.py), no existing test modified
+    or weakened, no --no-verify, Draft PR (not ready, no reviewers),
+    conventional commit message with [DEV-M6-G05], no type: ignore / noqa in
+    the new file, every test name contains "governance" so -k governance
+    selects the whole suite. The worker reported the known load-dependent
+    lease flake honestly (first two full-suite runs hit
+    test_concurrent_takeover_of_expired_lease_single_winner under 4+
+    concurrent suites; isolated rerun passed; final run clean 1982 on its
+    f90d177 base) and did not modify it.
+claim_corrections: []
