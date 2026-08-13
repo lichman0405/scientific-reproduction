@@ -594,6 +594,29 @@ def test_triggers_corrupt_record_fails_loudly(tmp_path: Path) -> None:
         registry.scan(run)  # the corrupt record is never overwritten
 
 
+def test_triggers_non_regular_record_path_fails_loudly(tmp_path: Path) -> None:
+    """A non-regular file (here: a directory) at the record path is
+    corrupt trigger state: scan() and trigger() both fail loudly with the
+    stable CorruptTriggerStateError (never silently treated as 'never
+    triggered', never overwritten), the follow-up hook is never invoked,
+    and nothing is persisted under the state dir."""
+    state = tmp_path / "state"
+    run = make_run(1, lifecycle_state=LifecycleState.RESULT_AVAILABLE)
+    hook = CountingFollowupHook()
+    registry = make_registry(state, followup=hook)
+
+    record_dir = state / TRIGGERED_STATE_DIR
+    record_dir.mkdir(parents=True)
+    (record_dir / f"{run.run_id}.json").mkdir()  # a directory, not a file
+
+    with pytest.raises(CorruptTriggerStateError, match="not a regular file"):
+        registry.scan(run)
+    with pytest.raises(CorruptTriggerStateError, match="not a regular file"):
+        registry.trigger(run)
+    assert hook.calls == []  # nothing was ever followed up
+    assert tree_bytes(state) == []  # nothing was persisted
+
+
 def test_triggers_malformed_record_fails_loudly(tmp_path: Path) -> None:
     """Trigger records that are not well-formed durable records -- a JSON
     array, a missing required field, an unknown record version, a record

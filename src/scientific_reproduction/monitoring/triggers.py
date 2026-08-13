@@ -724,9 +724,19 @@ class TriggerRegistry:
     def _existing_record(self, run_id: str) -> TriggerRecord | None:
         """The durable trigger record of ``run_id``, or None when the
         run was never triggered (re-hydrated from disk -- never session
-        state)."""
+        state).
+
+        Raises:
+            CorruptTriggerStateError: the record path exists but is not
+                a regular file (corrupt state fails loudly, never
+                silently -- it is never overwritten).
+        """
         path = self._record_path(run_id)
         if not path.is_file():
+            if path.exists():
+                raise CorruptTriggerStateError(
+                    f"trigger record at {path} is not a regular file"
+                )
             return None
         return self._read_record(run_id)
 
