@@ -1,0 +1,117 @@
+goal_id: DEV-M2-G02
+attempt_id: DEV-M2-G02-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      A hard gate blocks execution when unresolved: only
+      hard_gate + execution_gate + upstream execution state unreached
+      yields execution BLOCKED (R-DEP-2/BLOCKS_EXECUTION +
+      R-EXEC-1 + R-EXEC-G-1); tests:
+      test_hard_execution_gate_unresolved_blocks_execution,
+      test_hard_execution_gate_unresolved_blocks_combined_both_axes,
+      test_hard_execution_gate_resolved_allows_execution,
+      test_hard_execution_gate_multiple_blocking_dependencies_all_listed,
+      plus the exhaustive-grid bi-implications
+      (test_state_matches_spec_biimplication_over_exhaustive_grid,
+      test_execution_gate_matches_state_biimplication_over_grid).
+      Independent rerun at head d1f7e0c: 60 depend tests passed,
+      exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Soft and informational dependencies never serialize the DAG: an
+      unresolved gated axis of a soft dependency is recorded as
+      ORDERING_ONLY — a best-effort ordering hint, never a block;
+      informational gate flags are inert (INFORMATIONAL); ungated hard
+      dependencies are SATISFIED by definition; tests:
+      test_soft_unresolved_dependency_does_not_block_execution,
+      test_informational_unresolved_dependency_does_not_block_
+      execution, test_soft_and_informational_do_not_serialize_the_dag,
+      test_hard_dependency_without_execution_gate_allows_parallel_
+      execution, test_soft_dependency_never_blocks_acceptance,
+      test_informational_dependency_gate_flags_are_inert,
+      test_ungated_hard_dependency_never_blocks_execution,
+      test_empty_dependency_set_allows_both_gates. Verification rerun
+      at head: 244 tests/rules passed, exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Acceptance can remain blocked after execution is allowed: the
+      two gates are independent axes — either a dependency gates only
+      acceptance (FDM-201 acceptance-only gate pattern:
+      test_acceptance_blocked_while_execution_allowed_acceptance_only_
+      gate) or the upstream execution state is reached while its
+      evidence is not yet valid (BET pattern:
+      test_acceptance_blocked_while_execution_allowed_upstream_
+      execution_reached); all four execution/acceptance outcome
+      combinations are produced over the exhaustive grid
+      (test_gates_are_independent_axes_over_the_exhaustive_grid);
+      the real FDM-201 example dependency set is smoke-verified
+      (execution allowed, acceptance blocked on GOAL-PXRD-IDENTITY-001
+      only). Verification rerun at head: full suite 752 passed /
+      6 skipped / 1 deselected (baseline 696 + 56 new tests), ruff +
+      mypy clean on 38 source files, contracts validator PASS.
+verification_rerun:
+  - command: python -m pytest -q tests/rules -k depend
+    exit_code: 0
+  - command: python -m pytest -q tests/rules
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed — core/rules/dependencies.py,
+    tests/rules/test_dependencies.py — all inside allowed_scope;
+    core/rules/__init__.py untouched (owned by DEV-M2-G01); frozen
+    paths untouched; single conventional commit [DEV-M2-G02], no
+    force-push, no amend; no tests deleted or weakened (purely
+    additive, +56).
+  - >-
+    Design reviewed: exact criticality/evidence paradigm —
+    RULESET_VERSION "1.0", frozen DependencyRecord with strict
+    __post_init__ validation (non-empty goal_id, DependencyType
+    member, bool flags), from_goal_dependency mapping from the frozen
+    GoalDependency model (resolution state supplied separately — the
+    evaluator invents nothing), three deliverables as three ordered
+    rule tables (first match wins, trailing defaults, total
+    evaluation), per-table decision traces + matched rule id in every
+    assessment. Normative readings for the spec's underspecified
+    points are documented in the module docstring and locked by
+    bi-implication tests over the exhaustive grid: only hard_gate
+    converts an unresolved gated axis into a block; soft = ordering
+    hint only; informational = inert; ungated hard = SATISFIED;
+    per-axis resolution encoding the spec's two gate questions; id
+    lists preserve declared order while outcomes are order-independent.
+    The smoke test against examples/fdm-201/goal.example.yaml binds
+    the engine to the frozen reference case.
+  - >-
+    The -k depend filter matches 60 tests (56 new + 4 pre-existing
+    independent_* tests in other rule files) — goal verification
+    command passes regardless. Worker correctly detected that
+    origin/main advanced during work (8ae2dc9 -> 1c30608 via the
+    M3-G03 merge) and verified via git log that no other branch
+    touched the in-scope paths; merge state CLEAN. The known
+    test_leases.py flake (DEV-DEFECT-002) occurred once in a
+    full-suite run (4/5 isolation passes, 3/3 reruns clean) — diff
+    does not touch tests/state/, documented not fixed; CI green.
+    Verified independently in a fresh venv installed from the worktree
+    (import path confirmed into .worktrees/dev-m2-g02); all suites
+    rerun at the exact reviewed head d1f7e0cb38be6a7837c991a874f1155
+    3c04cd53f which equals the PR head per gh (state OPEN,
+    mergeStateStatus CLEAN, CI both jobs PASS).
+git_review:
+  pr_number: 19
+  reviewed_head_sha: d1f7e0cb38be6a7837c991a874f11553c04cd53f
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
