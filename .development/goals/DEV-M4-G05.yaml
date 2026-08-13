@@ -1,0 +1,26 @@
+goal_id: DEV-M4-G05
+milestone: M4
+title: Implement resource blockers and planning DAG export
+objective: Integrate Resource objects and semantic dependencies into a plan DAG suitable
+  for /goals views and execution.
+depends_on:
+- DEV-M4-G04
+allowed_scope:
+- scientific_reproduction/planning/dag.py
+- scientific_reproduction/planning/resources.py
+- tests/planning/test_dag*
+deliverables:
+- DAG builder/export
+- resource blocker mapping
+acceptance_criteria:
+- id: AC-01
+  criterion: AVAILABLE/PROCURE/OUTSOURCE/CAPABILITY_GAP states are representable.
+- id: AC-02
+  criterion: Resource gap can block a Goal without altering scientific acceptance.
+- id: AC-03
+  criterion: DAG distinguishes hard/soft/informational and execution/acceptance gates.
+verification:
+- python -m pytest -q tests/planning -k dag
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

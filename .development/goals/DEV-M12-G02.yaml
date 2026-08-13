@@ -1,0 +1,25 @@
+goal_id: DEV-M12-G02
+milestone: M12
+title: Build real FDM-201 Reproduction Inventory
+objective: Create formal reported-item inventory from main text/SI/linked public data
+  with source locations and requirement mapping candidates.
+depends_on:
+- DEV-M12-G01
+allowed_scope:
+- benchmarks/fdm201/inventory/**
+deliverables:
+- FDM-201 inventory
+- source-to-result index
+acceptance_criteria:
+- id: AC-01
+  criterion: Every formally reported experiment/control/computation discovered in
+    accessible sources is inventoried.
+- id: AC-02
+  criterion: Items include source location/provenance.
+- id: AC-03
+  criterion: Ambiguities are explicit rather than silently omitted.
+verification:
+- python -m pytest -q tests/benchmarks -k inventory
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

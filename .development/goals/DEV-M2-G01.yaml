@@ -1,0 +1,25 @@
+goal_id: DEV-M2-G01
+milestone: M2
+title: Implement project and Run lifecycle state machines
+objective: Encode legal project phases and Run transitions as deterministic rules.
+depends_on:
+- DEV-M1-G06
+allowed_scope:
+- scientific_reproduction/core/transitions.py
+- scientific_reproduction/core/rules/lifecycle.py
+- tests/rules/test_lifecycle*
+deliverables:
+- project phase transition rules
+- Run lifecycle transition rules
+acceptance_criteria:
+- id: AC-01
+  criterion: Every normative legal transition is accepted.
+- id: AC-02
+  criterion: Representative illegal shortcut transitions are rejected.
+- id: AC-03
+  criterion: Transition code is deterministic and not prompt-dependent.
+verification:
+- python -m pytest -q tests/rules -k lifecycle
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

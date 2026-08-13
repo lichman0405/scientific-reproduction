@@ -1,0 +1,24 @@
+goal_id: DEV-M13-G02
+milestone: M13
+title: Implement human-readable reproduction report generator
+objective: Implement report generation covering scope, methods, statistics, strict/recovery
+  history, failures, outcomes, method reproducibility and limitations.
+depends_on:
+- DEV-M13-G01
+allowed_scope:
+- scientific_reproduction/reporting/report.py
+- tests/reporting/test_report*
+deliverables:
+- human-readable report generator
+acceptance_criteria:
+- id: AC-01
+  criterion: Report distinguishes scientific outcome from method reproducibility.
+- id: AC-02
+  criterion: Material failed Runs/deviations are summarized rather than hidden.
+- id: AC-03
+  criterion: Report references auditable object IDs for key claims.
+verification:
+- python -m pytest -q tests/reporting -k report
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

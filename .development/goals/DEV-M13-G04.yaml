@@ -1,0 +1,31 @@
+goal_id: DEV-M13-G04
+milestone: M13
+title: Implement packaging/install/user-operation documentation
+objective: Finalize installation, /reproduce, /goals, Monitor, Lab filesystem handoff,
+  Slurm configuration and platform-adapter documentation.
+depends_on:
+- DEV-M13-G02
+- DEV-M10-G06
+allowed_scope:
+- README.md
+- docs/user/**
+- docs/operations/**
+- templates/**
+deliverables:
+- installation guide
+- operation guide
+- adapter configuration guide
+- /reproduce and /goals usage docs
+acceptance_criteria:
+- id: AC-01
+  criterion: A new implementer/operator can install and run tests from docs.
+- id: AC-02
+  criterion: Monitor recovery and filesystem Lab handoff are documented.
+- id: AC-03
+  criterion: Slurm-over-SSH configuration and limitations are documented.
+verification:
+- python -m pytest -q
+- python -m ruff check .
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

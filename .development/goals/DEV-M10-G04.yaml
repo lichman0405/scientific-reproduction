@@ -1,0 +1,25 @@
+goal_id: DEV-M10-G04
+milestone: M10
+title: Implement Claude Code quality-gate hook templates
+objective: Provide TaskCompleted/TeammateIdle hook templates or generated configuration
+  for deterministic task gates.
+depends_on:
+- DEV-M10-G03
+allowed_scope:
+- scientific_reproduction/adapters/platform/claude_code/hooks/**
+- tests/platform/test_claude_hooks*
+deliverables:
+- quality gate hook templates
+- hook configuration generator/documentation
+acceptance_criteria:
+- id: AC-01
+  criterion: Task completion can be blocked on failing deterministic verification.
+- id: AC-02
+  criterion: Hook failure feeds actionable feedback rather than marking task complete.
+- id: AC-03
+  criterion: Hooks do not replace Supervisor review.
+verification:
+- python -m pytest -q tests/platform -k hook
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

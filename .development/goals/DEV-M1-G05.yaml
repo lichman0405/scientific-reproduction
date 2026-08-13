@@ -1,0 +1,27 @@
+goal_id: DEV-M1-G05
+milestone: M1
+title: Harden state recovery and invalid-write behavior
+objective: Add failure-injection tests and recovery behavior around filesystem persistence.
+depends_on:
+- DEV-M1-G02
+- DEV-M1-G04
+allowed_scope:
+- tests/state/**
+- scientific_reproduction/core/state_backend.py
+deliverables:
+- partial-write recovery tests
+- schema-invalid write rejection tests
+- corrupt-object error behavior
+acceptance_criteria:
+- id: AC-01
+  criterion: Last valid state survives simulated interrupted write.
+- id: AC-02
+  criterion: Invalid schema write cannot become canonical state.
+- id: AC-03
+  criterion: Corrupt external edits surface a deterministic error instead of silent
+    repair.
+verification:
+- python -m pytest -q tests/state
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

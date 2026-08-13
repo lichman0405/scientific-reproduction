@@ -1,0 +1,25 @@
+goal_id: DEV-M10-G02
+milestone: M10
+title: Implement platform orchestration interface
+objective: Implement platform-neutral spawn/resume/stop/message/fallback interfaces.
+depends_on:
+- DEV-M10-G01
+allowed_scope:
+- scientific_reproduction/adapters/platform/base.py
+- tests/platform/test_base*
+deliverables:
+- PlatformAdapter interface
+- worker session handle model
+acceptance_criteria:
+- id: AC-01
+  criterion: Core never imports Claude-specific task APIs directly.
+- id: AC-02
+  criterion: Platform adapter returns durable-enough session/worker identity for project
+    state.
+- id: AC-03
+  criterion: Fallback mode is explicit.
+verification:
+- python -m pytest -q tests/platform -k base
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

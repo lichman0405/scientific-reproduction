@@ -1,0 +1,29 @@
+goal_id: DEV-M6-G03
+milestone: M6
+title: Implement role permission enforcement
+objective: Enforce Supervisor/Research/Monitor/Execution/Analysis authority boundaries
+  in deterministic runtime APIs.
+depends_on:
+- DEV-M6-G02
+- DEV-M2-G08
+allowed_scope:
+- scientific_reproduction/workers/permissions.py
+- scientific_reproduction/core/permissions.py
+- tests/workers/test_permissions*
+deliverables:
+- role-action matrix
+- runtime authorization checks
+acceptance_criteria:
+- id: AC-01
+  criterion: Experiment/Computation worker cannot mutate frozen Goal.
+- id: AC-02
+  criterion: Worker cannot create formal Recovery Goal or close Requirement.
+- id: AC-03
+  criterion: Research cannot make scientific Plan decisions.
+- id: AC-04
+  criterion: Monitor cannot make scientific interpretation decisions.
+verification:
+- python -m pytest -q tests/workers -k permission
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

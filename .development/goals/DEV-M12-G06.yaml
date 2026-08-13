@@ -1,0 +1,31 @@
+goal_id: DEV-M12-G06
+milestone: M12
+title: Execute simulation scenarios F-J
+objective: Run scientific compute failure, Monitor recovery, delayed lab result, missing
+  scientific parameter and plan completeness failure scenarios end-to-end.
+depends_on:
+- DEV-M12-G04
+allowed_scope:
+- tests/scenarios/test_F*
+- tests/scenarios/test_G*
+- tests/scenarios/test_H*
+- tests/scenarios/test_I*
+- tests/scenarios/test_J*
+deliverables:
+- scenario F-J passing suite
+acceptance_criteria:
+- id: AC-01
+  criterion: F requires Supervisor scientific review.
+- id: AC-02
+  criterion: G recovers without duplicate job/Run.
+- id: AC-03
+  criterion: H handles late result without original worker.
+- id: AC-04
+  criterion: I uses Assumption Registry and blocks pure STRICT for A2.
+- id: AC-05
+  criterion: J blocks Plan freeze until completeness repaired.
+verification:
+- python -m pytest -q tests/scenarios -k "F or G or H or I or J"
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

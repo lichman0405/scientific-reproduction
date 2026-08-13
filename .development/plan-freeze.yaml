@@ -1,0 +1,19 @@
+plan_id: DEV-PLAN-V1
+freeze:
+  status: FROZEN
+  frozen_at: "2026-08-13"
+  frozen_from: development/development-plan.v1.yaml
+  frozen_by: development-supervisor
+  bootstrap_commit: 6868f59
+  validated:
+    milestones: 14
+    required_goals: 80
+    goal_schema_errors: 0
+    goal_level_dag_acyclic: true
+    plan_schema_match: true
+    spec_package_validator: PASS
+    legacy_validator: "FAIL - SPEC-DEFECT-001 (see KNOWN-DEFECTS.md, fixed in DEV-M0-G00)"
+  note: >-
+    Plan v1 frozen after validation of 14 milestones, 80 frozen DEV-GOALs,
+    DAG acyclicity, development schemas and Git governance.
+    Any scope/contract change requires a DEVELOPMENT_CHANGE_REQUEST.

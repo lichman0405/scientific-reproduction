@@ -1,0 +1,26 @@
+goal_id: DEV-M5-G01
+milestone: M5
+title: Implement normalized Source records and deduplication
+objective: Implement canonical source identity and duplicate DOI/mirror collapse without
+  discarding distinct versions.
+depends_on:
+- DEV-M2-G08
+allowed_scope:
+- scientific_reproduction/research/sources.py
+- scientific_reproduction/research/dedupe.py
+- tests/research/**
+deliverables:
+- source normalization
+- deduplication rules
+acceptance_criteria:
+- id: AC-01
+  criterion: Duplicate DOI mirrors collapse to one canonical scholarly source.
+- id: AC-02
+  criterion: Distinct SI/dataset/structure records remain separately addressable.
+- id: AC-03
+  criterion: Source provenance for mirrors is retained.
+verification:
+- python -m pytest -q tests/research -k source
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

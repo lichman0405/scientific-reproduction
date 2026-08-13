@@ -1,0 +1,29 @@
+goal_id: DEV-M11-G03
+milestone: M11
+title: Implement gas adsorption/separation templates
+objective: Implement BET, gas adsorption, IAST, Qst, breakthrough, cycling and stability
+  templates.
+depends_on:
+- DEV-M11-G02
+allowed_scope:
+- scientific_reproduction/domain_packs/materials_chemistry/adsorption/**
+- tests/domain/materials_chemistry/test_adsorption*
+deliverables:
+- BET template
+- single-component adsorption template
+- IAST/Qst analysis templates
+- breakthrough template
+- cycling/stability templates
+acceptance_criteria:
+- id: AC-01
+  criterion: Temperature/pressure/composition conditions are explicit Unit Process
+    inputs.
+- id: AC-02
+  criterion: BET/IAST/Qst analysis remains separate from raw execution.
+- id: AC-03
+  criterion: Breakthrough raw/result metadata can map to formal paper figures/results.
+verification:
+- python -m pytest -q tests/domain/materials_chemistry -k adsorption
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

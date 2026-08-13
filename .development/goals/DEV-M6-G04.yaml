@@ -1,0 +1,27 @@
+goal_id: DEV-M6-G04
+milestone: M6
+title: Implement engineering retry authorization boundary
+objective: Expose pre-authorized automatic retry whitelist while routing scientific
+  parameter changes to Supervisor.
+depends_on:
+- DEV-M6-G03
+allowed_scope:
+- scientific_reproduction/workers/retry.py
+- tests/workers/test_retry*
+deliverables:
+- automatic retry policy evaluator
+acceptance_criteria:
+- id: AC-01
+  criterion: Transient SSH/network/scheduler node failure can be authorized when contract
+    allows.
+- id: AC-02
+  criterion: Identical checkpoint continuation can be authorized without scientific
+    change.
+- id: AC-03
+  criterion: Scientific parameter modifications are rejected for automatic worker
+    action.
+verification:
+- python -m pytest -q tests/workers -k retry
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

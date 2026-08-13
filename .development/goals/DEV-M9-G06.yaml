@@ -1,0 +1,24 @@
+goal_id: DEV-M9-G06
+milestone: M9
+title: Pass analysis simulations D and F
+objective: Execute inconclusive statistics and scientific compute failure scenarios.
+depends_on:
+- DEV-M9-G04
+- DEV-M9-G05
+allowed_scope:
+- tests/scenarios/test_D*
+- tests/scenarios/test_F*
+deliverables:
+- scenario D/F executable tests
+acceptance_criteria:
+- id: AC-01
+  criterion: Scenario D cannot be coerced to PASS and can request more independent
+    Runs.
+- id: AC-02
+  criterion: Scenario F reports scientific compute failure without automatic parameter
+    mutation.
+verification:
+- python -m pytest -q tests/scenarios -k "D or F"
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

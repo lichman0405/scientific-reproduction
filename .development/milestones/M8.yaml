@@ -1,0 +1,22 @@
+milestone_id: M8
+title: Execution Monitor and recovery
+depends_on_milestones:
+- M7
+- M6
+required_goals:
+- DEV-M8-G01
+- DEV-M8-G02
+- DEV-M8-G03
+- DEV-M8-G04
+- DEV-M8-G05
+- DEV-M8-G06
+milestone_acceptance:
+- Monitor reconciliation/recovery is idempotent.
+- Engineering retry does not mutate science.
+- Scenarios E, G and H pass.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks:
+- M10
+- M12

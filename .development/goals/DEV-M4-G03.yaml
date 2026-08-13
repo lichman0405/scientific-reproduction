@@ -1,0 +1,25 @@
+goal_id: DEV-M4-G03
+milestone: M4
+title: Implement completeness audit
+objective: Implement 100% formal-item coverage audit that blocks Plan v1 freeze when
+  any item is unmapped or unresolved.
+depends_on:
+- DEV-M4-G02
+allowed_scope:
+- scientific_reproduction/planning/audit.py
+- tests/planning/test_completeness*
+deliverables:
+- inventory completeness evaluator
+- audit result record
+acceptance_criteria:
+- id: AC-01
+  criterion: One intentionally unmapped item prevents freeze eligibility.
+- id: AC-02
+  criterion: 100% mapped and zero ambiguous items passes.
+- id: AC-03
+  criterion: Audit evidence lists offending item IDs.
+verification:
+- python -m pytest -q tests/planning -k completeness
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

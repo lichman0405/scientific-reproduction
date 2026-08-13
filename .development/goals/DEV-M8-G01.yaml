@@ -1,0 +1,27 @@
+goal_id: DEV-M8-G01
+milestone: M8
+title: Implement watched-Run registry and Monitor checkpoints
+objective: Implement Monitor-owned watched Run registry, heartbeat metadata and recovery
+  checkpoint format.
+depends_on:
+- DEV-M7-G05
+allowed_scope:
+- scientific_reproduction/monitoring/registry.py
+- scientific_reproduction/monitoring/checkpoint.py
+- tests/monitoring/**
+deliverables:
+- watched Run registry
+- monitor checkpoint
+- heartbeat record
+acceptance_criteria:
+- id: AC-01
+  criterion: Monitor can reconstruct watched external Runs from persisted state.
+- id: AC-02
+  criterion: Heartbeat/checkpoint updates do not require Git audit commits.
+- id: AC-03
+  criterion: Checkpoint references adapter/external IDs needed for reconciliation.
+verification:
+- python -m pytest -q tests/monitoring -k checkpoint
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

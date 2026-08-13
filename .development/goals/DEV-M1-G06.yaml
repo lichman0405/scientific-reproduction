@@ -1,0 +1,27 @@
+goal_id: DEV-M1-G06
+milestone: M1
+title: Run M1 concurrency and object-model integration suite
+objective: Integrate models, persistence, events and leases into a coherent tested
+  core.
+depends_on:
+- DEV-M1-G01
+- DEV-M1-G03
+- DEV-M1-G05
+allowed_scope:
+- tests/integration/test_core_state*
+- scientific_reproduction/core/**
+deliverables:
+- core-state integration tests
+acceptance_criteria:
+- id: AC-01
+  criterion: Concurrent duplicate lease scenario passes.
+- id: AC-02
+  criterion: Object create/read/update/version path remains schema-valid.
+- id: AC-03
+  criterion: All M1 tests and repository regression checks pass.
+verification:
+- python -m pytest -q tests/core tests/state tests/integration
+- python -m ruff check .
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

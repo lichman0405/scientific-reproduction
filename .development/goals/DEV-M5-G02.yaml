@@ -1,0 +1,28 @@
+goal_id: DEV-M5-G02
+milestone: M5
+title: Implement bootstrap Research workflow and Research Requests
+objective: Implement records/contracts for initial systematic acquisition and Supervisor-issued
+  Research Requests.
+depends_on:
+- DEV-M5-G01
+allowed_scope:
+- scientific_reproduction/research/workflows.py
+- scientific_reproduction/research/requests.py
+- tests/research/test_requests*
+deliverables:
+- bootstrap research workflow contract
+- Research Request lifecycle
+acceptance_criteria:
+- id: AC-01
+  criterion: Bootstrap workflow covers paper/SI/data/structure/citations/related methods
+    categories.
+- id: AC-02
+  criterion: Research Requests can only be formally issued through Supervisor-facing
+    API.
+- id: AC-03
+  criterion: Request/result linkage is auditable.
+verification:
+- python -m pytest -q tests/research -k request
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

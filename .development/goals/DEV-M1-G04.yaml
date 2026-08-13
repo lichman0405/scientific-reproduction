@@ -1,0 +1,27 @@
+goal_id: DEV-M1-G04
+milestone: M1
+title: Implement append-only event log
+objective: Implement append-only, ordered, idempotent project events suitable for
+  recovery and audit.
+depends_on:
+- DEV-M1-G02
+allowed_scope:
+- scientific_reproduction/core/events.py
+- tests/state/test_events*
+deliverables:
+- append event API
+- event ordering rules
+- idempotency key handling
+acceptance_criteria:
+- id: AC-01
+  criterion: Existing event records are never mutated in normal operation.
+- id: AC-02
+  criterion: Duplicate event submission with same idempotency key does not create
+    duplicate semantic event.
+- id: AC-03
+  criterion: Ordering is deterministic and recoverable.
+verification:
+- python -m pytest -q tests/state -k event
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

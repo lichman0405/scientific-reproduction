@@ -1,0 +1,24 @@
+goal_id: DEV-M2-G04
+milestone: M2
+title: Implement criticality checklist mapping
+objective: Implement checklist-driven CRITICAL/REQUIRED/SUPPORTING mapping.
+depends_on:
+- DEV-M1-G06
+allowed_scope:
+- scientific_reproduction/core/rules/criticality.py
+- tests/rules/test_criticality*
+deliverables:
+- criticality checklist model
+- rule mapping
+acceptance_criteria:
+- id: AC-01
+  criterion: Main-figure location alone cannot force CRITICAL.
+- id: AC-02
+  criterion: Same checklist yields deterministic classification.
+- id: AC-03
+  criterion: Classification inputs remain auditable.
+verification:
+- python -m pytest -q tests/rules -k critical
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

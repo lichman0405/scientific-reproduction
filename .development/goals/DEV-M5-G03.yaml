@@ -1,0 +1,26 @@
+goal_id: DEV-M5-G03
+milestone: M5
+title: Implement claim-specific Evidence records
+objective: Implement Source×Claim evidence records and linkage to Goals/Requirements.
+depends_on:
+- DEV-M5-G01
+- DEV-M2-G03
+allowed_scope:
+- scientific_reproduction/research/evidence.py
+- tests/research/test_evidence*
+deliverables:
+- claim-specific evidence registry
+acceptance_criteria:
+- id: AC-01
+  criterion: A source cannot have a single global reliability field standing in for
+    all claims.
+- id: AC-02
+  criterion: Same source can carry different Directness/Reliability assessments for
+    different claims.
+- id: AC-03
+  criterion: Used-by links are stored.
+verification:
+- python -m pytest -q tests/research -k evidence
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

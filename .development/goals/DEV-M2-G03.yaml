@@ -1,0 +1,26 @@
+goal_id: DEV-M2-G03
+milestone: M2
+title: Implement evidence rubric rule engine
+objective: Implement structured Authority/Reliability/Directness calculation hooks,
+  with Reliability derived from checklist inputs rather than direct subjective assignment.
+depends_on:
+- DEV-M1-G06
+allowed_scope:
+- scientific_reproduction/core/rules/evidence.py
+- tests/rules/test_evidence*
+deliverables:
+- evidence scoring API
+- reliability checklist mapping
+acceptance_criteria:
+- id: AC-01
+  criterion: Reliability score cannot be produced without checklist inputs/reference.
+- id: AC-02
+  criterion: Source×Claim assessment is supported.
+- id: AC-03
+  criterion: Hard-gate predicates can be evaluated independently of any weighted display
+    score.
+verification:
+- python -m pytest -q tests/rules -k evidence
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

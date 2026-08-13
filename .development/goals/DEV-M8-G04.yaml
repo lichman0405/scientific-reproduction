@@ -1,0 +1,25 @@
+goal_id: DEV-M8-G04
+milestone: M8
+title: Implement Monitor session recovery/replacement contract
+objective: Implement resume/replacement interfaces and deterministic state reconstruction
+  when original Monitor session disappears.
+depends_on:
+- DEV-M8-G02
+allowed_scope:
+- scientific_reproduction/monitoring/recovery.py
+- tests/monitoring/test_recovery*
+deliverables:
+- Monitor recovery interface
+- replacement reconstruction procedure
+acceptance_criteria:
+- id: AC-01
+  criterion: Replacement Monitor reconstructs watched Runs without original conversation.
+- id: AC-02
+  criterion: No duplicate external job is created during reconstruction.
+- id: AC-03
+  criterion: Completion event occurring during Monitor outage is reconciled later.
+verification:
+- python -m pytest -q tests/monitoring -k recovery
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

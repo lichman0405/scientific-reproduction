@@ -1,0 +1,26 @@
+goal_id: DEV-M2-G02
+milestone: M2
+title: Implement dependency, execution-gate and acceptance-gate evaluation
+objective: Implement hard/soft/informational dependency semantics and separate execution
+  vs acceptance gates.
+depends_on:
+- DEV-M2-G01
+allowed_scope:
+- scientific_reproduction/core/rules/dependencies.py
+- tests/rules/test_dependencies*
+deliverables:
+- dependency evaluator
+- execution gate evaluator
+- acceptance gate evaluator
+acceptance_criteria:
+- id: AC-01
+  criterion: Hard gate blocks execution when unresolved.
+- id: AC-02
+  criterion: Soft/informational dependencies do not incorrectly serialize the DAG.
+- id: AC-03
+  criterion: Acceptance can remain blocked after execution is allowed.
+verification:
+- python -m pytest -q tests/rules -k depend
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

@@ -1,0 +1,25 @@
+goal_id: DEV-M11-G05
+milestone: M11
+title: Implement materials statistics/acceptance defaults as proposal rules
+objective: Implement domain-pack proposal helpers for replicate design, measurement
+  uncertainty metadata and acceptance construction without universal fixed ±percentage
+  rules.
+depends_on:
+- DEV-M9-G06
+allowed_scope:
+- scientific_reproduction/domain_packs/materials_chemistry/statistics/**
+- tests/domain/materials_chemistry/test_statistics*
+deliverables:
+- domain statistical proposal hooks
+acceptance_criteria:
+- id: AC-01
+  criterion: No universal ±10% acceptance is hardcoded.
+- id: AC-02
+  criterion: Default n>=3 independent experimental replicate floor is proposed.
+- id: AC-03
+  criterion: Supervisor can incorporate literature/method evidence before freezing.
+verification:
+- python -m pytest -q tests/domain/materials_chemistry -k statistic
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

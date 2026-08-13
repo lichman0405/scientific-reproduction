@@ -1,0 +1,26 @@
+goal_id: DEV-M13-G01
+milestone: M13
+title: Implement audit package validator and traceability checker
+objective: Implement machine-auditable package validation including key-claim backtrace
+  to Analysis/Run/Artifact/Evidence.
+depends_on:
+- DEV-M12-G07
+allowed_scope:
+- scientific_reproduction/reporting/audit.py
+- scientific_reproduction/reporting/traceability.py
+- tests/reporting/**
+deliverables:
+- audit package validator
+- traceability checker
+acceptance_criteria:
+- id: AC-01
+  criterion: Key report claim can be traced to Analysis -> Run -> Artifact/Evidence.
+- id: AC-02
+  criterion: Missing link fails validation.
+- id: AC-03
+  criterion: Failed Runs remain visible in package validation.
+verification:
+- python -m pytest -q tests/reporting -k "audit or trace"
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

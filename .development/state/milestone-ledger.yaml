@@ -1,0 +1,57 @@
+milestones:
+  M0:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M1:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M10:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M11:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M12:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M13:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M2:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M3:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M4:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M5:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M6:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M7:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M8:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
+  M9:
+    status: NOT_STARTED
+    gate: null
+    accepted_at: null
