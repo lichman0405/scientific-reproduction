@@ -1,0 +1,9 @@
+goal_id: DEV-M9-G05
+attempt_id: DEV-M9-G05-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 278f1f85fbaa38566125e438bf397103bd6c4c53
+branch: feat/dev-m9-g05-computational
+worktree: .worktrees/dev-m9-g05
+status: WORKING
+commit_shas: []
