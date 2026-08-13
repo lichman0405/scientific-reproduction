@@ -39,6 +39,32 @@ Security posture
 Events are ordinary objects of type ``event``; append-only policy on top
 of per-object CRUD is a workflow-layer concern, not enforced here.
 
+Corrupt-object posture (DEV-M1-G05)
+-----------------------------------
+``read`` is deliberately **not** a re-validation gate: a stored file
+whose JSON parses into an object is returned as-is even when an external
+hand edit made it schema-invalid. The schema gate lives on ``write``
+(14-STATE-GIT-ARTIFACTS.md SS2 "state validation against schemas" is
+satisfied at the persistence point), and ``read`` never silently repairs
+or rewrites stored bytes -- corruption surfaces as a deterministic error
+instead:
+
+* unparseable JSON (truncated files, invalid UTF-8) raises ``ValueError``
+  naming the stored object as corrupt;
+* valid JSON that is not a JSON object (``[1, 2]``, ``"x"``, ``42``)
+  raises ``ValueError``;
+* an entry at the object path that is not a regular file (e.g. a
+  directory planted at ``<id>.json``) raises ``ValueError`` from both
+  ``read`` and ``delete`` (a plain ``unlink`` would raise
+  ``IsADirectoryError`` on POSIX but ``PermissionError`` on Windows --
+  not deterministic);
+* ``delete`` of a corrupt *record* is deliberately allowed: deleting is
+  operational repair and never parses the file, so a corrupt record is
+  removable without reading it;
+* ``list_ids`` reports every ``*.json`` entry regardless of content, so
+  corruption surfaces on the ``read`` that touches it, never on
+  ``list_ids``.
+
 The interface exists so future backends (e.g. SQLite/PostgreSQL per
 14-STATE-GIT-ARTIFACTS.md SS8) can be added without changing agent
 governance logic. v0.1 ships exactly one implementation.
@@ -96,11 +122,19 @@ class StateBackend(ABC):
     def read(self, obj_type: str, object_id: str) -> dict[str, Any]:
         """Return the persisted object as a plain dict.
 
+        ``read`` is not a re-validation gate: schema-invalid but
+        parseable content is returned as-is, never repaired. Corruption
+        that makes the content unparseable raises a deterministic
+        ``ValueError`` (see the module docstring, "Corrupt-object
+        posture").
+
         Raises:
             UnknownObjectTypeError: unknown ``obj_type``.
             ValueError: invalid ``object_id``.
             FileNotFoundError: no such object.
-            ValueError: stored content is corrupt (not valid JSON).
+            ValueError: stored content is corrupt (not valid JSON, or
+                valid JSON that is not an object), or the path exists
+                but is not a regular file.
         """
 
     @abstractmethod
@@ -115,10 +149,16 @@ class StateBackend(ABC):
     def delete(self, obj_type: str, object_id: str) -> None:
         """Remove the persisted object.
 
+        Deleting never parses the file, so a corrupt record is removable
+        (operational repair); deleting an entry that is not a regular
+        file (e.g. a directory at the object path) raises a documented
+        error instead of a platform-dependent one.
+
         Raises:
             UnknownObjectTypeError: unknown ``obj_type``.
             ValueError: invalid ``object_id``.
             FileNotFoundError: no such object.
+            ValueError: the path exists but is not a regular file.
         """
 
 
@@ -274,6 +314,14 @@ class FilesystemStateBackend(StateBackend):
                 f" the state base directory {self._base_dir_resolved}"
             )
         if not path.is_file():
+            if path.exists():
+                # An entry exists at the object path but is not a regular
+                # file (e.g. a directory planted by an external edit):
+                # deterministic documented error, never a silent fallback.
+                raise ValueError(
+                    f"stored object {obj_type!r}/{object_id!r} at {path} is"
+                    " not a regular file"
+                )
             raise FileNotFoundError(
                 f"no object of type {obj_type!r} with id {object_id!r}: {path}"
             )
@@ -302,6 +350,13 @@ class FilesystemStateBackend(StateBackend):
 
     def delete(self, obj_type: str, object_id: str) -> None:
         path = self._object_path(obj_type, object_id)
+        if path.is_dir():
+            # A plain unlink would raise IsADirectoryError on POSIX but
+            # PermissionError on Windows -- non-deterministic across
+            # platforms. Refuse with a documented error instead.
+            raise ValueError(
+                f"refusing to delete {path}: not a regular file"
+            )
         try:
             path.unlink()
         except FileNotFoundError:
