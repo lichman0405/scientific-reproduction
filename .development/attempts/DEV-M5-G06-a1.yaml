@@ -5,5 +5,15 @@ base_branch: main
 base_sha: 87e69ee2c57cf5beacfde352c6f95dd5d8be35bf
 branch: feat/dev-m5-g06-adapters
 worktree: .worktrees/dev-m5-g06
-status: WORKING
-commit_shas: []
+status: MERGED
+commit_shas:
+- 241b8138a03c4997856f426d13e90d150f67aa2e
+pr:
+  number: 28
+  url: https://github.com/lichman0405/scientific-reproduction/pull/28
+  head_sha: 241b8138a03c4997856f426d13e90d150f67aa2e
+  state: closed
+  ci_status: PASS
+merge_method: squash
+merge_commit_sha: f0da79f01284d9cbfcaa7ac94dd2c5d2adfe4676
+merged_at: '2026-08-13'

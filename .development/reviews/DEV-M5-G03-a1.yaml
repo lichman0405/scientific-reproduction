@@ -1,0 +1,122 @@
+goal_id: DEV-M5-G03
+attempt_id: DEV-M5-G03-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      A source cannot have a single global reliability field standing in
+      for all claims — claim-scoped by construction, proven at three
+      levels: (1) structural — the frozen ResearchSource model carries no
+      reliability/directness field and the registry adds none
+      (test_ac01_frozen_source_model_has_no_global_reliability_field);
+      (2) API — every assessment-returning method requires a (source,
+      claim) pair with claim_id having no default, so a single-argument
+      call raises TypeError (test_ac01_every_assessment_lookup_requires_a_
+      claim_argument, test_ac01_registry_offers_no_source_alone_
+      assessment_api); (3) behavioral — reliability is answered only for
+      a claim (test_ac01_reliability_is_answered_only_for_a_claim).
+      Independent rerun at head c17f0d64: tests/research -k evidence 29
+      passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Same source carries different Directness/Reliability assessments
+      for different claims: test_ac02_same_source_different_claims_carry_
+      independent_assessments (different Reliability AND Directness, both
+      retrievable), test_ac02_registering_never_clobbers_an_earlier_
+      assessment (register is functional — returns a new immutable
+      registry, clobbering impossible by construction),
+      test_ac02_same_claim_different_sources_carry_independent_
+      assessments, test_ac02_multiple_records_for_one_pair_are_additive
+      (first-registered wins the deterministic lookup; get_all returns
+      all), test_ac02_assessments_are_typed_against_the_frozen_vocabulary.
+      The A/R/D axes are the frozen 0-4 integers of EvidenceAssessment
+      (schemas/evidence.schema.yaml integer [0,4] bounds; the task brief's
+      StrEnum assumption had no frozen basis — the worker documented this
+      premise deviation and typed the axes against the frozen integers
+      with out-of-range rejection at registration: test_registry_rejects_
+      out_of_range_axes / test_registry_accepts_rubric_boundary_axes).
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Used-by links stored: test_ac03_used_by_links_are_stored_and_
+      retrievable, test_ac03_used_by_links_survive_serialization_round_
+      trip (to_dict/from_dict never drop refs), test_ac03_used_by_links_
+      are_per_claim_and_independent, test_ac03_all_used_by_aggregates_
+      every_link_in_first_seen_order, test_ac03_empty_used_by_defaults_
+      to_empty_tuple. The frozen model has one generic used_by ref list
+      (06-EVIDENCE-SYSTEM.md SS6 "Goals/decisions using the evidence");
+      refs are opaque strings stored/returned verbatim. Registry is the
+      data layer for the DEV-M2-G03 evidence rules: iterable, so
+      count_independent_qualifying_sources(registry) works unchanged
+      (test_registry_is_the_data_layer_for_the_evidence_rules).
+      Verification rerun at head: full suite 1060 passed / 6 skipped / 1
+      deselected (base 1031 + 29 new), ruff + mypy clean on 45 source
+      files, contracts validator PASS.
+verification_rerun:
+  - command: python -m pytest -q tests/research -k evidence
+    exit_code: 0
+  - command: python -m pytest -q tests/research
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed — src/scientific_reproduction/research/
+    evidence.py (new) + tests/research/test_evidence.py (new) — exactly
+    the allowed_scope (research/evidence.py + tests/research/test_
+    evidence*); core/models.py, core/rules/, research/sources.py,
+    dedupe.py, workflows.py, requests.py untouched (sibling goals own
+    those). Frozen models/schemas/goal files untouched; single
+    conventional commit [DEV-M5-G03] (branch contains exactly one commit
+    above merge base 87e69ee), no amend, no force-push, no tests deleted
+    or weakened (purely additive, +29). Merge state CLEAN/MERGEABLE
+    against current main; PR head equals the reviewed head. origin/main
+    moved during work only by the batch's own dispatch commit (2417647,
+    .development-only) — no in-scope path touched.
+  - >-
+    Design reviewed: EvidenceRegistry is an immutable frozen dataclass
+    over an ordered tuple — register returns a new registry, making
+    non-clobbering an invariant of the type rather than a policy (AC-02
+    by construction). Unassessed state is absence (None), not an invented
+    UNDETERMINED — the frozen vocabulary has no such evidence state, so
+    none was invented (consistent with the M2 rule modules' stance);
+    referential integrity against claim/goal registries intentionally
+    deferred at this milestone with the rationale documented in the
+    module docstring (no such registries exist in scope yet; M4-G02/M5-G02
+    build them). Checklist-reference requirement (reliability_checklist_ref
+    non-empty) pre-validates the M5 handoff rule "Reliability cannot be
+    written without checklist result reference" at the data layer.
+    Paradigm: TypeError at public boundaries, ValueError-subclass errors
+    with stable messages, frozen dataclasses, pure deterministic lookups
+    (first-seen order), __all__ exports, docstrings citing 06-EVIDENCE-
+    SYSTEM.md SS1/SS2/SS6 and 09-RESEARCH-SUBSYSTEM.md SS5. The
+    documented premise deviation (0-4 int axes vs assumed StrEnums) is an
+    honest, correct resolution — the frozen schema is authoritative.
+  - >-
+    Pyright IDE diagnostics on the new files are the established noise
+    classes: "unreachable" flags are the defensive TypeError raises on
+    typed parameters; the "Any is not accessed" flag points at an import
+    line whose current content has no Any import (mid-edit snapshot);
+    the test-file import-resolution flags and the line-511 argument-type
+    flags come from pyright resolving against the main repo instead of
+    the worktree (stale snapshot — the verified file at that line passes
+    cleanly through the actual type checker). mypy, the configured gate,
+    is clean on 45 source files and CI both jobs PASS (Test/lint/type
+    check + Validate development contracts). No DEV-DEFECT-002 flake
+    occurrence on this PR (local runs and CI green).
+git_review:
+  pr_number: 25
+  reviewed_head_sha: c17f0d64700f78af362dfeea0f9f144299579968
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
