@@ -1,0 +1,9 @@
+goal_id: DEV-M2-G08
+attempt_id: DEV-M2-G08-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 034a379663a3e7bbb87540dea14cf9d617484efe
+branch: feat/dev-m2-g08-integration
+worktree: .worktrees/dev-m2-g08
+status: WORKING
+commit_shas: []
