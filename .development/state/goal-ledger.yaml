@@ -407,13 +407,14 @@ goals:
     merged_at: '2026-08-13'
     outcome: PASS
   DEV-M5-G02:
-    status: WORKING
+    status: MERGED
     attempts:
     - DEV-M5-G02-a1
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    reviews:
+    - DEV-M5-G02-a1
+    merged_sha: 87789c6
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M5-G03:
     status: MERGED
     attempts:
