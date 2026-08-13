@@ -1,0 +1,214 @@
+review_id: DEV-M8-G06-a1
+goal_id: DEV-M8-G06
+attempt_id: DEV-M8-G06-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_E_ac01_transport_failure_authorizes_identical_resubmission
+    - test_E_ac01_resubmission_is_a_scheduler_receipt_not_a_new_job_record
+    - test_E_ac01_engineering_recovery_only_no_supervisor_replan
+    - test_E_ac01_no_supervisor_decision_surface_in_the_monitor_path
+    - test_E_ac01_resubmission_decided_exactly_once_per_failure
+    - test_E_ac02_scientific_failure_refused_no_resubmission
+    - test_E_ac02_unclassified_failure_refused
+    - test_E_ac02_whitelist_is_engineering_only
+    notes: >-
+      Scenario E performs identical engineering recovery only, end to end
+      through the real machinery (SlurmClusterMock over the real SSHTransport
+      boundary, real AdapterFailureClassifier reading the adapter's durable
+      job record, real scheduler-level replay). The resubmission is byte
+      identical to the failed dispatch (identical batch replayed from the
+      adapter's durable job record, never re-derived), arrives as a
+      scheduler receipt -- not a new job record -- and the run bytes are
+      unchanged; the only emitted event is the engineering retry decision.
+      The no-supervisor-surfaces property is proven by AST scan of the retry
+      module: SupervisorDecision / DecisionType never appear anywhere in the
+      engineering path (identical recovery only, never a scientific replan).
+      The complementary refusals (scientific job failure, unclassified
+      failure, anything outside the engineering whitelist) are never
+      resubmitted, and the exactly-once discipline holds across a fresh
+      dispatcher replaying the recorded authorized/refused history with zero
+      fresh hook calls.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_G_ac02_replacement_reconstructs_state_from_checkpoint_events_adapter
+    - test_G_ac02_reconstruction_is_observation_only
+    - test_G_ac02_no_duplicate_run_job_or_completion_event
+    - test_G_ac02_completion_during_outage_not_lost
+    - test_G_ac02_replacement_dispatch_never_invoked
+    - test_G_crash_leaves_durable_state_for_the_replacement
+    - test_G_watchdog_tries_resume_and_resume_fails
+    notes: >-
+      Scenario G loses no Run/job/completion event after Monitor
+      replacement, end to end: the crash leaves the durable watch/run/
+      checkpoint/event artifacts for the replacement; the watchdog's resume
+      attempt is recorded and fails; the replacement reconstructs the full
+      state from checkpoint + events + external adapter with RecoveredCompletion
+      per run. Reconstruction is observation-only (dispatch.calls == [] and
+      byte-identical state after reconstruct) -- no duplicate Run, no
+      duplicate job, no duplicate completion event (exactly 2 run records, 2
+      job records and 2 completion events across the whole scenario, id
+      sequences never reused). The completion that landed during the outage
+      is not lost: the resumed pass transitions it exactly once. The
+      replacement's dispatch hook is never invoked. AC-03 within the file
+      (resumed pass and a fresh session over the same state are idempotent,
+      byte-identical) confirms the recovery stays a no-op thereafter.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_H_ac03_monitor_detects_incoming_package_and_reconciles
+    - test_H_ac03_fresh_adapter_collects_returned_result_without_worker
+    - test_H_ac03_followup_analysis_spawned_exactly_once
+    - test_H_ac03_worker_process_gone_before_result_returns
+    - test_H_worker_dispatches_and_exits_leaving_durable_artifacts
+    - test_H_ac02_before_result_no_detection_no_trigger
+    - test_H_ac02_completion_event_recorded_exactly_once
+    notes: >-
+      Scenario H does not require the original experiment worker to remain
+      alive, end to end through the real FilesystemLabAdapter (real
+      dispatch/status/collect over the real outgoing/incoming handoff,
+      schema-gated dispatch, manifest-validated collection with the real
+      run-association check), the real WatchedRunRegistry, ReconcileEngine,
+      TriggerRegistry and ProjectEventLog. The worker dispatches and exits;
+      the result returns later; a fresh Monitor session detects the incoming
+      Result Package, records the single deterministic completion event
+      (generate_id("event", EXTERNAL_STATUS_CHANGE_EVENT_TYPE, run_id,
+      RUNNING_EXTERNAL, RESULT_AVAILABLE), asserted verbatim) and moves the
+      Run to RESULT_AVAILABLE -- the stale worker_session_ref on the run
+      record is never resolved by any step (asserted stale at the end). The
+      follow-up analysis is spawned exactly once: the first trigger scan
+      invokes the hook once and persists the deterministic trigger record
+      with the receipt (durable analysis request written through
+      core.atomic.atomic_write); the repeated scan replays that single
+      original record -- no second hook call, no second record, byte-identical
+      files, and a fresh registry reconstructs the same single trigger.
+      Before the result returns nothing is fabricated (probe reports
+      running, run stays RUNNING_EXTERNAL, scan ignores, zero files), and a
+      fresh reconcile pass never re-emits or re-transitions.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m8-g06 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: fa5554a0bcf7189b7aeaf1170020ef480f09e860
+  commands:
+  - cmd: pytest -q tests/scenarios -k "E or G or H"
+    result: '68 passed in 9.25s (the goal verification command; 35 new +
+      33 existing D/F name matches, matches the worker claim exactly)'
+  - cmd: pytest -q tests/monitoring tests/adapters tests/integration
+    result: '544 passed (136 monitoring + 408 adapters/integration, the
+      M8-G05-closed baseline; no regression)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 89 source files (unchanged
+      baseline)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (scratch worktree at fa5554a)
+    result: '2771 passed, 6 skipped, 1 deselected in 129.40s (= 2736 base
+      at 5c5a2fb + 35 new, exact prediction; no lease flake)'
+  - cmd: gh pr checks 61
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head fa5554a)'
+
+design_review:
+  real_machinery_verification: >-
+    All three scenarios execute through the REAL machinery end to end -- no
+    mocks of the production units under test: the real FilesystemLabAdapter
+    (schema-gated dispatch, manifest-validated collection with the real
+    run-association check), the real WatchedRunRegistry, ReconcileEngine,
+    TriggerRegistry, FilesystemStateBackend and append-only ProjectEventLog,
+    the real core.atomic.atomic_write for every durable byte, the real
+    adapter durable job record feeding the AdapterFailureClassifier. The
+    SlurmClusterMock is the SSH transport boundary only -- the scheduler
+    interface the production adapter would talk to -- and it records
+    receipts (identical batch replayed, byte for byte) rather than
+    fabricating outcomes. Executors are pure functions of their workspace
+    directory: determinism tests execute each scenario twice in separate
+    workspaces and assert byte-identical durable trees (with only the
+    workspace's own absolute path normalized out).
+  exactly_once_and_no_duplication: >-
+    Scenario G: reconstruction is observation-only (dispatch.calls == [],
+    byte-identical state), exactly 2 run records / 2 job records / 2
+    completion events across the whole scenario with id sequences never
+    reused, the outage completion transitions exactly once via the resumed
+    pass, and the replacement's dispatch is never invoked. Scenario H: the
+    deterministic trigger record (generate_id("trigger", run_id, kind)) is
+    the at-most-once marker -- first scan triggers once, repeated scan and
+    fresh registries replay the single original record with zero fresh hook
+    calls and byte-identical bytes; the completion event id is a pure
+    function of the transition and asserted verbatim. Scenario E: the
+    dispatcher's durable job record replays the identical batch exactly
+    once per failure, including across a fresh dispatcher replaying the
+    recorded authorized/refused history.
+  identical_recovery_only_no_supervisor_surface: >-
+    Scenario E is the only file touching the resubmission path, and it
+    proves by AST scan that the engineering retry module never contains
+    SupervisorDecision or DecisionType -- identical engineering recovery
+    only, never a scientific replan; the resubmitted run is byte identical
+    (identical batch replayed from the durable record, never re-derived)
+    and the only event emitted is the engineering retry decision. The
+    complementary refusals (scientific job, unclassified) are asserted
+    refused with zero resubmission.
+  determinism_and_discipline: >-
+    Single-stamp injected FakeClock throughout (every read recorded; no
+    wall clock, no sleeps, no network), deterministic ids at every layer
+    (run/job/completion event/trigger/analysis request all generate_id
+    with asserted exact values), canonical sorted JSON through the house
+    atomic writer, safe-identifier hygiene asserted on every id touched by
+    the scenarios, frozen dataclass records validated at their contract
+    boundaries (FrozenInstanceError, malformed records rejected), and the
+    house byte-identity determinism pattern across independent executions.
+  observations: >-
+    One harmless redundancy noted, not a finding: test_G line 743 asserts
+    run_file_bytes(...) == run_file_bytes(...) on the same value (x == x,
+    trivially true); the full-tree byte identity it appears to echo is
+    already asserted by the preceding tree_bytes(root) comparison, so the
+    line weakens nothing and no fix is required. The pyright diagnostics
+    are the known noise classes (test-only dict[str, object] subscripts at
+    test_E line 648, unresolved-import noise from a scanner without an
+    editable install, deliberate wrong-type boundary passes under
+    pytest.raises(TypeError)) -- none are defects; mypy/ruff/pytest/CI are
+    the authoritative gates and all pass.
+
+findings: []
+
+scope_check: PASS
+notes: >-
+  Full review of all three new files completed line by line
+  (test_E_engineering_slurm_failure.py 870 new, 14 tests;
+  test_G_monitor_crash_recovery.py 822 new, 11 tests;
+  test_H_delayed_lab_result.py 747 new, 10 tests; 35 tests total;
+  three-dot diff origin/main...HEAD = exactly these 3 files +2439/-0).
+  Stale-base handling compliant: the branch parent 5c5a2fb == origin/main
+  at commit time (the DEV-M8-G05 state commit), single commit, no rebase,
+  no force-push, no amended history, base_sha recorded as 5c5a2fb. No
+  deviations from the frozen contract: allowed_scope respected
+  (tests/scenarios/test_E*, test_G*, test_H* only), no existing test
+  modified, no --no-verify, Draft PR (not ready, no reviewers),
+  conventional subject-only commit message with [DEV-M8-G06]. All
+  worker-reported gates independently confirmed (68 / 544 regression /
+  ruff / mypy 89 / contracts; full suite 2771 passed, 6 skipped, 1
+  deselected with no lease flake; CI both jobs PASS on head fa5554a).
+  Zero findings. Decision: PASS; merge authorized as squash.
+
+git_review:
+  pr_number: 61
+  pr_title: 'feat(scenarios): pass Monitor execution simulations E G and H [DEV-M8-G06]'
+  branch: feat/dev-m8-g06-scenario-egh
+  base_sha: 5c5a2fbfb0ce79ce73526488fc2c4d170b0d0a07
+  reviewed_head_sha: fa5554a0bcf7189b7aeaf1170020ef480f09e860
+  changed_files: 3 (tests/scenarios/test_E_engineering_slurm_failure.py,
+    test_G_monitor_crash_recovery.py, test_H_delayed_lab_result.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
