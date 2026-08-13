@@ -1,0 +1,54 @@
+event_id: EVT-20260814-0064
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M8-G04
+attempt_id: DEV-M8-G04-a1
+pr_number: 58
+head_sha: 8ed16cff99a661b6f43c5c1456b39edc821e9748
+merge_sha: fe9d7568267132d94479b5ddb764e4c2f7afc63f
+summary: >-
+  DEV-M8-G04 merged (Monitor session recovery/replacement contract): 2
+  files +1746/-0 (monitoring/recovery.py 680 new, tests/monitoring/
+  test_recovery_monitor.py 1066 new, 22 tests). Review DEV-M8-G04-a1
+  PASS (no defects). AC-01 reconstruction without the original
+  conversation: MonitorRecovery.reconstruct() rebuilds the replacement
+  view (watch set from the registry files, per-run progress from the
+  checkpoint, completion facts from the Run records + event log) from
+  durable state alone -- proven with a fresh instance; resume_engine()
+  returns a fresh ReconcileEngine bound to the same state dir with the
+  same injected clock/monitor_id/probe/run_store/event_log (DEV-M8-G02
+  exactly-once machinery reused, never reimplemented). AC-02 zero
+  duplicate external jobs: reconstruction is observation-only -- the
+  dispatch hook is exposed but has no call site (CountingDispatch
+  proves zero calls across reconstruction + resumed pass), durable
+  state byte-identical before/after, resumed pass re-emits nothing
+  already recorded. AC-03 outage reconciliation: a completion during
+  the Monitor outage (external became RESULT_AVAILABLE, no event/check-
+  point from the original Monitor) is reconciled by the replacement's
+  first pass -- exactly one external_status_change event under the
+  idempotency key reconcile.completed:<run_id>, run transitioned
+  through the real machinery, checkpoint updated; repeated passes (and
+  a fresh third) resolve to the single record; stale RUNNING
+  observations overridden; mixed pre-outage + outage watch sets
+  complete only the outage run with one event per run. Error taxonomy:
+  CorruptRecoveryStateError (corrupt watch/checkpoint/missing-or-
+  corrupt Run record/>1 completion event/contradictory state),
+  RecoveryContractError (external identity mismatch); TypeError at
+  public boundaries; injected clock; no wall clock; no secrets
+  (credential-shaped scan); no-adapters boundary proven in a fresh
+  interpreter. Verification: -k recovery 22 passed/64 deselected;
+  tests/monitoring 86 (= 64 + 22); tests/adapters tests/integration
+  408 (no regression); ruff clean; mypy 87 head/87 scratch (= 86 + 1);
+  contracts PASS; scratch full suite 2686 passed, 6 skipped, 1
+  deselected (= 2664 base + 22, exact prediction; no flake on the
+  independent run -- the worker's single failure was the known load
+  flake, re-run alone passed); CI both jobs PASS on head 8ed16cf.
+  Branch parent f0bd548 (dispatch-time origin/main; single commit; no
+  rebase). Worker deviations (all compliant): test filename
+  test_recovery_monitor.py (prepend import-mode collision with the
+  pre-existing tests/state/test_recovery.py; satisfies the frozen glob
+  test_recovery*); no __init__ re-export (reconcile.py precedent);
+  dispatch return semantics advisory. All 6 type: ignore[arg-type] are
+  deliberate boundary tests; the pyright "unreachable" diagnostics at
+  recovery.py 376-398 are the six TypeError boundary raises (stale
+  static narrowing), not defects. Merged count 57/80.

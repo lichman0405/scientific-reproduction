@@ -586,12 +586,14 @@ goals:
     merged_at: null
     outcome: null
   DEV-M8-G04:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M8-G04-a1
+    reviews:
+    - DEV-M8-G04-a1
+    merged_sha: fe9d756
+    merged_at: '2026-08-14'
+    outcome: PASS
   DEV-M8-G05:
     status: READY
     attempts: []
