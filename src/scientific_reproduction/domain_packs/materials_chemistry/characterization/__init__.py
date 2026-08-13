@@ -1,0 +1,128 @@
+"""Materials-chemistry characterization planning/analysis templates (DEV-M11-G02).
+
+The characterization template pack: frozen, parameterized templates for
+PXRD, SCXRD, TGA and spectroscopy characterization capture (AC-01), with
+freezable analysis protocol/acceptance plans (AC-02, frozen through the
+``Action.PLAN_FREEZE`` action of the DEV-M6-G03 role-action matrix) and
+PXRD identity/quality checks as auditable decision records decided by an
+explicit contract -- never a worker self-decision (AC-03). Missing raw
+data / instrument metadata and pending acceptance measurements route
+through the Assumption Registry pathway of ``core.rules.assumptions``.
+
+This package is the domain-pack wiring: ``domain_packs/__init__.py``
+defines no registration mechanism, so the exports of this module (and the
+sibling ``templates`` module) are the pack's public interface. No core
+module is modified: the templates reuse the frozen core APIs.
+"""
+
+from scientific_reproduction.domain_packs.materials_chemistry.characterization import (
+    templates,
+)
+from scientific_reproduction.domain_packs.materials_chemistry.characterization.templates import (
+    ACCEPTANCE_PARAMETER_RULES,
+    ACCEPTANCE_PARAMETERS,
+    ANALYSIS_ACCEPTANCE_RULES,
+    CAPTURE_KEYS,
+    CHARACTERIZATION_REQUIREMENT_RULES,
+    CHARACTERIZATION_RULESET_VERSION,
+    CHARACTERIZATION_VALUE_RULES,
+    CHECK_OUTCOME_RULES,
+    PXRD_IDENTITY_CHECKS,
+    PXRD_KIND,
+    SCXRD_KIND,
+    SPECTROSCOPY_KIND,
+    TGA_KIND,
+    AcceptanceAssessment,
+    AcceptanceDecision,
+    AcceptanceOutcomeRule,
+    AnalysisPlan,
+    CharacterizationKind,
+    CharacterizationTemplateBase,
+    CharacterizationTemplateError,
+    CheckOutcome,
+    IdentityCheckAssessment,
+    IdentityCheckDecision,
+    InvalidAcceptanceCriteriaError,
+    InvalidAnalysisPlanError,
+    InvalidCharacterizationTemplateError,
+    MetadataCompletenessAssessment,
+    MetadataCompletenessDecision,
+    MetadataValueAssessment,
+    MetadataValueDecision,
+    MissingMeasurementRouting,
+    MissingMetadataRouting,
+    PXRDCharacterizationTemplate,
+    SCXRDCharacterizationTemplate,
+    SpectroscopyCharacterizationTemplate,
+    TemplateRequirementRule,
+    TGACharacterizationTemplate,
+    UniversalValueRule,
+    UnknownCharacterizationKindError,
+    apply_assumption_routing,
+    assess_metadata_completeness,
+    assumptions_for_missing_measurements,
+    assumptions_for_missing_metadata,
+    capture_characterization,
+    evaluate_acceptance,
+    evaluate_identity_checks,
+    freeze_analysis_plan,
+    freeze_characterization_template,
+    missing_metadata,
+    validate_characterization_rulesets,
+    validate_metadata_values,
+)
+
+__all__ = [
+    "ACCEPTANCE_PARAMETER_RULES",
+    "ACCEPTANCE_PARAMETERS",
+    "ANALYSIS_ACCEPTANCE_RULES",
+    "AcceptanceAssessment",
+    "AcceptanceDecision",
+    "AcceptanceOutcomeRule",
+    "AnalysisPlan",
+    "CAPTURE_KEYS",
+    "CHARACTERIZATION_REQUIREMENT_RULES",
+    "CHARACTERIZATION_RULESET_VERSION",
+    "CHARACTERIZATION_VALUE_RULES",
+    "CHECK_OUTCOME_RULES",
+    "CheckOutcome",
+    "CharacterizationKind",
+    "CharacterizationTemplateBase",
+    "CharacterizationTemplateError",
+    "IdentityCheckAssessment",
+    "IdentityCheckDecision",
+    "InvalidAcceptanceCriteriaError",
+    "InvalidAnalysisPlanError",
+    "InvalidCharacterizationTemplateError",
+    "MetadataCompletenessAssessment",
+    "MetadataCompletenessDecision",
+    "MetadataValueAssessment",
+    "MetadataValueDecision",
+    "MissingMeasurementRouting",
+    "MissingMetadataRouting",
+    "PXRDCharacterizationTemplate",
+    "PXRD_IDENTITY_CHECKS",
+    "PXRD_KIND",
+    "SCXRDCharacterizationTemplate",
+    "SCXRD_KIND",
+    "SPECTROSCOPY_KIND",
+    "SpectroscopyCharacterizationTemplate",
+    "TGACharacterizationTemplate",
+    "TGA_KIND",
+    "TemplateRequirementRule",
+    "UnknownCharacterizationKindError",
+    "UniversalValueRule",
+    "apply_assumption_routing",
+    "assess_metadata_completeness",
+    "assumptions_for_missing_measurements",
+    "assumptions_for_missing_metadata",
+    "capture_characterization",
+    "evaluate_acceptance",
+    "evaluate_identity_checks",
+    "freeze_analysis_plan",
+    "freeze_characterization_template",
+    "missing_metadata",
+    "validate_characterization_rulesets",
+    "validate_metadata_values",
+    "templates",
+]
