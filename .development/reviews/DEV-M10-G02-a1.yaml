@@ -1,0 +1,261 @@
+review_id: DEV-M10-G02-a1
+goal_id: DEV-M10-G02
+attempt_id: DEV-M10-G02-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_ac01_platform_interface_module_imports_no_claude_specific_apis
+    - test_ac01_platform_interface_module_imports_only_stdlib_and_core_packages
+    - test_ac01_core_package_imports_no_claude_specific_modules
+    - test_ac01_core_package_imports_no_platform_adapter_subsystem
+    - test_ac01_platform_adapter_is_abstract_and_exposes_only_the_locked_surface
+    - test_ac01_operation_vocabulary_matches_the_interface_surface
+    - test_ac01_interface_module_has_no_wall_clock_and_no_randomness
+    notes: >-
+      The Core never imports Claude-specific task APIs directly, enforced
+      mechanically by AST import scans: adapters/platform/base.py imports
+      only stdlib and scientific_reproduction packages (no third-party
+      module at all, so no anthropic/claude-code SDK can reach the
+      interface through an indirect dependency), and every module under
+      core/ is scanned for the four Claude-specific import roots
+      (anthropic / claude_code / claude / us.anthropic) and for any import
+      of the adapters subsystem -- the platform surface is the
+      PlatformAdapter interface and nothing else. The interface itself is
+      abstract (instantiation raises TypeError; __abstractmethods__ is
+      exactly {capabilities, spawn_persistent_role, spawn_worker,
+      resume_session, terminate_session, is_session_alive,
+      expose_command, fallback_subagent}) and the PlatformOperation
+      StrEnum vocabulary of 15-ADAPTER-SPEC.md SS5 is mutually pinned to
+      the abstract surface (every member is one capability and every
+      method has a vocabulary member), so no capability exists without an
+      interface answer.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_ac02_handle_carries_exactly_the_identity_fields_project_state_needs
+    - test_ac02_handle_round_trips_losslessly_through_state_serialization
+    - test_ac02_handle_rehydrates_corrupt_stored_ref_self_correcting
+    - test_ac02_session_ref_is_deterministic_and_fits_run_project_state
+    - test_ac02_session_ref_distinguishes_distinct_worker_contexts
+    - test_ac02_handle_is_a_frozen_validating_record
+    - test_ac02_handle_from_dict_rejects_corrupt_state
+    - test_ac02_handle_has_no_wall_clock_and_no_randomness_fields
+    notes: >-
+      WorkerSessionHandle is a frozen record carrying exactly the identity
+      project state needs: session_ref (first in canonical dict order),
+      platform_id, worker_id, role_id (validated against the frozen
+      CONTRACT_ROLE_IDS vocabulary of DEV-M10-G01), project_id / goal_id /
+      context_id (each validated as the correct sr_<kind>_<32 hex>
+      shape, unset optionals omitted from the dict exactly as the state
+      backend expects). session_ref is computed, never caller-supplied:
+      a truthy caller-supplied value is rejected and the canonical
+      reference is derived deterministically via generate_id("session",
+      platform_id, worker_id, role_id, project_id, goal_id, context_id) --
+      a pure function of the logical worker/role context, so the value a
+      Run record stores in worker_session_ref is stable across restarts
+      and Monitor replacement sessions (13-EXECUTION-MONITOR.md SS3-SS4).
+      from_dict ignores any carried session_ref and recomputes it, so
+      stale or corrupt persisted references self-correct on rehydration.
+      Distinct logical contexts (different goals, different runs of one
+      goal via context_id, persistent roles) derive distinct refs; the
+      ref fits Run.worker_session_ref (verified against the real Run
+      record); serialization round-trips losslessly (dict equality, JSON
+      byte-identical, parses back to the same plain dict).
+  AC-03:
+    status: PASS
+    evidence:
+    - test_ac03_fallback_mode_is_a_typed_explicit_vocabulary
+    - test_ac03_result_validation_enforces_the_explicit_answer_shapes
+    - test_ac03_every_capability_has_a_defined_explicit_fallback_answer
+    - test_ac03_callers_can_distinguish_real_results_from_fallback
+    - test_ac03_fallback_subagent_is_the_explicit_documented_fallback_path
+    - test_ac03_capability_answers_are_distinct_from_data_errors
+    - test_ac03_results_are_frozen_and_round_trip_typed
+    - test_ac03_results_carry_no_wall_clock_fields
+    notes: >-
+      Every platform operation returns a frozen result record carrying a
+      typed FallbackMode member (NATIVE / FALLBACK / UNSUPPORTED), so a
+      caller can always distinguish a real platform result from a
+      fallback. The shared _check_fallback rule is enforced by every
+      record's __post_init__: a NATIVE result never carries a
+      fallback_reason, a FALLBACK/UNSUPPORTED answer always carries a
+      non-empty reason, and an UNSUPPORTED answer never carries a
+      fabricated handle (SpawnResult/ResumeResult) or a guessed alive
+      value (AliveResult.alive must be None). The contract rule is pinned
+      by test: an adapter declaring zero native capabilities must answer
+      every interface capability with an explicit FALLBACK or UNSUPPORTED
+      result -- never NATIVE, never a fake session (M10-G05 AC-03:
+      "Unavailable live capability is reported as capability/fallback,
+      not silently faked"). fallback_subagent (15-ADAPTER-SPEC.md SS5) is
+      the explicit fallback path and always reports FALLBACK with a
+      reason naming the channel. Capability answers are typed results and
+      distinct from data/state errors: a session the adapter never
+      created raises SessionNotFoundError (a ValueError subclass, stable
+      message), while an unsupported capability returns the typed
+      UNSUPPORTED answer; wrong input types raise TypeError at the public
+      boundary. All five result records round-trip with their typed mode
+      and carry no timestamp-like fields.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m10-g02 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: 46bd8f952dc85e8f84f0c24ee57d3c6264cf1ab3
+  commands:
+  - cmd: pytest -q tests/platform -k base
+    result: '23 passed, 32 deselected in 0.16s (the goal verification
+      command, matches the worker claim exactly)'
+  - cmd: pytest -q tests/platform
+    result: '55 passed in 0.18s (platform suite = 23 new base tests + 32
+      contract tests; no regression)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 92 source files (91 baseline + 1
+      new platform base module)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (scratch worktree at 46bd8f9)
+    result: '2826 passed, 6 skipped, 1 deselected in 130.92s -- exactly
+      the expected count (2803 base at 8112216 + 23 new), no lease flake
+      this run, zero failures'
+  - cmd: gh pr checks 63
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head 46bd8f9)'
+
+design_review:
+  interface_exactly_locked_surface: >-
+    PlatformAdapter is a pure abstract contract (no concrete platform
+    behavior may live here): its abstract methods are exactly the seven
+    operations of 15-ADAPTER-SPEC.md SS5 (spawn_persistent_role,
+    spawn_worker, resume_session, terminate_session, is_session_alive,
+    expose_command, fallback_subagent) plus the capability query, the
+    PlatformOperation StrEnum vocabulary is exactly the same seven
+    members, and the test suite pins both the vocabulary -> surface and
+    surface -> vocabulary directions, so no capability can exist without
+    an interface answer. Each abstract method carries full Args/Returns/
+    Raises documentation grounded in the frozen specs (Monitor resume /
+    replacement semantics of 13-EXECUTION-MONITOR.md SS3-SS4, the role
+    vocabulary of 03-ROLE-AND-PERMISSION-SPEC.md via DEV-M10-G01
+    CONTRACT_ROLE_IDS, the platform-neutral command rule of SS5). Class
+    identity is stable, versioned class constants (platform_id / version /
+    description) that concrete adapters declare.
+  neutrality_import_level: >-
+    AC-01 is enforced at the import level with deterministic AST scans
+    (no I/O beyond reading module sources): the interface module imports
+    no Claude-specific root and no third-party module at all -- only
+    stdlib and scientific_reproduction (verified against
+    sys.stdlib_module_names), so no anthropic/claude-code SDK can reach
+    the interface through an indirect first-party dependency; every
+    module under core/ is scanned for the four Claude-specific import
+    roots and for any import of the adapters subsystem -- the Core's only
+    platform contact point is the interface itself. The module also
+    imports no random/uuid/time/datetime, keeping the surface
+    deterministic.
+  durable_identity: >-
+    WorkerSessionHandle is the AC-02 deliverable: a frozen record whose
+    canonical session_ref is a pure deterministic function of the logical
+    worker/role context (generate_id("session", platform_id, worker_id,
+    role_id, project_id, goal_id, context_id)), computed once via
+    object.__setattr__ with caller-supplied values rejected. The
+    identity fields are validated in __post_init__ (platform_id
+    ^[a-z][a-z0-9_]*$, worker_id ^[a-z][a-z0-9_-]*$ allowing
+    platform-generated names like teammate-3, role_id in the frozen
+    contract vocabulary, project/goal/context ids in the correct
+    sr_<kind>_<32 hex> shapes) so corrupt rehydrated state fails as a
+    stable PlatformAdapterDataError, never a silent guess -- while a
+    stale carried session_ref is ignored and recomputed, making
+    rehydration self-correcting. The ref is verified to fit the real Run
+    record's worker_session_ref field and the serialization round-trips
+    losslessly through the state backend / event log (dict equality, JSON
+    byte-identical, parses back to the same plain dict).
+  explicit_fallback: >-
+    AC-03 is a typed, record-level contract: every operation result
+    carries exactly one FallbackMode member, and the shared _check_fallback
+    rule is enforced in each record's __post_init__ (NATIVE without a
+    reason; FALLBACK/UNSUPPORTED always with a non-empty reason; UNSUPPORTED
+    never with a handle or a guessed alive value). PlatformCapability
+    declares which operations an adapter supports natively, and the test
+    suite pins the rule mechanically: an adapter with zero native
+    capabilities must answer each of the six operations with an explicit
+    FALLBACK/UNSUPPORTED result carrying a reason (enumerated per
+    operation, including result-payload assertions for the UNSUPPORTED
+    shape), never NATIVE, never a fabricated session -- matching the
+    M10-G05 AC-03 rule referenced in the module docstring.
+    fallback_subagent is the documented explicit fallback path and always
+    reports FALLBACK with a reason naming the channel. Capability answers
+    are distinct from data errors: SessionNotFoundError (a
+    ValueError-subclassed stable error) is raised for sessions the
+    platform never created, while an unsupported capability returns the
+    typed UNSUPPORTED answer; wrong input types raise TypeError at the
+    public boundary.
+  house_style: >-
+    The module follows the house style exactly: frozen dataclass records
+    (WorkerSessionHandle, CommandSpec, PlatformCapability, and the five
+    operation result records), StrEnum vocabularies (FallbackMode,
+    PlatformOperation), TypeError at the public boundaries, stable
+    ValueError-subclassed errors (PlatformAdapterError ->
+    PlatformAdapterDataError / SessionNotFoundError) with one-line
+    messages, deterministic ids via core.ids.generate_id, canonical
+    sorted JSON serialization (json.dumps sort_keys=True, ensure_ascii=
+    False, indent=2) with lossless from_dict round-trip and corrupt-state
+    wrapping into the stable error, and no wall clock, no randomness, no
+    I/O anywhere in the module (asserted by tests).
+  observations: >-
+    The pyright diagnostics reported alongside the worker completion are
+    all known noise classes, not defects: "type[str] is not iterable" at
+    test_base_fallback.py line 233 is StrEnum class iteration (the
+    runtime behavior is correct and pinned by the passing tests); the
+    NATIVE attribute resolution complaint at line 238 is the same
+    StrEnum-member class; the DataclassInstance to_dict/to_json
+    complaints at lines 394-401 come from pyright narrowing the record to
+    DataclassInstance after the dataclasses.is_dataclass assertion (the
+    same pattern as the FrozenInstanceError noise in the DEV-M10-G01
+    hygiene tests). The authoritative gates are all clean on the final
+    head: ruff (F401 selected), mypy, pytest, CI. One harmless note, not
+    a finding: test_base_session_handle.py line 129 asserts
+    handle.to_dict() == handle.to_dict() (a tautology); the meaningful
+    assertion is the next line (restored == handle after rehydration) --
+    same class of redundancy noted in the DEV-M8-G06 scenario tests,
+    which the tree_bytes coverage there made harmless as well.
+
+findings: []
+
+scope_check: PASS
+notes: >-
+  Full review of all four new files completed line by line
+  (adapters/platform/base.py 1266 new; tests/platform/test_base_neutrality.py
+  188 new (7 tests), test_base_session_handle.py 302 new (8 tests),
+  test_base_fallback.py 448 new (8 tests); 23 tests total). Three-dot diff
+  origin/main...HEAD = exactly these 4 files +2204/-0, all within the frozen
+  allowed_scope (platform/base.py + tests/platform/test_base*). Stale-base
+  handling compliant: the branch parent 46bd8f9~1 = 9e2ef46 == origin/main at
+  dispatch time; origin/main then advanced by the single .development/-only
+  state commit 8112216, which has no scope overlap -- the worker correctly did
+  not rebase, and the merge guard (--match-head-commit) keeps the chain exact.
+  No deviations from the frozen contract: allowed_scope respected, no existing
+  test modified, no --no-verify, Draft PR (no reviewers), a conventional
+  subject-only commit message with [DEV-M10-G02], and the PR was opened via
+  the gh CLI after the MCP token lacked PR scope (the Draft PR itself is
+  correct). All worker-reported gates independently confirmed (23 / 55 / ruff
+  / mypy 92 / contracts; full suite 2826 passed exactly with no flake in this
+  run; CI both jobs PASS on head 46bd8f9). Zero findings. Decision: PASS;
+  merge authorized as squash.
+
+git_review:
+  pr_number: 63
+  pr_title: 'feat(platform): platform orchestration interface [DEV-M10-G02]'
+  branch: feat/dev-m10-g02-platform-interface
+  base_sha: 9e2ef465d86280917772eea45b77ea937ac38742
+  reviewed_head_sha: 46bd8f952dc85e8f84f0c24ee57d3c6264cf1ab3
+  changed_files: 4 (adapters/platform/base.py, tests/platform/test_base_*.py x3)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
