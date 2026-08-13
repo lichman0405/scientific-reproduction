@@ -8,12 +8,17 @@ Covered behaviors:
   * a failure between temp-write and rename (simulated crash) leaves the
     previous target content intact and cleans up the temp file;
   * stale temp files left by a previous crash are never mistaken for
-    real content and never clobber the target.
+    real content and never clobber the target;
+  * ``file_mode`` semantics: default (None) keeps mkstemp's 0o600 and
+    performs no chmod; an explicit mode is applied; a failing chmod
+    propagates and leaves no target behind.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import stat
 
 import pytest
 
@@ -120,3 +125,63 @@ def test_stale_temp_file_from_previous_crash_never_clobbers_target(
     assert target.read_text(encoding="utf-8") == "previous valid content"
     atomic_write(target, "new valid content")
     assert target.read_text(encoding="utf-8") == "new valid content"
+
+
+# ---------------------------------------------------------------------------
+# file_mode parameter (security hardening: no implicit permission widening)
+# ---------------------------------------------------------------------------
+
+
+def test_default_mode_does_no_chmod_at_all(tmp_path, monkeypatch) -> None:
+    """file_mode=None must not call chmod: mkstemp's 0o600 stays as the
+    umask-respecting single-user default.
+    """
+    calls: list[tuple] = []
+    real_chmod = atomic_module.os.chmod
+
+    def spy(path, mode, *args, **kwargs):
+        calls.append((path, mode))
+        return real_chmod(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(atomic_module.os, "chmod", spy)
+    atomic_write(tmp_path / "obj.json", "x")
+    assert calls == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX-only mode semantics")
+def test_default_file_mode_is_0600(tmp_path) -> None:
+    target = tmp_path / "obj.json"
+    atomic_write(target, "x")
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX-only mode semantics")
+def test_explicit_file_mode_is_applied(tmp_path) -> None:
+    target = tmp_path / "obj.json"
+    atomic_write(target, "x", file_mode=0o644)
+    assert stat.S_IMODE(target.stat().st_mode) == 0o644
+    atomic_write(target, "y", file_mode=0o600)
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+def test_explicit_file_mode_does_not_error_on_windows(tmp_path) -> None:
+    # On Windows chmod is largely a no-op; requesting a mode must still
+    # complete the write without error.
+    target = tmp_path / "obj.json"
+    atomic_write(target, "x", file_mode=0o644)
+    assert target.read_text(encoding="utf-8") == "x"
+
+
+def test_chmod_failure_propagates_and_leaves_no_target(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "obj.json"
+
+    def boom(path, mode):
+        raise OSError("simulated chmod failure")
+
+    monkeypatch.setattr(atomic_module.os, "chmod", boom)
+    with pytest.raises(OSError, match="simulated chmod failure"):
+        atomic_write(target, "x", file_mode=0o644)
+    monkeypatch.undo()
+
+    assert not target.exists()
+    assert list(tmp_path.iterdir()) == []

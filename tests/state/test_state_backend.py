@@ -23,11 +23,14 @@ from __future__ import annotations
 import copy
 import dataclasses
 import json
+import os
+import stat
 
 import pytest
 
 from scientific_reproduction.core import atomic as atomic_module
 from scientific_reproduction.core import models as m
+from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.schema_validation import (
     SchemaValidationError,
     validate_object,
@@ -38,6 +41,18 @@ from scientific_reproduction.core.state_backend import (
     UnknownObjectTypeError,
 )
 from tests.core.fixtures import VALID_DOCS
+
+
+def _make_symlink(
+    link_path, target_path, *, target_is_directory: bool = False
+) -> None:
+    """Create a symlink or skip the test where symlinks are unavailable."""
+    try:
+        os.symlink(
+            target_path, link_path, target_is_directory=target_is_directory
+        )
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlinks unavailable on this platform: {exc}")
 
 
 def _id_field(obj_type: str) -> str:
@@ -366,3 +381,145 @@ def test_interrupted_write_keeps_last_valid_object(tmp_path, monkeypatch) -> Non
     assert path.read_bytes() == original
     assert backend.read("project", doc1["project_id"]) == doc1
     assert backend.list_ids("project") == [doc1["project_id"]]
+
+
+# ---------------------------------------------------------------------------
+# Symlink / TOCTOU hardening
+# ---------------------------------------------------------------------------
+
+
+def test_read_refuses_symlinked_object_file(tmp_path) -> None:
+    backend = FilesystemStateBackend(tmp_path / "state")
+    doc = copy.deepcopy(VALID_DOCS["project"])
+    backend.write("project", doc["project_id"], doc)
+
+    path = tmp_path / "state" / "project" / f"{doc['project_id']}.json"
+    decoy = tmp_path / "decoy.json"
+    decoy.write_text(json.dumps(doc), encoding="utf-8")
+    path.unlink()
+    _make_symlink(path, decoy)
+
+    with pytest.raises(ValueError, match="symlink"):
+        backend.read("project", doc["project_id"])
+
+
+def test_read_refuses_type_dir_symlinking_outside_base(tmp_path) -> None:
+    # The object file itself is a regular file, but its type directory is
+    # a symlink pointing outside base_dir: the resolved path must be
+    # rejected before the content is read.
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    doc = copy.deepcopy(VALID_DOCS["project"])
+    (outside / f"{doc['project_id']}.json").write_text(
+        json.dumps(doc), encoding="utf-8"
+    )
+    backend = FilesystemStateBackend(tmp_path / "state")
+    _make_symlink(
+        tmp_path / "state" / "project", outside, target_is_directory=True
+    )
+
+    with pytest.raises(ValueError, match="escape"):
+        backend.read("project", doc["project_id"])
+
+
+def test_write_refuses_type_dir_symlinking_outside_base(tmp_path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    backend = FilesystemStateBackend(tmp_path / "state")
+    _make_symlink(
+        tmp_path / "state" / "project", outside, target_is_directory=True
+    )
+    doc = copy.deepcopy(VALID_DOCS["project"])
+
+    with pytest.raises(ValueError, match="escape"):
+        backend.write("project", doc["project_id"], doc)
+    # Nothing escaped base_dir.
+    assert not (outside / f"{doc['project_id']}.json").exists()
+    assert backend.list_ids("project") == []
+
+
+# ---------------------------------------------------------------------------
+# Case-insensitive ID collision policy
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "first,second",
+    [("EV-1", "ev-1"), ("ev-1", "EV-1")],
+    ids=["upper-then-lower", "lower-then-upper"],
+)
+def test_case_colliding_object_ids_are_rejected(
+    tmp_path, first: str, second: str
+) -> None:
+    backend = FilesystemStateBackend(tmp_path / "state")
+    doc1 = copy.deepcopy(VALID_DOCS["event"])
+    doc1["event_id"] = first
+    backend.write("event", first, doc1)
+
+    doc2 = copy.deepcopy(doc1)
+    doc2["event_id"] = second
+    doc2["reason"] = "case variant"
+    with pytest.raises(ValueError, match="case-insensitively"):
+        backend.write("event", second, doc2)
+
+    # The original object is untouched and still the only one present.
+    assert backend.list_ids("event") == [first]
+    assert backend.read("event", first) == doc1
+
+
+def test_exact_case_rewrite_of_same_id_still_works(tmp_path) -> None:
+    backend = FilesystemStateBackend(tmp_path / "state")
+    doc1 = copy.deepcopy(VALID_DOCS["event"])
+    doc1["event_id"] = "EV-1"
+    backend.write("event", "EV-1", doc1)
+    doc2 = copy.deepcopy(doc1)
+    doc2["reason"] = "updated"
+    backend.write("event", "EV-1", doc2)
+    assert backend.read("event", "EV-1") == doc2
+    assert backend.list_ids("event") == ["EV-1"]
+
+
+def test_canonical_generate_id_object_ids_work(tmp_path) -> None:
+    # Object IDs are expected to follow the core.ids.generate_id pattern.
+    backend = FilesystemStateBackend(tmp_path / "state")
+    doc = copy.deepcopy(VALID_DOCS["event"])
+    object_id = generate_id("event", doc["event_id"])
+    doc["event_id"] = object_id
+    backend.write("event", object_id, doc)
+    assert backend.read("event", object_id) == doc
+
+
+# ---------------------------------------------------------------------------
+# file_mode threading through the backend
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX-only mode semantics")
+def test_backend_explicit_file_mode_is_applied(tmp_path) -> None:
+    backend = FilesystemStateBackend(tmp_path / "state", file_mode=0o644)
+    doc = copy.deepcopy(VALID_DOCS["project"])
+    backend.write("project", doc["project_id"], doc)
+    path = tmp_path / "state" / "project" / f"{doc['project_id']}.json"
+    assert stat.S_IMODE(path.stat().st_mode) == 0o644
+
+
+def test_backend_explicit_file_mode_does_not_error_on_windows(tmp_path) -> None:
+    backend = FilesystemStateBackend(tmp_path / "state", file_mode=0o644)
+    doc = copy.deepcopy(VALID_DOCS["project"])
+    backend.write("project", doc["project_id"], doc)
+    assert backend.read("project", doc["project_id"]) == doc
+
+
+def test_backend_default_mode_does_not_chmod(tmp_path, monkeypatch) -> None:
+    backend = FilesystemStateBackend(tmp_path / "state")
+    calls: list[tuple] = []
+    real_chmod = atomic_module.os.chmod
+
+    def spy(path, mode, *args, **kwargs):
+        calls.append((path, mode))
+        return real_chmod(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(atomic_module.os, "chmod", spy)
+    doc = copy.deepcopy(VALID_DOCS["project"])
+    backend.write("project", doc["project_id"], doc)
+    assert calls == []

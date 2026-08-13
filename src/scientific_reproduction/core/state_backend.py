@@ -18,6 +18,24 @@ Schema gate (AC-03)
 persisted. Unknown ``obj_type`` values -- anything not in the normative
 model registry -- are rejected with ``UnknownObjectTypeError``.
 
+Security posture
+----------------
+* ``read`` refuses symlinked object files and any object path whose
+  resolved location escapes the resolved ``base_dir`` (this also covers
+  type directories that symlink outside the workspace). ``write``
+  resolves the target's parent directory and refuses writes that would
+  escape the resolved ``base_dir``, before any staging file is created.
+* Object IDs that differ only by case are rejected on **every** platform
+  (``"Foo"`` and ``"foo"`` collide on case-insensitive filesystems such
+  as Windows/macOS but not on Linux; making the rejection a policy keeps
+  behavior deterministic and testable everywhere).
+* Type directories must **not** be writable by untrusted principals: the
+  backend validates containment, but cannot defend a directory that an
+  attacker is already able to write.
+* Object IDs are expected to follow the canonical ``generate_id`` pattern
+  from ``core.ids.py`` (``sr_<kind>_<32 hex chars>``); the backend still
+  accepts any safe file stem and validates the shape defensively.
+
 Events are ordinary objects of type ``event``; append-only policy on top
 of per-object CRUD is a workflow-layer concern, not enforced here.
 
@@ -29,6 +47,7 @@ governance logic. v0.1 ships exactly one implementation.
 from __future__ import annotations
 
 import json
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -109,14 +128,29 @@ class FilesystemStateBackend(StateBackend):
     Layout: ``base_dir/<obj_type>/<object_id>.json``. All writes go
     through ``atomic_write`` (temp file + ``os.replace``), so partial
     writes never replace the last valid object (AC-02).
+
+    Args:
+        base_dir: root of the state tree. May be a ``str`` or ``Path``.
+            If ``base_dir`` itself is a symlink it is followed and the
+            *resolved* location is the containment anchor.
+        file_mode: optional explicit mode for written object files,
+            passed through to ``atomic_write`` (``None`` keeps
+            ``mkstemp``'s 0o600 default; operators wanting a shared
+            workspace should pass e.g. ``0o644`` explicitly).
     """
 
     #: Object IDs become file stems; anything that could escape the
     #: ``<obj_type>`` directory is rejected defensively.
     _FORBIDDEN_ID_CHARS = ("/", "\\", "\x00")
 
-    def __init__(self, base_dir: str | Path) -> None:
+    def __init__(
+        self, base_dir: str | Path, *, file_mode: int | None = None
+    ) -> None:
         self.base_dir = Path(base_dir)
+        #: Resolved once at construction: the containment anchor used by
+        #: the symlink/escape checks in ``read`` and ``write``.
+        self._base_dir_resolved = self.base_dir.resolve()
+        self._file_mode = file_mode
 
     # -- path / input validation -------------------------------------------
 
@@ -147,12 +181,63 @@ class FilesystemStateBackend(StateBackend):
         self._check_obj_type(obj_type)
         return self.base_dir / obj_type
 
+    def _check_write_target(self, path: Path) -> None:
+        """Refuse writes whose resolved parent escapes the resolved base.
+
+        Resolving the parent before any staging file is created closes the
+        symlinked-type-dir escape: a type directory that symlinks outside
+        ``base_dir`` would otherwise let a write land outside the
+        workspace. Type directories must not be writable by untrusted
+        principals.
+        """
+        resolved_parent = path.parent.resolve()
+        if not resolved_parent.is_relative_to(self._base_dir_resolved):
+            raise ValueError(
+                f"refusing to write {path}: resolved parent"
+                f" {resolved_parent} escapes the state base directory"
+                f" {self._base_dir_resolved}"
+            )
+
+    def _check_no_case_collision(self, obj_type: str, object_id: str) -> None:
+        """Reject an ID that differs only by case from an existing entry.
+
+        On case-insensitive filesystems (Windows/macOS) ``"Foo"`` and
+        ``"foo"`` are the same file, while on Linux they are distinct --
+        non-deterministic cross-platform behavior. To make this a
+        deterministic, testable policy on every platform, the check runs
+        on all platforms before writing. Exact-case rewrites of the same
+        ID remain allowed.
+        """
+        type_dir = self._type_dir(obj_type)
+        if not type_dir.is_dir():
+            return
+        target_name = f"{object_id}.json"
+        target_folded = target_name.casefold()
+        try:
+            entries = os.listdir(type_dir)
+        except OSError:
+            # Unreadable directory: the write itself will surface the real
+            # error; do not mask it with a collision guess.
+            return
+        for entry in entries:
+            if entry != target_name and entry.casefold() == target_folded:
+                raise ValueError(
+                    f"object id {object_id!r} collides case-insensitively"
+                    f" with existing entry {entry!r} in {obj_type!r}; object"
+                    f" IDs are expected to follow the canonical"
+                    f" generate_id pattern from core.ids.py"
+                )
+
     # -- StateBackend ------------------------------------------------------
 
     def write(self, obj_type: str, object_id: str, data: dict[str, Any]) -> None:
         """Validate, serialize canonically, and persist atomically."""
         path = self._object_path(obj_type, object_id)
         if not isinstance(data, dict):
+            # Deliberate runtime contract check for dynamically typed
+            # callers (the interface promises TypeError for non-dict
+            # content). Pyright flags this branch as unreachable because
+            # the annotation already says dict -- it is not dead code.
             raise TypeError(
                 f"object content for {obj_type!r}/{object_id!r} must be a dict,"
                 f" got {type(data).__name__}"
@@ -172,10 +257,22 @@ class FilesystemStateBackend(StateBackend):
                 f"object content for {obj_type!r}/{object_id!r} is not"
                 f" JSON-serializable: {exc}"
             ) from exc
-        atomic_write(path, canonical)
+        self._check_write_target(path)
+        self._check_no_case_collision(obj_type, object_id)
+        atomic_write(path, canonical, file_mode=self._file_mode)
 
     def read(self, obj_type: str, object_id: str) -> dict[str, Any]:
         path = self._object_path(obj_type, object_id)
+        if path.is_symlink():
+            raise ValueError(
+                f"refusing to read symlinked object file: {path}"
+            )
+        resolved = path.resolve()
+        if not resolved.is_relative_to(self._base_dir_resolved):
+            raise ValueError(
+                f"refusing to read {path}: resolved path {resolved} escapes"
+                f" the state base directory {self._base_dir_resolved}"
+            )
         if not path.is_file():
             raise FileNotFoundError(
                 f"no object of type {obj_type!r} with id {object_id!r}: {path}"

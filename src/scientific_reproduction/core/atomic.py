@@ -20,6 +20,16 @@ under the target name and is cleaned up on the next *failed* write attempt.
 
 The parent directory is created on demand (``mkdir(parents=True)``), so
 callers do not need to pre-create the layout.
+
+Permissions (``file_mode``)
+---------------------------
+By default (``file_mode=None``) the staged file keeps the mode that
+``tempfile.mkstemp`` assigns (0o600 on POSIX), regardless of umask --
+the safe single-user default. This helper deliberately does **not**
+widen permissions implicitly: the process umask is respected precisely
+by not touching the mode at all. Operators who want a shared workspace
+must pass an explicit ``file_mode`` (e.g. ``0o644``); in that case a
+failing ``os.chmod`` raises instead of being silently swallowed.
 """
 
 from __future__ import annotations
@@ -29,18 +39,28 @@ import tempfile
 from pathlib import Path
 
 
-def atomic_write(path: str | Path, content: str | bytes) -> None:
+def atomic_write(
+    path: str | Path,
+    content: str | bytes,
+    *,
+    file_mode: int | None = None,
+) -> None:
     """Atomically replace ``path`` with ``content``.
 
     Args:
         path: destination file. Its parent directory is created if
             missing. May be given as ``str`` or ``pathlib.Path``.
         content: ``str`` is encoded as UTF-8; ``bytes`` is written as is.
+        file_mode: if ``None`` (default), the staged file keeps
+            ``mkstemp``'s own mode (0o600 on POSIX) and no chmod is
+            performed. If an ``int``, the staged file is chmodded to that
+            mode before the rename and any ``OSError`` from the chmod
+            propagates (the target is left untouched).
 
     Raises:
-        OSError: if the write, fsync, or rename fails. The previous
-            target content (if any) is left intact and the temporary
-            file is removed.
+        OSError: if the write, fsync, or rename fails, or if ``file_mode``
+            is set and the chmod fails. The previous target content (if
+            any) is left intact and the temporary file is removed.
     """
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -58,7 +78,8 @@ def atomic_write(path: str | Path, content: str | bytes) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
-        _widen_permissions(tmp_path)
+        if file_mode is not None:
+            os.chmod(tmp_path, file_mode)
         os.replace(tmp_path, target)
     except BaseException:
         # Never leave a partially written temp file behind after a failed
@@ -68,17 +89,3 @@ def atomic_write(path: str | Path, content: str | bytes) -> None:
         except FileNotFoundError:
             pass
         raise
-
-
-def _widen_permissions(path: Path) -> None:
-    """Give the new file default group/other read access (best effort).
-
-    ``tempfile.mkstemp`` creates files with 0600; the workspace is a
-    shared single source of truth, so object files should be readable by
-    other processes/users. Non-fatal: on platforms where chmod does not
-    apply meaningfully (Windows) or is denied, keep going.
-    """
-    try:
-        os.chmod(path, 0o644)
-    except OSError:
-        pass
