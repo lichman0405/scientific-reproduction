@@ -300,8 +300,9 @@ goals:
     merged_at: '2026-08-13'
     outcome: PASS
   DEV-M2-G06:
-    status: READY
-    attempts: []
+    status: WORKING
+    attempts:
+    - DEV-M2-G06-a1
     reviews: []
     merged_sha: null
     merged_at: null
