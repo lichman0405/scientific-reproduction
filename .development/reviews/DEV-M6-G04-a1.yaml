@@ -1,0 +1,180 @@
+review_id: DEV-M6-G04-a1
+goal_id: DEV-M6-G04
+attempt_id: DEV-M6-G04-a1
+reviewer: supervisor
+reviewed_at: '2026-08-14'
+verdict: PASS
+head_sha: c7f504c6b53a054b520e5671fa843f9b121125b9
+base_sha: 1a86dc21ae9d41625f945b75917a7aa926b96978
+pr_number: 45
+verification:
+- command: python -m pytest -q tests/workers -k retry
+  result: '55 passed (54 own + 1 pre-existing context test, exact prediction)'
+- command: python -m pytest -q tests (scratch merge worktree, 96146ab + c7f504c)
+  result: '1884 passed, 6 skipped, 1 deselected (= 1830 base + 54 new, exact prediction)'
+- command: ruff check .
+  result: 'All checks passed!'
+- command: mypy src/
+  result: 'Success: no issues found in 69 source files (68 stale-base + 1 new retry.py)'
+- command: scripts/validate_development_contracts.py
+  result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed'
+- command: gh pr checks 45
+  result: 'CI both jobs PASS on merge-ref state (Test/lint/type-check; contracts)'
+ac_evidence:
+  AC-01: >-
+    Transient engineering failures authorized WHEN the frozen contract allows:
+    (a) ssh_connection_lost / network_timeout / scheduler_node_failure in the
+    policy's allowed_engineering_failures -> R-RET-A1 AUTHORIZED/AUTOMATIC with
+    the whitelist entry and reasoning id recorded (test_retry_ac01_whitelisted_
+    ssh_failure_authorized_for_automatic_action, ..._whitelisted_network_timeout_
+    authorized, ..._whitelisted_scheduler_node_failure_authorized_when_contract_
+    allows). (b) The "when the contract allows" reading enforced both ways: the
+    same transient SSH failure under a policy that does not whitelist it is
+    REJECTED by the total default R-RET-D1 (matched_policy_entries == (),
+    REASON_NO_POLICY_ENTRY) -- the whitelist is the contract, not a
+    classification of how the failure looks (test_retry_ac01_transient_failure_
+    not_whitelisted_is_not_authorized, test_retry_ac01_whitelist_is_the_contract_
+    not_the_failure_shape: identical kind authorized under one policy, rejected
+    under another -- pure function of the contract). (c) Every assessment
+    records the full decision record: all 7 rule evaluations in table order,
+    the matched rule id, the matched whitelist entry, the reasoning id and the
+    ruleset version (test_retry_ac01_authorized_assessment_records_full_decision_
+    record -- R-RET-S1 not matched, trailing R-RET-D1 always matched but not
+    deciding).
+  AC-02: >-
+    Identical checkpoint continuation authorized without scientific change,
+    gated by max_identical_retries: (a) None = unlimited (count 5 authorized,
+    REASON_IDENTICAL_CHECKPOINT_CONTINUATION + REASON_CEILING_UNLIMITED,
+    ceiling None, ceiling_reached False); int = hard ceiling (counts 0/1 of 2
+    authorized with REASON_CEILING_NOT_REACHED; 2/3/10 rejected by R-RET-C2 with
+    REASON_CEILING_REACHED and ceiling_reached True; zero ceiling authorizes
+    nothing) -- test_retry_ac02_* suite. (b) Authorization comes from the policy
+    contract (the ceiling gate), not from a whitelist entry: a policy that lists
+    no checkpoint kind at all still authorizes the identical continuation
+    (test_retry_ac02_checkpoint_continuation_authorized_without_whitelist_entry).
+    (c) Invalidation beats it: checkpoint_continuation in invalidate_run_on ->
+    R-RET-I1 REJECTED/AUTOMATIC with the trigger recorded
+    (test_retry_ac02_checkpoint_continuation_in_invalidate_run_on_situation_
+    rejected); a policy invalidating a different kind does not block it
+    (test_retry_ac02_checkpoint_continuation_not_in_invalidate_run_on_authorized).
+    (d) The identical declaration is the input contract: checkpoint_
+    continuation must be True exactly for the checkpoint_continuation kind, a
+    contradictory input is rejected with a stable one-line message
+    (test_retry_ac02_checkpoint_continuation_requires_identical_declaration).
+    (e) The authorization is engineering-only: routing stays AUTOMATIC, no
+    supervisor reasoning ids (test_retry_ac02_identical_checkpoint_continuation_
+    is_never_scientific). (f) The assessment records the identical-retry count
+    against the ceiling verbatim (ceiling == policy.max_identical_retries,
+    ceiling_reached computed from the count) -- test_retry_ac02_ceiling_state_
+    records_count_against_ceiling.
+  AC-03: >-
+    Scientific parameter modifications are never authorized for automatic worker
+    action: (a) a kind in the policy's supervisor_required_changes (the
+    authoritative list) -> R-RET-S1 REJECTED/SUPERVISOR with the entry and
+    REASON_SUPERVISOR_REQUIRED_CHANGE recorded (test_retry_ac03_supervisor_
+    required_change_routed_to_supervisor). (b) The frozen detection vocabulary
+    (SCIENTIFIC_CHANGE_FAILURES, 13 kinds: functional/force field/k-point mesh/
+    cutoff/convergence policy+tolerance/thermostat/integration/model/charge/
+    mixing parameter+rule/smearing) catches kinds the policy does not list ->
+    R-RET-V1 REJECTED/SUPERVISOR, parametrized over every vocabulary member
+    (test_retry_ac03_every_vocabulary_scientific_change_routed_to_supervisor).
+    (c) Strongest reading pinned: a known scientific modification that a
+    (malformed) policy ALSO whitelists is STILL never authorized -- R-RET-V1
+    fires before the whitelist rule (test_retry_ac03_scientific_change_never_
+    authorized_even_when_whitelisted). (d) FDM-201 counter-case (simulated
+    scenario S5): smearing/mixing/convergence-policy changes are never auto-
+    authorized (test_retry_ac03_fdm201_counter_case_never_auto_authorized).
+    (e) Supervisor routing is a decision record, never an error and never an
+    execution: the assessment is a normal frozen record and the module has no
+    execution API at all -- module-dict and source inspection prove no
+    execute/apply/perform/dispatch surface (test_retry_ac03_supervisor_routing_
+    is_a_decision_record_not_an_error, test_retry_boundary_module_exposes_pure_
+    evaluation_only_no_execution_api). (f) Precedence: scientific classification
+    first (S1 > V1 > I1 > A1 -- a kind in every list routes to the Supervisor,
+    test_retry_ac03_supervisor_required_change_wins_over_whitelist_and_
+    invalidation); invalidation beats the whitelist (test_retry_ac03_invalidate_
+    run_on_wins_over_whitelist); the authoritative-list/detection/default
+    hierarchy is tested (named -> S1, detected -> V1, unknown -> D1, never an
+    invented supervisor route) -- test_retry_ac03_supervisor_required_changes_
+    are_authoritative_list. (g) The vocabulary is a frozen set disjoint from the
+    automatic kinds (checkpoint continuation and the engineering kinds are never
+    scientific) -- test_retry_ac03_vocabulary_is_frozen_and_disjoint_from_
+    automatic_kinds.
+review_notes:
+- >-
+  Security-review consideration (automated commit security review flagged a
+  fail-open gate: the checkpoint_continuation declaration is caller-supplied).
+  Evaluated and rejected as a defect in this context: (1) the design is the
+  contractually frozen honest-declaration model -- RetryEvaluationInput
+  documents "the evaluator cannot observe scientific change, it can only accept
+  or refuse the caller's declaration" and DEV-M6-G04 AC-02 defines the identical
+  declaration as the input; (2) this module is a pure decision layer with no
+  execution API (proven by module-dict and source inspection tests), so a
+  spoofed declaration yields an auditable decision record, never an execution;
+  the execution boundary is the DEV-M6-G03 permission matrix (ENGINEERING_RETRY
+  vs Supervisor-only SCIENTIFIC_PARAMETER_CHANGE); (3) known scientific
+  modifications cannot be routed through this path: R-RET-S1 (authoritative
+  list) and R-RET-V1 (frozen vocabulary) fire before the checkpoint rules, and
+  the flag binding (checkpoint_continuation True exactly for the checkpoint_
+  continuation kind) plus the tested disjointness of the vocabulary from
+  automatic kinds closes the labeling channel for known scientific changes --
+  only unknown kinds could be mislabeled, which is exactly what the
+  whitelist-is-contract default (R-RET-D1) rejects; (4) the declaration is
+  recorded verbatim in the assessment input for audit. Suggested fix was N/A.
+  Recorded here so the consideration is part of the audit trail; no code change.
+- >-
+  Rule-table integrity verified by reading: ordered 7-rule RETRY_DECISION_RULES
+  (R-RET-S1 > R-RET-V1 > R-RET-I1 > R-RET-A1 > R-RET-C1/C2 > R-RET-D1 total
+  default), first match wins; validate_retry_ruleset proves non-empty, unique
+  ids and that the trailing rule matches every probe input of the 7
+  rule-triggering shapes; evaluate_automatic_retry post-asserts matched rule
+  id/verdict/routing; RetryAssessment.__post_init__ enforces the recorded
+  ceiling equals the policy's verbatim, ceiling_reached consistency, reasoning
+  ids in the frozen vocabulary, and verdict/routing equal the matched rule's --
+  each enforced invariant is adversarially tested via direct construction
+  (test_retry_paradigm_assessment_ceiling_integrity_checks, test_retry_paradigm_
+  value_errors_stable_and_one_line, test_retry_paradigm_ruleset_validation).
+- >-
+  AC mapping one-to-one: AC-01 -> R-RET-A1/D1 (whitelist is the contract);
+  AC-02 -> R-RET-C1/C2/I1 (ceiling gate + invalidation precedence);
+  AC-03 -> R-RET-S1/V1 + no-execution-API proof. The goal's verification command
+  (-k retry) selects exactly this suite: 55 = 54 own tests + 1 pre-existing
+  untouched test_context_ac01_goal_without_policy_exposes_no_retry_actions
+  (the -k filter also matches its name; the test itself was not modified).
+- >-
+  Boundary alignment with the DEV-M6-G03 role-action matrix tested against the
+  REAL matrix: AUTHORIZED == Action.ENGINEERING_RETRY (granted to Monitor and
+  Experiment/Computation workers), SUPERVISOR == Action.SCIENTIFIC_PARAMETER_
+  CHANGE (Supervisor-only; workers denied) -- test_retry_boundary_authorization_
+  aligns_with_role_action_matrix. Failure kinds are exactly the retry:<failure>
+  action suffixes of workers/context.py (no prefix, no spaces, tested).
+- >-
+  Determinism and purity: evaluation is a pure function of the frozen policy
+  record and the injected input -- no I/O, no wall clock, no network, no
+  mutation (source inspection test forbids random/time/datetime/urllib/requests/
+  socket/open(/os./sys./pathlib/atomic_write/import json/hashlib in the module);
+  frozen records reject mutation (FrozenInstanceError); same inputs -> identical
+  assessments incl. repr (test_retry_paradigm_determinism_across_repeated_calls,
+  test_retry_paradigm_frozen_records_reject_mutation, test_retry_paradigm_policy_
+  record_never_mutated). Type errors raise TypeError at the public boundaries,
+  never ValueError; value/rule violations raise the ValueError-subclass
+  RetryPolicyError family (RetryEvaluationError / MalformedRetryPolicyError /
+  RetryRulesetError) with stable one-line messages (test_retry_paradigm_typeerror_
+  at_boundaries, test_retry_paradigm_errors_are_valueerror_subclasses_with_stable_
+  messages, test_retry_paradigm_malformed_policy_rejected). from __future__ import
+  annotations; __all__ exports all resolve exactly once; no type: ignore / noqa
+  (test_retry_paradigm_module_all_exports_resolve).
+- >-
+  Stale-base handling compliant: branch parent 1a86dc2 (ancestor of origin/main;
+  worker neither rebased nor force-pushed -- forbidden); PR diff
+  origin/main...HEAD = exactly the 2 new files (+2165/-0); merge-ref CI both
+  jobs PASS on the merged state; scratch merge worktree (origin/main 96146ab +
+  head c7f504c) full suite 1884/6/1 -- the exact predicted merged-state number
+  (1830 + 54). No lease flake this run.
+- >-
+  No deviations from the frozen contract: allowed_scope respected (2 files),
+  no existing test weakened, no --no-verify, Draft PR (not ready, no reviewers),
+  conventional commit message with [DEV-M6-G04]. (gh CLI used instead of GitHub
+  MCP for PR creation -- known token-scope limitation, same as DEV-M6-G03 and
+  DEV-M9-G06.)
+claim_corrections: []

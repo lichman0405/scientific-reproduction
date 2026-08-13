@@ -1,0 +1,35 @@
+event_id: EVT-20260814-0051
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M6-G04
+attempt_id: DEV-M6-G04-a1
+pr_number: 45
+head_sha: c7f504c6b53a054b520e5671fa843f9b121125b9
+merge_sha: 4b369580afef50fb88f89d3d312b9db69a6015d6
+summary: >-
+  DEV-M6-G04 merged (engineering retry authorization boundary): workers/retry.py
+  +1043/-0, tests/workers/test_retry.py +1122/-0. Review DEV-M6-G04-a1 PASS.
+  AC-01 transient SSH/network/scheduler failures pre-authorized for automatic
+  action when the frozen policy whitelist allows (R-RET-A1; whitelist is the
+  contract -- a non-whitelisted transient failure is rejected R-RET-D1). AC-02
+  identical checkpoint continuation authorized without scientific change, gated
+  by max_identical_retries (R-RET-C1/C2; None = unlimited, int = hard ceiling;
+  invalidate_run_on beats the whitelist R-RET-I1; identical declaration is the
+  input contract, flag/kind binding enforced). AC-03 scientific parameter
+  modifications never auto-authorized (R-RET-S1 authoritative list + R-RET-V1
+  frozen 13-kind detection vocabulary, even when also whitelisted; FDM-201
+  smearing/mixing/convergence counter-case never auto-authorized; Supervisor
+  routing is a decision record -- pure decision layer with no execution API,
+  proven by module-dict and source inspection). Ordered 7-rule
+  RETRY_DECISION_RULES (S1 > V1 > I1 > A1 > C1/C2 > D1 total default), first
+  match wins, post-asserted matched-rule invariants, ceiling recorded verbatim,
+  RETRY_AUTHORIZATION_RULESET_VERSION 1.0. Gates on head: 55 passed
+  (-k retry = 54 own + 1 pre-existing context test, exact prediction) / scratch
+  merge (96146ab + c7f504c) full 1884-6-1 (exact prediction 1830+54) / ruff
+  clean / mypy 69 files (68 base + 1) / contracts PASS / CI both jobs PASS on
+  merge-ref. Branch parent 1a86dc2 (ancestor of origin/main, no rebase); PR diff
+  exactly 2 files +2165/-0. Security-review fail-open observation on the
+  checkpoint_continuation declaration evaluated and recorded in the review notes
+  -- frozen honest-declaration contract, pure evaluator with no execution path,
+  S1/V1 precedence closes the known-scientific-change labeling channel; not a
+  defect in this context, no code change.
