@@ -1,0 +1,19 @@
+goal_id: DEV-M3-G03
+attempt_id: DEV-M3-G03-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 8ae2dc9f7e0bc45abd45226db65d0f4f8af698f8
+branch: feat/dev-m3-g03-artifact-git
+worktree: .worktrees/dev-m3-g03
+status: MERGED
+commit_shas:
+- b1edf74dc3b0e0cb8c1e8661733555b148cbb41b
+pr:
+  number: 18
+  url: https://github.com/lichman0405/scientific-reproduction/pull/18
+  head_sha: b1edf74dc3b0e0cb8c1e8661733555b148cbb41b
+  state: closed
+  ci_status: PASS
+merge_method: squash
+merge_commit_sha: 867c1381fdec98132a36145b75071be258963054
+merged_at: '2026-08-13'

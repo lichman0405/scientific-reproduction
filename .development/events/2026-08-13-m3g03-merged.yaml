@@ -1,0 +1,24 @@
+event_id: EVT-20260813-0017
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M3-G03
+attempt_id: DEV-M3-G03-a1
+pr_number: 18
+head_sha: b1edf74dc3b0e0cb8c1e8661733555b148cbb41b
+merge_sha: 867c1381fdec98132a36145b75071be258963054
+summary: >-
+  DEV-M3-G03 merged: large-artifact exclusion + audit linkage
+  integration suite (tests/integration/test_artifact_git.py +
+  artifact_git_helpers.py, 6 tests; .gitignore untouched — artifact
+  lives outside the repo structurally per 14-STATE-GIT-ARTIFACTS.md
+  SS6). AC-01 proven at object-store level (blob sha1 absence with
+  committed-manifest positive control via tree-path form,
+  autocrlf-independent); AC-02: manifest committed at
+  inventory.audit.passed checkpoint, read_file_at returns object
+  store content (not working copy), pinned identity/time; AC-03:
+  deterministic tamper detected (checksum differs, verify False,
+  verify_manifest CHANGED) while pristine-copy control proves the
+  audit record intact. Reuses tests.audit.git_helpers. M3 now
+  COMPLETE (G01/G02/G03 all merged). Full suite 702/6/1, ruff +
+  mypy clean 37 files, contracts PASS; CI both jobs PASS;
+  supervisor review PASS; squash-merged at exact head.

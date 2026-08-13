@@ -1,0 +1,9 @@
+goal_id: DEV-M2-G02
+attempt_id: DEV-M2-G02-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 8ae2dc9f7e0bc45abd45226db65d0f4f8af698f8
+branch: feat/dev-m2-g02-dependency-gates
+worktree: .worktrees/dev-m2-g02
+status: WORKING
+commit_shas: []
