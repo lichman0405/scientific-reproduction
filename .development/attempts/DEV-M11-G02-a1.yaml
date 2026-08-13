@@ -1,0 +1,20 @@
+goal_id: DEV-M11-G02
+attempt_id: DEV-M11-G02-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 6f1d6c8f9f58d1547b0c9caa8593af506217bdfd
+branch: feat/dev-m11-g02-characterization
+worktree: .worktrees/dev-m11-g02
+status: MERGED
+pr:
+  number: 49
+  url: https://github.com/lichman0405/scientific-reproduction/pull/49
+  head_sha: bf389e4f17ede9e55d724fb4c954326d6721a71f
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M11-G02-a1
+merge_commit_sha: 69185b9b91eb751336a981750949ba199cee1c8f
+merged_at: '2026-08-14'
+commit_shas:
+- bf389e4f17ede9e55d724fb4c954326d6721a71f
