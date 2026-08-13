@@ -1,0 +1,50 @@
+event_id: EVT-20260814-0062
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M8-G01
+attempt_id: DEV-M8-G01-a1
+pr_number: 56
+head_sha: afbe5a97a701b4891e33e08892c36b8e68b45ba0
+merge_sha: 58736c699892a75468923e36a446637f3d55870c
+summary: >-
+  DEV-M8-G01 merged (monitoring subsystem foundation): 6 files +2559/-3
+  (monitoring/__init__.py extended, registry.py 562 new, checkpoint.py
+  667 new, tests/monitoring/test_monitoring_registry.py 561 new,
+  test_monitoring_checkpoint.py 622 new, test_monitoring_surface.py 84
+  new; 40 tests). Review DEV-M8-G01-a1 PASS (no defects). AC-01 watched-
+  Run registry: a fresh WatchedRunRegistry instance over the same state
+  directory reconstructs the full watch set from the persisted entries
+  alone (list_watched/get re-hydrate from <state_dir>/watched/
+  <run_id>.json on every op; three external shapes covered; heartbeat/
+  unwatch durable across instances; empty dir -> empty set). AC-02
+  heartbeat/checkpoint are plain atomic file writes, never git: state
+  dir holds exactly the JSON state files (no .git/HEAD/index/objects/
+  refs), updates replace content in place, and git rev-parse
+  --is-inside-work-tree fails from the state dir -- no audit commit was
+  or could be involved. AC-03 checkpoint references the adapter/
+  external ids needed for reconciliation (core RunExternal backend/
+  dispatch_id/job_id/working_directory persisted verbatim, enforced at
+  construction and from_dict by validate_external_identity; fresh store
+  recovers entries in sorted run-id order; store refuses another
+  monitor's checkpoint). Design: frozen records, canonical sorted JSON
+  (byte-identical determinism across directories), injected clock only,
+  deterministic monitor_id (generate_id("monitor", resolved state
+  dir)), no credentials in any record (every persisted byte scanned),
+  monitoring package never imports adapters (proven in a fresh
+  interpreter), ValueError-based MonitoringError hierarchy, corrupt
+  persisted state fails loudly. Verification: -k checkpoint 17
+  passed/23 deselected; tests/monitoring 40 passed; tests/adapters
+  tests/integration 408 (= 399 baseline + 9, no regression); ruff
+  clean; mypy 85 head/85 scratch (= 83 + 2); contracts PASS; scratch
+  full suite 2640 passed, 6 skipped, 1 deselected (= 2600 base + 40,
+  exact prediction; no lease flake despite parallel M11-G05 worker);
+  CI both jobs PASS on head afbe5a9. Branch parent 7b3ec0b
+  (dispatch-time origin/main; single commit; no rebase). Worker
+  deviations documented (test file naming avoiding pytest basename
+  collision, shared vocabulary in registry.py re-exported via
+  __init__.__all__, deterministic monitor_id, 5 self-caught fixes) --
+  all verified on head. Supervisor caught and corrected one guard-SHA
+  typo in the review's base_sha (real full SHA verified via rev-parse
+  before merge; merge guard used the gh-verified head OID). Zero
+  functional type: ignore / noqa (boundary-test ignores only). Merged
+  count 55/80.
