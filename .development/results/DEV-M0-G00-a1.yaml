@@ -1,0 +1,34 @@
+goal_id: DEV-M0-G00
+attempt_id: DEV-M0-G00-a1
+status_claim: completed
+files_changed:
+  - .github/workflows/ci.yml
+  - .github/PULL_REQUEST_TEMPLATE.md
+  - CONTRIBUTING.md
+  - scripts/validate_development_contracts.py
+tests_run:
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+acceptance_evidence:
+  - criterion_id: AC-01
+    evidence: ".github/workflows/ci.yml triggers on pull_request targeting main; runs python scripts/validate_development_contracts.py; CI run #31688039036 on PR #1 conclusion=success."
+  - criterion_id: AC-02
+    evidence: ".github/PULL_REQUEST_TEMPLATE.md requires Goal ID, acceptance evidence, verification results, architecture impact, known limitations."
+  - criterion_id: AC-03
+    evidence: "CONTRIBUTING.md forbids direct product commits to main and Worker self-merge; Supervisor sole merge authority."
+  - criterion_id: AC-04
+    evidence: "Delivered via ci/dev-m0-g00-github-governance branch and Draft PR #1; no main commit."
+  - criterion_id: AC-05
+    evidence: "scripts/validate_development_contracts.py validates 14 milestones / 80 goals, required fields, DAG acyclicity, exits non-zero on malformed contracts."
+known_limitations:
+  - CI bootstrap validates spec/development contracts only (no package test tooling at M0).
+  - Non-blocking GitHub annotation: Node20 actions on Node24 runtime; deferred.
+  - development/validate_development_spec.py stale 79-goal assertion NOT touched (frozen, SPEC-DEFECT-001).
+unexpected_changes: none
+git:
+  branch: ci/dev-m0-g00-github-governance
+  head_sha: 418dd1da23a4af0d87dc49ce24ba340c557bd008
+  commit_shas:
+    - 418dd1da23a4af0d87dc49ce24ba340c557bd008
+  pr_number: 1
+  pr_url: https://github.com/lichman0405/scientific-reproduction/pull/1

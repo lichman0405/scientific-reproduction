@@ -1,0 +1,9 @@
+event_id: EVT-20260813-0002
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+actor: development-supervisor
+summary: DEV-M0-G00 PASS (review DEV-M0-G00-a1) and squash-merged to main.
+details:
+  pr: 1
+  merge_sha: f8ecd2c
+  goal_id: DEV-M0-G00

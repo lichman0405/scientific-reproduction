@@ -1,0 +1,62 @@
+goal_id: DEV-M0-G00
+attempt_id: DEV-M0-G00-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      .github/workflows/ci.yml triggers on pull_request branches [main], runs
+      python scripts/validate_development_contracts.py; independent check via
+      gh pr checks #1: "Validate development contracts" = pass (run
+      31688039036).
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      .github/PULL_REQUEST_TEMPLATE.md reviewed at head 418dd1da: requires Goal
+      contract (ID/milestone/change type/base+head SHA), objective, scope,
+      acceptance-criteria checkboxes, verification table, architecture impact,
+      known limitations, worker declaration.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      CONTRIBUTING.md lines 21-31: no direct product commits to main; no Worker
+      self-merge; Development Supervisor sole merge authority; no force-push to
+      main; commit format <type>(<scope>): <summary> [<DEV-GOAL-ID>].
+  - criterion_id: AC-04
+    result: PASS
+    evidence: >-
+      Delivered via branch ci/dev-m0-g00-github-governance and Draft PR #1
+      (base main, head 418dd1da23a4af0d87dc49ce24ba340c557bd008). main history
+      contains only baseline commits 6868f59 + 3515995; no implementation
+      commit on main.
+  - criterion_id: AC-05
+    result: PASS
+    evidence: >-
+      scripts/validate_development_contracts.py: EXPECTED_GOAL_COUNT=80, 14
+      milestones, required-field checks, depends_on reference + DAG acyclicity
+      checks; supervisor rerun exits 0 with PASS line; worker's negative-path
+      tests (missing goal, broken contract, duplicate id, cycle) exit 1.
+verification_rerun:
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Independent diff review at head SHA: 4 files changed, all inside frozen
+    allowed_scope (.github/**, CONTRIBUTING.md, .gitignore, scripts/
+    validate_development_contracts.py); no forbidden paths touched
+    (scientific_reproduction/**, development/**, schemas/** untouched).
+  - >-
+    SPEC-DEFECT-001 disposition confirmed: frozen development/
+    validate_development_spec.py not modified; canonical validator is the new
+    scripts/validate_development_contracts.py.
+  - >-
+    Worker followed contract: conventional commit with [DEV-M0-G00], Draft PR
+    after first push, no self-approval, no scope broadening, CI green.
+git_review:
+  pr_number: 1
+  reviewed_head_sha: 418dd1da23a4af0d87dc49ce24ba340c557bd008
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

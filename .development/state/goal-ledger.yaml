@@ -1,11 +1,12 @@
 goals:
   DEV-M0-G00:
-    status: READY
-    attempts: []
+    status: MERGED
+    attempts:
+    - DEV-M0-G00-a1
     reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    merged_sha: f8ecd2c
+    merged_at: '2026-08-13'
+    outcome: PASS
   DEV-M0-G01:
     status: READY
     attempts: []

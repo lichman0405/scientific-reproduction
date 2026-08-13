@@ -1,0 +1,18 @@
+goal_id: DEV-M0-G00
+attempt_id: DEV-M0-G00-a1
+change_type: CI
+base_branch: main
+base_sha: 3515995d3529
+branch: ci/dev-m0-g00-github-governance
+worktree: .worktrees/dev-m0-g00
+status: MERGED
+commit_shas: []
+merge_method: squash
+merge_commit_sha: f8ecd2c
+merged_at: '2026-08-13'
+pr:
+  number: 1
+  url: https://github.com/lichman0405/scientific-reproduction/pull/1
+  head_sha: 418dd1da23a4af0d87dc49ce24ba340c557bd008
+  state: merged
+  ci_status: pass

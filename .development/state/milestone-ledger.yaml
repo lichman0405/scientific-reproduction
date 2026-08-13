@@ -1,6 +1,6 @@
 milestones:
   M0:
-    status: NOT_STARTED
+    status: IN_PROGRESS
     gate: null
     accepted_at: null
   M1:
