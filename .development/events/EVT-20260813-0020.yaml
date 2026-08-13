@@ -1,0 +1,25 @@
+event_id: EVT-20260813-0020
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M2-G06
+attempt_id: DEV-M2-G06-a1
+pr_number: 21
+head_sha: 101d34e5e7525815255939d398b830137aacc831
+merge_sha: 42c349f45c55765e21a1b40a6fa052ec5c0ddacd
+summary: >-
+  DEV-M2-G06 merged: requirement/project outcome aggregation with phase
+  separation (core/rules/outcome.py + tests/rules/test_outcome.py, 65
+  tests). Three ordered rule tables: requirement aggregator R-REQOUT-1..5,
+  project aggregator R-PRJ-UND-1..3 + R-PRJ-1..5 (criticality per locked
+  §5 rules, order 3 before 4), method reproducibility hook R-MR-1..3
+  (worst-of bottleneck, replaceable downstream). AC-01 phase/outcome
+  separation at four layers (disjoint vocabularies, record boundary, API
+  boundary, AST proof); AC-02 UNDETERMINED gate encoded phase-independently
+  (R-REQOUT-5 + R-PRJ-UND-1/2/3 with stable blocking_reasons); AC-03
+  criticality aggregation per spec. Composes with rules.closure by
+  consuming closure_allowed, never re-deriving. Normative readings
+  documented and locked over exhaustive grids; acceptance-plan Scenarios
+  A-D + FDM-201 example binding. Full suite 869/6/1, ruff + mypy clean 40
+  files, contracts PASS; CI both jobs PASS; supervisor review PASS;
+  squash-merged at exact head. M2 progress: 7/8 merged (G01..G07);
+  G08 remaining, now unblocked (deps G01..G07 all merged).

@@ -1,0 +1,150 @@
+goal_id: DEV-M2-G06
+attempt_id: DEV-M2-G06-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      project_phase never substitutes for reproduction_outcome: the module
+      never imports ProjectPhase (imports only Criticality,
+      MethodReproducibility, ReproductionOutcome, ReproductionRequirement,
+      RequirementOutcome); a phase value is rejected at the record boundary
+      (OutcomeRecordError naming the separation) and at every public
+      function boundary (TypeError); the outcome vocabulary is
+      phase-independent by construction. Tests: test_outcome_phase_and_
+      outcome_vocabularies_are_disjoint, test_outcome_project_phase_
+      rejected_at_record_boundary, test_outcome_every_phase_value_is_
+      rejected_as_an_outcome (all 4 phase members),
+      test_outcome_project_phase_rejected_at_public_api_boundary (every
+      public entry point), test_outcome_module_never_mentions_project_phase
+      (AST identifier proof), test_outcome_no_public_api_accepts_a_phase_
+      input (inspect-based signature scan),
+      test_outcome_no_phase_derivation_api_exists. Independent rerun at
+      head 101d34e: 68 outcome tests passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Final outcome remains UNDETERMINED before final validation rules
+      allow determination: the gate is encoded phase-independently — a
+      Requirement still OPEN aggregates to UNDETERMINED (R-REQOUT-5) and
+      pulls the project to UNDETERMINED (R-PRJ-UND-1); a NOT_REPRODUCED
+      Requirement whose Closure Contract is evaluated-failing (R-PRJ-UND-2)
+      or unassessed (R-PRJ-UND-3) blocks determination with stable
+      blocking_reasons; determination is compositional (requirement
+      classification first, project aggregation second) and never consults
+      ProjectPhase.FINAL_VALIDATION. Tests:
+      test_outcome_project_stays_undetermined_while_any_requirement_is_open,
+      test_outcome_open_requirement_aggregates_to_undetermined,
+      test_outcome_determination_requires_all_requirements_terminal_
+      biimplication (exhaustive grid), test_outcome_empty_requirement_set_
+      stays_undetermined, test_outcome_determined_outcomes_report_no_
+      blocking_reasons, test_outcome_blocking_reason_strings_are_stable,
+      test_outcome_determination_is_compositional,
+      test_fdm201_project_example_begins_undetermined (PLANNING +
+      UNDETERMINED). Verification rerun at head: 355 tests/rules passed,
+      exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Criticality affects project aggregation per the locked spec: R-PRJ-2
+      (all Criticals reproduced, non-critical NOT_REPRODUCED ->
+      PARTIALLY_REPRODUCED), R-PRJ-3 (any Critical NOT_REPRODUCED under a
+      satisfied Closure Contract -> NOT_REPRODUCED_WITHIN_DEFINED_SCOPE),
+      R-PRJ-4 (INCONCLUSIVE cap), rule order 3 before 4 (determinate
+      negative Critical dominates INCONCLUSIVE). Tests:
+      test_outcome_critical_not_reproduced_with_satisfied_closure_is_not_
+      reproduced_within_scope, test_outcome_critical_not_reproduced_without_
+      satisfied_closure_stays_undetermined, test_outcome_non_critical_not_
+      reproduced_cannot_force_critical_outcome,
+      test_outcome_partial_requires_all_criticals_reproduced,
+      test_outcome_critical_inconclusive_caps_outcome_at_inconclusive,
+      test_outcome_non_critical_inconclusive_caps_outcome_at_inconclusive,
+      test_outcome_critical_not_reproduced_dominates_critical_inconclusive,
+      test_outcome_non_critical_not_reproduced_requires_satisfied_closure_
+      too, test_outcome_closure_flag_is_irrelevant_without_negative_
+      closures, test_outcome_criticality_grid_biimplication; method
+      reproducibility hook tests (deliverable 3):
+      test_method_reproducibility_any_undetermined_is_undetermined,
+      test_method_reproducibility_any_inconclusive_is_inconclusive,
+      test_method_reproducibility_worst_of_over_exhaustive_grid,
+      test_method_reproducibility_is_separate_from_scientific_outcome;
+      closure composition: test_outcome_composes_with_closure_rules_without_
+      duplicating_them; frozen-spec binding: test_lifecycle_spec_rule1_all_
+      reproduced_is_fully_reproduced, test_acceptance_plan_scenario_a_
+      strict_success, _b_recovery_success, _c_non_reproduced_closure,
+      _d_inconclusive_statistics. Verification rerun at head: full suite
+      869 passed / 6 skipped / 1 deselected (base 804 + 65 new), ruff +
+      mypy clean on 40 source files, contracts validator PASS.
+verification_rerun:
+  - command: python -m pytest -q tests/rules -k outcome
+    exit_code: 0
+  - command: python -m pytest -q tests/rules
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed — core/rules/outcome.py (new),
+    tests/rules/test_outcome.py (new) — exactly the allowed_scope;
+    core/rules/__init__.py untouched (owned by DEV-M2-G01); frozen
+    models/schemas/goal files untouched; single conventional commit
+    [DEV-M2-G06] (branch contains exactly one commit above base
+    a947f94), no amend, no force-push, no tests deleted or weakened
+    (purely additive, +65). Merge state CLEAN; PR head equals the
+    reviewed head. origin/main did not move during work (b01357d
+    unchanged at completion; merge-base in main's history).
+  - >-
+    Design reviewed: exact rule-engine paradigm — RULESET_VERSION "1.0",
+    frozen RequirementOutcomeRecord / MethodReproducibilityRecord with
+    strict __post_init__ validation, from_reproduction_requirement
+    mappings (unrated method reproducibility canonically UNDETERMINED,
+    never invented), three deliverables as three ordered rule tables
+    (first match wins, trailing defaults, total), assessments carrying
+    exact inputs + every rule decision + matched_rule_id, pure
+    deterministic functions, ValueError-subclass error hierarchy.
+    Normative readings for the spec's underspecified points are
+    documented in the module docstring and locked by exhaustive-grid
+    bi-implication tests: final validation gate encoded phase-
+    independently (never consulting ProjectPhase); closure gate extended
+    to every NOT_REPRODUCED Requirement (Critical or not); INCONCLUSIVE
+    cap extended to any Requirement; rule order 3 before 4;
+    REPRODUCED_WITH_RECOVERY counts as reproduced; empty set UNDETERMINED;
+    method reproducibility worst-of bottleneck reading (replaceable
+    downstream under a bumped RULESET_VERSION). Composition boundary
+    with rules.closure is correct: closure_allowed is consumed as a
+    tri-state input, never re-derived — the closure rules stay the single
+    normative mapping from closure axes to the stopping decision.
+    FDM-201 example and acceptance-plan Scenarios A-D bind the engine to
+    the frozen reference cases.
+  - >-
+    Pyright IDE diagnostics on the finished files were spot-checked and
+    are stale-snapshot/paradigm noise, not defects: the "unreachable"
+    flags (311/382/533/826) are the defensive TypeError rejections of
+    typed public parameters; the "unused lambda parameter" flags
+    (508 R-REQOUT-5 default; 640/685/701/723/737 project-rule predicates
+    receiving closure_allowed via the uniform
+    Callable[[tuple, bool | None], bool] table signature but inspecting
+    only assessments) follow the locked first-match-wins table contract;
+    test-file import-resolution flags are pyright resolving against the
+    main repo instead of the worktree; mypy, the configured gate, is
+    clean on 40 source files and CI both jobs PASS. The pre-existing
+    test_leases.py flake (DEV-DEFECT-002) did not occur in local runs or
+    CI; not touched, not fixed. Verified independently in a fresh venv
+    installed from the worktree (import path confirmed into
+    .worktrees/dev-m2-g06); all suites rerun at the exact reviewed head
+    101d34e5e7525815255939d398b830137aacc831 which equals the PR head per
+    gh (state OPEN, mergeStateStatus CLEAN, MERGEABLE, CI both jobs PASS).
+git_review:
+  pr_number: 21
+  reviewed_head_sha: 101d34e5e7525815255939d398b830137aacc831
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
