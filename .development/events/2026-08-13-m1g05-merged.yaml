@@ -1,0 +1,22 @@
+event_id: EVT-20260813-0010
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M1-G05
+attempt_id: DEV-M1-G05-a1
+pr_number: 11
+head_sha: 7b7c1e37c447dcecd4be74689fb6e7df0b664d0d
+merge_sha: 01dbea218454c2d2f64e3576aabe82bb1b04e883
+summary: >-
+  DEV-M1-G05 merged: failure-injection recovery tests (test_recovery.py,
+  9 tests) at atomic_write and backend level; schema-invalid write
+  rejection batteries (test_rejection.py, 12 invalid-doc pairs over 6
+  object types plus posture pins); corrupt-object error behavior
+  (test_corrupt.py, 17 tests). Sole src change: state_backend.py read()
+  raises documented ValueError for an entry at <id>.json that is not a
+  regular file (previously misleading FileNotFoundError), and delete()
+  refuses directories deterministically (plain unlink diverges across
+  platforms). tests/state 181 passed/6 skipped; full suite 459 passed/6
+  skipped/1 deselected; ruff and mypy clean at head; CI both jobs PASS;
+  supervisor review PASS; squash-merged with head-commit match.
+unblocks:
+- DEV-M1-G06

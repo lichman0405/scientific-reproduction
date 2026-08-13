@@ -1,0 +1,84 @@
+goal_id: DEV-M1-G05
+attempt_id: DEV-M1-G05-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Failure injection at every layer of the atomic protocol, all
+      deterministic (monkeypatch, no sleeps): os.fsync failure and
+      mid-write failure (partial content in the staging file) each leave
+      the previous target byte-identical with no staging residue; a
+      failing first write leaves no target and no temp; the same
+      injections through FilesystemStateBackend.write keep the previous
+      canonical object byte-identical with list_ids unchanged; hard-crash
+      simulation (stale truncated .tmp next to the object) is never read
+      as an object, never listed, never clobbers a later write. Independent
+      rerun at head 7b7c1e3: 181 passed (tests/state), exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      12 schema-invalid batteries (bad enums across run/requirement/
+      resource/plan, missing required root and nested fields, wrong
+      property types, string-pattern violation, minItems violation) over
+      6 object types: every invalid write raises SchemaValidationError
+      naming the offending field and persists NOTHING (no record, no
+      partial file, no type directory); a prior valid write of the same
+      object_id stays byte-identical with no temp file appearing; non-dict
+      content raises TypeError before touching the filesystem; unknown
+      extra keys round-trip unchanged (additionalProperties: true posture
+      pinned by a schema-scan test so a future tightening to false fails
+      loudly). Independent rerun: 181 passed, exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Deterministic corrupt-object errors with pinned messages: truncated/
+      malformed/invalid-UTF-8 content raises ValueError "is corrupt"
+      (cause preserved as JSONDecodeError/UnicodeDecodeError) without
+      consuming or rewriting the corrupt file; valid non-object JSON
+      raises "is not a JSON object"; schema-violating but parseable
+      content is returned as-is (read is not a re-validation gate; no
+      silent repair, verified byte-for-byte); corrupt records stay visible
+      to exists/list_ids and remain deletable (operational repair; delete
+      never parses); a directory planted at <id>.json raises the documented
+      "not a regular file" ValueError from both read and delete --
+      platform-independent where plain unlink would diverge
+      (IsADirectoryError vs PermissionError); non-JSON strays ignored by
+      list_ids. Independent rerun: 181 passed, exit 0.
+verification_rerun:
+  - command: python -m pytest -q tests/state
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 4 files changed (core/state_backend.py,
+    tests/state/test_recovery.py, test_rejection.py, test_corrupt.py) --
+    all inside allowed_scope; frozen paths untouched; single conventional
+    commit with [DEV-M1-G05], no force-push, no amend; no tests deleted or
+    weakened (baseline 126 passed -> 181 in tests/state).
+  - >-
+    Design reviewed: the only src change converts a non-deterministic
+    cross-platform failure (plain unlink of a directory: IsADirectoryError
+    on POSIX, PermissionError on Windows) into a documented ValueError,
+    and gives read() an explicit "exists but not a regular file" error
+    instead of a misleading FileNotFoundError; the not-a-regular-file
+    check sits behind the existing symlink-refusal gate (M1-G02), so no
+    regression to the symlink posture. No-silent-repair posture confirmed
+    across read/list/exists/delete; schema gate stays on write only.
+  - >-
+    Worker followed contract: conventional commit, draft PR #11 with
+    template fields, CI both jobs PASS at reviewed head, no self-approval,
+    no merge.
+git_review:
+  pr_number: 11
+  reviewed_head_sha: 7b7c1e37c447dcecd4be74689fb6e7df0b664d0d
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
