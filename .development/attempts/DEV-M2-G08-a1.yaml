@@ -2,8 +2,18 @@ goal_id: DEV-M2-G08
 attempt_id: DEV-M2-G08-a1
 change_type: FEATURE
 base_branch: main
-base_sha: 034a379663a3e7bbb87540dea14cf9d617484efe
+base_sha: da4066e28de9c2a8f37bb4e5a72d0f35b4a42d9e
 branch: feat/dev-m2-g08-integration
 worktree: .worktrees/dev-m2-g08
-status: WORKING
-commit_shas: []
+status: MERGED
+commit_shas:
+- cf9404af7570f149a1304782b1a9277b5219925d
+pr:
+  number: 22
+  url: https://github.com/lichman0405/scientific-reproduction/pull/22
+  head_sha: cf9404af7570f149a1304782b1a9277b5219925d
+  state: closed
+  ci_status: PASS
+merge_method: squash
+merge_commit_sha: 1d2e44b377fb1210f9e79afc46cfc9f7a560575f
+merged_at: '2026-08-13'
