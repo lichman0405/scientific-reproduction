@@ -1,0 +1,42 @@
+event_id: EVT-20260814-0056
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M7-G01
+attempt_id: DEV-M7-G01-a1
+pr_number: 50
+head_sha: c44f6bccdbef8f50c981c28f50deeeaa1cabd954
+merge_sha: 4e294c9fbfe83b22fe20b37d3d0a711438d8821a
+summary: >-
+  DEV-M7-G01 merged (filesystem LabAdapter reference flow): 10 new files
+  +2673/-4 (src/adapters/lab/base.py 552 + manifest.py 363 + filesystem.py
+  552 + __init__.py 88; tests/adapters/lab/ contract 315 + dispatch 233 +
+  collect 289 + status 161 + helpers 103 + conftest 21). Review
+  DEV-M7-G01-a1 PASS. AC-01 dispatch() outgoing handoff to
+  lab/outgoing/<RUN_ID>/ with the REAL schema gate
+  (core.schema_validation.validate_and_reject against the frozen
+  lab-execution-package schema) before any write, exactly-once semantics
+  (deterministic generate_id("dispatch", ...) id, DuplicateDispatchError,
+  original handoff never overwritten), safe handoff path segments
+  (FND-M9-G02-01), caller-injected timestamps (no wall clock), canonical
+  JSON via core.atomic.atomic_write, byte-identical determinism. AC-02
+  collect() associates the returned package with the correct Run by exact
+  run_id/package_id equality decided by the pure evaluate_result_manifest
+  (never guessed, never silently matched; absent/different run or package
+  -> CollectionRejectedError carrying the full assessment). AC-03 missing
+  required result-manifest entries (all 6 parametrized), declared data
+  files and uncovered required returns detected as a decision record
+  shared byte-for-byte by the pure evaluator and the refused collection;
+  corrupt operator data -> stable LabAdapterDataError. One real defect
+  caught mid-development: bare strings are Sequences, so "csv" as
+  present_files would have silently computed set("csv") -- now explicitly
+  rejected with TypeError (tested). Verification: tests/adapters/lab 55
+  passed; tests/adapters 103; ruff clean; mypy 74 head / 78 scratch (75 on
+  main + 3 new, 0 errors); contracts PASS; scratch merge (1f37444 +
+  c44f6bc) full suite 2360 passed, 6 skipped, 1 deselected (= 2305 + 55,
+  exact prediction); CI both jobs PASS. Branch parent 58a84d2
+  (dispatch-time origin/main; direct ancestor; no rebase); M11-G04/G02
+  merged mid-attempt with fully disjoint files. Zero type: ignore / noqa
+  in the three src modules (proven by a dedicated source-inspection test);
+  pytest-visible type: ignore comments exist only in boundary tests
+  deliberately passing wrong types (G01 test_synth_* prior art). Merged
+  count 49/80.
