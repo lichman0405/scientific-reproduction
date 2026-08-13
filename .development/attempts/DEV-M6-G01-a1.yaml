@@ -3,7 +3,18 @@ attempt_id: DEV-M6-G01-a1
 change_type: FEATURE
 base_branch: main
 base_sha: cd75eab898b3d899de06fb561b66699f19be7274
-worktree: .worktrees/dev-m6-g01
 branch: feat/dev-m6-g01-context
-status: WORKING
-commit_shas: []
+worktree: .worktrees/dev-m6-g01
+status: MERGED
+pr:
+  number: 37
+  url: https://github.com/lichman0405/scientific-reproduction/pull/37
+  head_sha: 28229a274c5d50ba3bcd03cc439cebd7d1ff631a
+  state: closed
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M6-G01-a1
+merge_commit_sha: a68c0ffbaeec54d349851885f28ee377daf65412
+merged_at: '2026-08-14'
+commit_shas:
+- 28229a274c5d50ba3bcd03cc439cebd7d1ff631a
