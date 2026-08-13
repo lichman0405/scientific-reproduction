@@ -1,0 +1,28 @@
+event_id: EVT-20260813-0028
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M4-G02
+attempt_id: DEV-M4-G02-a1
+pr_number: 27
+head_sha: 2899e4fe00c9b031472bd935921a1dbe51d0f3da
+merge_sha: 9ec08dde686135a68e4e0ed50fa757d16e34335c
+summary: >-
+  DEV-M4-G02 merged: inventory registration and requirement/goal mapping
+  (3 files: planning/inventory.py +1002, tests/test_inventory.py +1043,
+  tests/inventory_helpers.py +92, 38 tests). Rule table R-MAP-X1/A1/M1/
+  U1 (ordered, total default, MAPPING_RULESET_VERSION 1.0) over frozen
+  ItemMappingInput with frozenset registered ids — order-independent
+  deterministic counting (AC-02), recomputed from state, never trusting
+  stored snapshots; counts mirror PlanInventoryAudit for M4-G03.
+  AC-01 transitive item->requirement->goal edges (05-GOAL-RUN-SCHEMA
+  SS2), many-to-many with deduped first-seen goal ids; AMBIGUOUS
+  explicit with stable ambiguity_notes (DEV-M12-G02). AC-03: every edge
+  preserves source_id/source_location provenance; assessments record
+  exact input + full rule trace. Schema-validated canonical JSON via
+  atomic_write; registry ids validated as single path segments;
+  deterministic generated ids make duplicate registration detectable;
+  items-first authoring order enforced (UnresolvedItemReferenceError).
+  Full suite 1068/6/1 (base 1031 + 37), ruff + mypy clean 45 files,
+  contracts PASS; CI both jobs PASS; supervisor review PASS;
+  squash-merged at exact head 2899e4f. M4 progress: 2/6 (G01, G02).
+  M4-G03 now unblocked (deps M4-G02).
