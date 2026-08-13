@@ -1,0 +1,80 @@
+goal_id: DEV-M1-G04
+attempt_id: DEV-M1-G04-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Log API exposes no update/replace/delete methods (tested); re-append
+      of an existing event_id raises DuplicateEventIdError even with a
+      fresh idempotency key; record files stay byte-identical across
+      appends, listing, replay, and rejected duplicates. The underlying
+      backend retains delete for operational repair but the log does not
+      expose it (documented). Independent rerun at head 9091fb8: 21
+      passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Same idempotency key re-submission returns the existing record
+      (replayed=True) even with a different event id — exactly one record
+      on disk; different keys yield distinct events; 16 concurrent
+      same-key appends produce exactly one record (1 fresh + 15 replays);
+      stale claims (crash between claim and record write) reclaimed
+      deterministically. Claims use O_CREAT|O_EXCL atomic create-if-absent
+      (sha256-named claim files), so a key can never map to two events.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      list_events orders by (sequence, event_id); fresh ProjectEventLog
+      over the same base dir returns the identical order; order
+      recoverable from record files alone and the next append continues
+      past the max recorded sequence even with the counter deleted;
+      sequences strictly increasing 1..N, never reused (counter written
+      before the record it numbers, so a crash leaves a gap, never a
+      repeat); idempotent replay never advances the sequence; 8-thread
+      concurrent appends give 200 unique records with sequences 1..200
+      matching disk order.
+verification_rerun:
+  - command: python -m pytest -q tests/state -k event
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 2 files changed (core/events.py, tests/state/test_events.
+    py) — all inside allowed_scope; backend itself untouched; frozen paths
+    untouched; conventional commit with [DEV-M1-G04], no force-push, no
+    amend.
+  - >-
+    Design reviewed: layered on FilesystemStateBackend (obj_type 'event')
+    without modifying it — per-object records carry log-managed sequence
+    and idempotency_key properties (permitted by event.schema.yaml
+    additionalProperties: true; empirically proven because the backend's
+    own schema gate validates every write); schema gate rejects invalid
+    events before any claim/counter/record file is touched; sequence
+    counter rebuild deterministic (max recorded + 1); in-process lock
+    serializes appends; cross-process claim creation stays atomic via
+    O_EXCL (full append not cross-process atomic — documented, covered by
+    the lease layer DEV-M1-G03).
+  - >-
+    Worker note reviewed: gh keyring token was invalid, PR #9 created via
+    PAT from git credential store (GH_TOKEN) — no auth configuration
+    changed; PR exists and CI runs on it. Not blocking.
+  - >-
+    Pyright IDE notes (unreachable at 208/213) are the isinstance runtime
+    contract checks — deliberate, same pattern as state_backend.py; mypy
+    (the configured gate) green on 27 files.
+  - >-
+    Worker followed contract: conventional commit, draft PR #9 with
+    template fields, CI both jobs PASS at reviewed head, no self-approval,
+    no merge.
+git_review:
+  pr_number: 9
+  reviewed_head_sha: 9091fb8b9ed02a35c26d33fe3fb37015aafcfee1
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash

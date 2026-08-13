@@ -1,0 +1,18 @@
+event_id: EVT-20260813-0009
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+actor: development-supervisor
+summary: >-
+  DEV-M1-G04 PASS (review DEV-M1-G04-a1) merged (2a4b8dd, PR #9) and
+  DEV-M1-G03 PASS (review DEV-M1-G03-a1) merged (661e9be, PR #10) —
+  append-only event log and bounded per-object leases both reviewed
+  independently at their head SHAs (CI PASS, scope exact, verification
+  rerun green).
+details:
+  pr: 9
+  merge_sha: 2a4b8dd
+  goal_id: DEV-M1-G04
+  additional_merges:
+  - pr: 10
+    merge_sha: 661e9be
+    goal_id: DEV-M1-G03
