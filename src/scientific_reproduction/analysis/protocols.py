@@ -39,7 +39,13 @@ subdirectory, ``protocols/versions/<analysis_id>@<protocol_version>.json``:
 * the subdirectory keeps versioned files invisible to
   ``planning.plan.list_analysis_protocols`` (its ``*.json`` glob does not
   descend), so the DEV-M4-G04 plan-freeze flow keeps seeing exactly the
-  drafts it expects even after protocols are frozen.
+  drafts it expects even after protocols are frozen;
+* analysis ids are validated at this module's boundary as safe single
+  path segments without ``@`` and without glob metacharacters (``*``,
+  ``?``, ``[``, ``]``): the versioned listing is built with
+  ``glob("<analysis_id>@*.json")``, so a wildcard id would silently
+  return records of *other* analyses (and registration of such an id
+  would leak a platform-dependent ``OSError`` on Windows).
 
 Freeze metadata (normative reading, locked here)
 ------------------------------------------------
@@ -322,24 +328,31 @@ def _is_safe_registry_id(value: str) -> bool:
         value not in ("", ".", "..")
         and "/" not in value
         and "\\" not in value
+        and not any(char in value for char in "*?[]")
     )
 
 
 def _validate_protocol_id(value: str) -> None:
-    """Reject ids that would escape the registry or break versioned naming.
+    """Reject ids that would escape the registry, glob, or break versioned naming.
 
     Ids must be safe single path segments **without** ``@``: versioned
     records are named ``<analysis_id>@<version>.json`` and this module is
     the only writer of versioned files, so ``@`` in an id would make the
-    naming ambiguous. The DEV-M4-G04 draft registry (id-keyed) is
-    untouched; this module rejects such ids at its own boundary before
-    any versioned write.
+    naming ambiguous. Glob metacharacters (``*``, ``?``, ``[``, ``]``) are
+    rejected as well: the versioned listing is built with
+    ``glob("<analysis_id>@*.json")``, so a wildcard id would silently
+    return records of *other* analyses, and registering such an id would
+    leak a platform-dependent ``OSError`` on Windows instead of a clean
+    error. The DEV-M4-G04 draft registry (id-keyed) is untouched; this
+    module rejects such ids at its own boundary before any versioned
+    write or glob.
     """
     if not _is_safe_registry_id(value) or "@" in value:
         raise InvalidProtocolIdError(
             f"invalid analysis protocol id {value!r}: ids must be non-empty"
             " single path segments (no '/', no '\\', not '.' or '..') without"
-            " '@' (versioned records are named '<id>@<version>.json')"
+            " glob metacharacters '*', '?', '[' or ']' and without '@'"
+            " (versioned records are named '<id>@<version>.json')"
         )
 
 
@@ -991,7 +1004,8 @@ def register_analysis_record(
         ValueError: the record is schema-invalid (subclass
             ``SchemaValidationError``) or a required field is missing.
         InvalidProtocolIdError: the ``analysis_id`` is not a safe single
-            path segment (without ``@``).
+            path segment (no path separators, not ``.``/``..``, no glob
+            metacharacters ``*``/``?``/``[``/``]``, no ``@``).
         ProtocolAlreadyFrozenError: the record carries ``frozen`` True.
         PrimaryRecordReplaceProhibitedError: the write would overwrite or
             replace the registered primary record (AC-02).

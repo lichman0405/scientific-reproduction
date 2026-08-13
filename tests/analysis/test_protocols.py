@@ -925,6 +925,47 @@ def test_protocol_rejects_unsafe_ids_and_versions(tmp_path):
         freeze_primary_protocol(root, make_protocol("a@b"), timestamp=FROZEN_AT)
 
 
+@pytest.mark.parametrize("unsafe", ["ANL*", "ANL?", "ANL[1", "ANL]1"])
+def test_protocol_glob_metacharacter_ids_rejected_at_every_boundary(tmp_path, unsafe):
+    """Glob metacharacters are rejected before any registry read or write.
+
+    The versioned listing is built with ``glob("<analysis_id>@*.json")``,
+    so a wildcard id must never reach the glob (FND-M9-G01-01): every
+    public boundary validates the id first and raises the stable
+    ``InvalidProtocolIdError`` on ``*``, ``?``, ``[`` and ``]`` on every
+    platform (no raw ``OSError`` on Windows).
+    """
+    root = build_primary_workspace(tmp_path)
+    with pytest.raises(InvalidProtocolIdError):
+        register_analysis_record(root, make_protocol(unsafe))
+    with pytest.raises(InvalidProtocolIdError):
+        read_protocol_version(root, unsafe, "v1")
+    with pytest.raises(InvalidProtocolIdError):
+        list_protocol_versions(root, unsafe)
+    with pytest.raises(InvalidProtocolIdError):
+        freeze_primary_protocol(root, make_protocol(unsafe), timestamp=FROZEN_AT)
+
+
+def test_protocol_wildcard_query_cannot_leak_foreign_records(tmp_path):
+    """A wildcard id can never select another analysis' records or a gate.
+
+    After ANL-1 is registered and frozen, a wildcard query must raise at
+    the boundary instead of globbing ANL-1's versioned record -- neither
+    the lineage listing nor the acceptance gate (which evaluates over the
+    listing) may silently change decisions for a never-registered id.
+    """
+    root = build_primary_workspace(tmp_path)
+    freeze_primary(root)
+    assert list_protocol_versions(root, "ANL-1")
+    for unsafe in ("ANL*", "*", "ANL-?@*"):
+        with pytest.raises(InvalidProtocolIdError):
+            list_protocol_versions(root, unsafe)
+        with pytest.raises(InvalidProtocolIdError):
+            evaluate_acceptance_gate(root, unsafe)
+        with pytest.raises(InvalidProtocolIdError):
+            assert_acceptance_eligible(root, unsafe)
+
+
 def test_protocol_records_pass_their_schemas(tmp_path):
     root = build_primary_workspace(tmp_path)
     draft = read_analysis_protocol(root, "ANL-1")
