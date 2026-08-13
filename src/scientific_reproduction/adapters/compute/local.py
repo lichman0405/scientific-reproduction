@@ -477,13 +477,18 @@ class _AttachedSubprocessHandle(ProcessHandle):
         return ProcessProbe(running=True)
 
     def _poll_windows(self) -> ProcessProbe:
-        """Windows re-attach probe via GetExitCodeProcess (stdlib only)."""
+        """Windows re-attach probe via GetExitCodeProcess (stdlib only).
+
+        ``WinDLL`` only exists on Windows; it is loaded via ``getattr``
+        so the module stays importable (and mypy-clean) everywhere --
+        this method is only ever called when ``os.name == "nt"``.
+        """
         import ctypes
         from ctypes import wintypes
 
         process_query_limited_information = 0x1000
         still_active = 259
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32 = getattr(ctypes, "WinDLL")("kernel32", use_last_error=True)
         kernel32.OpenProcess.argtypes = [
             wintypes.DWORD,
             wintypes.BOOL,
