@@ -1,0 +1,17 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ReproductionInventoryItem
+type: object
+required: [inventory_id, source_id, item_type, formal_report, description, mapping_status]
+properties:
+  inventory_id: {type: string}
+  source_id: {type: string}
+  source_location: {type: [string, "null"]}
+  item_type: {enum: [experiment, control, characterization, computation, analysis, dataset, structure, figure, table, supplementary_result, other]}
+  formal_report: {type: boolean}
+  description: {type: string}
+  conditions: {type: object}
+  linked_inventory_ids: {type: array, items: {type: string}}
+  requirement_ids: {type: array, items: {type: string}}
+  mapping_status: {enum: [UNMAPPED, MAPPED, AMBIGUOUS, EXCLUDED_NONFORMAL]}
+  ambiguity_notes: {type: [string, "null"]}
+additionalProperties: true

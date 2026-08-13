@@ -1,0 +1,25 @@
+goal_id: DEV-M7-G03
+milestone: M7
+title: Implement SSH ComputeAdapter transport layer
+objective: Implement SSH execution/file-transfer abstraction with test doubles and
+  transient failure classification.
+depends_on:
+- DEV-M7-G02
+allowed_scope:
+- scientific_reproduction/adapters/compute/ssh.py
+- tests/adapters/compute/test_ssh*
+deliverables:
+- SSH transport adapter
+- remote path and command abstraction
+acceptance_criteria:
+- id: AC-01
+  criterion: Transient connection failure is distinguishable from scientific job failure.
+- id: AC-02
+  criterion: Credentials are not persisted in project state.
+- id: AC-03
+  criterion: Mock SSH integration covers reconnect behavior.
+verification:
+- python -m pytest -q tests/adapters/compute -k ssh
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

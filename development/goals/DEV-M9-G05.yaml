@@ -1,0 +1,25 @@
+goal_id: DEV-M9-G05
+milestone: M9
+title: Implement computational convergence and sampling validation hooks
+objective: Implement generic convergence/sampling validation interfaces for DFT/GCMC/MD-style
+  outputs.
+depends_on:
+- DEV-M9-G02
+allowed_scope:
+- scientific_reproduction/analysis/computational.py
+- tests/analysis/test_computational*
+deliverables:
+- computational validation hook interfaces
+acceptance_criteria:
+- id: AC-01
+  criterion: Scientific convergence failure is representable without auto-changing
+    parameters.
+- id: AC-02
+  criterion: Monte Carlo/sampling uncertainty hook can report uncertainty.
+- id: AC-03
+  criterion: Validation output can feed Supervisor acceptance.
+verification:
+- python -m pytest -q tests/analysis -k computational
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

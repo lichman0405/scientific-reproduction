@@ -1,0 +1,9 @@
+assumption_id: ASM-BREAKTHROUGH-PACKING-001
+parameter: packed_bed_density
+value: null
+classification: A2_SCIENTIFIC_ASSUMPTION
+rationale: If the target paper/SI does not report packing density and it materially affects residence time/breakthrough interpretation, a guessed value cannot be treated as pure strict reproduction.
+source_refs: []
+affected_goal_ids:
+  - GOAL-BREAKTHROUGH-298K-001
+strict_status_effect: DISQUALIFIES_PURE_STRICT

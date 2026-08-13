@@ -1,0 +1,22 @@
+milestone_id: M11
+title: Materials Chemistry domain pack
+depends_on_milestones:
+- M4
+- M5
+- M9
+required_goals:
+- DEV-M11-G01
+- DEV-M11-G02
+- DEV-M11-G03
+- DEV-M11-G04
+- DEV-M11-G05
+- DEV-M11-G06
+milestone_acceptance:
+- Materials Chemistry pack represents synthesis, characterization, adsorption/separation
+  and computational workflows.
+- FDM-201 categories are expressible without ad hoc schema fork.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks:
+- M12

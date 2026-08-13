@@ -1,0 +1,15 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ResearchRequest
+type: object
+required: [request_id, requested_by, question, origin_refs, status]
+properties:
+  request_id: {type: string}
+  requested_by: {type: string, const: supervisor}
+  question: {type: string}
+  origin_refs: {type: array, items: {type: string}}
+  required_search_families: {type: array, items: {type: string}}
+  minimum_reliability: {type: [integer, "null"], minimum: 0, maximum: 4}
+  minimum_directness: {type: [integer, "null"], minimum: 0, maximum: 4}
+  status: {enum: [OPEN, SEARCHING, COMPLETE, EXHAUSTED]}
+  result_evidence_ids: {type: array, items: {type: string}}
+additionalProperties: true

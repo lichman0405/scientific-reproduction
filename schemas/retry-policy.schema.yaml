@@ -1,0 +1,11 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: AutomaticRetryPolicy
+type: object
+required: [policy_id, allowed_engineering_failures, supervisor_required_changes]
+properties:
+  policy_id: {type: string}
+  allowed_engineering_failures: {type: array, items: {type: string}}
+  max_identical_retries: {type: integer, minimum: 0}
+  supervisor_required_changes: {type: array, items: {type: string}}
+  invalidate_run_on: {type: array, items: {type: string}}
+additionalProperties: true

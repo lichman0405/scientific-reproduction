@@ -1,0 +1,14 @@
+inventory_id: INV-MAIN-ADS-001
+source_id: SRC-TARGET-PAPER
+source_location: main adsorption figure/section to be verified
+item_type: experiment
+formal_report: true
+description: Single-component C3H6 adsorption isotherm for FDM-201 at 298 K under the reported pressure range.
+conditions:
+  adsorbate: C3H6
+  temperature_K: 298
+linked_inventory_ids: []
+requirement_ids:
+  - REQ-ADS-001
+mapping_status: MAPPED
+ambiguity_notes: null

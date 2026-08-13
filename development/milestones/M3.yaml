@@ -1,0 +1,18 @@
+milestone_id: M3
+title: Git audit and artifact manifests
+depends_on_milestones:
+- M1
+required_goals:
+- DEV-M3-G01
+- DEV-M3-G02
+- DEV-M3-G03
+milestone_acceptance:
+- Plan freeze/Goal revision/final scientific checkpoints can produce auditable Git
+  commits.
+- Large artifact stays outside Git while checksum manifest remains valid.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks:
+- M4
+- M12

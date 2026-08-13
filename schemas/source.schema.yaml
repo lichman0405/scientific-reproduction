@@ -1,0 +1,17 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ResearchSource
+type: object
+required: [source_id, source_type, title, provenance]
+properties:
+  source_id: {type: string}
+  source_type: {enum: [target_paper, supplementary_information, dataset, structure_deposition, peer_reviewed_paper, review, thesis, preprint, standard, official_documentation, vendor_note, informal, database_record, other]}
+  title: {type: string}
+  doi: {type: [string, "null"]}
+  stable_identifier: {type: [string, "null"]}
+  url_or_locator: {type: [string, "null"]}
+  publication_year: {type: [integer, "null"]}
+  provenance: {type: string}
+  acquired_at: {type: [string, "null"]}
+  local_artifact_id: {type: [string, "null"]}
+  access_class: {enum: [PUBLIC, OPTIONAL_COMMERCIAL, USER_PROVIDED, UNKNOWN]}
+additionalProperties: true

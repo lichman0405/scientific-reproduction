@@ -1,0 +1,16 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: SupervisorDecision
+type: object
+required: [decision_id, decision_type, actor, timestamp, affected_refs, rationale]
+properties:
+  decision_id: {type: string}
+  decision_type: {enum: [PLAN_FREEZE, GOAL_REVISION, ACCEPTANCE_REVISION, ANALYSIS_PROTOCOL_REVISION, RESEARCH_REQUEST, RECOVERY_ENTRY, METHOD_REDESIGN_ENTRY, GOAL_REVIEW, REQUIREMENT_CLOSURE, HUMAN_GATE_OPEN, PROJECT_OUTCOME]}
+  actor: {type: string, const: supervisor}
+  timestamp: {type: string}
+  affected_refs: {type: array, items: {type: string}}
+  evidence_refs: {type: array, items: {type: string}}
+  analysis_refs: {type: array, items: {type: string}}
+  rationale: {type: string}
+  previous_version_refs: {type: array, items: {type: string}}
+  resulting_version_refs: {type: array, items: {type: string}}
+additionalProperties: true

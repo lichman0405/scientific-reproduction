@@ -1,0 +1,28 @@
+goal_id: DEV-M11-G04
+milestone: M11
+title: Implement DFT/GCMC/MD domain metadata templates
+objective: Implement computational materials templates for structure preparation,
+  DFT, GCMC and MD execution/validation metadata.
+depends_on:
+- DEV-M11-G01
+allowed_scope:
+- scientific_reproduction/domain_packs/materials_chemistry/computation/**
+- tests/domain/materials_chemistry/test_computation*
+deliverables:
+- DFT template
+- GCMC template
+- MD template
+- structure preparation template
+acceptance_criteria:
+- id: AC-01
+  criterion: Software/method/force-field/functionals and convergence inputs are explicitly
+    captured or assumed via registry.
+- id: AC-02
+  criterion: Execution and post-processing are separate.
+- id: AC-03
+  criterion: Templates are compatible with Slurm/Modules metadata.
+verification:
+- python -m pytest -q tests/domain/materials_chemistry -k comput
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

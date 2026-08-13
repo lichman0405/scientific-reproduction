@@ -1,0 +1,26 @@
+goal_id: DEV-M5-G06
+milestone: M5
+title: Define public ResearchAdapter interfaces and first open-source fixtures
+objective: Implement adapter contracts for open scholarly/public database acquisition
+  with mock/offline fixtures; commercial adapters remain optional.
+depends_on:
+- DEV-M5-G01
+allowed_scope:
+- scientific_reproduction/adapters/research/**
+- tests/adapters/research/**
+deliverables:
+- ResearchAdapter interface
+- public-source adapter skeletons/fixtures
+- commercial optional capability flags
+acceptance_criteria:
+- id: AC-01
+  criterion: Missing commercial adapter does not block core research workflow.
+- id: AC-02
+  criterion: Adapter outputs normalize to Source records.
+- id: AC-03
+  criterion: Public adapter contract is testable without live network.
+verification:
+- python -m pytest -q tests/adapters/research tests/research
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

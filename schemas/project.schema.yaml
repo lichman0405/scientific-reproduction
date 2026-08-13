@@ -1,0 +1,25 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ReproductionProject
+type: object
+required: [project_id, primary_target, project_phase, reproduction_outcome, current_plan_version]
+properties:
+  project_id: {type: string}
+  title: {type: string}
+  primary_target:
+    type: object
+    required: [source_type, identifier]
+    properties:
+      source_type: {enum: [pdf, doi, url]}
+      identifier: {type: string}
+      doi: {type: [string, "null"]}
+      title: {type: [string, "null"]}
+  project_phase:
+    enum: [INITIALIZING, SOURCE_ACQUISITION, REPRODUCTION_INVENTORY, PLANNING, PLAN_AUDIT, PLAN_FROZEN, EXECUTING, REPLANNING, FINAL_VALIDATION, REPORTING, COMPLETED, PAUSED, WAITING_HUMAN, WAITING_RESOURCE]
+  reproduction_outcome:
+    enum: [UNDETERMINED, FULLY_REPRODUCED, PARTIALLY_REPRODUCED, NOT_REPRODUCED_WITHIN_DEFINED_SCOPE, INCONCLUSIVE]
+  current_plan_version: {type: string}
+  domain_pack: {type: string}
+  state_backend: {type: string, const: filesystem}
+  created_at: {type: string}
+  updated_at: {type: string}
+additionalProperties: true

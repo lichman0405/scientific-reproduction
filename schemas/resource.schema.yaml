@@ -1,0 +1,15 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Resource
+type: object
+required: [resource_id, name, resource_type, availability_state]
+properties:
+  resource_id: {type: string}
+  name: {type: string}
+  resource_type: {enum: [reagent, consumable, instrument, external_service, compute_access, database_access, safety_capability, other]}
+  availability_state: {enum: [AVAILABLE, PROCURE, OUTSOURCE, CAPABILITY_GAP]}
+  blocks_goal_ids: {type: array, items: {type: string}}
+  estimated_cost: {type: [number, "null"]}
+  currency: {type: [string, "null"]}
+  human_gate_required: {type: boolean}
+  notes: {type: [string, "null"]}
+additionalProperties: true

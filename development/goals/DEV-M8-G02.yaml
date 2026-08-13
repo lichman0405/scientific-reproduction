@@ -1,0 +1,25 @@
+goal_id: DEV-M8-G02
+milestone: M8
+title: Implement external status reconciliation and event emission
+objective: Implement deterministic polling/reconciliation across Lab/Compute adapters
+  and append transition events.
+depends_on:
+- DEV-M8-G01
+allowed_scope:
+- scientific_reproduction/monitoring/reconcile.py
+- tests/monitoring/test_reconcile*
+deliverables:
+- reconciliation loop primitive
+- status transition event emission
+acceptance_criteria:
+- id: AC-01
+  criterion: External completion moves Run to RESULT_AVAILABLE exactly once.
+- id: AC-02
+  criterion: Unknown/temporary adapter state does not fabricate completion.
+- id: AC-03
+  criterion: Reconciliation is idempotent across restart.
+verification:
+- python -m pytest -q tests/monitoring -k reconcile
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

@@ -1,0 +1,24 @@
+goal_id: DEV-M10-G06
+milestone: M10
+title: Run cross-platform orchestration contract acceptance
+objective: Verify both adapters against shared orchestration contract and role-permission
+  behavior.
+depends_on:
+- DEV-M10-G04
+- DEV-M10-G05
+allowed_scope:
+- tests/integration/test_platform_contract*
+deliverables:
+- cross-platform contract suite
+acceptance_criteria:
+- id: AC-01
+  criterion: Claude and Codex adapters pass the same core contract tests where capabilities
+    overlap.
+- id: AC-02
+  criterion: Platform-specific fallback differences do not alter Goal/Run/Evidence
+    semantics.
+verification:
+- python -m pytest -q tests/platform tests/integration
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

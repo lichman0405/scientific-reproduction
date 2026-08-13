@@ -1,0 +1,31 @@
+goal_id: DEV-M12-G05
+milestone: M12
+title: Execute simulation scenarios A-E
+objective: Run strict success, recovery success, recovery exhausted, inconclusive
+  statistics and engineering Slurm failure scenarios end-to-end.
+depends_on:
+- DEV-M12-G04
+allowed_scope:
+- tests/scenarios/test_A*
+- tests/scenarios/test_B*
+- tests/scenarios/test_C*
+- tests/scenarios/test_D*
+- tests/scenarios/test_E*
+deliverables:
+- scenario A-E passing suite
+acceptance_criteria:
+- id: AC-01
+  criterion: A closes without Recovery.
+- id: AC-02
+  criterion: B ends REPRODUCED_WITH_RECOVERY with lower method reproducibility.
+- id: AC-03
+  criterion: C satisfies Closure before non-reproduced outcome.
+- id: AC-04
+  criterion: D remains inconclusive/adds runs.
+- id: AC-05
+  criterion: E uses engineering retry without scientific replan.
+verification:
+- python -m pytest -q tests/scenarios -k "A or B or C or D or E"
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

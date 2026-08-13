@@ -1,0 +1,23 @@
+goal_id: DEV-M8-G05
+milestone: M8
+title: Implement duplicate-trigger protection and follow-up worker request
+objective: Ensure a returned result creates at most one follow-up analysis/handling
+  request under repeated reconciliation.
+depends_on:
+- DEV-M8-G04
+allowed_scope:
+- scientific_reproduction/monitoring/triggers.py
+- tests/monitoring/test_triggers*
+deliverables:
+- idempotent trigger registry
+acceptance_criteria:
+- id: AC-01
+  criterion: Repeated scan of same RESULT_AVAILABLE Run does not spawn duplicate semantic
+    follow-up.
+- id: AC-02
+  criterion: Trigger record survives Monitor restart.
+verification:
+- python -m pytest -q tests/monitoring -k trigger
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

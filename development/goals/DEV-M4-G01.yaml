@@ -1,0 +1,28 @@
+goal_id: DEV-M4-G01
+milestone: M4
+title: Implement /reproduce project initialization primitives
+objective: Implement deterministic APIs/CLI primitives to initialize one-paper reproduction
+  projects and register the primary target.
+depends_on:
+- DEV-M2-G08
+- DEV-M3-G03
+allowed_scope:
+- scientific_reproduction/planning/init.py
+- scientific_reproduction/cli/**
+- tests/planning/**
+deliverables:
+- project initializer
+- primary target registration
+- initial project directories/state
+acceptance_criteria:
+- id: AC-01
+  criterion: One Primary Target Paper is enforced per project.
+- id: AC-02
+  criterion: Project initializes Git/state structures without requiring lab/HPC inventory.
+- id: AC-03
+  criterion: PDF/DOI/URL target forms can be represented.
+verification:
+- python -m pytest -q tests/planning -k init
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

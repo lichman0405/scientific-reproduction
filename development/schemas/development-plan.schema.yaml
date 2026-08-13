@@ -1,0 +1,94 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$title: Development Plan
+$type: object
+additionalProperties: false
+required:
+- plan_id
+- mode
+- target
+- milestones
+- concurrency
+- human_gates
+- repository
+- git_governance
+- completion_condition
+properties:
+  plan_id:
+    type: string
+  mode:
+    const: AUTO_RUN_M0_TO_M13
+  target:
+    type: object
+    required:
+    - product_version
+    - first_milestone
+    - last_milestone
+    properties:
+      product_version:
+        type: string
+      first_milestone:
+        const: M0
+      last_milestone:
+        const: M13
+  milestones:
+    type: array
+    minItems: 14
+    maxItems: 14
+    items:
+      type: string
+      pattern: ^M(0|[1-9]|1[0-3])$
+    uniqueItems: true
+  concurrency:
+    type: object
+    required:
+    - max_active_workers
+    - max_same_milestone_workers
+    - max_cross_cutting_workers
+    properties:
+      max_active_workers:
+        type: integer
+        minimum: 1
+      max_same_milestone_workers:
+        type: integer
+        minimum: 1
+      max_cross_cutting_workers:
+        type: integer
+        minimum: 1
+  human_gates:
+    type: array
+    items:
+      type: string
+  completion_condition:
+    type: string
+    minLength: 30
+  repository:
+    type: object
+    additionalProperties: false
+    required:
+    - full_name
+    - remote_url
+    - default_branch
+    properties:
+      full_name:
+        const: lichman0405/scientific-reproduction
+      remote_url:
+        const: https://github.com/lichman0405/scientific-reproduction.git
+      default_branch:
+        const: main
+  git_governance:
+    type: object
+    additionalProperties: false
+    required:
+    - policy
+    - branch_per_goal
+    - pr_per_goal
+    - default_merge_method
+    properties:
+      policy:
+        const: development/git-policy.v1.yaml
+      branch_per_goal:
+        const: true
+      pr_per_goal:
+        const: true
+      default_merge_method:
+        const: squash

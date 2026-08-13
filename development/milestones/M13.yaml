@@ -1,0 +1,19 @@
+milestone_id: M13
+title: Reporting and final audit
+depends_on_milestones:
+- M12
+- M10
+required_goals:
+- DEV-M13-G01
+- DEV-M13-G02
+- DEV-M13-G03
+- DEV-M13-G04
+- DEV-M13-G05
+milestone_acceptance:
+- Human and machine-auditable reporting validate traceability and failed-Run retention.
+- Full v0.1 release gates pass in one final audit.
+- Installation and operations documentation are complete.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks: []

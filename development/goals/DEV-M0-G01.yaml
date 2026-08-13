@@ -1,0 +1,31 @@
+goal_id: DEV-M0-G01
+milestone: M0
+title: Bootstrap Python package and repository layout
+objective: Create the minimal installable repository structure and deterministic development
+  entry points without implementing scientific runtime behavior.
+depends_on:
+- DEV-M0-G00
+allowed_scope:
+- pyproject.toml
+- scientific_reproduction/**
+- tests/**
+- scripts/**
+- docs/**
+deliverables:
+- installable Python package skeleton
+- test directory and fixtures skeleton
+- cross-platform verification entry point
+acceptance_criteria:
+- id: AC-01
+  criterion: Package installs in a fresh virtual environment.
+- id: AC-02
+  criterion: A minimal smoke test imports the package successfully.
+- id: AC-03
+  criterion: Repository layout matches the handoff architecture without premature
+    subsystem implementation.
+verification:
+- python -m pip install -e .
+- python -m pytest -q
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

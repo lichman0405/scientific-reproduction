@@ -1,0 +1,38 @@
+policy_id: DEV-GIT-POLICY-V1
+repository:
+  full_name: lichman0405/scientific-reproduction
+  remote_url: https://github.com/lichman0405/scientific-reproduction.git
+  default_branch: main
+integration_model: protected_main_short_lived_goal_branches
+bootstrap:
+  empty_repository_direct_main_exception: true
+  allowed_content: specification_and_baseline_metadata_only
+  recommended_commit: "chore(spec): import autonomous implementation specification v0.1.2"
+branch_per_goal: true
+pr_per_goal: true
+direct_product_commits_to_main: false
+force_push_main: false
+worker_can_merge: false
+supervisor_is_merge_authority: true
+draft_pr_after_first_push: true
+require_ci_before_merge: true
+require_supervisor_review_before_merge: true
+require_reviewed_head_sha_to_match_merge_head: true
+default_merge_method: squash
+delete_goal_branch_after_merge: true
+branch_prefixes:
+  FEATURE: feat
+  BUGFIX: fix
+  REFACTOR: refactor
+  TEST: test
+  DOCUMENTATION: docs
+  CI: ci
+  BUILD: build
+  CHORE: chore
+commit_format: "<type>(<scope>): <imperative summary> [<DEV-GOAL-ID>]"
+dependency_rule: "Create dependent branches only after dependency PRs are PASS and merged into origin/main."
+retry_rule: "Reuse PR for bounded repair when goal contract is unchanged; create fresh -rN branch/PR when contaminated or intentionally isolated."
+release:
+  final_tag: v0.1.0
+  immutable_tags: true
+  require_full_release_suite_on_tag_sha: true

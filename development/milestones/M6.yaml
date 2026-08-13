@@ -1,0 +1,22 @@
+milestone_id: M6
+title: Worker context and permission enforcement
+depends_on_milestones:
+- M4
+- M5
+required_goals:
+- DEV-M6-G01
+- DEV-M6-G02
+- DEV-M6-G03
+- DEV-M6-G04
+- DEV-M6-G05
+milestone_acceptance:
+- Worker context is minimal/relevant and authority boundaries are runtime-enforced.
+- Forbidden worker mutations fail deterministic tests.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks:
+- M7
+- M8
+- M10
+- M12

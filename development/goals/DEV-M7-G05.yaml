@@ -1,0 +1,23 @@
+goal_id: DEV-M7-G05
+milestone: M7
+title: Run Lab/Compute adapter end-to-end fixtures
+objective: Validate delayed lab result and mock Slurm lifecycle across state backend.
+depends_on:
+- DEV-M7-G01
+- DEV-M7-G04
+allowed_scope:
+- tests/integration/test_external_adapters*
+deliverables:
+- adapter integration fixtures
+acceptance_criteria:
+- id: AC-01
+  criterion: Lab dispatch can outlive original worker and later be collected.
+- id: AC-02
+  criterion: Slurm-style job can outlive original worker and later be reconciled.
+- id: AC-03
+  criterion: Run state references external IDs deterministically.
+verification:
+- python -m pytest -q tests/adapters tests/integration
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

@@ -1,0 +1,16 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ProjectEvent
+type: object
+required: [event_id, timestamp, actor, event_type]
+properties:
+  event_id: {type: string}
+  timestamp: {type: string}
+  actor: {type: string}
+  event_type: {type: string}
+  object_id: {type: [string, "null"]}
+  run_id: {type: [string, "null"]}
+  from: {type: [string, "null"]}
+  to: {type: [string, "null"]}
+  reason: {type: [string, "null"]}
+  payload: {type: object}
+additionalProperties: true

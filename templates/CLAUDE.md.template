@@ -1,0 +1,7 @@
+# Project Instructions for Scientific Reproduction Runtime
+
+Read `20-ARCHITECTURE-DECISIONS.md` before making architectural changes.
+
+Core scientific governance decisions are locked for v0.1. Do not simplify away pre-data freezing, independent replication, Source×Claim evidence assessment, strict/recovery separation, execution/analysis separation, Monitor durability, or final traceability.
+
+When implementing, prefer small deterministic runtime components for schema validation, state transitions, locks, event logging and rule mapping. Use LLM agents for scientific reasoning, source synthesis, planning and diagnosis—not for tasks that can be deterministically validated.

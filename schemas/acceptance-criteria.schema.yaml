@@ -1,0 +1,18 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: AcceptanceCriteria
+type: object
+required: [acceptance_id, goal_id, version, frozen, decision_mode, criteria]
+properties:
+  acceptance_id: {type: string}
+  goal_id: {type: string}
+  version: {type: string}
+  frozen: {type: boolean}
+  decision_mode: {enum: [equivalence, bounded_interval, categorical, trend, structural_match, convergence, custom]}
+  target: {}
+  criteria: {type: array, minItems: 1, items: {type: object}}
+  statistical_design_ref: {type: [string, "null"]}
+  evidence_refs: {type: array, items: {type: string}}
+  rationale: {type: string}
+  confidence: {enum: [HIGH, MEDIUM, LOW]}
+  revision_reason: {type: [string, "null"]}
+additionalProperties: true

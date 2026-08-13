@@ -1,0 +1,16 @@
+evidence_id: EVID-FDM201-SEED-001
+source_id: SRC-TARGET-PAPER
+claim_id: CLAIM-FDM201-C3H6-UPTAKE-298K
+source_location: main paper adsorption section / figure to be verified
+finding: The paper reports substantially higher C3H6 than C2H4 uptake at 298 K, including a seed value around 180.5 cm3 g-1 for C3H6 at 1 bar.
+limitations:
+  - Seed record must be replaced/verified against fetched primary-source location before Plan freeze.
+role: protocol_definition
+assessment:
+  authority: 4
+  reliability: 2
+  directness: 4
+  reliability_checklist_ref: RCHK-FDM201-SEED-001
+  ranking_score: 70.0
+used_by:
+  - REQ-ADS-001

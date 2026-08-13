@@ -1,0 +1,25 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ClosureContract
+type: object
+required: [closure_id, frozen, statistical_sufficiency, execution_validity, diagnosis, recovery, literature]
+properties:
+  closure_id: {type: string}
+  frozen: {type: boolean}
+  statistical_sufficiency: {type: object}
+  execution_validity: {type: object}
+  diagnosis: {type: object}
+  recovery:
+    type: object
+    properties:
+      eligibility_rule: {type: object}
+      eligible_hypotheses_total: {type: integer, minimum: 0}
+      tested_or_ruled_out: {type: integer, minimum: 0}
+      remaining: {type: integer, minimum: 0}
+  literature:
+    type: object
+    properties:
+      required_search_families_completed: {type: boolean}
+      consecutive_zero_novelty_cycles: {type: integer, minimum: 0}
+      required_zero_novelty_cycles: {type: integer, minimum: 1, default: 2}
+  closure_allowed: {type: boolean}
+additionalProperties: true

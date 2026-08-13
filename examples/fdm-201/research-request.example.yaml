@@ -1,0 +1,15 @@
+request_id: RR-FDM201-ACTIVATION-001
+requested_by: supervisor
+question: What evidence-backed factors are known to control activation-related pore collapse or low BET in FDM-201 or closely related Zn8SiO4 MOFs?
+origin_refs:
+  - GOAL-ACTIVATION-001
+  - DIAG-BET-001
+required_search_families:
+  - exact_material
+  - same_author_team
+  - same_inorganic_node
+  - analogous_activation_methods
+minimum_reliability: 3
+minimum_directness: 2
+status: OPEN
+result_evidence_ids: []

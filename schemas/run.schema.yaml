@@ -1,0 +1,25 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Run
+type: object
+required: [run_id, goal_id, run_type, lifecycle_state, goal_version]
+properties:
+  run_id: {type: string}
+  goal_id: {type: string}
+  goal_version: {type: string}
+  run_type: {enum: [independent_replicate, technical_replicate, instrument_repeat, retry, additional_replicate]}
+  lifecycle_state: {enum: [CREATED, READY, DISPATCHED, RUNNING_EXTERNAL, RESULT_AVAILABLE, ANALYZING, SUBMITTED_FOR_REVIEW, CLOSED, CANCELLED, INVALIDATED]}
+  scientific_review: {enum: [UNREVIEWED, PASS, FAIL, INCONCLUSIVE]}
+  worker_session_ref: {type: [string, "null"]}
+  external:
+    type: object
+    properties:
+      backend: {type: [string, "null"]}
+      job_id: {type: [string, "null"]}
+      dispatch_id: {type: [string, "null"]}
+      working_directory: {type: [string, "null"]}
+  artifacts: {type: array, items: {type: string}}
+  deviations: {type: array, items: {type: object}}
+  engineering_retries: {type: array, items: {type: object}}
+  created_at: {type: string}
+  updated_at: {type: string}
+additionalProperties: true

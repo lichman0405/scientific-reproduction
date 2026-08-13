@@ -1,0 +1,27 @@
+goal_id: DEV-M8-G06
+milestone: M8
+title: Pass Monitor execution simulations E, G and H
+objective: Exercise engineering Slurm failure, Monitor crash/recovery and delayed
+  lab result scenarios.
+depends_on:
+- DEV-M8-G03
+- DEV-M8-G05
+allowed_scope:
+- tests/scenarios/test_E*
+- tests/scenarios/test_G*
+- tests/scenarios/test_H*
+deliverables:
+- scenario E/G/H executable tests
+acceptance_criteria:
+- id: AC-01
+  criterion: Scenario E performs identical engineering recovery only.
+- id: AC-02
+  criterion: Scenario G loses no Run/job/completion event after Monitor replacement.
+- id: AC-03
+  criterion: Scenario H does not require the original experiment worker to remain
+    alive.
+verification:
+- python -m pytest -q tests/scenarios -k "E or G or H"
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

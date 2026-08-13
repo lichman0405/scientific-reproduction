@@ -1,0 +1,37 @@
+goal_id: DEV-M0-G02
+milestone: M0
+title: Configure lint, type and test tooling
+objective: Establish one reproducible command set for unit tests, lint/static checks,
+  and full verification.
+depends_on:
+- DEV-M0-G01
+allowed_scope:
+- pyproject.toml
+- scripts/**
+- .gitignore
+- README.md
+- .github/workflows/**
+deliverables:
+- configured pytest
+- configured linter
+- configured type/static checker or documented equivalent
+- single verify command/script
+acceptance_criteria:
+- id: AC-01
+  criterion: Unit-test command exits 0 on bootstrap suite.
+- id: AC-02
+  criterion: Lint command exits 0.
+- id: AC-03
+  criterion: Type/static command exits 0 or is explicitly documented as intentionally
+    deferred with a testable replacement.
+- id: AC-04
+  criterion: One cross-platform verify command runs the configured checks.
+- id: AC-05
+  criterion: Pull-request CI is extended to execute the repository's configured test,
+    lint, and static/type checks as they become available.
+verification:
+- python -m pytest -q
+- python -m ruff check .
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

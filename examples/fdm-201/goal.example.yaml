@@ -1,0 +1,52 @@
+goal_id: GOAL-ADS-C3H6-298K-001
+title: Measure FDM-201 C3H6 adsorption isotherm at 298 K
+unit_process_type: gas_adsorption_isotherm
+track: STRICT_REPRODUCTION
+objective: Reproduce the formally reported 298 K single-component propylene adsorption dataset using independently synthesized/validated FDM-201 batches.
+requirement_ids:
+  - REQ-ADS-001
+inputs:
+  - sample: FDM-201 activated material
+  - gas: C3H6
+  - temperature_K: 298
+outputs:
+  - raw_isotherm_data
+  - instrument_metadata
+  - sample_metadata
+  - analysis_input_manifest
+dependencies:
+  - goal_id: GOAL-SYN-FDM201-001
+    type: hard_gate
+    execution_gate: false
+    acceptance_gate: true
+  - goal_id: GOAL-PXRD-IDENTITY-001
+    type: hard_gate
+    execution_gate: false
+    acceptance_gate: true
+  - goal_id: GOAL-ACTIVATION-001
+    type: hard_gate
+    execution_gate: true
+    acceptance_gate: true
+resource_ids:
+  - RES-GAS-C3H6
+  - RES-ADSORPTION-INSTRUMENT
+assumption_ids: []
+replication:
+  independent_required: true
+  minimum_n: 3
+  planned_n_policy: dynamic_precision_and_equivalence
+  technical_repeats: null
+acceptance:
+  criteria_ref: ACC-ADS-C3H6-298K-001
+  frozen: false
+analysis_protocol_ref: ANP-ADS-C3H6-298K-001
+closure_contract_ref: CLC-ADS-C3H6-298K-001
+evidence_requirements:
+  - type: target_paper_dataset
+  - type: raw_run_data
+  - type: independent_batch_metadata
+automatic_retry_policy_ref: RETRY-ENGINEERING-DEFAULT
+version: v1-draft
+frozen: false
+frozen_at: null
+frozen_commit: null

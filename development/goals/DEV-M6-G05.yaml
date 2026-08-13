@@ -1,0 +1,24 @@
+goal_id: DEV-M6-G05
+milestone: M6
+title: Run worker isolation and permission integration suite
+objective: Prove worker context minimization and authority boundaries with adversarial
+  fixtures.
+depends_on:
+- DEV-M6-G01
+- DEV-M6-G04
+allowed_scope:
+- tests/integration/test_worker_governance*
+deliverables:
+- worker governance integration tests
+acceptance_criteria:
+- id: AC-01
+  criterion: Forbidden plan mutation is blocked by runtime, not only prompt instructions.
+- id: AC-02
+  criterion: Worker context leak fixture fails if unrelated refs are exposed.
+- id: AC-03
+  criterion: All M6 tests pass.
+verification:
+- python -m pytest -q tests/workers tests/integration
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

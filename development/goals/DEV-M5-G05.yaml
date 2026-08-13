@@ -1,0 +1,27 @@
+goal_id: DEV-M5-G05
+milestone: M5
+title: Implement search cycles and saturation records
+objective: Implement repeatable search-cycle records and the frozen two-zero-novelty-cycle
+  saturation rule.
+depends_on:
+- DEV-M5-G04
+allowed_scope:
+- scientific_reproduction/research/saturation.py
+- tests/research/test_saturation*
+deliverables:
+- search cycle model
+- eligible-hypothesis novelty tracker
+- saturation evaluator
+acceptance_criteria:
+- id: AC-01
+  criterion: One zero-novelty cycle is insufficient.
+- id: AC-02
+  criterion: Two consecutive completed expansion cycles with zero new eligible hypotheses
+    satisfy v0.1 saturation.
+- id: AC-03
+  criterion: Eligible hypothesis threshold can reference Reliability/Directness rules.
+verification:
+- python -m pytest -q tests/research -k saturation
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

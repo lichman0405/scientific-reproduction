@@ -1,0 +1,24 @@
+goal_id: DEV-M12-G07
+milestone: M12
+title: Run complete FDM-201 benchmark acceptance
+objective: Execute full benchmark verification and persist benchmark acceptance evidence.
+depends_on:
+- DEV-M12-G05
+- DEV-M12-G06
+allowed_scope:
+- benchmarks/fdm201/reviews/**
+- tests/benchmarks/**
+deliverables:
+- FDM-201 benchmark acceptance record
+acceptance_criteria:
+- id: AC-01
+  criterion: 100% planning benchmark passes.
+- id: AC-02
+  criterion: All scenarios A-J pass in one clean run.
+- id: AC-03
+  criterion: Benchmark state can be reloaded and audited.
+verification:
+- python -m pytest -q tests/benchmarks tests/scenarios
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

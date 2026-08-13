@@ -1,0 +1,29 @@
+# --- Development runtime (never committed) ---
+.worktrees/
+.development/sessions/
+.development/tmp/
+*.pid
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+.coverage
+htmlcov/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# --- Secrets (defense in depth) ---
+*.pem
+*.key
+.env
+.env.*

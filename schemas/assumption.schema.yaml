@@ -1,0 +1,15 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Assumption
+type: object
+required: [assumption_id, parameter, classification, rationale, source_refs]
+properties:
+  assumption_id: {type: string}
+  parameter: {type: string}
+  value: {}
+  classification: {enum: [A0_TECHNICAL_DEFAULT, A1_METHODOLOGICAL_DEFAULT, A2_SCIENTIFIC_ASSUMPTION]}
+  rationale: {type: string}
+  source_refs: {type: array, items: {type: string}}
+  affected_goal_ids: {type: array, items: {type: string}}
+  strict_status_effect:
+    enum: [NONE, STRICT_WITH_ASSUMPTIONS, DISQUALIFIES_PURE_STRICT]
+additionalProperties: true

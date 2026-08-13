@@ -1,0 +1,27 @@
+goal_id: DEV-M10-G05
+milestone: M10
+title: Implement Codex platform contract adapter
+objective: Implement the same platform-neutral Core contract for Codex to the extent
+  environment access allows, with mock contract tests and no scientific-core fork.
+depends_on:
+- DEV-M10-G02
+allowed_scope:
+- scientific_reproduction/adapters/platform/codex/**
+- tests/platform/test_codex*
+deliverables:
+- Codex adapter
+- mock/contract tests
+- documented unsupported live paths
+acceptance_criteria:
+- id: AC-01
+  criterion: Codex adapter satisfies PlatformAdapter contract in tests.
+- id: AC-02
+  criterion: No duplicate scientific logic exists in adapter.
+- id: AC-03
+  criterion: Unavailable live capability is reported as capability/fallback, not silently
+    faked.
+verification:
+- python -m pytest -q tests/platform -k codex
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

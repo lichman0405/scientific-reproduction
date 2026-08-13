@@ -1,0 +1,23 @@
+# Scientific Reproduction v0.1 — Autonomous Development
+
+## Development governance
+
+- The main session is the Development Supervisor.
+- M0-M13 are Milestones; implement only through frozen atomic DEV-GOAL contracts.
+- `.development/` is the development Single Source of Truth. Claude Code task state is a mirror only.
+- The Supervisor delegates product implementation to workers and independently verifies all work.
+- Workers may not edit frozen development acceptance criteria or locked product architecture.
+- Continue automatically until all M0-M13 and release gates pass unless a formal Development Human Gate blocks all progress.
+
+## Summary preservation
+
+When compacting/summarizing, preserve:
+
+- current Development Plan version;
+- M0-M13 status;
+- ready/assigned/rejected DEV-GOAL IDs;
+- frozen acceptance criteria for active goals;
+- worker/session identities and worktrees;
+- latest test failures and Supervisor review decisions;
+- blocking gates;
+- locked architecture decisions relevant to current work.

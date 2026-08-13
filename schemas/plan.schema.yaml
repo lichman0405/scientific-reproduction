@@ -1,0 +1,26 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ReproductionPlan
+type: object
+required: [plan_id, version, status, inventory_audit, goal_ids, requirement_ids]
+properties:
+  plan_id: {type: string}
+  version: {type: string}
+  status: {enum: [DRAFT, UNDER_AUDIT, FROZEN, SUPERSEDED]}
+  parent_plan_version: {type: [string, "null"]}
+  requirement_ids: {type: array, items: {type: string}}
+  goal_ids: {type: array, items: {type: string}}
+  work_packages: {type: array, items: {type: object}}
+  resource_ids: {type: array, items: {type: string}}
+  inventory_audit:
+    type: object
+    required: [formally_reported_items, mapped_items, unmapped_items, ambiguous_items, coverage]
+    properties:
+      formally_reported_items: {type: integer, minimum: 0}
+      mapped_items: {type: integer, minimum: 0}
+      unmapped_items: {type: integer, minimum: 0}
+      ambiguous_items: {type: integer, minimum: 0}
+      coverage: {type: number, minimum: 0, maximum: 1}
+      status: {enum: [PASS, FAIL]}
+  frozen_at: {type: [string, "null"]}
+  frozen_commit: {type: [string, "null"]}
+additionalProperties: true

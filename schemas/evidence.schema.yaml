@@ -1,0 +1,23 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ClaimSpecificEvidence
+type: object
+required: [evidence_id, source_id, claim_id, finding, assessment]
+properties:
+  evidence_id: {type: string}
+  source_id: {type: string}
+  claim_id: {type: string}
+  source_location: {type: [string, "null"]}
+  finding: {type: string}
+  limitations: {type: array, items: {type: string}}
+  role: {type: string}
+  assessment:
+    type: object
+    required: [authority, reliability, directness, reliability_checklist_ref]
+    properties:
+      authority: {type: integer, minimum: 0, maximum: 4}
+      reliability: {type: integer, minimum: 0, maximum: 4}
+      directness: {type: integer, minimum: 0, maximum: 4}
+      reliability_checklist_ref: {type: string}
+      ranking_score: {type: [number, "null"], minimum: 0, maximum: 100}
+  used_by: {type: array, items: {type: string}}
+additionalProperties: true

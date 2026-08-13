@@ -1,0 +1,20 @@
+milestone_id: M0
+title: Repository bootstrap
+depends_on_milestones: []
+required_goals:
+- DEV-M0-G00
+- DEV-M0-G01
+- DEV-M0-G02
+- DEV-M0-G03
+- DEV-M0-G04
+milestone_acceptance:
+- GitHub branch/PR/CI governance is operational and every M0 implementation goal has
+  a PR audit trail.
+- Repository installs cleanly in an isolated environment.
+- Canonical test/lint/verify tooling succeeds.
+- Normative specification and ADR process are locally discoverable.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks:
+- M1

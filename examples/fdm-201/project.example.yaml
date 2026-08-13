@@ -1,0 +1,12 @@
+project_id: RP-FDM201-001
+title: FDM-201 propylene/ethylene separation reproduction
+primary_target:
+  source_type: doi
+  identifier: 10.1039/D5TA00771B
+  doi: 10.1039/D5TA00771B
+  title: A highly connected metal–organic framework with stretched inorganic units for propylene/ethylene separation
+project_phase: PLANNING
+reproduction_outcome: UNDETERMINED
+current_plan_version: v1-draft
+domain_pack: materials-chemistry
+state_backend: filesystem

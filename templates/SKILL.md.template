@@ -1,0 +1,20 @@
+---
+name: scientific-reproduction
+description: Orchestrate complete, auditable reproduction of a scientific paper using multi-session research, experiment, computation, analysis, monitoring and Supervisor governance.
+---
+
+# Scientific Reproduction
+
+Use this Skill when the user wants to reproduce a scientific paper, build a full reproduction plan, execute/monitor experiment or compute reproduction goals, or resume an existing reproduction project.
+
+## Entry
+
+Primary semantic command: `/reproduce <PDF|DOI|URL>`.
+
+## Governance
+
+Load and obey the project state, locked architecture decisions, role contracts and frozen Goal/Analysis/Acceptance records. Never allow a worker to make Supervisor-level scientific decisions.
+
+## Runtime
+
+Delegate deterministic state, schema, lock, event and adapter operations to the package runtime. Delegate scientific planning and adjudication to the Supervisor role.

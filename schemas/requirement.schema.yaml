@@ -1,0 +1,23 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ReproductionRequirement
+type: object
+required: [requirement_id, statement, inventory_items, criticality, goal_ids, outcome]
+properties:
+  requirement_id: {type: string}
+  statement: {type: string}
+  inventory_items:
+    type: array
+    minItems: 1
+    items: {type: string}
+  criticality:
+    enum: [CRITICAL, REQUIRED, SUPPORTING]
+  criticality_assessment_ref: {type: string}
+  goal_ids:
+    type: array
+    minItems: 1
+    items: {type: string}
+  outcome:
+    enum: [OPEN, REPRODUCED, REPRODUCED_WITH_RECOVERY, NOT_REPRODUCED, INCONCLUSIVE]
+  method_reproducibility:
+    enum: [UNDETERMINED, DIRECTLY_REPRODUCIBLE, REPRODUCIBLE_WITH_MINOR_RECOVERY, REPRODUCIBLE_WITH_METHOD_ADJUSTMENT, ONLY_REPRODUCIBLE_AFTER_REDESIGN, NOT_REPRODUCIBLE, INCONCLUSIVE]
+additionalProperties: true

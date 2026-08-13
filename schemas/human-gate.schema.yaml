@@ -1,0 +1,14 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: HumanGate
+type: object
+required: [gate_id, gate_type, status, trigger, affected_refs]
+properties:
+  gate_id: {type: string}
+  gate_type: {enum: [RESOURCE_GATE, ACCESS_GATE, SAFETY_GATE, SCOPE_GATE, TERMINATION_GATE, EXTERNAL_CONTACT_GATE]}
+  status: {enum: [OPEN, APPROVED, REJECTED, RESOLVED, CANCELLED]}
+  trigger: {type: string}
+  requested_decision: {type: string}
+  affected_refs: {type: array, items: {type: string}}
+  evidence_refs: {type: array, items: {type: string}}
+  default_safe_action: {type: [string, "null"]}
+additionalProperties: true

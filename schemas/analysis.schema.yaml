@@ -1,0 +1,17 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: AnalysisProtocolOrResult
+type: object
+required: [analysis_id, kind, protocol_version, primary_or_exploratory]
+properties:
+  analysis_id: {type: string}
+  kind: {enum: [protocol, result]}
+  profile: {enum: [ROUTINE_ANALYSIS, STATISTICAL_VALIDATION, FAILURE_DIAGNOSIS]}
+  primary_or_exploratory: {enum: [PRIMARY, EXPLORATORY]}
+  protocol_version: {type: string}
+  frozen: {type: boolean}
+  input_artifact_ids: {type: array, items: {type: string}}
+  methods: {type: array, items: {type: object}}
+  outputs: {type: array, items: {type: object}}
+  uncertainty: {type: object}
+  warnings: {type: array, items: {type: string}}
+additionalProperties: true

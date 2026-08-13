@@ -1,0 +1,20 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: LabExecutionPackage
+type: object
+required: [package_id, project_id, goal_id, run_id, objective, procedure, required_return]
+properties:
+  package_id: {type: string}
+  project_id: {type: string}
+  goal_id: {type: string}
+  run_id: {type: string}
+  track: {enum: [STRICT_REPRODUCTION, RECOVERY, METHOD_REDESIGN]}
+  objective: {type: string}
+  procedure: {type: array, items: {type: object}}
+  reagents: {type: array, items: {type: object}}
+  instruments: {type: array, items: {type: object}}
+  critical_control_variables: {type: array, items: {type: object}}
+  prohibited_changes: {type: array, items: {type: string}}
+  required_operator_records: {type: array, items: {type: string}}
+  required_return: {type: array, items: {type: string}}
+  safety_notes: {type: array, items: {type: string}}
+additionalProperties: true

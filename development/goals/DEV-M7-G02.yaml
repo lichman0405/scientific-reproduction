@@ -1,0 +1,25 @@
+goal_id: DEV-M7-G02
+milestone: M7
+title: Implement Local ComputeAdapter
+objective: Implement local process execution adapter with persistent external-job
+  identity abstraction.
+depends_on:
+- DEV-M1-G06
+- DEV-M6-G05
+allowed_scope:
+- scientific_reproduction/adapters/compute/local.py
+- tests/adapters/compute/test_local*
+deliverables:
+- local compute adapter
+acceptance_criteria:
+- id: AC-01
+  criterion: prepare/submit/status/collect/cancel/resume interface is implemented.
+- id: AC-02
+  criterion: Job identity persists independently of worker session object.
+- id: AC-03
+  criterion: Result collection produces artifact registrations.
+verification:
+- python -m pytest -q tests/adapters/compute -k local
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

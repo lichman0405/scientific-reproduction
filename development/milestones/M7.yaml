@@ -1,0 +1,20 @@
+milestone_id: M7
+title: Lab and Compute adapters
+depends_on_milestones:
+- M2
+- M6
+required_goals:
+- DEV-M7-G01
+- DEV-M7-G02
+- DEV-M7-G03
+- DEV-M7-G04
+- DEV-M7-G05
+milestone_acceptance:
+- Filesystem LabAdapter and local/SSH/Slurm ComputeAdapters satisfy shared contracts.
+- External job/result identity survives worker exit.
+regression_scope:
+- all prior accepted milestone tests
+- repository lint/static checks applicable at this stage
+unlocks:
+- M8
+- M12

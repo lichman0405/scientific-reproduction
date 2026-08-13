@@ -1,0 +1,18 @@
+acceptance_id: ACC-ADS-C3H6-298K-001
+goal_id: GOAL-ADS-C3H6-298K-001
+version: v1-draft
+frozen: false
+decision_mode: equivalence
+target:
+  metric: uptake_at_defined_pressure
+  published_seed_value_cm3_g: 180.5
+criteria:
+  - metric: batch_level_uptake
+    rule: equivalence_interval_to_be_determined_from_primary_and_supporting_evidence
+  - metric: valid_independent_batches
+    rule: dynamically_planned_n_with_minimum_3
+statistical_design_ref: STAT-ADS-C3H6-298K-001
+evidence_refs: []
+rationale: Must be finalized after SI/method verification and independent literature review; no default ±10% rule is permitted.
+confidence: LOW
+revision_reason: null

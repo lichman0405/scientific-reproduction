@@ -1,0 +1,25 @@
+<project>/
+├── project.yaml
+├── sources/
+├── knowledge/
+├── inventory/
+├── plans/
+├── work-packages/
+├── requirements/
+├── goals/
+├── runs/
+├── evidence/
+├── assumptions/
+├── protocols/
+├── analysis/
+├── decisions/
+├── events/
+├── resources/
+├── human-gates/
+├── manifests/
+├── locks/
+├── lab/
+│   ├── outgoing/
+│   └── incoming/
+├── reports/
+└── .git/

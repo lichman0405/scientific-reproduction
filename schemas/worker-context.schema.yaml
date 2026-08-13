@@ -1,0 +1,21 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: GoalExecutionContextPackage
+type: object
+required: [context_id, worker_role, goal_id, goal_version, allowed_actions, forbidden_actions]
+properties:
+  context_id: {type: string}
+  worker_role: {enum: [experiment_worker, computation_worker, analysis_worker, diagnosis_worker]}
+  goal_id: {type: string}
+  goal_version: {type: string}
+  run_id: {type: [string, "null"]}
+  source_refs: {type: array, items: {type: string}}
+  evidence_refs: {type: array, items: {type: string}}
+  upstream_result_refs: {type: array, items: {type: string}}
+  protocol_refs: {type: array, items: {type: string}}
+  resource_refs: {type: array, items: {type: string}}
+  environment: {type: object}
+  required_outputs: {type: array, items: {type: string}}
+  allowed_actions: {type: array, items: {type: string}}
+  forbidden_actions: {type: array, items: {type: string}}
+  context_hash: {type: [string, "null"]}
+additionalProperties: true

@@ -1,0 +1,26 @@
+goal_id: DEV-M2-G05
+milestone: M2
+title: Implement Closure Contract evaluator
+objective: Implement closure hard-gate logic including statistics sufficiency, valid
+  execution, recovery hypothesis exhaustion and research saturation.
+depends_on:
+- DEV-M2-G02
+- DEV-M2-G03
+allowed_scope:
+- scientific_reproduction/core/rules/closure.py
+- tests/rules/test_closure*
+deliverables:
+- closure evaluator
+- closure reason reporting
+acceptance_criteria:
+- id: AC-01
+  criterion: Closure fails when any mandatory gate is unresolved.
+- id: AC-02
+  criterion: No fixed failure-count shortcut can close a required goal.
+- id: AC-03
+  criterion: Eligible recovery hypothesis remaining >0 prevents non-reproduced closure.
+verification:
+- python -m pytest -q tests/rules -k closure
+forbidden_changes: []
+worker_mode: agent_team_task
+plan_approval_required: false

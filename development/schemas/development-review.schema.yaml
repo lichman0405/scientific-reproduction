@@ -1,0 +1,95 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$title: Development Supervisor Review
+$type: object
+additionalProperties: false
+required:
+- goal_id
+- attempt_id
+- reviewer
+- decision
+- criteria
+- verification_rerun
+- git_review
+properties:
+  goal_id:
+    type: string
+  attempt_id:
+    type: string
+  reviewer:
+    const: development-supervisor
+  decision:
+    type: string
+    enum:
+    - PASS
+    - REJECT
+    - BLOCKED_HUMAN
+  criteria:
+    type: array
+    items:
+      type: object
+      required:
+      - criterion_id
+      - result
+      - evidence
+      properties:
+        criterion_id:
+          type: string
+        result:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+        evidence:
+          type: string
+  verification_rerun:
+    type: array
+    items:
+      type: object
+      required:
+      - command
+      - exit_code
+      properties:
+        command:
+          type: string
+        exit_code:
+          type: integer
+  comments:
+    type: array
+    items:
+      type: string
+  git_review:
+    type: object
+    additionalProperties: false
+    required:
+    - pr_number
+    - reviewed_head_sha
+    - ci_status
+    - scope_check
+    - merge_authorized
+    properties:
+      pr_number:
+        type: integer
+        minimum: 1
+      reviewed_head_sha:
+        type: string
+        minLength: 7
+      ci_status:
+        enum:
+        - PASS
+        - FAIL
+        - PENDING
+        - UNAVAILABLE
+      scope_check:
+        enum:
+        - PASS
+        - FAIL
+      merge_authorized:
+        type: boolean
+      merge_method:
+        enum:
+        - squash
+        - merge
+        - rebase
+      merge_commit_sha:
+        type: string
+        minLength: 7

@@ -1,0 +1,28 @@
+goal_id: DEV-M1-G02
+milestone: M1
+title: Implement filesystem StateBackend CRUD and atomic writes
+objective: Implement per-object filesystem persistence using atomic replacement and
+  no monolithic mutable project-state file.
+depends_on:
+- DEV-M1-G01
+allowed_scope:
+- scientific_reproduction/core/state_backend.py
+- scientific_reproduction/core/atomic.py
+- tests/state/**
+deliverables:
+- StateBackend interface
+- FilesystemStateBackend
+- atomic write helper
+acceptance_criteria:
+- id: AC-01
+  criterion: Objects are persisted per object/type, not in one mutable state blob.
+- id: AC-02
+  criterion: Interrupted/partial writes do not replace the last valid object.
+- id: AC-03
+  criterion: Read-after-write returns schema-valid canonical content.
+verification:
+- python -m pytest -q tests/state
+forbidden_changes:
+- Introduce SQLite/PostgreSQL as required v0.1 dependency.
+worker_mode: agent_team_task
+plan_approval_required: false
