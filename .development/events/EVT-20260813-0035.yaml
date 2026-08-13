@@ -1,0 +1,20 @@
+event_id: EVT-20260813-0035
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M4-G04
+attempt_id: DEV-M4-G04-a1
+pr_number: 32
+head_sha: 3cf682fdd7c9330687d248ae37fe259782fef318
+merge_sha: 00db74483b140773b49f16821d427bb70472ccb5
+summary: >-
+  DEV-M4-G04 (Plan v1 builder + freeze API + versioned revision API,
+  planning/plan.py 1194 lines + planning/freeze.py 600 lines +
+  tests/planning/test_freeze.py 1022 lines 55 tests) merged via squash
+  after supervisor review DEV-M4-G04-a1 (PASS). AC-01/02/03 verified:
+  9 + 16 + 10 AC tests, all claims exact. Verification: 58 (k freeze) +
+  143 (tests/planning) + 1278-6-1 full suite (no flake this run) + ruff
+  clean + mypy 56 files (54 base + plan.py/freeze.py; worker's "53
+  baseline" breakdown mislabeled, total verified) + contracts PASS + CI
+  both jobs PASS. Merged at origin/main 00db744; base was 0ffd7b3 (state
+  after M4-G03 merge). M4 progress: 4/6 merged (G01-G04); M4-G05 ready
+  to dispatch next.

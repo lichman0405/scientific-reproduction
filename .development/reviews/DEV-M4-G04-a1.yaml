@@ -1,0 +1,209 @@
+review_id: DEV-M4-G04-a1
+goal_id: DEV-M4-G04
+attempt_id: DEV-M4-G04-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-13'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_freeze_ac01_unmapped_item_blocks_freeze_naming_offenders
+    - test_freeze_ac01_ambiguous_item_blocks_freeze_naming_offenders
+    - test_freeze_ac01_offender_ids_deterministic_and_sorted
+    - test_freeze_ac01_failed_audit_writes_no_records
+    - test_freeze_ac01_complete_mapping_allows_freeze
+    - test_freeze_ac01_audit_gate_recomputed_from_registered_state_not_snapshot
+    - test_freeze_ac01_stale_plan_rejected_before_writes
+    - test_freeze_ac01_frozen_plan_embeds_recomputed_inventory_audit
+    - test_freeze_ac01_empty_inventory_freezes_vacuously
+    notes: >-
+      freeze_plan is prohibited unless the completeness audit recomputed
+      from the registered state AT FREEZE TIME passes
+      (audit_inventory_registry, never the embedded snapshot): the pivotal
+      test registers a draft embedding a PASS inventory_audit snapshot,
+      then changes the state (new unmapped item) and asserts the freeze is
+      blocked naming the NEW offender (ITEM-3). FreezeProhibitedError
+      carries offending_item_ids structurally (deterministic, sorted
+      union of unmapped + ambiguous ids) and in the message. Every
+      prohibited freeze writes no records (plans/v1-draft.json and
+      plans/v1.json absent; goal-family drafts untouched). Stale plan
+      objects (plan != registered draft / deterministic build) are
+      rejected with PlanStateMismatchError BEFORE any write. The frozen
+      plan embeds the recomputed audit view (coverage 1.0, PASS). Empty
+      inventory freezes vacuously (goal_ids/requirement_ids empty, family
+      tuples empty).
+  AC-02:
+    status: PASS
+    evidence:
+    - test_freeze_ac02_plan_and_frozen_records_reject_direct_mutation
+    - test_freeze_ac02_frozen_goal_contract_rejects_direct_mutation
+    - test_freeze_ac02_frozen_acceptance_rejects_direct_mutation
+    - test_freeze_ac02_frozen_analysis_protocol_rejects_direct_mutation
+    - test_freeze_ac02_frozen_closure_contract_rejects_direct_mutation
+    - test_freeze_ac02_frozen_plan_carries_freeze_metadata
+    - test_freeze_ac02_frozen_goal_family_carries_freeze_metadata
+    - test_freeze_ac02_freeze_persists_draft_and_frozen_records
+    - test_freeze_ac02_freeze_tolerates_equal_registered_draft
+    - test_freeze_ac02_freeze_rejects_conflicting_registered_draft
+    - test_freeze_ac02_freeze_rejects_second_freeze_of_same_version
+    - test_freeze_ac02_freeze_rejects_non_draft_plan
+    - test_freeze_ac02_freeze_rejects_formal_draft_version
+    - test_freeze_ac02_frozen_goal_family_is_in_memory_only_drafts_untouched
+    - test_freeze_ac02_plan_registry_no_clobber
+    - test_freeze_ac02_goal_family_registries_no_clobber
+    notes: >-
+      Direct mutation of every frozen object is rejected with
+      FrozenInstanceError: the Plan (draft and frozen, and the stored
+      record re-read from disk), the GoalContract INCLUDING its nested
+      acceptance (goal.acceptance.frozen = False raises), AcceptanceCriteria,
+      AnalysisProtocolOrResult and ClosureContract. Frozen records carry
+      freeze metadata (status FROZEN, version v1, frozen_at
+      2026-06-01T00:00:00Z fixed, frozen_commit = pre-freeze git HEAD,
+      parent_plan_version None). The frozen goal-contract family is
+      in-memory only: drafts on disk stay frozen=False at v1-draft,
+      byte-identical (verified by re-reading goals/GOAL-1.json). The plan
+      registry persists the draft (when absent) and the frozen record,
+      tolerates a byte-equal registered draft, rejects a conflicting one
+      (PlanStateMismatchError) and rejects a second freeze of the same
+      version (PlanAlreadyFrozenError). Both registries are
+      immutable-functional: DuplicatePlanVersionError /
+      DuplicateGoalError / DuplicateAcceptanceError /
+      DuplicateAnalysisProtocolError / DuplicateClosureContractError on
+      re-registration.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_freeze_ac03_revision_creates_new_version_with_parent_link
+    - test_freeze_ac03_revision_preserves_old_record_untouched
+    - test_freeze_ac03_old_plan_reported_superseded_in_lineage
+    - test_freeze_ac03_lineage_shows_frozen_until_revision
+    - test_freeze_ac03_revision_requires_registered_frozen_plan
+    - test_freeze_ac03_revision_rejects_stale_plan_object
+    - test_freeze_ac03_revision_of_revision_extends_lineage
+    - test_freeze_ac03_revision_recomputes_audit_from_state
+    - test_freeze_ac03_revision_rejects_duplicate_next_version
+    - test_freeze_ac03_frozen_plan_deterministic_across_workspaces
+    notes: >-
+      revise_plan requires a REGISTERED FROZEN formal plan
+      (PlanNotFoundError for unregistered, PlanNotFrozenError for
+      non-FROZEN, PlanStateMismatchError for stale objects,
+      InvalidPlanVersionError for draft versions) and creates v<N+1>-draft
+      with parent_plan_version = the frozen version, copying goal_ids /
+      requirement_ids / work_packages / resource_ids as the baseline and
+      recomputing inventory_audit from the registered state. The old
+      record is preserved byte-untouched (read_bytes() equality across
+      revise_plan, status stays FROZEN on disk). SUPERSEDED is a computed
+      lineage status: plan_lineage reports [DRAFT, SUPERSEDED, DRAFT]
+      with matched rules R-SUP-P1 / R-SUP-D1 and the stored record never
+      rewritten. Revision of revision extends the lineage (v1 -> v2-draft
+      -> v2 -> v3-draft; old records byte-identical across revisions).
+      Duplicate next version rejected. Frozen plans are deterministic
+      across workspaces (equal records incl. frozen_commit).
+
+verification:
+  environment: .worktrees/.sup-review-venv-dev-m4-g04 (fresh venv, editable install from worktree, python 3.13.9)
+  head_sha: 3cf682fdd7c9330687d248ae37fe259782fef318
+  commands:
+  - cmd: pytest -q tests/planning -k freeze
+    result: 58 passed, 85 deselected (55 new + 3 pre-existing G03
+      freeze_eligible tests; matches worker claim exactly)
+  - cmd: pytest -q tests/planning
+    result: 143 passed (matches worker claim exactly)
+  - cmd: pytest -q tests
+    result: 1278 passed, 6 skipped, 1 deselected, exit 0 (matches worker
+      claim exactly; no flake on this run; arithmetic: 1223 base at
+      0ffd7b3 + 55 new = 1278)
+  - cmd: ruff check src/scientific_reproduction/planning/plan.py
+      src/scientific_reproduction/planning/freeze.py
+      tests/planning/test_freeze.py
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 56 source files (matches worker
+      claim; arithmetic verified: 54 source files at base 0ffd7b3 + 2 new
+      src files plan.py/freeze.py = 56; the worker's breakdown '53
+      baseline + 3 new' is mislabeled but the total is correct)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed"
+  - cmd: gh pr checks 32
+    result: "Test, lint, and type check: pass; Validate development contracts: pass"
+
+design_review:
+  audit_gate: >-
+    freeze_plan's AC-01 gate is audit_inventory_registry(project_root)
+    recomputed at freeze time; the plan's embedded inventory_audit
+    snapshot is never trusted. All failure checks (draft status, version,
+    freshness, already-frozen, audit, goal-family closure) precede any
+    write -- no record is written by a prohibited freeze.
+  freshness_guard: >-
+    PlanStateMismatchError rejects stale plan objects: the plan must equal
+    the registered draft at its version or (when none is registered) the
+    deterministic build_plan_v1 of the current registered state. Conflicting
+    registered drafts are also rejected (verified by direct file
+    tampering in the test).
+  frozen_family: >-
+    PlanFreezeResult is a frozen dataclass; the frozen goal-contract
+    family is built in memory with per-model field handling (version /
+    protocol_version / frozen / frozen_at / frozen_commit where the model
+    declares them; the nested GoalAcceptance is frozen too; ClosureContract
+    carries no version fields) -- the persisted artifact is only the Plan
+    record, drafts stay drafts byte-identical.
+  supersession: >-
+    SUPERSEDED_RULES is an ordered first-match-wins table
+    [R-SUP-D1 (DRAFT never superseded), R-SUP-S1 (defensive), R-SUP-P1
+    (FROZEN + newer version -> SUPERSEDED), R-SUP-F1 (total default ->
+    FROZEN)]; assessements record input + decision trace + matched_rule_id
+    + ruleset_version ("1.0"). SUPERSEDED is a computed lineage status --
+    the stored record bytes are never rewritten (AC-03).
+  determinism: >-
+    build_plan_v1 is a pure function of registered state (plan_id from
+    core.ids.generate_id, sorted distinct goal_ids from requirement
+    mappings, sorted requirement_ids, recomputed audit view, empty
+    work_packages/resource_ids -- the DAG arrives with DEV-M4-G05);
+    freeze uses an injectable timestamp (naive datetimes rejected);
+    registries serialize canonical JSON (sorted keys, indent 2);
+    frozen plans equal across workspaces.
+  registry_safety: >-
+    Version-keyed plans/<version>.json and goals/ acceptance/ protocols/
+    closure/ registries: schema-validated before persistence
+    (validate_and_reject), atomic writes, immutable-functional (no
+    clobber), id path-escape validated (no '/', no '\\', not '.'/'..'),
+    corrupt records rejected with stable "corrupt <kind> record" errors.
+  paradigm: >-
+    TypeError at public boundaries; ValueError-subclass error hierarchy
+    (PlanError/GoalFamilyError/FreezeError -> PlanningError -> ValueError);
+    stable messages; frozen dataclasses; rule-engine paradigm consistent
+    with prior M2/M4 modules. frozen_commit = pre-freeze git HEAD, None
+    (documented) outside a git repository -- the plan.freeze checkpoint
+    commit stays Supervisor-owned per 14-STATE-GIT-ARTIFACTS.md SS5.
+
+scope_check: PASS
+notes: >-
+  Scope exactly matches DEV-M4-G04: planning/plan.py (1194 lines) +
+  planning/freeze.py (600 lines) + tests/planning/test_freeze.py (1022
+  lines, 55 tests, all names contain the goal keyword "freeze"). No
+  changes to frozen ACs, no deleted tests, no --no-verify, no force-push
+  (single commit 3cf682f). init.py / inventory.py / audit.py / core /
+  schemas / specs / .development untouched (read-only imports only).
+  Pyright flags observed during review (undefined names in freeze.py,
+  "_id_value" attribute access, unresolved imports in test file) are
+  stale-main-repo-snapshot artifacts: the names live in plan.py which is
+  new in this PR, and pytest/mypy/ruff all pass on the head. The
+  suspended-.git test technique (rename instead of rmtree) is
+  documented as Windows-safe against read-only Git objects.
+
+git_review:
+  pr_number: 32
+  pr_title: 'feat(planning): plan v1 construction and frozen contracts [DEV-M4-G04]'
+  branch: feat/dev-m4-g04-plan
+  base_sha: 0ffd7b38a4354cc08883e39c9eaa0761c4bc688a
+  reviewed_head_sha: 3cf682fdd7c9330687d248ae37fe259782fef318
+  changed_files: 3 (src/scientific_reproduction/planning/plan.py,
+    src/scientific_reproduction/planning/freeze.py,
+    tests/planning/test_freeze.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
