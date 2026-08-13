@@ -1,0 +1,22 @@
+event_id: EVT-20260813-0029
+timestamp: '2026-08-13'
+type: GOAL_DISPATCHED
+goal_id: DEV-M4-G03
+attempt_id: DEV-M4-G03-a1
+pr_number: null
+head_sha: null
+merge_sha: null
+summary: >-
+  DEV-M4-G03 dispatched to worker (agent_team_task) on branch
+  feat/dev-m4-g03-audit, worktree .worktrees/dev-m4-g03, base e55407f
+  (origin/main after M4-G02 merge). Frozen contract: inventory
+  completeness evaluator + audit result record (planning/audit.py,
+  tests/planning/test_completeness*); AC-01 one unmapped item prevents
+  freeze eligibility; AC-02 100% mapped + zero ambiguous passes;
+  AC-03 audit evidence lists offending item IDs. Grounding:
+  01-PRODUCT-REQUIREMENTS.md SS5 (100% coverage of formally reported
+  items), 14-STATE-GIT-ARTIFACTS.md SS5 ("Inventory audit passed"
+  checkpoint commit), core.models.PlanInventoryAudit shape + M4-G02
+  summarize_inventory/evaluate_item_mapping as the data layer.
+  Concurrency after dispatch: active 2 (M5-G04, M4-G03) ≤ 5;
+  M5 same-milestone 1 ≤ 3; M4 same-milestone 1 ≤ 3; cross-cutting 0 ≤ 1.
