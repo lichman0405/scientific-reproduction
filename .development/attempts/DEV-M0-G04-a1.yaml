@@ -1,0 +1,18 @@
+goal_id: DEV-M0-G04
+attempt_id: DEV-M0-G04-a1
+change_type: TEST
+base_branch: main
+base_sha: cedfe5740100
+branch: test/dev-m0-g04-bootstrap-smoke
+worktree: .worktrees/dev-m0-g04
+status: MERGED
+commit_shas: []
+merge_method: squash
+merge_commit_sha: 19ab0a5
+merged_at: '2026-08-13'
+pr:
+  number: 5
+  url: https://github.com/lichman0405/scientific-reproduction/pull/5
+  head_sha: d37e9f96273315add7d7c80b086ef553cb77c6b8
+  state: merged
+  ci_status: pass

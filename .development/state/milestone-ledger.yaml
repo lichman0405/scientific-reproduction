@@ -1,8 +1,12 @@
 milestones:
   M0:
-    status: IN_PROGRESS
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M1
+      evidence: All 5 M0 goals MERGED with PR audit trail (PRs 1-5), reviews PASS, CI green; hermetic install test, tooling,
+        spec index, ADR template verified.
+    accepted_at: '2026-08-13'
   M1:
     status: NOT_STARTED
     gate: null

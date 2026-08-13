@@ -1,0 +1,13 @@
+event_id: EVT-20260813-0005
+timestamp: '2026-08-13'
+type: MILESTONE_PASS
+actor: development-supervisor
+summary: 'M0 Repository bootstrap ACCEPTED: 5/5 goals merged (19ab0a5), all milestone gates met, M1 unlocked.'
+details:
+  milestone: M0
+  merge_shas:
+  - f8ecd2c
+  - a51a426
+  - 1aeb556
+  - aea8420
+  - 19ab0a5
