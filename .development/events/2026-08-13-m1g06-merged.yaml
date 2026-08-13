@@ -1,0 +1,25 @@
+event_id: EVT-20260813-0011
+timestamp: '2026-08-13'
+type: GOAL_MERGED
+goal_id: DEV-M1-G06
+attempt_id: DEV-M1-G06-a1
+pr_number: 12
+head_sha: f32b8a0afe355a49473243d4d409a2e4ea187a72
+merge_sha: 9d9a05038d07a0c3a4b1a5af9bca2f83f6fc70b6
+summary: >-
+  DEV-M1-G06 merged: core-state integration suite (11 tests across
+  tests/integration/test_core_state_{leases,objects,events}.py), layers
+  exercised together — concurrent duplicate lease claims (8 threads, two
+  stores, interleaved os.link barrier), lease-gated writes, expiry
+  takeover with injected clock, full plan/run lifecycle with per-step
+  events, idempotent replay, 20-type registry sweep, whole-state
+  recovery from fresh instances. Zero production changes (verified by
+  diff). Goal verification at head: 421 passed/6 skipped; full suite 470
+  passed/6 skipped/1 deselected; ruff + mypy clean; contracts validator
+  PASS; CI both jobs PASS. Supervisor review PASS; squash-merged with
+  head-commit match. DEV-DEFECT-002 recorded (pre-existing timing flake
+  in tests/state/test_leases.py takeover test — safe direction, out of
+  frozen scope, remediation bundled with DEV-DEFECT-001).
+unblocks:
+- DEV-M2-G01
+- DEV-M3-G01

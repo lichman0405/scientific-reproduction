@@ -1,0 +1,109 @@
+goal_id: DEV-M1-G06
+attempt_id: DEV-M1-G06-a1
+reviewer: development-supervisor
+decision: PASS
+criteria:
+  - criterion_id: AC-01
+    result: PASS
+    evidence: >-
+      Concurrent duplicate lease scenario exercised end-to-end with the
+      layers together: 8 real threads across two LeaseStore instances
+      (process simulation) over one base dir, 5 rounds — exactly one
+      winner, every loser LeaseHeldError, exactly one canonical
+      schema-valid object on disk whose claimant marker identifies the
+      winner, lease released without touching the object; an interleaved
+      os.link barrier forces the create race to be scheduling-independent
+      (single-winner decided by the atomic protocol); expired-lease
+      takeover (injected clock) is deterministic with fresh owner/expiry/
+      nonce asserted and the dead grant unable to renew or release the new
+      record; concurrent takeovers of one expired lease also yield exactly
+      one winner and one object. Independent rerun at head f32b8a0: 421
+      passed, exit 0.
+  - criterion_id: AC-02
+    result: PASS
+    evidence: >-
+      Full plan lifecycle (create/read/update/event-driven-rewrite/delete)
+      with a per-step event: every persisted write round-trips
+      validate_object == [], identity (plan_id/run_id) and version fields
+      survive, exactly one canonical file per id (no version clutter),
+      list_events preserves append order with strictly increasing
+      sequences, every persisted event record schema-valid; a
+      schema-invalid update raises SchemaValidationError before
+      persistence leaving the last valid object intact on disk; the whole
+      20-type model registry round-trips write/read/validate/delete with
+      idempotent events (replay returns the original record, same
+      sequence); lease-guarded publish replay is idempotent (no duplicate
+      event, no sequence advance) and the object rewrite stays
+      schema-valid. Independent rerun at head: 421 passed, exit 0.
+  - criterion_id: AC-03
+    result: PASS
+    evidence: >-
+      Goal verification command at head f32b8a0: 421 passed / 6 skipped
+      (tests/core tests/state tests/integration), exit 0; ruff clean,
+      exit 0; mypy clean on 29 files, exit 0; full suite rerun 470 passed
+      / 6 skipped / 1 deselected, exit 0 (matching the worker's number);
+      scripts/validate_development_contracts.py PASS (14 milestones, 80
+      goals, DAGs acyclic); CI both jobs PASS at reviewed head on
+      ubuntu-latest. tests/state suite unchanged from base (181/6).
+verification_rerun:
+  - command: python -m pytest -q tests/core tests/state tests/integration
+    exit_code: 0
+  - command: python -m pytest -q
+    exit_code: 0
+  - command: python -m ruff check .
+    exit_code: 0
+  - command: python -m mypy src/
+    exit_code: 0
+  - command: python scripts/validate_development_contracts.py
+    exit_code: 0
+comments:
+  - >-
+    Scope check: 3 files changed, all new (tests/integration/test_core_
+    state_leases.py, test_core_state_objects.py, test_core_state_events.
+    py) — all inside allowed_scope; NO production code changes (verified
+    by diff: git diff base..head touches only the three test files); frozen
+    paths untouched; single conventional commit with [DEV-M1-G06], no
+    force-push, no amend; no tests deleted or weakened.
+  - >-
+    Design reviewed: layers compose exactly as the merged units document —
+    LeaseStore gates writes, FilesystemStateBackend persists schema-valid
+    objects, ProjectEventLog records steps idempotently on the same base
+    dir, sequence/claim machinery preserves order across threads and
+    fresh instances. All timing injected (FakeClock); no sleeps anywhere.
+    The interleaved os.link barrier uses a best-effort rendezvous
+    (BrokenBarrierError swallowed so a rival that legitimately lost
+    before reaching os.link cannot strand the barrier), and thread
+    exceptions are captured into results — the flake the worker found and
+    fixed (stranded barrier thread) is properly handled in both rendezvous
+    sites.
+  - >-
+    PRE-EXISTING FLAKE RECORDED (DEV-DEFECT-002): one full-suite run at
+    head failed tests/state/test_leases.py::test_concurrent_takeover_of_
+    expired_lease_single_winner — both claimants exhausted the bounded
+    3-pass acquire loop and got the documented transient "contested"
+    LeaseHeldError (zero winners, nothing persisted — the safe direction;
+    at most one winner is guaranteed, never loop resolution within 3
+    passes). Proven pre-existing: tests/state byte-identical base..head,
+    M1-G06 ships zero production code; ~1/10 isolated reruns on
+    Windows-local, full-suite rerun clean (470/6/1), CI green on ubuntu.
+    Out of M1-G06 frozen scope (tests/state not in allowed_scope), so no
+    fix in this goal; remediation bundled with DEV-DEFECT-001 (advisory-
+    lock redesign) or a v0.1.1 flake-hardening follow-up. See
+    .development/KNOWN-DEFECTS.md.
+  - >-
+    Pyright IDE diagnostics (unresolved worktree imports, object-typed
+    attribute access at 289-298 of test_core_state_leases.py) are the
+    stale-snapshot / isinstance-narrowing pattern already accepted for
+    this project: mypy (the configured gate) is green on all 29 files,
+    ruff F401-clean.
+  - >-
+    Worker followed contract: conventional commit, draft PR #12 with
+    template fields, CI both jobs PASS at reviewed head, no self-approval,
+    no merge.
+git_review:
+  pr_number: 12
+  reviewed_head_sha: f32b8a0afe355a49473243d4d409a2e4ea187a72
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
