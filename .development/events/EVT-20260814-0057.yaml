@@ -1,0 +1,39 @@
+event_id: EVT-20260814-0057
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M7-G02
+attempt_id: DEV-M7-G02-a1
+pr_number: 51
+head_sha: b59bdd753bd5c7a7d3a36ce359862cf5080e4de7
+merge_sha: cae53abd44c531f4345a2e0ee90561fd516eb12d
+summary: >-
+  DEV-M7-G02 merged (local ComputeAdapter): 2 new files +2551/-0
+  (src/adapters/compute/local.py 1539; tests/adapters/compute/
+  test_local_adapter.py 1012). Review DEV-M7-G02-a1 PASS. AC-01 the
+  six-operation interface (prepare/submit/status/collect/cancel/resume,
+  15-ADAPTER-SPEC.md section 3 / 11-COMPUTATION-SUBSYSTEM.md section 2)
+  with a strict state machine (prepared -> running -> completed|failed;
+  prepared/running -> cancelled), frozen decision records, stable
+  ValueError-subclass error hierarchy, and job-id/unsafe-output-name
+  rejection (FND-M9-G02-01). AC-02 job identity persists independently
+  of the worker session object: durable records at <state_dir>/jobs/
+  <job_id>.json (atomic_write, strict from_dict contract validation,
+  core.leases precedent -- no job schema exists), job_id a pure
+  function of the run id (generate_id("job", run_id)), fresh adapter
+  instances status/collect/resume from the durable record alone, real
+  cross-platform re-attach by pid (POSIX waitpid / Windows
+  OpenProcess+GetExitCodeProcess via stdlib ctypes, WinDLL via getattr
+  for cross-platform mypy), exited-unknown probe -> stable
+  EXIT_CODE_UNAVAILABLE_NOTE with collect verifying outputs
+  independently. AC-03 collection registers artifact manifests through
+  the REAL DEV-M3-G02 ArtifactRegistry (deterministic ids, real
+  SHA-256/size, run id, producer stamp adapter:compute/local@v1.0),
+  exactly-once with verified idempotent re-collection. Verification:
+  tests/adapters/compute -k local 32 passed; tests/adapters 80; ruff
+  clean; mypy 72 head / 79 scratch (78 on main + 1 new, 0 errors);
+  contracts PASS; scratch merge (2a8c476 + b59bdd7) full suite 2392
+  passed, 6 skipped, 1 deselected (= 2360 + 32, exact prediction); CI
+  both jobs PASS. Branch root 58a84d2 (dispatch-time origin/main;
+  direct ancestor; no rebase); M7-G01 merged mid-attempt with fully
+  disjoint files. Zero type: ignore / noqa in both new files. Merged
+  count 50/80.

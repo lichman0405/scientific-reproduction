@@ -1,0 +1,21 @@
+goal_id: DEV-M7-G02
+attempt_id: DEV-M7-G02-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 58a84d26aa8a6f2a660926dd3a15de34d68e1e81
+branch: feat/dev-m7-g02-local-compute
+worktree: .worktrees/dev-m7-g02
+status: MERGED
+pr:
+  number: 51
+  url: https://github.com/lichman0405/scientific-reproduction/pull/51
+  head_sha: b59bdd753bd5c7a7d3a36ce359862cf5080e4de7
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M7-G02-a1
+merge_commit_sha: cae53abd44c531f4345a2e0ee90561fd516eb12d
+merged_at: '2026-08-14'
+commit_shas:
+- 43834006ff34cac9def9d65ef02637f8185f42cd
+- b59bdd753bd5c7a7d3a36ce359862cf5080e4de7
