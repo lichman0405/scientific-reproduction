@@ -10,7 +10,10 @@ tests/analysis -k result`` selects the whole suite. The ``ac01``/``ac02``/
   manifests the analysis consumed; a drifted reference that does not
   resolve to a registered entity (artifact, protocol version or
   acceptance record) is rejected with a stable
-  ``UnresolvedResultReferenceError`` at registration;
+  ``UnresolvedResultReferenceError`` at registration; artifact refs must
+  be safe registry ids (no path separators, not ``.``/``..``, no glob
+  metacharacters -- FND-M9-G02-01), so a ref can never escape the
+  ``manifests/`` registry;
 * ``ac02`` -- the protocol version is immutable in the result record: the
   frozen dataclass rejects any mutation of ``protocol_version`` and the
   registry writes each ``result_id`` exactly once -- re-registration, even
@@ -335,6 +338,163 @@ def test_result_ac01_without_acceptance_ref_accepted(tmp_path):
     # None is omitted from the canonical stored bytes (to_dict convention).
     raw = (root / RESULTS_STATE_DIR / "RES-1.json").read_text(encoding="utf-8")
     assert '"acceptance_ref"' not in raw
+
+
+# ---------------------------------------------------------------------------
+# FND-M9-G02-01: artifact refs must be safe registry ids (no traversal, no glob)
+# ---------------------------------------------------------------------------
+
+_UNSAFE_ARTIFACT_IDS = (
+    "../x",
+    "a/b",
+    "a\\b",
+    ".",
+    "..",
+    "ANL*",
+    "ANL?",
+    "ANL[1",
+    "ANL]1",
+)
+
+
+@pytest.mark.parametrize("unsafe_id", _UNSAFE_ARTIFACT_IDS)
+def test_result_unsafe_input_artifact_id_rejected_at_record_boundary(unsafe_id):
+    """An unsafe id in ``input_artifact_ids`` fails at record construction."""
+    with pytest.raises(ResultRecordError) as exc:
+        make_result_record("RES-1", input_artifact_ids=[unsafe_id])
+    message = str(exc.value)
+    assert "input_artifact_ids" in message
+    assert repr(unsafe_id) in message
+    assert "not a safe registry id" in message
+
+
+@pytest.mark.parametrize("unsafe_id", ("../x", "a\\b"))
+def test_result_unsafe_output_artifact_id_rejected_at_record_boundary(unsafe_id):
+    """An unsafe id in ``output_artifact_ids`` fails at record construction."""
+    with pytest.raises(ResultRecordError) as exc:
+        make_result_record("RES-1", output_artifact_ids=[unsafe_id])
+    message = str(exc.value)
+    assert "output_artifact_ids" in message
+    assert "not a safe registry id" in message
+
+
+@pytest.mark.parametrize("unsafe_id", _UNSAFE_ARTIFACT_IDS)
+def test_result_register_result_rejects_unsafe_input_artifact_ids(tmp_path, unsafe_id):
+    """Mapping input with an unsafe artifact id fails before anything is written."""
+    root = build_result_workspace(tmp_path)
+    with pytest.raises(ResultRecordError) as exc:
+        register_result(
+            root,
+            {
+                "result_id": "RES-1",
+                "analysis_id": "ANL-1",
+                "protocol_version": "v1",
+                "run_ref": "RUN-001",
+                "input_artifact_ids": [unsafe_id],
+                "primary_or_exploratory": "PRIMARY",
+            },
+        )
+    message = str(exc.value)
+    assert "input_artifact_ids" in message
+    assert "not a safe registry id" in message
+    assert not (root / RESULTS_STATE_DIR / "RES-1.json").exists()
+    assert list_results(root) == ()
+
+
+@pytest.mark.parametrize("unsafe_id", ("../EVIL", "ANL*"))
+def test_result_register_result_rejects_unsafe_output_artifact_ids(tmp_path, unsafe_id):
+    """Mapping input with an unsafe output artifact id fails before any write."""
+    root = build_result_workspace(tmp_path)
+    with pytest.raises(ResultRecordError) as exc:
+        register_result(
+            root,
+            {
+                "result_id": "RES-1",
+                "analysis_id": "ANL-1",
+                "protocol_version": "v1",
+                "run_ref": "RUN-001",
+                "input_artifact_ids": ["ART-001"],
+                "output_artifact_ids": [unsafe_id],
+                "primary_or_exploratory": "PRIMARY",
+            },
+        )
+    message = str(exc.value)
+    assert "output_artifact_ids" in message
+    assert "not a safe registry id" in message
+    assert not (root / RESULTS_STATE_DIR / "RES-1.json").exists()
+
+
+def test_result_regression_traversal_artifact_id_cannot_escape_manifests(tmp_path):
+    """FND-M9-G02-01 regression: ``manifests/../EVIL.json`` is unreachable.
+
+    On merged main an ``input_artifact_ids=["../EVIL"]`` reference resolved
+    ``manifests/../EVIL.json`` -- a crafted manifest-shaped JSON at the
+    workspace root, OUTSIDE the registry -- and registration succeeded
+    (the artifact registry has no id validation at ``get``). The traversal
+    must now fail with the stable error before any registry read, and the
+    crafted file's bytes must never be read.
+    """
+    root = build_result_workspace(tmp_path)
+    evil = {
+        "artifact_id": "EVIL",
+        "uri": "file:///raw/EVIL.csv",
+        "sha256": "b" * 64,
+        "size_bytes": 2048,
+        "created_at": "2026-01-01T00:00:00Z",
+        "run_id": "RUN-001",
+    }
+    evil_path = root / "EVIL.json"
+    evil_path.write_bytes(_canonical(evil).encode("utf-8"))
+    registry = ArtifactRegistry(root / ARTIFACTS_STATE_DIR)
+    assert [m.artifact_id for m in registry.list()] == ["ART-001"]
+    with pytest.raises(ResultRecordError) as exc:
+        register_result(
+            root, make_result_record("RES-1", input_artifact_ids=["../EVIL"])
+        )
+    message = str(exc.value)
+    assert "input_artifact_ids" in message
+    assert "'../EVIL'" in message
+    assert "not a safe registry id" in message
+    # Nothing was written and the crafted file was never read: the registry
+    # listing and the result registry are exactly as before.
+    assert not (root / RESULTS_STATE_DIR / "RES-1.json").exists()
+    assert [m.artifact_id for m in registry.list()] == ["ART-001"]
+    assert list_results(root) == ()
+    assert evil_path.read_bytes() == _canonical(evil).encode("utf-8")
+
+
+def test_result_defense_in_depth_unsafe_artifact_id_rejected_at_resolution_gate(
+    tmp_path,
+):
+    """The resolution gate refuses unsafe ids even if the shape check were bypassed.
+
+    The record boundary offers no bypass: ``dataclasses.replace`` and
+    ``from_dict`` both re-run the frozen constructor, so an unsafe artifact
+    id cannot reach registration through any public path. Defense-in-depth
+    (FND-M9-G02-01): the resolution gate re-checks every id before
+    ``ArtifactRegistry.get``, so the resolution loop never constructs a
+    registry path from an unsafe id.
+    """
+    root = build_result_workspace(tmp_path)
+    record = make_result_record("RES-1")
+    # replace re-runs the frozen constructor: it is not a bypass.
+    with pytest.raises(ResultRecordError):
+        replace(record, input_artifact_ids=["../EVIL"])
+    with pytest.raises(ResultRecordError):
+        replace(record, output_artifact_ids=["ANL*"])
+    with pytest.raises(ResultRecordError):
+        ResultRecord.from_dict(
+            {**record.to_dict(), "input_artifact_ids": ["../EVIL"]}
+        )
+    # Defense-in-depth: even an id that somehow bypassed the shape check is
+    # rejected at the resolution gate with the stable error, before any
+    # registry path is constructed.
+    with pytest.raises(UnresolvedResultReferenceError) as exc:
+        results_module._resolve_artifact_refs(root.resolve(), "RES-1", ["../EVIL"])
+    message = str(exc.value)
+    assert "RES-1" in message
+    assert "'../EVIL'" in message
+    assert "not a safe registry id" in message
 
 
 # ---------------------------------------------------------------------------

@@ -45,9 +45,13 @@ Registration resolves every reference against the registered entities:
 the protocol version must be a registered PROTOCOL record of the
 DEV-M9-G01 lineage, every input/output artifact id must be a registered
 manifest, and the acceptance ref must be a registered acceptance record.
-A drifted string that does not resolve to a registered entity is rejected
-with a stable ``UnresolvedResultReferenceError`` (exactness -- the
-references cannot silently point at nothing).
+Artifact refs are validated as safe registry ids at the record boundary
+(and re-checked at the resolution gate before any registry path is
+constructed), so an id can never escape the ``manifests/`` directory or
+select foreign records. A drifted string that does not resolve to a
+registered entity is rejected with a stable
+``UnresolvedResultReferenceError`` (exactness -- the references cannot
+silently point at nothing).
 
 Immutable protocol version (AC-02)
 ----------------------------------
@@ -127,9 +131,9 @@ class ResultRecordError(ResultRegistryError):
     """Raised when a result record violates the frozen record shape.
 
     Covers empty/malformed id and reference fields, non-empty-list
-    violations, duplicate references and protocol versions that are not
-    ``v<N>`` / ``v<N>-draft`` (the protocol version vocabulary of
-    DEV-M9-G01).
+    violations, duplicate references, unsafe artifact id entries (not
+    safe registry ids) and protocol versions that are not ``v<N>`` /
+    ``v<N>-draft`` (the protocol version vocabulary of DEV-M9-G01).
     """
 
 
@@ -253,14 +257,17 @@ class ResultRecord:
       (immutable in the record, AC-02);
     * ``run_ref`` -- the exact ``run_id`` of the input Run record (AC-01);
     * ``input_artifact_ids`` -- the exact ``artifact_id`` values of the raw
-      artifact manifests the analysis consumed (AC-01);
+      artifact manifests the analysis consumed (AC-01); every entry must be
+      a safe registry id (no '/', no '\\', not '.' or '..', no glob
+      metacharacters) so the refs can only resolve inside ``manifests/``;
     * ``primary_or_exploratory`` -- the primary/exploratory label;
     * ``acceptance_ref`` -- the acceptance criteria the result was
       evaluated against (None when the result carries no acceptance link);
     * ``requirement_refs`` -- Requirements this result supports (pure
       linkage, AC-03: registering a result never closes a Requirement);
     * ``output_artifact_ids`` -- plots/tables artifact ids the analysis
-      produced;
+      produced (each validated as a safe registry id like
+      ``input_artifact_ids``);
     * ``environment`` -- software/environment of the analysis run;
     * ``qc_findings`` -- QC findings;
     * ``metrics`` -- derived metrics;
@@ -352,6 +359,13 @@ class ResultRecord:
                 " artifact (the input artifact IDs of the result package)"
             )
         _require_ref_list(self, "output_artifact_ids")
+        # Artifact refs are registry ids: every entry must be a safe single
+        # path segment, or resolution at registration time could escape the
+        # ``manifests/`` directory (the artifact registry of DEV-M3-G02 has
+        # no id validation of its own). ``requirement_refs`` stays pure
+        # linkage (AC-03) and needs no safe-id check.
+        _require_safe_registry_id_entries(self, "input_artifact_ids")
+        _require_safe_registry_id_entries(self, "output_artifact_ids")
         _require_ref_list(self, "requirement_refs")
         if self.acceptance_ref is not None:
             if not isinstance(self.acceptance_ref, str):
@@ -510,6 +524,29 @@ def _require_ref_list(record: ResultRecord, field_name: str) -> None:
         seen.add(item)
 
 
+def _require_safe_registry_id_entries(
+    record: ResultRecord, field_name: str
+) -> None:
+    """Reject reference-list entries that are not safe registry ids.
+
+    Artifact refs resolve to ``<artifact_id>.json`` files under the project
+    ``manifests/`` registry at registration time, and that registry
+    (DEV-M3-G02) validates ids only at registration, not at ``get``: an
+    entry with a path separator, a ``.``/``..`` segment or a glob
+    metacharacter could escape the registry directory or select foreign
+    records. Every entry is therefore validated here with the module's
+    shared safe-id rule (``_is_safe_registry_id``), mirroring the DEV-M9-G01
+    protocol-registry fix at the result boundary (FND-M9-G02-01).
+    """
+    for value in getattr(record, field_name):
+        if not _is_safe_registry_id(value):
+            raise ResultRecordError(
+                f"ResultRecord.{field_name} entry {value!r} is not a safe"
+                " registry id (no '/', no '\\', not '.' or '..', no glob"
+                " metacharacters '*', '?', '[' or ']')"
+            )
+
+
 def _require_string_list(record: ResultRecord, field_name: str) -> None:
     """Validate a plain string-list field (entries non-empty strings)."""
     values = getattr(record, field_name)
@@ -573,13 +610,18 @@ def register_result(root: str | Path, result: ResultInput) -> ResultRecord:
     Raises:
         TypeError: ``root`` is not a str/Path, or ``result`` is neither a
             ``ResultRecord`` nor a mapping.
-        ResultRecordError: the record violates the frozen record shape.
+        ResultRecordError: the record violates the frozen record shape
+            (including an ``input_artifact_ids`` / ``output_artifact_ids``
+            entry that is not a safe registry id).
         InvalidResultIdError: the ``result_id`` is not a safe single path
             segment.
         DuplicateResultError: a result with the same id is already
             registered (stable message, original bytes untouched).
         UnresolvedResultReferenceError: a run/artifact/protocol/acceptance
-            reference does not resolve to a registered entity (AC-01).
+            reference does not resolve to a registered entity, or an
+            artifact ref is not a safe registry id (AC-01; unsafe ids are
+            rejected at the resolution gate before any registry path is
+            constructed).
         ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
         ValueError: a stored protocol/acceptance/artifact record is
             corrupt.
@@ -738,10 +780,22 @@ def _resolve_artifact_refs(
     AC-01: every referenced raw artifact must be a registered
     ``ArtifactManifest`` in the project ``manifests/`` registry (DEV-M3-G02);
     the exact ids are resolved in sorted order (deterministic error when
-    several references are unresolved).
+    several references are unresolved). Defense-in-depth: each id is
+    re-checked as a safe registry id before ``ArtifactRegistry.get`` (the
+    artifact registry validates ids only at registration, never at ``get``),
+    so the resolution loop never constructs a registry path from an unsafe
+    id even if a record somehow bypassed the record-boundary check.
     """
     registry = ArtifactRegistry(root / ARTIFACTS_STATE_DIR)
     for artifact_id in artifact_ids:
+        if not _is_safe_registry_id(artifact_id):
+            raise UnresolvedResultReferenceError(
+                f"result {result_id!r} references artifact {artifact_id!r},"
+                " which is not a safe registry id (no '/', no '\\', not '.'"
+                " or '..', no glob metacharacters '*', '?', '[' or ']'); the"
+                " ref must name the exact artifact_id of a registered"
+                " artifact manifest"
+            )
         try:
             registry.get(artifact_id)
         except ArtifactNotFoundError as exc:
