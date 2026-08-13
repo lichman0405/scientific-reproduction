@@ -5,5 +5,16 @@ base_branch: main
 base_sha: ab28cc0eab3ceed30a66eebdb4bbb3604bbb9650
 branch: feat/dev-m9-g02-results
 worktree: .worktrees/dev-m9-g02
-status: WORKING
-commit_shas: []
+status: MERGED
+pr:
+  number: 36
+  url: https://github.com/lichman0405/scientific-reproduction/pull/36
+  head_sha: fef3b865c0bd37831c2bd0b0163ae19aafcfc5f4
+  state: closed
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M9-G02-a1
+merge_commit_sha: 1beec5adc6e2770be97043fa2d4336b21c42dc07
+merged_at: '2026-08-13'
+commit_shas:
+- fef3b865c0bd37831c2bd0b0163ae19aafcfc5f4

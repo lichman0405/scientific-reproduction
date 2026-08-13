@@ -1,0 +1,207 @@
+review_id: DEV-M9-G02-a1
+goal_id: DEV-M9-G02
+attempt_id: DEV-M9-G02-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-13'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_result_ac01_names_exact_registered_artifact_refs
+    - test_result_ac01_run_ref_is_the_exact_input_run_id
+    - test_result_ac01_unregistered_artifact_ref_rejected
+    - test_result_ac01_unregistered_output_artifact_ref_rejected
+    - test_result_ac01_registered_output_artifact_ref_accepted
+    - test_result_ac01_unregistered_protocol_version_rejected
+    - test_result_ac01_result_kind_record_rejected_as_protocol_ref
+    - test_result_ac01_unregistered_acceptance_ref_rejected
+    - test_result_ac01_registered_acceptance_ref_resolved
+    - test_result_ac01_without_acceptance_ref_accepted
+    notes: >-
+      10 tests (matches claim exactly). Exactness is enforced at
+      registration: every input_artifact_ids / output_artifact_ids entry
+      resolves against the real ArtifactRegistry (manifests/, DEV-M3-G02),
+      the protocol reference (analysis_id + protocol_version) resolves
+      against the DEV-M9-G01 versioned lineage via read_protocol_version
+      and must be a PROTOCOL-kind record (a RESULT-kind record in the
+      lineage is rejected), and acceptance_ref resolves via
+      read_acceptance. Every drifted/unregistered reference raises the
+      stable UnresolvedResultReferenceError naming the result id and the
+      ref, and writes nothing. The run_ref is the exact run_id of the
+      input Run record (proven equality with the input model and the
+      stored bytes); the worker documents the design constraint that v0.1
+      has no Run registry (only the frozen Run model), so the ref is
+      shape-validated at the record boundary and proven exact against the
+      input record -- a sound reading of "names exact input Run ref" given
+      the merged state, recorded in the module docstring and the review
+      notes. acceptance_ref None is omitted from the stored bytes.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_result_ac02_protocol_version_immutable_in_memory
+    - test_result_ac02_duplicate_registration_rejected_bytes_untouched
+    - test_result_ac02_re_registration_with_different_version_rejected
+    - test_result_ac02_duplicate_error_is_stable_across_attempts
+    - test_result_ac02_stored_record_is_immutable_replacement_never_written
+    notes: >-
+      5 tests (matches claim exactly). Two layers of immutability: the
+      record is a frozen dataclass (FrozenInstanceError on any mutation of
+      protocol_version, run_ref, etc. -- in memory, after registration and
+      after reload), and the registry is exactly-once per result_id
+      (DuplicateResultError with the stable "...written exactly once
+      (AC-02)" message; re-registration even with a different
+      protocol_version is rejected and the original file bytes stay
+      untouched, proven byte-for-byte including against a dataclasses.replace
+      tampered record). Stored bytes are canonical JSON equal to
+      record.to_dict() serialization.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_result_ac03_registration_leaves_referenced_requirement_open
+    - test_result_ac03_exposes_requirement_linkage_without_closure
+    - test_result_ac03_result_requires_no_requirement_at_all
+    notes: >-
+      3 tests (matches claim exactly). requirement_refs is pure linkage:
+      after registration the referenced requirement record is byte
+      untouched with outcome still OPEN; the module's source provably
+      never imports the requirement/outcome layers (no register_requirement
+      call, no core.rules import, no planning.inventory import -- asserted
+      via inspect.getsource); a result may carry no requirement refs at
+      all. Close semantics stay with the requirement/outcome layer.
+  paradigm:
+    status: PASS
+    evidence:
+    - test_result_registry_canonical_json_and_roundtrip
+    - test_result_mapping_input_coerced_with_defaults
+    - test_result_mapping_invalid_enum_value_rejected
+    - test_result_deterministic_listing_sorted_by_id
+    - test_result_deterministic_same_state_same_bytes
+    - test_result_read_roundtrip_and_not_found
+    - test_result_type_error_boundaries
+    - test_result_record_shape_validation_rejects_bad_values
+    - test_result_error_hierarchy_and_stable_messages
+    - test_result_requires_initialized_project
+    - test_result_rejects_unsafe_ids_at_every_boundary
+    - test_result_corrupt_registry_records_rejected
+    - test_result_protocol_and_result_registries_are_isolated
+    notes: >-
+      13 tests (matches claim exactly). Error hierarchy
+      ResultRegistryError(ValueError) -> ResultRecordError /
+      DuplicateResultError / InvalidResultIdError / ResultNotFoundError /
+      UnresolvedResultReferenceError, all ValueError subclasses, stable
+      messages across repeated raises; TypeError at public boundaries
+      (root not str/Path, result not record/mapping, tuple-not-list ref
+      fields, wrong enum types, bad optional types); record shape
+      validation (empty ids/refs, protocol version regex v<N>(-draft),
+      duplicate refs, non-empty input list); unsafe ids rejected at every
+      boundary INCLUDING glob metacharacters ('*' '?' '[' ']' -- the
+      DEV-M9-G01 lesson applied; the listing glob is fixed "*.json" with
+      no id interpolation, so no injection vector); corrupt records
+      (unparseable, non-object, missing required field, result_id/file
+      name mismatch) -> stable ValueError "corrupt analysis result
+      record"; ProjectNotInitializedError gate; deterministic sorted
+      listing and byte-identical same-state outputs; canonical JSON +
+      atomic_write; protocol and result registries isolated (protocol
+      listing/lineage unaffected by result records and vice versa; a
+      protocol id is never a result id); mapping input coerced with
+      defaults and invalid enum values rejected. 10+5+3+13 = 31 total
+      (matches claim exactly).
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m9-g01 (reinstalled editable from the
+    M9-G02 worktree before this review; import resolution confirmed to the
+    worktree copy)
+  head_sha: fef3b865c0bd37831c2bd0b0163ae19aafcfc5f4
+  commands:
+  - cmd: pytest -q tests/analysis -k result
+    result: 32 passed, 53 deselected (matches worker claim exactly; 31 new
+      + 1 pre-existing test_protocol_ac02_primary_result_immutable_and_authoritative)
+  - cmd: pytest -q tests
+    result: 1435 passed, 6 skipped, 1 deselected, exit 0 (matches worker
+      claim exactly; main at base ab28cc0 carries 1404 tests + 31 new =
+      1435; no flake on this run)
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: "Success: no issues found in 61 source files (matches worker
+      claim; 60 at base + results.py = 61)"
+  - cmd: python scripts/validate_development_contracts.py
+    result: "PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed"
+  - cmd: gh pr checks 36
+    result: "Test, lint, and type check: pass; Validate development contracts: pass"
+  pyright_notes: >-
+    The diagnostics observed mid-flight (ResultInput undefined, from_dict
+    unknown, Self-return-type mismatch, unreachable-code hints) were all
+    intermediate-iteration states: on the final head ResultInput is
+    defined before use (line 473), from_dict exists on ResultRecord, and
+    the class carries no alias doc. Remaining noise on the head: the
+    import-unresolved reports are the established stale main-repo
+    snapshot class (all modules exist in the head; mypy passes).
+
+design_review:
+  exact_references: >-
+    AC-01 exactness is enforced at the persistence gate in a fixed order:
+    id safety -> duplicate check -> protocol ref -> artifact refs ->
+    acceptance ref, every resolution through the real merged registries
+    (read_protocol_version / ArtifactRegistry / read_acceptance), with
+    UnresolvedResultReferenceError before anything is written. The run
+    ref's shape validation (safe single path segment) plus the exact
+    equality proof against the input Run record is the correct reading
+    given the absence of a Run registry in v0.1 -- documented openly
+    rather than silently re-interpreted.
+  immutability: >-
+    AC-02 holds at both layers: frozen dataclass (in-memory immutability,
+    including after reload) and exactly-once registry (filesystem
+    immutability, byte-proven against duplicate and tampered
+    re-registration). The stable DuplicateResultError message names the
+    id and the exactly-once rule.
+  closure_separation: >-
+    AC-03 is structural: results.py imports no requirement/outcome layer
+    (asserted from source in tests) and requirement_refs is pure linkage;
+    the module pins the protocol version and the G01 acceptance gate
+    (assert_acceptance_eligible) remains the gate -- the result module
+    never re-derives acceptance.
+  registry_isolation: >-
+    analysis/results/ is a sibling of analysis/protocols/: the M4-G04
+    plan-level protocol listing and the M9-G01 versioned lineage glob
+    only the protocols/ tree and cannot see result records; the result
+    registry globs only its own *.json. Isolation proven behaviorally
+    (both registries list exactly their own records after registering a
+    result) and structurally (reviewed in full).
+  paradigm: >-
+    Frozen dataclass with strict __post_init__; TypeError vs
+    ValueError-subclass split with stable one-line messages; safe-id
+    validation including glob metacharacters at every public boundary;
+    canonical JSON + atomic_write; deterministic sorted listing;
+    ProjectNotInitializedError gate; __all__; from __future__ import
+    annotations; zero type: ignore / noqa.
+
+scope_check: PASS
+notes: >-
+  Both files read in full (results.py 816 lines, test_results.py 739
+  lines, 31 tests) and verified against the real registries on the head.
+  Every worker claim reproduced: 32/1435-6-1 / ruff clean / mypy 61 /
+  contracts PASS / CI both jobs PASS, exact head fef3b86, single commit,
+  scope exactly results.py + test_results.py (protocol_helpers.py reused
+  by import only, not modified). The mid-flight pyright flags resolved on
+  the final head. AC-01 x10 / AC-02 x5 / AC-03 x3 / paradigm x13 = 31.
+  The design note about the absent Run registry is sound and documented.
+  Decision: PASS; merge authorized as squash with subject "feat(analysis):
+  analysis result package and trace links [DEV-M9-G02]".
+
+git_review:
+  pr_number: 36
+  pr_title: 'feat(analysis): analysis result package and trace links [DEV-M9-G02]'
+  branch: feat/dev-m9-g02-results
+  base_sha: ab28cc0eab3ceed30a66eebdb4bbb3604bbb9650
+  reviewed_head_sha: fef3b865c0bd37831c2bd0b0163ae19aafcfc5f4
+  changed_files: 2 (src/scientific_reproduction/analysis/results.py,
+    tests/analysis/test_results.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
