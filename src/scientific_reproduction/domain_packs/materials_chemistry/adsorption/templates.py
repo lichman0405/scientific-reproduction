@@ -852,7 +852,6 @@ ADSORPTION_PARAMETER_RULES: tuple[AdsorptionParameterRule, ...] = (
             " diameter, the dead volume, the detector and the regeneration"
             " and cycling protocols (16-...DOMAIN-PACK SS5 breakthrough"
             " record and pre-execution inventory)"
-            " inventory)"
         ),
         required_parameters=(
             "adsorbate",
@@ -1535,18 +1534,6 @@ def _validate_template_id(class_name: str, value: str) -> None:
 # ---------------------------------------------------------------------------
 # Universal evaluation (pure and deterministic)
 # ---------------------------------------------------------------------------
-
-
-def _rule_for_kind_stage(
-    kind: AdsorptionKind, stage: AdsorptionStage
-) -> AdsorptionParameterRule:
-    """The required-parameter rule of a (kind, stage) pair (first match)."""
-    for rule in ADSORPTION_PARAMETER_RULES:
-        if rule.predicate(kind, stage):
-            return rule
-    # The trailing total default always matches (validate_adsorption_rulesets
-    # guarantees it); this line is unreachable.
-    return ADSORPTION_PARAMETER_RULES[-1]
 
 
 def assess_parameter_completeness(
