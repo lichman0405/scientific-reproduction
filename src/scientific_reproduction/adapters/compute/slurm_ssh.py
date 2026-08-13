@@ -215,10 +215,6 @@ SLURM_STATE_UNAVAILABLE_NOTE: str = (
 #: Producer stamp written into collected artifact manifests.
 _PRODUCER_STAMP: str = f"adapter:{ADAPTER_ID}@v{ADAPTER_VERSION}"
 
-#: Whitespace/newline characters rejected inside environment values
-#: (they are embedded in the generated batch script).
-_ENV_VALUE_UNSAFE = ("\x00", "\n", "\r")
-
 #: Characters allowed in a module name (``module load <name>``): module
 #: names like ``gcc/13.2.0`` legitimately carry ``/``, ``.`` and ``-``,
 #: so the ssh safe-segment discipline is widened for this one field;
