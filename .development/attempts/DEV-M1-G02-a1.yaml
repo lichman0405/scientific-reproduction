@@ -1,0 +1,9 @@
+goal_id: DEV-M1-G02
+attempt_id: DEV-M1-G02-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 52c8e276786a
+branch: feat/dev-m1-g02-state-backend
+worktree: .worktrees/dev-m1-g02
+status: WORKING
+commit_shas: []
