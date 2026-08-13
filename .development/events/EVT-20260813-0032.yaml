@@ -1,0 +1,24 @@
+event_id: EVT-20260813-0032
+timestamp: '2026-08-13'
+type: GOAL_DISPATCHED
+goal_id: DEV-M4-G04
+attempt_id: DEV-M4-G04-a1
+pr_number: null
+head_sha: null
+merge_sha: null
+summary: >-
+  DEV-M4-G04 dispatched to worker (agent_team_task) on branch
+  feat/dev-m4-g04-plan, worktree .worktrees/dev-m4-g04, base 0ffd7b3
+  (origin/main after M4-G03 merge). Frozen contract: Plan v1 builder +
+  freeze API + versioned revision API (planning/plan.py, planning/freeze.py,
+  tests/planning/test_freeze*); AC-01 freeze prohibited without passing
+  completeness audit; AC-02 frozen Goal/Acceptance/Analysis/Closure objects
+  reject direct mutation; AC-03 formal revision creates new version and
+  preserves old record. Grounding: schemas/plan.schema.yaml, core.models
+  Plan/PlanInventoryAudit/PlanStatus (DRAFT/UNDER_AUDIT/FROZEN/SUPERSEDED,
+  parent_plan_version, frozen_at, frozen_commit), M4-G03
+  evaluate_completeness_audit/plan_inventory_audit as the AC-01 gate,
+  14-STATE-GIT-ARTIFACTS.md SS5 ("Inventory audit passed" / "Plan v1
+  frozen" checkpoints). Concurrency after dispatch: active 2 (M4-G04,
+  M5-G05) <= 5; M4 same-milestone 1 <= 3; M5 same-milestone 1 <= 3;
+  cross-cutting 0 <= 1.

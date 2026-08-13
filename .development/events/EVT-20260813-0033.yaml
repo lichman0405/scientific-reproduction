@@ -1,0 +1,27 @@
+event_id: EVT-20260813-0033
+timestamp: '2026-08-13'
+type: GOAL_DISPATCHED
+goal_id: DEV-M5-G05
+attempt_id: DEV-M5-G05-a1
+pr_number: null
+head_sha: null
+merge_sha: null
+summary: >-
+  DEV-M5-G05 dispatched to worker (agent_team_task) on branch
+  feat/dev-m5-g05-saturation, worktree .worktrees/dev-m5-g05, base 0ffd7b3
+  (origin/main after M4-G03 merge). Frozen contract: search cycle model +
+  eligible-hypothesis novelty tracker + saturation evaluator
+  (research/saturation.py, tests/research/test_saturation*); AC-01 one
+  zero-novelty cycle is insufficient; AC-02 two consecutive completed
+  expansion cycles with zero new eligible hypotheses satisfy v0.1
+  saturation; AC-03 eligible hypothesis threshold can reference
+  Reliability/Directness rules. Grounding: 09-RESEARCH-SUBSYSTEM.md SS7
+  (store each search cycle and the number of new eligible Recovery
+  hypotheses; two consecutive zero-novelty cycles after all required
+  search families covered), 08-STRICT-RECOVERY-CLOSURE.md (default v0.1
+  rule, configurable and frozen; eligibility Reliability >= 3, Directness
+  >= 2, actionable = true), core.models ClosureLiterature
+  (consecutive_zero_novelty_cycles, required_zero_novelty_cycles = 2),
+  core.rules.evidence (M2) as the AC-03 referenceable rules.
+  Concurrency after dispatch: active 2 (M4-G04, M5-G05) <= 5; M4
+  same-milestone 1 <= 3; M5 same-milestone 1 <= 3; cross-cutting 0 <= 1.

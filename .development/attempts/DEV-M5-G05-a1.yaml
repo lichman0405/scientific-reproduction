@@ -1,0 +1,9 @@
+goal_id: DEV-M5-G05
+attempt_id: DEV-M5-G05-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 0ffd7b38a4354cc08883e39c9eaa0761c4bc688a
+branch: feat/dev-m5-g05-saturation
+worktree: .worktrees/dev-m5-g05
+status: WORKING
+commit_shas: []
