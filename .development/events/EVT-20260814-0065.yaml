@@ -1,0 +1,59 @@
+event_id: EVT-20260814-0065
+timestamp: '2026-08-14'
+type: GOAL_MERGED
+goal_id: DEV-M8-G03
+attempt_id: DEV-M8-G03-a1
+pr_number: 59
+head_sha: e0d6b06c3415841fbbbe9d8f3c6159bb2121c675
+merge_sha: c9d1deda4122dce463ac1beffb661d4942f32a32
+summary: >-
+  DEV-M8-G03 merged (engineering retry whitelist): 2 files +2267/-0
+  (monitoring/retry.py 942 new, tests/monitoring/test_retry_dispatcher.
+  py 1325 new, 27 tests). Review DEV-M8-G03-a1 PASS (no defects).
+  AC-01 whitelisted identical resubmission: ENGINEERING_RETRY_WHITELIST
+  == {"transport"} (mirrors adapters/compute/ssh.py FAILURE_CLASS_*
+  vocabulary as documented constants, never imported); decide() resolves
+  the deterministic decision event id and checks ProjectEventLog.get()
+  BEFORE touching the injected resubmission hook -- a recorded decision
+  replays (replayed=True) with zero hook re-invocation (exactly-once
+  per recorded decision); authorized decisions call the hook with the
+  watch identity and append one engineering_retry_decision event
+  (actor execution-monitor, reason engineering_failure_retry_
+  authorized, payload failure_class + decision + resubmitted identity)
+  under the idempotency key retry.decision:<run_id>:<class>; the run
+  record stays byte-identical (the dispatcher never writes the run
+  store). AC-02 no scientific mutation: "job"/None/unrecognized classes
+  are refused safe-by-construction (membership test), hook never
+  invoked (counting proof), run parameters and bytes untouched, refusal
+  recorded (reason scientific_failure_retry_refused, no receipt); the
+  default configuration can never authorize (default classifier always
+  unclassified; default hook raises loudly, never a silent no-op).
+  AC-03 auditable history: every decision authorized AND refused is one
+  deterministic event through the real ProjectEventLog; a fresh
+  dispatcher replays recorded decisions from durable state alone (zero
+  hook calls, byte-identical event/run stores); identical inputs give
+  byte-identical state (canonical sorted JSON asserted byte-for-byte);
+  corrupt recorded payloads fail replay loudly (CorruptRetryStateError).
+  Contract errors: RetryContractError for lifecycle (only
+  RUNNING_EXTERNAL can carry a retry), identity mismatch, non-identical
+  hook return (backend change / unaddressable); TypeError at public
+  boundaries; injected clock; no wall clock; no secrets (credential-
+  shaped scans incl. classifier exception messages); no-adapters
+  boundary proven in a fresh interpreter. Verification: -k retry 27
+  passed/64 deselected; tests/monitoring 91 (= 64 + 27); tests/adapters
+  tests/integration 408 (no regression); ruff clean; mypy 87 head/87
+  scratch; contracts PASS; scratch full suite 2691 passed, 6 skipped, 1
+  deselected (= 2664 base + 27, exact prediction; no flake on the
+  independent run -- the worker's single failure was the known load
+  flake, re-run alone passed); CI both jobs PASS on head e0d6b06.
+  Branch parent f0bd548 (dispatch-time origin/main; single commit; no
+  rebase). Worker deviations (all compliant): test filename
+  test_retry_dispatcher.py (prepend import-mode collision with the
+  pre-existing tests/workers/test_retry.py; satisfies the frozen glob
+  test_retry*); decide() takes the failure class as an argument
+  (classification stays in the caller/adapter); the crash-window hook
+  re-invocation gap (no durable intent marker) documented in the
+  docstring to stay within scope. All 8 type: ignore[arg-type] are
+  deliberate boundary tests; pyright diagnostics are stale mid-edit
+  snapshots / static narrowing of the boundary raises, not defects.
+  Merged count 58/80.

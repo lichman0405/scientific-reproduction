@@ -1,0 +1,20 @@
+goal_id: DEV-M8-G03
+attempt_id: DEV-M8-G03-a1
+change_type: FEATURE
+base_branch: main
+base_sha: f0bd548b02126c45482501a86ecb922144dd2abd
+branch: feat/dev-m8-g03-retry-whitelist
+worktree: .worktrees/dev-m8-g03
+status: MERGED
+pr:
+  number: 59
+  url: https://github.com/lichman0405/scientific-reproduction/pull/59
+  head_sha: e0d6b06c3415841fbbbe9d8f3c6159bb2121c675
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M8-G03-a1
+merge_commit_sha: c9d1deda4122dce463ac1beffb661d4942f32a32
+merged_at: '2026-08-14'
+commit_shas:
+- e0d6b06c3415841fbbbe9d8f3c6159bb2121c675

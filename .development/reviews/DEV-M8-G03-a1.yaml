@@ -1,0 +1,227 @@
+review_id: DEV-M8-G03-a1
+goal_id: DEV-M8-G03
+attempt_id: DEV-M8-G03-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_ac01_whitelisted_transport_failure_triggers_identical_resubmission
+    - test_ac01_resubmission_is_exactly_once_per_retry_decision
+    notes: >-
+      A failure class on the engineering retry whitelist
+      (ENGINEERING_RETRY_WHITELIST == frozenset({FAILURE_CLASS_TRANSPORT}),
+      asserted in the test) triggers an IDENTICAL resubmission through
+      the injected hook: the hook receives the watch entry's external
+      identity (same backend, same working directory), the resubmission
+      receipt (the new external identity returned by the hook) is
+      recorded, exactly one deterministic engineering_retry_decision
+      event is appended (actor execution-monitor, stable reason
+      engineering_failure_retry_authorized, payload carrying the failure
+      class + decision + resubmitted identity, sequence 1), and the Run
+      record -- parameters and lifecycle -- is byte-identical after the
+      decision (an identical resubmission never mutates the run; the
+      dispatcher never writes the run store). Exactly-once per recorded
+      decision: re-deciding the same failure resolves the deterministic
+      event id through ProjectEventLog.get() and replays the recorded
+      history (replayed=True, original receipt and stamp) -- one hook
+      call total, one record, sequence never advances twice.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_ac02_scientific_compute_failure_never_resubmits_or_mutates
+    - test_ac02_unclassified_failure_is_refused_and_recorded
+    - test_ac02_unrecognized_failure_class_is_refused_safe_by_construction
+    - test_ac02_default_configuration_never_authorizes_a_retry
+    notes: >-
+      A scientific compute failure never triggers parameter mutation:
+      the "job" class (FAILURE_CLASS_JOB), an unclassified failure
+      (None) and any unrecognized failure-class string are ALL refused
+      (the whitelist membership test makes refusal the safe-by-
+      construction default for every class outside the set). In each
+      case the resubmission hook is never invoked (injected counter
+      records zero calls), the Run's parameters and persisted state
+      bytes are untouched (byte-identical file, Run equality,
+      lifecycle/goal/type/external all unchanged), and the refusal is
+      observed and recorded as one refused decision event (stable reason
+      scientific_failure_retry_refused, no receipt in the payload). The
+      default configuration (no classifier, no hook) can never authorize
+      a retry: the default classifier always reports unclassified and
+      the default hook raises loudly (never a silent no-op), with
+      nothing recorded on the loud failure. The dispatcher has NO run-
+      store write path anywhere in the module (verified in the code).
+  AC-03:
+    status: PASS
+    evidence:
+    - test_ac03_fresh_dispatcher_replays_recorded_decisions_without_reexecution
+    - test_ac03_byte_identical_durable_state_for_identical_inputs
+    - test_ac03_every_decision_is_auditable_in_the_event_log
+    notes: >-
+      Retry history remains auditable: every decision (authorized AND
+      refused) is appended through the REAL append-only ProjectEventLog
+      as an engineering_retry_decision event under the deterministic
+      idempotency key retry.decision:<run_id>:<failure class>, with the
+      event id a pure function of the decision inputs
+      (generate_id("event", "engineering_retry_decision", run_id,
+      normalized_class)) and the event vocabulary (actor, reasons,
+      payload fields) documented in the module docstring. A FRESH
+      dispatcher over the same state directory, run store and event log
+      reconstructs the retry history from the recorded events alone:
+      re-deciding the same failures replays the recorded outcomes
+      (original stamp and receipt, replayed=True) with a fresh hook
+      instance receiving ZERO calls, event-log and run-store bytes
+      identical. Identical injected inputs produce byte-identical
+      durable state across two independent directories (canonical
+      sorted JSON asserted byte-for-byte: file content == json.dumps
+      with indent=2/sort_keys). The 3-mixed-decision audit test proves
+      the full vocabulary per record (deterministic sorted order,
+      sequence 1-2-3, per-run reason/payload assertions). The empty
+      watch set yields a deterministic empty summary with no events.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m8-g03 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: e0d6b06c3415841fbbbe9d8f3c6159bb2121c675
+  commands:
+  - cmd: pytest -q tests/monitoring -k retry
+    result: 27 passed, 64 deselected (the goal verification command;
+      27 new tests, 0 baseline)
+  - cmd: pytest -q tests/monitoring
+    result: '91 passed (64 M8-G01/G02 baseline + 27 new, matches the
+      worker claim exactly)'
+  - cmd: pytest -q tests/adapters tests/integration
+    result: '408 passed (no regression)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 87 source files (86 baseline +
+      retry.py)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (scratch worktree at e0d6b06; branch parent ==
+      origin/main f0bd548, so the merged state == the head)
+    result: '2691 passed, 6 skipped, 1 deselected (= 2664 base at
+      f0bd548 + 27 new, exact prediction; no lease flake on the
+      independent run -- the worker''s single full-suite failure was the
+      known load flake, re-run alone passed)'
+  - cmd: mypy src/ (scratch worktree)
+    result: 'Success: no issues found in 87 source files'
+  - cmd: gh pr checks 59
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head e0d6b06)'
+
+design_review:
+  record_before_execute_discipline: >-
+    Exactly-once per recorded decision is engineered, not asserted: the
+    dispatcher resolves the deterministic decision event id and checks
+    ProjectEventLog.get() BEFORE touching the resubmission hook, so a
+    re-decided (or restart-replayed) decision returns the recorded
+    history (replayed=True) and never re-invokes the hook; the decision
+    record is the durable "retry was performed" fact, and the append
+    carries the deterministic idempotency key retry.decision:<run_id>:
+    <class>. The one honest gap -- a crash between the hook call and the
+    record append re-invokes the hook on re-decision -- is documented
+    explicitly in the module docstring (no durable intent marker was
+    added to stay within the frozen scope), and once the record exists
+    re-deciding is a pure idempotent replay. This is the same
+    crash-window honesty as DEV-M8-G02's checkpoint-marker discipline.
+  safe_by_construction_refusal: >-
+    AC-02 is structural: the whitelist is a single-member frozenset and
+    the authorization test is membership in it, so EVERYTHING outside --
+    the scientific "job" class, unclassified None, unrecognized strings
+    -- is refused by construction, with the default classifier (always
+    unclassified) making the default configuration incapable of
+    authorizing anything and the default hook failing loudly rather
+    than silently dropping a resubmission. The dispatcher never writes
+    the run store (no parameter mutation path exists), and a transient
+    classifier exception is normalized to unclassified with the
+    exception message discarded (proven by credential-shaped byte
+    scans of every persisted file).
+  real_machinery_verification: >-
+    The tests exercise the REAL machinery end to end: persisted Run
+    records re-read through Run.from_dict, decision records through the
+    real ProjectEventLog with sequence numbers and the documented
+    idempotency keys (asserted on disk), replay through
+    ProjectEventLog.get() (confirmed to exist at core/events.py:263),
+    canonical event bytes asserted byte-for-byte against
+    json.dumps(indent=2, sort_keys=True). The dispatcher persists
+    nothing itself; every write flows through the injected/derived
+    registry, run store and event log.
+  determinism_and_discipline: >-
+    Injected clock (FakeClock fixed stamp; the dispatcher's clock
+    consultation asserted), deterministic event ids (pure function of
+    decision inputs), sorted traversal (decide_all iterates the
+    registry's sorted watch set; RetrySummary self-validates sorted
+    outcomes and count consistency), canonical sorted JSON through the
+    stores, byte-identity across directories. TypeError at every public
+    boundary (state_dir/now/classifier/resubmit/run_store/event_log and
+    decide's run_id/failure_class), stable MonitoringError subclasses
+    (RetryError -> RetryContractError/CorruptRetryStateError), corrupt
+    recorded decisions fail replay loudly, the no-adapters boundary is
+    proven in a fresh interpreter (monitoring package import leaves
+    scientific_reproduction.adapters out of sys.modules), and the
+    failure-class vocabulary mirrors adapters/compute/ssh.py exactly
+    (FAILURE_CLASS_TRANSPORT == "transport", FAILURE_CLASS_JOB == "job")
+    without importing it.
+  type_ignore_audit: >-
+    All 8 # type: ignore[arg-type] comments (test_retry_dispatcher.py
+    lines 1276-1299) are deliberate wrong-type boundary passes under
+    pytest.raises(TypeError) -- the house boundary-test pattern (same
+    judgment as DEV-M7-G04, DEV-M8-G01, DEV-M8-G02 and DEV-M8-G04);
+    none masks a real defect. The pyright "unreachable" diagnostics at
+    retry.py lines 527-549 are the six TypeError boundary raises (static
+    narrowing), the "_resubmit unknown at 706" and "import could not be
+    resolved" diagnostics are stale mid-edit snapshots (the final code
+    defines self._resubmit_fn at retry.py:558 and mypy passes 87
+    clean), and the "_external is not accessed" info at retry.py:265 is
+    the intentional underscore-named unused parameter of the default
+    classifier. No other ignores or noqas anywhere.
+
+scope_check: PASS
+notes: >-
+  Full review of both changed files completed line by line (retry.py
+  942 new, tests/monitoring/test_retry_dispatcher.py 1325 new, 27 tests;
+  three-dot diff origin/main...HEAD = exactly these 2 files +2267/-0).
+  Stale-base handling compliant: branch parent f0bd548 == origin/main at
+  dispatch (single commit e0d6b06, no rebase, no force-push, no amended
+  history); CI both jobs PASS on head e0d6b06. No deviations from the
+  frozen contract: allowed_scope respected (monitoring/retry.py and
+  tests/monitoring/test_retry* only), no existing test modified, no
+  --no-verify, Draft PR (not ready, no reviewers), conventional commit
+  message with [DEV-M8-G03]. Worker deviations from the brief, all
+  justified and compliant: (1) test filename test_retry_dispatcher.py
+  instead of test_retry.py -- pytest's default --import-mode=prepend
+  hard-errors full-suite collection on the pre-existing
+  tests/workers/test_retry.py basename collision, making the mandatory
+  full-suite gate impossible without touching an out-of-scope file; the
+  name still satisfies the frozen glob tests/monitoring/test_retry* and
+  -k retry selects all 27 tests; (2) decide() takes the failure class as
+  an argument (decide_all() classifies through the injected classifier)
+  -- keeps the adapters entirely out of the module, matching the frozen
+  constraint that the vocabulary be mirrored, never imported; (3) the
+  crash-window hook re-invocation gap is documented rather than closed
+  with a durable intent marker, to stay within scope -- accepted with
+  the docstring disclosure. Worker's full-suite run hit the known load
+  flake (tests/state/test_leases.py concurrent lease-takeover; re-run
+  alone passes) -- my independent scratch run at the same commit passed
+  2691/6/1 with no flake. No defects found. Decision: PASS; merge
+  authorized as squash with subject "feat(monitoring): engineering
+  retry whitelist [DEV-M8-G03]".
+
+git_review:
+  pr_number: 59
+  pr_title: 'feat(monitoring): engineering retry whitelist [DEV-M8-G03]'
+  branch: feat/dev-m8-g03-retry-whitelist
+  base_sha: f0bd548b02126c45482501a86ecb922144dd2abd
+  reviewed_head_sha: e0d6b06c3415841fbbbe9d8f3c6159bb2121c675
+  changed_files: 2 (monitoring/retry.py,
+    tests/monitoring/test_retry_dispatcher.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
