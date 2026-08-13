@@ -15,6 +15,8 @@ dependencies = []
 dev = [
     "pytest>=7",
     "pytest-cov>=4",
+    "ruff>=0.6",
+    "mypy>=1.10",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -31,3 +33,26 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Ruff linter (DEV-M0-G02): deterministic lint gate for the repository's
+# owned code (scripts/, src/, tests/).
+# E4/E7/E9 = unambiguous pycodestyle errors, F = pyflakes, I = import sorting.
+[tool.ruff]
+target-version = "py311"
+# Frozen spec content lives under development/ and .development/; the frozen
+# spec rules forbid reformatting it, so the lint gate excludes those trees.
+extend-exclude = [
+    "development",
+    ".development",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+# Mypy type checker (DEV-M0-G02): pip-installable and deterministic, so CI
+# needs no Node toolchain. Non-strict for now; untyped defs are still checked.
+[tool.mypy]
+python_version = "3.11"
+strict = false
+check_untyped_defs = true
+files = ["src"]

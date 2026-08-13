@@ -1,9 +1,8 @@
 name: CI
 
-# Bootstrap CI: every pull request targeting `main` must pass the
-# deterministic development-contract validation before it may merge.
-# Package test tooling is added by later milestones (M0-G02+); until then
-# this workflow validates specification/development contracts.
+# Every pull request targeting `main` must pass the deterministic
+# development-contract validation, the unit test suite, the lint gate,
+# and the type/static check before it may merge (DEV-M0-G00/G02).
 on:
   pull_request:
     branches: [main]
@@ -31,3 +30,30 @@ jobs:
         # Exits non-zero on any malformed milestone/goal contract or DAG
         # issue, failing the pull request.
         run: python scripts/validate_development_contracts.py
+
+  test-lint-type:
+    name: Test, lint, and type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package with dev extras
+        run: pip install -e ".[dev]"
+
+      - name: Run unit tests
+        # Exits non-zero on any failing test, failing the pull request.
+        run: python -m pytest -q
+
+      - name: Lint with ruff
+        # Exits non-zero on any lint violation, failing the pull request.
+        run: python -m ruff check .
+
+      - name: Type check with mypy
+        # Exits non-zero on any type error, failing the pull request.
+        run: python -m mypy src/
