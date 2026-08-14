@@ -1,0 +1,40 @@
+goal_id: DEV-M12-G06
+attempt_id: DEV-M12-G06-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 306cd854e7337abb329b6fbd6102bc312a08dacd
+branch: feat/dev-m12-g06-scenarios-f-j
+worktree: .worktrees/dev-m12-g06
+status: MERGED
+pr:
+  number: 74
+  url: https://github.com/lichman0405/scientific-reproduction/pull/74
+  head_sha: 11db5803537042ecb43d5d42b848ce1c84c2cf9a
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M12-G06-a1
+merge_commit_sha: 603929de011f6cd87358b482968ef2790546373e
+merged_at: '2026-08-14'
+commit_shas:
+- 11db5803537042ecb43d5d42b848ce1c84c2cf9a
+review_notes: >-
+  Single-attempt PASS review (DEV-M12-G06-a1, zero findings, two
+  non-blocking observations OBS-M12-G06-01 inventory repair semantics and
+  OBS-M12-G06-02 missing assumption/human-gate registry helpers, both
+  tracked for the M13 Release Gate). Delivered 3 files under
+  tests/scenarios/test_F*/test_I*/test_J*: test_F extended with
+  test_F_ac01 (Supervisor scientific review is the required next step:
+  decisions registry empty after scenario, diagnosis/research/recovery
+  actions Supervisor-only in the real permission matrix and role
+  contracts, real SupervisorDecision through the schema gate), new
+  test_I_fdm201_missing_parameter.py (12 tests, AC-04: frozen ASM-FDM-0605
+  grounding, real A2 routing of missing GCMC settings, pure STRICT blocked
+  R-STRICT-2 with A1 contrast, workspace assumptions registry
+  byte-identical round-trip, author contact disabled without Human Gate)
+  and new test_J_fdm201_plan_freeze_blocked.py (10 tests, AC-05: INV-0304
+  unmapped fails R-AUD-A1, FreezeProhibitedError writes nothing, REQ-J-0304
+  repair passes audit and allows v1 freeze, stored snapshots never
+  trusted, PlanAlreadyFrozenError immutability, determinism). All on real
+  machinery with live frozen benchmark data; no src/benchmark/.development
+  changes.

@@ -1,0 +1,184 @@
+review_id: DEV-M12-G06-a1
+goal_id: DEV-M12-G06
+attempt_id: DEV-M12-G06-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+pr:
+  number: 74
+  base: main
+  base_oid: 306cd854e7337abb329b6fbd6102bc312a08dacd
+  head_ref: feat/dev-m12-g06-scenarios-f-j
+  head_oid: 11db5803537042ecb43d5d42b848ce1c84c2cf9a
+  commits: 1
+  files: 3 (+762/-0, 1 file modified + 2 added), all under tests/scenarios/test_F*/test_I*/test_J*
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - tests/scenarios/test_F_fdm201_dft_convergence_failure.py::test_F_ac01_supervisor_scientific_review_is_the_required_next_step
+    - real permission matrix + frozen role contracts (supervisor-only RESEARCH_REQUEST/RECOVERY_ENTRY/METHOD_REDESIGN_ENTRY; research contract forbids them)
+    - real SupervisorDecision record (actor supervisor) through schema gate + canonical atomic persistence, byte-identical round-trip
+    notes: >-
+      The existing F suite already covers the scenario premise (worker
+      reports convergence facts, no automatic parameter change, no
+      fabricated decision). The new test proves the REQUIRED next step:
+      after the scenario the decisions registry is empty (nothing
+      auto-performed), the diagnosis/research/recovery actions are
+      Supervisor-only in the real permission matrix and the frozen role
+      contracts (asserted per-role), and the review happens through the
+      real SupervisorDecision record that enters the workspace decisions
+      registry via validate_and_reject + canonical atomic_write and reads
+      back byte-identical.
+  AC-02:
+    status: PASS
+    evidence:
+    - existing G suite (unchanged) verified in the supervisor run: 91/91 scenario filter includes test_G_*; suite asserts no duplicate job/Run and no lost completion event across Monitor replacement incl. the resume-failure path
+    notes: >-
+      test_G_monitor_crash_recovery.py was reviewed and needed no change:
+      it covers Monitor session loss while jobs run, Watchdog resume
+      failure, replacement Monitor reconstruction from
+      checkpoint/events/external adapter, no duplicate Run/job, no lost
+      completion event.
+  AC-03:
+    status: PASS
+    evidence:
+    - existing H suite (unchanged) verified in the supervisor run: 91/91 scenario filter includes test_H_*
+    notes: >-
+      test_H_delayed_lab_result.py was reviewed and needed no change: the
+      Experiment Worker dispatches and exits, the result returns later,
+      the Monitor detects the incoming package and spawns follow-up
+      analysis without the original worker.
+  AC-04:
+    status: PASS
+    evidence:
+    - tests/scenarios/test_I_fdm201_missing_parameter.py (12 tests, all test_I_ac04_*)
+    - supervisor spot-check of frozen register data in main tree: ASM-FDM-0605 verbatim (parameter text, A2_SCIENTIFIC_ASSUMPTION, value null, DISQUALIFIES_PURE_STRICT, affected GOAL-EXE-80/82), INV-0605 DEFERRED-TO-EXECUTION/EXISTENCE-ONLY with AMB-0006 reason, CMP03-S03 trace_refs
+    notes: >-
+      Scenario I is grounded in the frozen register, not invented: the
+      tests read the live benchmark files and assert the A2 semantics
+      verbatim. The real assumption machinery routes the missing GCMC
+      settings (force field / charges / mixing rules) through
+      assumptions_for_missing_parameters into real Assumption records
+      (A2, DISQUALIFIES_PURE_STRICT, deterministic safe ids); the real
+      rule engine blocks pure STRICT (NOT_STRICT via R-STRICT-2, R-STRICT-1
+      explicitly refused; all 12 frozen A2 entries read back through
+      assumption_effect as R-EFF-1). An A1 contrast (ASM-A1-FF-01 ->
+      STRICT_WITH_ASSUMPTIONS, R-STRICT-3) proves it is the A2
+      classification, not the missingness, that blocks. Routed records
+      enter the workspace assumptions/ registry through the schema gate +
+      canonical atomic persistence and round-trip byte-identical, and the
+      same registry is deterministic across workspaces. Optional author
+      contact stays disabled: research role contract forbids
+      author_contact_without_human_gate, HUMAN_GATE_OPEN is Supervisor-only
+      in the permission matrix (asserted per-role), the execution path
+      opens no gate, and the EXTERNAL_CONTACT_GATE/OPEN record over the
+      frozen RES-001 (human_gate_required: true) is the only path.
+  AC-05:
+    status: PASS
+    evidence:
+    - tests/scenarios/test_J_fdm201_plan_freeze_blocked.py (10 tests, all test_J_ac05_*)
+    - supervisor spot-check of frozen data in main tree: mapping_audit 82/82 mapped, coverage 1.0 PASS; INV-0304 title "C2H4 full adsorption isotherm (point grid, pressure range)", EXISTENCE-ONLY
+    notes: >-
+      Scenario J removes the INV-0304 requirement mapping from the frozen
+      state (mapping intent recorded in the item, requirement deliberately
+      unregistered) and exercises the real completeness audit and freeze
+      gate: R-AUD-A1 fails naming INV-0304 (coverage 0.5, freeze_eligible
+      False), FreezeProhibitedError names the offending item and writes
+      nothing; registering REQ-J-0304 (the frozen audit's own resolution)
+      repairs the audit (R-AUD-P1, coverage 1.0) and the freeze is allowed
+      (v1 FROZEN with the PASS audit embedded, full goal family frozen).
+      Stored AMBIGUOUS snapshots on item records are never trusted (the
+      audit recomputes from registered state); a second freeze is rejected
+      (PlanAlreadyFrozenError) with byte-identical storage; full
+      determinism across workspaces. The UNMAPPED shape (no requirement
+      ids recorded at all) is also covered: R-AUD-U1, not repairable by
+      registering a referencing requirement.
+
+findings: []
+
+observations:
+  - id: OBS-M12-G06-01
+    detail: >-
+      The inventory registry is immutable-functional: an item registered
+      with no requirement_ids is UNMAPPED and cannot be repaired by any
+      registry API (registering a requirement that references the item
+      does not change its mapping status). The repairable missing-mapping
+      shape is the AMBIGUOUS one -- the item records its mapping intent
+      while the requirement registration is omitted; registering the
+      requirement repairs the audit. This is a documented design property,
+      exercised by test_J_ac05_fully_unmapped_item_blocks_freeze_without_registry_repair,
+      and worth surfacing in the API docs (register_inventory_item:
+      requirement_ids must be recorded at registration). Tracked at the
+      M13 Release Gate, not in frozen v0.1 scope.
+  - id: OBS-M12-G06-02
+    detail: >-
+      There is no register_assumption / register_human_gate helper in src;
+      the scenario tests use the house registry pattern (validate_and_reject
+      + canonical atomic_write, as planning/inventory.py does) for the
+      workspace assumptions/ and human-gates/ registries. Dedicated
+      registration helpers are an API-completeness candidate for a future
+      milestone; tracked at the M13 Release Gate.
+
+verification:
+  head: 11db5803537042ecb43d5d42b848ce1c84c2cf9a (PR #74)
+  commands:
+  - "pytest -q tests/scenarios -k 'F or G or H or I or J' (supervisor independent run) -> 91 passed in 19.94s (68 pre-existing F/G/H + 23 new)"
+  - "pytest -q tests (supervisor independent run) -> 3039 passed, 7 skipped, 1 deselected, 0 failed in 176.45s"
+  - "ruff check . (worktree root, the CI invocation) -> clean, exit 0"
+  - "ruff check src tests -> clean, exit 0"
+  - "mypy src -> 111 files, no issues, exit 0"
+  - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, exit 0 (unchanged benchmark data)"
+  - "CI on head 11db580: Test/lint/typecheck PASS + Validate development contracts PASS"
+  - "worker full-suite run reported 3038 passed / 1 failed with the single failure being the known accepted flake DEV-DEFECT-002 (test_core_state_leases.py::test_concurrent_takeover_of_expired_lease_single_winner_single_object); isolated reruns passed twice. The supervisor independent run had 0 failures (flake did not recur). Occurrence recorded per flake policy."
+  - "frozen-data grounding spot-checked in main tree: ASM-FDM-0605 verbatim, mapping_audit 82/82 coverage 1.0 PASS, INV-0304 title/value_status -- all confirmed"
+
+design_review:
+  decomposition: >-
+    One scenario per file, each self-contained with deterministic project
+    fixtures (initialize_project with fixed identity/timestamp), scenario
+    execution helpers returning frozen result records, and AC-mapped test
+    functions (test_I_ac04_*, test_J_ac05_*, test_F_ac01_*). F was
+    extended in place with one new test; G/H verified as already
+    satisfying their ACs; I and J are new suites.
+  real_machinery: >-
+    No mocks of the system under test anywhere: real registries
+    (inventory/requirements/assumptions/human-gates/decisions), real rule
+    engines (assumption_effect/evaluate_strict_label R-EFF-1/R-STRICT-2,
+    mapping rules R-MAP-*, audit rules R-AUD-*), real permission matrix
+    and role contracts, real schema gates (validate_and_reject) and real
+    atomic canonical persistence. In-memory scripted doubles appear only
+    at adapter external boundaries in the pre-existing F/G/H suites.
+  grounding: >-
+    All scenario values are read live from the frozen benchmarks/fdm201/
+    register files (plans/assumptions.yaml, inventory/INVENTORY.yaml,
+    goals/goals.yaml, goals/mapping_audit.yaml, resources/resources.yaml,
+    execution_packages/computation/cmp-pkg-03-gcmc.yaml) -- nothing is
+    invented. Grounding tests assert the frozen facts verbatim so the
+    scenarios cannot silently diverge from the benchmark.
+  determinism: >-
+    Fixed identities/timestamps, pinned safe ids, deterministic
+    generate_id assumption ids, no randomness, no wall clock, no network;
+    cross-workspace byte-identical checks for the assumption registry and
+    the frozen plan; FrozenInstanceError mutation-rejection checks across
+    all scenario records; safe-id scans on every id on the scenario paths.
+  scope: >-
+    git status on the head is clean; exactly 3 files under
+    tests/scenarios/test_F*|test_I*|test_J* (1 modified, 2 added). No
+    src/ changes, no benchmark data changes, no .development changes, no
+    AC changes, no --no-verify.
+
+decision_notes: >-
+  PASS on head 11db5803537042ecb43d5d42b848ce1c84c2cf9a with zero
+  findings. Independent battery: scenario filter 91/91, full suite 3039
+  passed / 0 failed (supervisor run; the worker's single DEV-DEFECT-002
+  flake occurrence passed twice isolated and did not recur), whole-repo
+  ruff clean, mypy 111 clean, validator 20/20, CI both jobs PASS.
+  Frozen-data grounding independently spot-checked. Three worker-reported
+  findings are informational test-design notes, all reflected in the
+  observations. Two non-blocking observations (OBS-M12-G06-01 inventory
+  repair semantics, OBS-M12-G06-02 missing registry helpers) tracked for
+  the M13 Release Gate. Proceed to squash merge with --match-head-commit
+  11db5803537042ecb43d5d42b848ce1c84c2cf9a.
