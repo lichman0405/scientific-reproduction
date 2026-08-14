@@ -134,6 +134,10 @@ verification:
   - "CI on head 11db580: Test/lint/typecheck PASS + Validate development contracts PASS"
   - "worker full-suite run reported 3038 passed / 1 failed with the single failure being the known accepted flake DEV-DEFECT-002 (test_core_state_leases.py::test_concurrent_takeover_of_expired_lease_single_winner_single_object); isolated reruns passed twice. The supervisor independent run had 0 failures (flake did not recur). Occurrence recorded per flake policy."
   - "frozen-data grounding spot-checked in main tree: ASM-FDM-0605 verbatim, mapping_audit 82/82 coverage 1.0 PASS, INV-0304 title/value_status -- all confirmed"
+  post_merge: >-
+    Post-merge suite on origin/main 18fa1cc (after squash merge of PR #74):
+    3039 passed, 7 skipped, 1 deselected, 0 failed in 177.95s, exit 0.
+    No DEV-DEFECT-002 flake occurrence in the post-merge run.
 
 design_review:
   decomposition: >-
