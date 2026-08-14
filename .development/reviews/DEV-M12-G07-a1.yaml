@@ -1,0 +1,207 @@
+review_id: DEV-M12-G07-a1
+goal_id: DEV-M12-G07
+attempt_id: DEV-M12-G07-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+pr:
+  number: 76
+  base: main
+  base_oid: d1f94975c5a29668ba636993f29909e6815bcb9d
+  head_ref: feat/dev-m12-g07-benchmark-acceptance
+  head_oid: 60472fd94e5663cee6b91169cb001de642e0113c
+  commits: 1
+  files: 6 (+1851/-0), all under tests/benchmarks/ and
+    benchmarks/fdm201/reviews/ (allowed_scope)
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - tests/benchmarks/test_fdm201_planning_benchmark.py (16 tests, all test_fdm201_*)
+    - supervisor read of the full test file: live reads of every frozen register
+      file (mapping_audit, goals, inventory, plan_v1, assumptions, analysis_plan,
+      closure, resources, evidence, project, execution packages), the real gates
+      invoked as subprocesses at the repo root (audit_check.py, self_check.py,
+      validate_packages.py), and a representative subset re-deriving the PASS
+      verdict through the real planning machinery (register_inventory_item /
+      register_requirement / audit_inventory_registry -> R-AUD-P1, coverage 1.0)
+    - supervisor spot-check of the frozen register in the main tree: mapping_audit
+      82/82 coverage 1.0 PASS; plan_v1 sr_plan_fdm201_v1 FROZEN @
+      2026-08-14T00:00:00Z with 20 goal_ids / 82 requirement_ids; GOAL-EXE-50
+      verbatim (title, unit_process_type measurement, 8 requirement_ids,
+      3 dependency edges, 4 inline AC-01..AC-04, minimum_n 2, ANL-030,
+      CC-EXPERIMENT, RES-015, 5 assumption_ids, v1/frozen); INVENTORY.yaml
+      requirement_mapping_policy confirms GOAL-AUD-001 applies to the whole
+      inventory
+    notes: >-
+      AC-01 "100% planning benchmark passes" is evidenced by the 16-test
+      benchmark-acceptance suite plus the live register assertions: the
+      frozen 82/82 completeness audit (coverage 1.0, PASS, 14 ambiguity
+      resolutions, by_category 00:10 a:9 b:7 c:8 d:9 e:14 f:11 g:14,
+      by_status INVENTORIED 3 / INVENTORIED-DEFERRED 14 /
+      DEFERRED-TO-EXECUTION 65) is re-derived both file-wise (every
+      requirement_mapping/resolves_in resolves to a defined goal; every
+      goal requirement_ids names a registered item) and through the real
+      registry machinery on a representative subset (one item per frozen
+      category), deterministically byte-identical across two workspaces.
+      The frozen gates pass as subprocesses exactly as shipped. The only
+      table the acceptance suite defines is the frozen-category -> registry
+      item_type mapping (the benchmark INVENTORY.yaml has no such table;
+      documented in the module docstring, no benchmark data invented).
+  AC-02:
+    status: PASS
+    evidence:
+    - tests/benchmarks/test_fdm201_scenarios_all.py (24 tests, all test_fdm201_*)
+    - supervisor read of the full test file: the acceptance fixture pins the ten
+      scenario files, their per-file collected counts, and the scenario->goal-AC
+      mapping table grounded in the frozen G05/G06 review records
+    notes: >-
+      AC-02 "all scenarios A-J pass in one clean run" is evidenced by the
+      goal's verification command itself (pytest -q tests/benchmarks
+      tests/scenarios -> 165 passed in the supervisor independent run,
+      218.21s, exit 0: 115 scenario tests + 50 benchmark-acceptance tests)
+      plus the fixture suite that pins the scenario suite: exactly the ten
+      frozen files, no extras, offline importlib enumeration (no scenario
+      test is parametrized), per-file counts A 7 / B 9 / C 8 / D 18 /
+      E 14 / F 16 / G 11 / H 10 / I 12 / J 10 = 115, and the AC mapping
+      table (A->G05 AC-01, B->G05 AC-02, C->G05 AC-03, D->G05 AC-04 plain
+      test_D_* names, E->G05 AC-05 ac01/ac02/ac03 families, F->G06 AC-01,
+      G->G06 AC-02/03, H->G06 AC-02/03, I->G06 AC-04, J->G06 AC-05) with
+      the AC ids verified against the frozen review records. Deviation
+      from the task brief (92 tests, test_D_ac04_*/test_E_ac05_* prefixes)
+      documented in the record and PR body; the actual frozen suite is the
+      accepted fixture.
+  AC-03:
+    status: PASS
+    evidence:
+    - tests/benchmarks/test_fdm201_reload_audit.py (10 tests, all test_fdm201_*)
+    - supervisor read of the full test file: the full frozen register reloads
+      through the real planning APIs and re-audits to the frozen verdict
+    notes: >-
+      AC-03 "benchmark state can be reloaded and audited" is evidenced by
+      the reload/audit suite: the frozen project record reloads through
+      initialize_project with the frozen identity/timestamp, the full
+      82-item / 82-requirement inventory reloads through the real registry
+      APIs (items first), the real audit re-derives PASS (R-AUD-P1, 82/82,
+      coverage 1.0, zero offending items), the PlanInventoryAudit view
+      equals the frozen inventory_audit blocks of mapping_audit.yaml and
+      plan_v1.yaml exactly, the reloaded requirement set equals the frozen
+      plan's requirement_ids and the resolved goal set covers the 18
+      item-mapped goals (GOAL-AUD-001 and GOAL-EXE-90 carry no item
+      mapping per the frozen requirement_mapping_policy), the full 20-goal
+      contract family + 20 acceptance records + 10 protocols + 4 closure
+      contracts reload with GOAL-EXE-50 family values verbatim, and
+      freeze_plan round-trips the reloaded state to a FROZEN v1 at the
+      frozen timestamp with the whole family frozen and a second freeze
+      rejected (PlanAlreadyFrozenError). Deterministic double-run with
+      byte-identical trees (tree_bytes with workspace normalization).
+      Frozen facts the registry API cannot express (inline acceptance text
+      -- the G05/PR#75 finding; no register_assumption API) are asserted
+      directly against the frozen files with the gap documented; no source
+      change.
+
+findings: []
+
+observations:
+  - id: OBS-M12-G07-01
+    detail: >-
+      The DEV-M12-G07 task brief quoted "92 tests" for scenarios A-J and
+      suggested test_D_ac04_*/test_E_ac05_* prefixes; the actual frozen
+      suite collects 115 tests (pinned per-file) with different name
+      conventions (D plain test_D_*, E ac01/ac02/ac03 families). The
+      worker documented the deviation and pinned the actual suite as the
+      acceptance fixture (REVIEW-FDM201-SCENARIOS-001.yaml, PR body). This
+      is a brief-vs-reality mismatch, not an AC change; the lesson for
+      future briefs is to read the actual suite before quoting counts.
+      Tracked at the M13 Release Gate.
+  - id: OBS-M12-G07-02
+    detail: >-
+      The registry GoalContract model cannot express the frozen goals.yaml
+      inline acceptance-criteria text (acceptance is a criteria_ref id) --
+      the G05 finding from PR #75, now confirmed again by the reload
+      suite: the reload derives criteria_ref ACC-<goal_id> and preserves
+      the frozen text in the acceptance record, asserting the frozen
+      inline text directly. API-design candidate for a future milestone;
+      tracked at the M13 Release Gate. Related: OBS-M12-G05-01/02,
+      OBS-M12-G06-02.
+  - id: OBS-M12-G07-03
+    detail: >-
+      No register_assumption API exists in the registry (the assumptions
+      register is a benchmark planning artifact), so the 46-entry
+      assumptions register is asserted via the frozen file and the core
+      assumption schema rather than through the registry. API-completeness
+      candidate, consistent with OBS-M12-G06-02 (no register_assumption /
+      register_human_gate helpers); tracked at the M13 Release Gate.
+
+verification:
+  head: 60472fd94e5663cee6b91169cb001de642e0113c (PR #76)
+  commands:
+  - "pytest -q tests/benchmarks tests/scenarios (supervisor independent run on head) -> 165 passed in 218.21s, exit 0 (115 scenario + 50 benchmark-acceptance tests)"
+  - "pytest -q tests (supervisor independent run) -> 3112 passed, 7 skipped, 1 deselected, 1 failed in 380.87s; the single failure is the known accepted flake DEV-DEFECT-002 (tests/state/test_leases.py::test_concurrent_takeover_of_expired_lease_single_winner); isolated rerun on head: 1 passed in 1.74s. Occurrence recorded per flake policy; not a regression."
+  - "ruff check . (worktree root, the CI invocation) -> clean, exit 0"
+  - "ruff check src tests -> clean, exit 0"
+  - "mypy src -> 111 files, no issues, exit 0"
+  - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, exit 0"
+  - "CI on head 60472fd: Test/lint/typecheck PASS (3m34s) + Validate development contracts PASS (9s)"
+  - "frozen-data grounding spot-checked in the main tree: mapping_audit 82/82 coverage 1.0 PASS; plan_v1 FROZEN @ 2026-08-14T00:00:00Z; GOAL-EXE-50 full family verbatim; INVENTORY requirement_mapping_policy"
+
+design_review:
+  decomposition: >-
+    Three acceptance suites, one per AC: planning-benchmark (16 tests,
+    live frozen-register reads + real gates as subprocesses + real-machinery
+    re-derivation on a representative subset), scenarios-all (24 tests,
+    the pinned scenario-suite fixture: file existence, offline collected
+    counts, AC mapping grounded in the frozen review records), reload-audit
+    (10 tests, full register reload through real APIs + audit re-derivation
+    + freeze round-trip + byte-identical determinism). Three acceptance
+    review records under benchmarks/fdm201/reviews/ (REVIEW-FDM201-PLANNING-001,
+    REVIEW-FDM201-SCENARIOS-001, REVIEW-FDM201-RELOAD-001) document PASS
+    with evidence lists; supervisor_review_id left null for the Supervisor.
+  real_machinery: >-
+    No mocks of the system under test anywhere: real planning machinery
+    (initialize_project, register_inventory_item, register_requirement,
+    audit_inventory_registry, register_goal, register_acceptance,
+    register_analysis_protocol, register_closure_contract, build_plan_v1,
+    freeze_plan, read_plan, plan_inventory_audit view), real core schema
+    validation, and the real frozen gates executed as subprocesses with
+    sys.executable at the repo root exactly as shipped. Every asserted
+    rule id (R-AUD-P1) and every asserted frozen value is matched by the
+    real engine/register, not hardcoded.
+  grounding: >-
+    All numbers read live from the frozen register files (nothing copied
+    into the tests): 82/82, coverage 1.0, category/status totals, 20 goal
+    ids, 46 assumptions, 10 protocols, 4 closure contracts, 17 resources,
+    82 evidence records, 20 package files. Supervisor independently
+    confirmed verbatim: mapping_audit, plan_v1, GOAL-EXE-50, INVENTORY
+    requirement_mapping_policy. The only defined table is the
+    category->item_type mapping, documented as such.
+  determinism: >-
+    Fixed identities and fixed timestamps (project init 2026-01-01, freeze
+    2026-08-14T00:00:00Z), no wall clock, no randomness, no network;
+    every reload/audit replay across two fresh workspaces is byte-identical
+    (tree_bytes with workspace-path normalization, PlanInventoryAudit
+    equality, frozen-plan byte equality). The scenario fixture uses
+    offline importlib enumeration (no collection side effects).
+  scope: >-
+    git status on the head is clean; exactly 6 files under
+    tests/benchmarks/ and benchmarks/fdm201/reviews/ added. No src/
+    changes, no benchmark data changes, no .development changes, no AC
+    changes, no --no-verify. The worker fast-forwarded its branch onto
+    origin/main d1f9497 before committing (single commit 60472fd).
+
+decision_notes: >-
+  PASS on head 60472fd94e5663cee6b91169cb001de642e0113c with zero
+  findings. Independent battery: goal command 165/165, full suite 3112
+  passed / 1 failed where the single failure is the known accepted
+  DEV-DEFECT-002 flake (isolated rerun 1 passed in 1.74s, occurrence
+  recorded), whole-repo ruff clean, mypy 111 clean, validator 20/20, CI
+  both jobs PASS. Frozen-data grounding independently spot-checked
+  verbatim. All four worker-reported findings are informational
+  (documented deviations/API gaps, no source change); three become
+  observations (OBS-M12-G07-01 brief-vs-suite count deviation,
+  OBS-M12-G07-02 inline-AC-text API gap cross-linked with the G05
+  finding, OBS-M12-G07-03 no register_assumption API), all tracked for
+  the M13 Release Gate. M12 fully closed: 75/80. Proceed to squash merge
+  with --match-head-commit 60472fd94e5663cee6b91169cb001de642e0113c.
