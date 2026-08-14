@@ -1,0 +1,84 @@
+# FDM-201 planning-benchmark acceptance review -- AC-01 (DEV-M12-G07)
+#
+# Acceptance record for AC-01 of .development/goals/DEV-M12-G07.yaml:
+# "100% planning benchmark passes". The evidence is the deterministic
+# benchmark-acceptance suite tests/benchmarks/test_fdm201_planning_benchmark.py
+# run at the repository root with the frozen register read live from
+# benchmarks/fdm201/ (no wall clock, no randomness, no network; the
+# frozen gates invoked as subprocesses, never mocked).
+
+review_id: REVIEW-FDM201-PLANNING-001
+goal_id: DEV-M12-G07
+attempt_id: REVIEW-FDM201-PLANNING-001
+reviewer: Development Worker DEV-M12-G07
+reviewed_at: '2026-08-14'
+decision: PASS
+verdict: >-
+  AC-01 planning-benchmark acceptance: 100% of the formal FDM-201 planning
+  benchmark passes (16/16 benchmark-acceptance tests; frozen gates exit 0)
+
+# Filled by the Supervisor review of this goal's PR (DEV-M12-G07).
+supervisor_review_id: null
+
+pr:
+  number: null
+  base: main
+
+evidence:
+- >-
+  tests/benchmarks/test_fdm201_planning_benchmark.py (16 tests, all PASS)
+- >-
+  benchmarks/fdm201/goals/mapping_audit.yaml read live: AUD-FDM201-PLAN-V1,
+  82/82 item mappings, coverage 1.0, status PASS; by_category
+  00:10 a:9 b:7 c:8 d:9 e:14 f:11 g:14; by_status INVENTORIED 3/3,
+  INVENTORIED-DEFERRED 14/14, DEFERRED-TO-EXECUTION 65/65; 14 ambiguity
+  resolutions
+- >-
+  re-derivation of the mapping obligation over the two frozen files
+  (goals.yaml wp_alias): every requirement_mapping/resolves_in resolves to
+  a defined goal; every goal requirement_ids names a registered item
+- >-
+  frozen gates as subprocesses at the repository root:
+  goals/audit_check.py exit 0, no [FAIL], computed summary coverage = 1.0;
+  inventory/self_check.py exit 0, RESULT: PASS
+- >-
+  representative registered subset (one item per frozen category
+  00/a/b/c/d/e/f/g) through the real planning.inventory/planning.audit
+  machinery: audit_inventory_registry -> PASS, matched rule R-AUD-P1,
+  coverage 1.0, deterministic byte-identical double run
+- >-
+  plans/plan_v1.yaml read live: plan_id sr_plan_fdm201_v1, version v1,
+  status FROZEN, frozen_at 2026-08-14T00:00:00Z, inventory_audit
+  82/82/0/0/1.0/PASS, 20 goal_ids, 82 requirement_ids, 17 resources,
+  46 assumptions; core plan.schema and project.schema validation clean
+  (core.schema_validation)
+- >-
+  goals/goals.yaml DAG: 20 goals (9 bootstrap + 7 experiment + 3
+  computation + 1 integration), wp_alias 10 entries onto defined goals,
+  wp_realization WP-00 -> 9 bootstrap goals, every dependency edge
+  resolves, every goal v1/frozen at the frozen timestamp
+- >-
+  plans/assumptions.yaml: 46 entries (counts total 46, a2 12, cvr 19,
+  a1 15); every ASM-FDM-* is A2_SCIENTIFIC_ASSUMPTION with
+  strict_status_effect DISQUALIFIES_PURE_STRICT; ASM-CVR-*/ASM-A1-* are
+  A1_METHODOLOGICAL_DEFAULT with NONE; every entry validates against
+  assumption.schema
+- >-
+  planning artifacts: 10 analysis protocols (ANL-001..090, all frozen),
+  4 closure contracts (CC-*), 17 resources (RES-001..017), 82 evidence
+  records (evidence_id == EV-<claim_id>), 07-STATISTICS-AND-ACCEPTANCE.md
+  present
+- >-
+  execution packages: 7 experiment + 3 computation + 10 worker-context =
+  20 files; deterministic gate execution_packages/validate_packages.py
+  exit 0, 20 [PASS] lines, "Checks run: 20, failures: 0"; all 20 packages
+  validate against lab-execution-package.schema.yaml /
+  worker-context.schema.yaml via core.schema_validation
+
+notes: >-
+  All assertions read the frozen register files live; the only table
+  defined by this acceptance record is the frozen-category-to-registry
+  item_type mapping (the benchmark INVENTORY.yaml has no such table; see
+  the test module docstring). The frozen gates are invoked as subprocesses
+  with the running interpreter at the repository root -- the exact way
+  the benchmark ships them.
