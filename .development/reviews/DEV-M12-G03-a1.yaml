@@ -129,6 +129,17 @@ verification:
   - "pytest -q full suite -> 3016 passed, 7 skipped, 1 deselected (worker + supervisor runs agree)"
   - "CI on head be61016: both jobs PASS"
   - "vacuous goal gate 'pytest -q tests/benchmarks -k fdm201 and plan': exit 4, no test files (tests/benchmarks owned by DEV-M12-G07) - recorded; regression evidence is the full suite + CI"
+  post_merge:
+    sha: a7bf577016959c304386eb31c29a0765327ce7a7 (main after G03 squash merge + state commit)
+    suite: 3015 passed, 7 skipped, 1 deselected, 1 failed
+    failure: tests/state/test_leases.py::test_concurrent_takeover_of_expired_lease_single_winner
+    disposition: >-
+      Known flake DEV-DEFECT-002 (accepted, documented in KNOWN-DEFECTS.md,
+      out of frozen scope; timing-flake ~1/10 on Windows-local, CI green on
+      ubuntu). Passes in isolation (1 passed in 5.99s). Not a regression:
+      tests/state/ byte-identical, G03 changed benchmarks/fdm201 only.
+      Occurrence noted for M13 Release Gate tracking (matches OBS-M12-G01-01
+      class; M13-G05 or Release Gate remediation backlog).
   pre_fix_baseline:
     head: 5b3cd4a64448bf7b831ae5e315296120ab3755ea
     battery: 1291 checks, 8 failures (FND-M12-G03-01 x6, FND-M12-G03-02 x2)
