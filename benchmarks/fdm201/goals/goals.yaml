@@ -1,0 +1,954 @@
+# FDM-201 benchmark Goals DAG (DEV-M12-G03)
+#
+# Machine-readable Goals DAG for the FDM-201 reference reproduction
+# benchmark (17-FDM201-REFERENCE-CASE.md, DOI 10.1039/D5TA00771B). Every
+# goal the benchmark will execute is defined here; the spec section 4
+# work-package list is an "Example Work Packages" list, so this file
+# defines the benchmark's explicit goal ids:
+#   - GOAL-RES-001..004  (spec WP-00: source acquisition and verification)
+#   - GOAL-INV-001..004  (spec WP-00: reported-item extraction and mapping)
+#   - GOAL-AUD-001       (spec WP-00: completeness audit)
+#   - GOAL-EXE-10..90    (spec WP-10..WP-90: one execution goal per work
+#                         package; GOAL-EXE-81/82 map WP-81/WP-82)
+#
+# Every requirement_mapping / resolves_in / ambiguity resolves_in value of
+# ../inventory/INVENTORY.yaml resolves against this DAG: GOAL-* ids
+# directly, WP-* ids via the `wp_alias` table (WP-00 is realized by the
+# bootstrap goals per `wp_realization`). audit_check.py asserts this.
+#
+# Determinism: fixed timestamp 2026-08-14T00:00:00Z; no wall clock, no
+# randomness, no network at runtime. No placeholder text; every number
+# referenced by acceptance criteria is traceable to the spec section 2 seed
+# facts (marked REPORTED-NON-FINAL until revalidated against the primary
+# source during execution) or is an explicit assumption (../plans/
+# assumptions.yaml).
+
+record_kind: benchmark_goals_dag
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+reference_case_spec: "17-FDM201-REFERENCE-CASE.md"
+frozen_at: "2026-08-14T00:00:00Z"
+
+determinism:
+  fixed_timestamp: "2026-08-14T00:00:00Z"
+  wall_clock: "none"
+  randomness: "none"
+  network: "none"
+  note: "Data files only. audit_check.py is deterministic, offline, and uses no wall clock, randomness or network."
+
+# ---------------------------------------------------------------------------
+# WP alias / realization tables
+# ---------------------------------------------------------------------------
+# Every inventory requirement_mapping / resolves_in value must resolve to a
+# goal id defined in `goals`: GOAL-* ids directly, WP-* ids via wp_alias.
+wp_alias:
+  WP-10: "GOAL-EXE-10"
+  WP-20: "GOAL-EXE-20"
+  WP-30: "GOAL-EXE-30"
+  WP-40: "GOAL-EXE-40"
+  WP-50: "GOAL-EXE-50"
+  WP-60: "GOAL-EXE-60"
+  WP-70: "GOAL-EXE-70"
+  WP-80: "GOAL-EXE-80"
+  WP-81: "GOAL-EXE-81"
+  WP-82: "GOAL-EXE-82"
+  WP-90: "GOAL-EXE-90"
+# WP-00 (source acquisition and inventory) is realized by the bootstrap
+# goals collectively; no single goal carries the WP-00 id.
+wp_realization:
+  WP-00:
+    - "GOAL-RES-001"
+    - "GOAL-RES-002"
+    - "GOAL-RES-003"
+    - "GOAL-RES-004"
+    - "GOAL-INV-001"
+    - "GOAL-INV-002"
+    - "GOAL-INV-003"
+    - "GOAL-INV-004"
+    - "GOAL-AUD-001"
+
+# ---------------------------------------------------------------------------
+# Goals
+# ---------------------------------------------------------------------------
+goals:
+  # ----------------------- WP-00: source acquisition and verification ----
+  - goal_id: "GOAL-RES-001"
+    wp: "WP-00"
+    title: "Acquire and verify the primary paper"
+    purpose: "Re-verify the primary paper identity against the Crossref record and the registered source (benchmarks/fdm201/sources/records/01_primary_paper.yaml) and make the paper text accessible to execution (reading only; no content mirrored into the repository)."
+    objective: "Confirm DOI 10.1039/D5TA00771B identity, journal/year match, and availability of the paper text for GOAL-INV-001..004."
+    unit_process_type: "source-acquisition"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0001", "INV-0002"]
+    resolves_in: ["INV-0001", "INV-0002"]
+    resolves_ambiguities: []
+    dependencies: []
+    acceptance_criteria:
+      - "AC-01: DOI 10.1039/D5TA00771B resolves to the registered record (title, journal, year, volume, pages match the inventory INV-0001)."
+      - "AC-02: Author list matches the Crossref-verified list (INV-0002)."
+      - "AC-03: Paper text is readable by the execution goals, or the unavailability is registered with a reason (registration-only policy; no content embedded)."
+    inputs:
+      - "source record sr_source_118eed96c3e6f03106c432a03542be7d"
+      - "inventory items INV-0001, INV-0002"
+    outputs:
+      - "verified paper identity record"
+      - "paper-access evidence record (EV-INV-0001, EV-INV-0002)"
+    resource_ids: ["RES-001"]
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single verification pass; identity is a metadata fact (no replication)"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  - goal_id: "GOAL-RES-002"
+    wp: "WP-00"
+    title: "Acquire the electronic supplementary information (SI)"
+    purpose: "Obtain the registered ESI (locator https://www.rsc.org/suppdata/d5/ta/d5ta00771b/d5ta00771b1.pdf, acquisition log item 2) for reading during execution; content is never mirrored into the repository."
+    objective: "Make the SI accessible so that GOAL-INV-004 can inventory its figures/tables and any SI-only data (e.g. an embedded CIF)."
+    unit_process_type: "source-acquisition"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0003"]
+    resolves_in: ["INV-0003"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-RES-001"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: The ESI locator is reachable and the document is readable by execution goals (INV-0003), or the failure is registered with a reason."
+      - "AC-02: ESI figure/table inventory handoff to GOAL-INV-004 is prepared."
+    inputs:
+      - "source record sr_source_86450d48aa337786cad25c306944daae"
+      - "inventory item INV-0003"
+    outputs:
+      - "SI-access evidence record (EV-INV-0003)"
+    resource_ids: ["RES-002"]
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single acquisition pass (locator is a registered fact)"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  - goal_id: "GOAL-RES-003"
+    wp: "WP-00"
+    title: "Acquire and verify the FDM-201 CIF / deposited crystal structure"
+    purpose: "Re-verify the CIF availability (acquisition log item 3: no CSD/CCDC deposition located at registration; the CIF may exist only embedded in the ESI) and obtain the deposited structure for structure comparison (GOAL-EXE-30) and computational model construction (GOAL-EXE-80)."
+    objective: "Locate, download-free register, and verify the FDM-201 CIF (cubic Fm-3m, a = 23.76 A per the published abstract, INV-0102) and any related depositions (INV-0005), resolving AMB-0001."
+    unit_process_type: "source-acquisition"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0004", "INV-0005", "INV-0109", "INV-0601", "INV-0602", "INV-0603"]
+    resolves_in: ["INV-0004", "INV-0005", "INV-0109", "INV-0601", "INV-0602", "INV-0603"]
+    resolves_ambiguities: ["AMB-0001"]
+    dependencies:
+      - goal_id: "GOAL-RES-001"
+        type: "soft_dependency"
+        execution_gate: false
+      - goal_id: "GOAL-RES-002"
+        type: "soft_dependency"
+        execution_gate: false
+        note: "the CIF may be embedded in the ESI"
+    acceptance_criteria:
+      - "AC-01: INV-0004/INV-0601 populated: CIF location (CSD/CCDC deposition number or ESI embedding), format and availability verified; AMB-0001 closed."
+      - "AC-02: INV-0005 populated: any related deposited structure(s) used by the paper are located or formally ruled absent."
+      - "AC-03: INV-0602/INV-0603 model-construction inputs (disorder/model choices, cell) are confirmed against the fetched CIF."
+      - "AC-04: If no deposition exists, the unavailability is formally recorded with evidence (CCDC search results, ESI contents) and GOAL-EXE-80's CIF dependence is handled per the change-control process (no silent substitution)."
+    inputs:
+      - "source record sr_source_68539272137098c373f56bdea1b106cd (item 3)"
+      - "source record sr_source_9280af72ee87eb99511040e333e4f244 (item 4)"
+      - "inventory items INV-0004, INV-0005, INV-0601"
+    outputs:
+      - "CIF-acquisition evidence (EV-INV-0004, EV-INV-0601)"
+      - "CIF handoff to GOAL-EXE-30 / GOAL-EXE-80"
+    resource_ids: ["RES-003", "RES-004"]
+    assumption_ids: ["ASM-CVR-AMB-0001-INV-0004", "ASM-CVR-AMB-0001-INV-0601"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single verification pass against the deposition record and the ESI contents"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  - goal_id: "GOAL-RES-004"
+    wp: "WP-00"
+    title: "Acquire linked public data resources"
+    purpose: "Read and register the paper's data-availability statement (acquisition log item 5: RSC article page bot-protected at registration) and any external repository resources (Zenodo/Figshare/GitHub or similar), resolving INV-0006."
+    objective: "Populate INV-0006 with the data-availability resources actually linked by the paper; register each found resource with identity and availability."
+    unit_process_type: "source-acquisition"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0006"]
+    resolves_in: ["INV-0006"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-RES-001"
+        type: "informational"
+    acceptance_criteria:
+      - "AC-01: INV-0006 populated: data-availability statement content recorded and every linked external resource registered with identity and availability."
+      - "AC-02: Resources found during execution are registered in the resource ledger (../resources/resources.yaml) with used-by goals."
+    inputs:
+      - "source record sr_source_8cbf12c17f81fbce1a839725e46d5b5f (item 5)"
+      - "inventory item INV-0006"
+    outputs:
+      - "data-availability evidence record (EV-INV-0006)"
+    resource_ids: ["RES-005"]
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single registration pass; statement is a metadata fact"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-00: reported-item extraction and mapping ---
+  - goal_id: "GOAL-INV-001"
+    wp: "WP-00"
+    title: "Extract all experimental reported items from the main text"
+    purpose: "Read the fetched paper and populate every experimental inventory item whose values or existence require primary-source reading (all DEFERRED-TO-EXECUTION items of categories 00/a/b/c/e/g mapped here, plus revalidation of all REPORTED-NON-FINAL experimental values)."
+    objective: "Populate and revalidate the experimental items (structure, porosity, isotherms, breakthrough, synthesis) from the paper main text; every REPORTED-NON-FINAL number is either confirmed against the primary source or formally re-registered with a reason."
+    unit_process_type: "inventory"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0006", "INV-0101", "INV-0102", "INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109", "INV-0201", "INV-0202", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207", "INV-0301", "INV-0302", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308", "INV-0501", "INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    resolves_in: ["INV-0006", "INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308", "INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    resolves_ambiguities: ["AMB-0002", "AMB-0003", "AMB-0008", "AMB-0010", "AMB-0011", "AMB-0012", "AMB-0013", "AMB-0014"]
+    dependencies:
+      - goal_id: "GOAL-RES-001"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-002"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: Every experimental item assigned to this goal is populated (value or explicit existence finding) with a primary-source quote location; none remains DEFERRED-TO-EXECUTION without a reason."
+      - "AC-02: Every REPORTED-NON-FINAL experimental number (INV-0101/0102, 0201/0202, 0301/0302, 0501, 0515, 0517) is revalidated against the primary source: seed fact vs paper value recorded (ANL-001 protocol)."
+      - "AC-03: AMB-0002, AMB-0003, AMB-0008, AMB-0010..0014 resolved: 328 K diluted breakthrough conditions, non-298 K isotherms, all WP-70 parameters, TGA/SCXRD/stability-PXRD existence, batch/replicate counts, N2 conditions, BET criteria, pore-size method are determined from the primary text or formally registered as absent/unreported."
+      - "AC-04: WP-70 parameters (INV-0511..0521) read from the paper/SI; any parameter still unknown is re-registered as A2 per spec WP-70 with the reason, and prevents pure strict classification (assumption ledger, ../plans/assumptions.yaml)."
+    inputs:
+      - "paper text (via GOAL-RES-001)"
+      - "inventory items of categories 00/a/b/c/e/g assigned above"
+    outputs:
+      - "populated experimental inventory records"
+      - "revalidation records (EV-* for each revalidated item)"
+      - "WP-70 parameter set handoff to GOAL-EXE-70"
+    resource_ids: ["RES-001", "RES-002"]
+    assumption_ids: ["ASM-CVR-AMB-0002-INV-0502", "ASM-CVR-AMB-0003-INV-0305", "ASM-CVR-AMB-0010-INV-0103", "ASM-CVR-AMB-0010-INV-0106", "ASM-CVR-AMB-0010-INV-0108", "ASM-CVR-AMB-0011-INV-0207", "ASM-CVR-AMB-0011-INV-0307", "ASM-CVR-AMB-0011-INV-0503", "ASM-CVR-AMB-0011-INV-0713", "ASM-CVR-AMB-0012-INV-0203", "ASM-CVR-AMB-0013-INV-0204", "ASM-CVR-AMB-0014-INV-0205"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single extraction pass; every populated value double-checked against the source location (evidence record)"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  - goal_id: "GOAL-INV-002"
+    wp: "WP-00"
+    title: "Extract all computational reported items"
+    purpose: "Read the fetched paper/SI and populate every computational inventory item (category f) plus the derived-thermodynamic method items (IAST/Qst procedures, binding-energy methods), revalidating all REPORTED-NON-FINAL computed values (IAST selectivity, Qst, static binding energies)."
+    objective: "Populate and revalidate the computational items from the paper/SI: simulation settings (INV-0602..0608), binding-site/energy items (INV-0609..0611, 0407..0409), and the method/procedure items (INV-0404..0406, INV-0008/0009)."
+    unit_process_type: "inventory"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0008", "INV-0009", "INV-0401", "INV-0402", "INV-0403", "INV-0404", "INV-0405", "INV-0406", "INV-0407", "INV-0408", "INV-0409", "INV-0602", "INV-0603", "INV-0604", "INV-0605", "INV-0606", "INV-0607", "INV-0608", "INV-0609", "INV-0610", "INV-0611"]
+    resolves_in: ["INV-0008", "INV-0009", "INV-0404", "INV-0405", "INV-0406", "INV-0409", "INV-0602", "INV-0603", "INV-0604", "INV-0605", "INV-0606", "INV-0607", "INV-0608", "INV-0609", "INV-0610", "INV-0611"]
+    resolves_ambiguities: ["AMB-0004", "AMB-0005", "AMB-0006", "AMB-0007"]
+    dependencies:
+      - goal_id: "GOAL-RES-001"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-002"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-003"
+        type: "hard_gate"
+        execution_gate: true
+        note: "the CIF is an input to model-construction items (INV-0601..0603)"
+      - goal_id: "GOAL-INV-001"
+        type: "soft_dependency"
+        execution_gate: false
+    acceptance_criteria:
+      - "AC-01: Every computational item assigned to this goal is populated (value or explicit existence finding) with a primary-source location."
+      - "AC-02: Every REPORTED-NON-FINAL computed number (INV-0401/0402/0403/0407/0408) revalidated against the primary source per ANL-001."
+      - "AC-03: AMB-0004..0007 resolved: Qst procedure, IAST implementation and covered conditions, force field/charges/software, and binding-energy electronic-structure settings determined from the paper/SI."
+      - "AC-04: INV-0008/0009 in-paper reference sets confirmed (canonical G01 candidates confirmed or corrected); settings handoff to GOAL-EXE-80/81/82."
+    inputs:
+      - "paper and SI text (via GOAL-RES-001/002)"
+      - "CIF (via GOAL-RES-003)"
+      - "inventory items of category d/f assigned above"
+    outputs:
+      - "populated computational inventory records"
+      - "revalidation records (EV-*)"
+      - "settings handoff to GOAL-EXE-80/81/82"
+    resource_ids: ["RES-006", "RES-007", "RES-008", "RES-010"]
+    assumption_ids: ["ASM-CVR-AMB-0004-INV-0404", "ASM-CVR-AMB-0005-INV-0405", "ASM-CVR-AMB-0005-INV-0406", "ASM-CVR-AMB-0007-INV-0409", "ASM-CVR-AMB-0007-INV-0611"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single extraction pass; every populated value double-checked against the source location"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  - goal_id: "GOAL-INV-003"
+    wp: "WP-00"
+    title: "Map all main-text figures and tables to Requirements"
+    purpose: "Inventory every main-text figure/table of the paper and map each to its requirement(s)/goal(s), completing the in-paper reference sets (INV-0007, INV-0010) and the related-structures determination (INV-0005)."
+    objective: "For each main-text figure/table: register existence, data content, and the inventory items it evidences; every figure/table maps to at least one goal."
+    unit_process_type: "inventory"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0005", "INV-0007", "INV-0010"]
+    resolves_in: ["INV-0005", "INV-0007", "INV-0010"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-INV-001"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-002"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: Every main-text figure/table is registered with a figure/table id, content summary, and mapped goals; none is omitted (spec section 4 WP-00 GOAL-INV-003)."
+      - "AC-02: INV-0007 populated: the paper's actual SBU-chemistry citation set confirmed against the G01 candidates."
+      - "AC-03: INV-0010 populated: same-author / analogous-MOF works used by the paper enumerated; INV-0005 populated: related depositions listed or ruled absent."
+      - "AC-04: Figure/table mapping is consistent with the inventory item mapping (mapping_audit.yaml)."
+    inputs:
+      - "paper text (via GOAL-RES-001)"
+      - "populated experimental/computational items (GOAL-INV-001/002)"
+    outputs:
+      - "main-text figure/table registry"
+      - "reference-set records for INV-0007/INV-0010"
+    resource_ids: ["RES-006", "RES-009"]
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single mapping pass; cross-checked against GOAL-INV-001/002 records"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  - goal_id: "GOAL-INV-004"
+    wp: "WP-00"
+    title: "Map all SI figures and tables to Requirements"
+    purpose: "Inventory every SI figure/table and map each to its requirement(s)/goal(s); populate the synthesis/activation items (category g) and the SI-only data (embedded CIF, INV-0004/INV-0601)."
+    objective: "For each SI figure/table: register existence, content, and mapped goals; resolve AMB-0001 (CIF in ESI), AMB-0009 (activation protocol), and populate INV-0701..0714 synthesis items."
+    unit_process_type: "inventory"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0003", "INV-0004", "INV-0601", "INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706", "INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+    resolves_in: ["INV-0004", "INV-0601", "INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706", "INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+    resolves_ambiguities: ["AMB-0001", "AMB-0009"]
+    dependencies:
+      - goal_id: "GOAL-RES-002"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-001"
+        type: "soft_dependency"
+        execution_gate: false
+      - goal_id: "GOAL-INV-002"
+        type: "soft_dependency"
+        execution_gate: false
+      - goal_id: "GOAL-RES-003"
+        type: "soft_dependency"
+        execution_gate: false
+        note: "CIF may be embedded in the ESI"
+    acceptance_criteria:
+      - "AC-01: Every SI figure/table registered with an id, content summary, and mapped goals; none omitted (spec section 4 WP-00 GOAL-INV-004)."
+      - "AC-02: Category g items (INV-0701..0714) populated from the SI: ligand/precursor steps, PyBC synthesis, FDM-201 synthesis, activation, storage, batch plan; every reagent/condition value recorded."
+      - "AC-03: AMB-0001 closed: CIF presence/absence in the ESI established; AMB-0009 closed: activation protocol parameters (temperature, vacuum, duration) recorded."
+      - "AC-04: Synthesis protocol handoff to GOAL-EXE-10/GOAL-EXE-20 is complete and traceable."
+    inputs:
+      - "SI text (via GOAL-RES-002)"
+      - "inventory items of category g assigned above"
+    outputs:
+      - "SI figure/table registry"
+      - "populated synthesis items (INV-0701..0714)"
+      - "synthesis protocol handoff to GOAL-EXE-10/GOAL-EXE-20"
+    resource_ids: ["RES-002", "RES-003"]
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single mapping pass; cross-checked against the SI table of contents"
+    analysis_protocol_ref: "ANL-001"
+    closure_contract_ref: "CC-BOOTSTRAP"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-00: completeness audit ---------------------
+  - goal_id: "GOAL-AUD-001"
+    wp: "WP-00"
+    title: "Completeness audit: 100% mapped, zero unresolved ambiguity before Plan freeze"
+    purpose: "Audit the fully populated inventory after GOAL-RES-001..004 / GOAL-INV-001..004: every formally reported item maps to at least one goal, and no ambiguity remains unresolved, before any Plan freeze (spec section 4 WP-00 GOAL-AUD-001; verdict rules R-AUD-U1/A1/P1 of src/scientific_reproduction/planning/audit.py)."
+    objective: "Produce the completeness audit record for the populated inventory: mapped = 100%, unmapped = 0, unresolved ambiguity = 0; freeze the updated plan or formally report the blocking evidence."
+    unit_process_type: "audit"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0001", "INV-0002", "INV-0003", "INV-0004", "INV-0005", "INV-0006", "INV-0007", "INV-0008", "INV-0009", "INV-0010", "INV-0101", "INV-0102", "INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109", "INV-0201", "INV-0202", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207", "INV-0301", "INV-0302", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308", "INV-0401", "INV-0402", "INV-0403", "INV-0404", "INV-0405", "INV-0406", "INV-0407", "INV-0408", "INV-0409", "INV-0501", "INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521", "INV-0601", "INV-0602", "INV-0603", "INV-0604", "INV-0605", "INV-0606", "INV-0607", "INV-0608", "INV-0609", "INV-0610", "INV-0611", "INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706", "INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+    resolves_in: []
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-RES-001"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-002"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-003"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-004"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-001"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-002"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-003"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-004"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: 100% of formally reported items are mapped (coverage = 1.0; verdict rule R-AUD-P1)."
+      - "AC-02: unmapped items = 0 (no R-AUD-U1 trigger) and ambiguous items = 0 (no R-AUD-A1 trigger)."
+      - "AC-03: The audit record carries the counts, the offending-item evidence (empty), and the matched verdict rule (R-AUD-P1) for traceability."
+      - "AC-04: The completeness audit result is embedded in the plan's inventory_audit block before each Plan freeze (Plan v1 anticipation: mapping_audit.yaml)."
+    inputs:
+      - "populated inventory (GOAL-INV-001..004 outputs)"
+      - "mapping_audit.yaml (Plan v1 anticipation)"
+    outputs:
+      - "completeness audit record"
+      - "freeze-eligibility verdict"
+    resource_ids: []
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single audit per plan freeze; verdict is a pure function of inventory state"
+    analysis_protocol_ref: "ANL-090"
+    closure_contract_ref: "CC-INTEGRATION"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-10: ligand / precursor reproduction --------
+  - goal_id: "GOAL-EXE-10"
+    wp: "WP-10"
+    title: "Ligand / precursor reproduction"
+    purpose: "Reproduce the ligand/precursor chemistry per the SI protocol: ligand precursor synthesis and purification, PyBC synthesis, PyBC purification, PyBC identity/purity characterization, and any reported precursor/control synthesis (spec section 4 WP-10; INV-0701..0706)."
+    objective: "Produce PyBC ligand (and precursors) with identity/purity evidence matching the reported characterization, as an independent input to GOAL-EXE-20."
+    unit_process_type: "synthesis"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706"]
+    resolves_in: ["INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-INV-004"
+        type: "hard_gate"
+        execution_gate: true
+        note: "SI protocol population must precede protocol execution"
+    acceptance_criteria:
+      - "AC-01: Each reported synthesis unit process (precursor step 1, purification/identity check, PyBC synthesis, PyBC purification, PyBC identity/purity, precursor/control syntheses) is executed per the SI protocol with all registered assumptions applied."
+      - "AC-02: Each chemical synthesis unit process defines independent batch logic (spec WP-10: 'each chemical synthesis Goal must define independent batch logic'): independent_required true, minimum n per ASM-A1-N-01."
+      - "AC-03: PyBC identity/purity evidence matches the reported characterization method (per GOAL-INV-004 population), or a deviation is registered per the recovery/change-control process."
+      - "AC-04: Output PyBC lot records with purity are handed to GOAL-EXE-20."
+    inputs:
+      - "SI synthesis protocol (INV-0701..0706, via GOAL-INV-004)"
+      - "reagents/solvents (RES-017)"
+    outputs:
+      - "PyBC ligand lots with identity/purity evidence"
+      - "synthesis run records and deviation register"
+    resource_ids: ["RES-013", "RES-017"]
+    assumption_ids: ["ASM-A1-N-01"]
+    replication:
+      independent_required: true
+      minimum_n: 2
+      planned_n_policy: "independent batch logic per spec WP-10; minimum n per ASM-A1-N-01"
+    analysis_protocol_ref: "ANL-010"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-20: FDM-201 synthesis and activation -------
+  - goal_id: "GOAL-EXE-20"
+    wp: "WP-20"
+    title: "FDM-201 synthesis and activation"
+    purpose: "Reproduce the FDM-201 solvothermal synthesis and activation per the SI protocol: reaction mixture preparation, solvothermal synthesis, isolation/wash, solvent exchange, activation, sample storage/handling, independent batch runs, and process-level batch reproducibility analysis (spec section 4 WP-20; INV-0707..0714)."
+    objective: "Produce independent FDM-201 batches with the reported framework identity (INV-0101/0102) and process reproducibility statistics; feed samples to GOAL-EXE-30/40/50/70."
+    unit_process_type: "synthesis"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+    resolves_in: ["INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+    resolves_ambiguities: ["AMB-0009"]
+    dependencies:
+      - goal_id: "GOAL-EXE-10"
+        type: "hard_gate"
+        execution_gate: true
+        note: "PyBC ligand from GOAL-EXE-10 is a reaction input"
+      - goal_id: "GOAL-INV-004"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: Reaction mixture prepared exactly per SI (INV-0707); solvothermal synthesis run per protocol (INV-0708); isolation/wash, solvent exchange, activation, storage per protocol (INV-0709..0712)."
+      - "AC-02: Independent batch synthesis runs (INV-0713) executed with minimum n per ASM-A1-N-01; process-level batch reproducibility analysis (INV-0714) per ANL-010."
+      - "AC-03: Activation protocol parameters (INV-0711, AMB-0009) are the SI values; if the SI is silent, A2 registration per the assumption ledger prevents pure strict classification."
+      - "AC-04: Output: activated FDM-201 samples with batch records, handed to GOAL-EXE-30/40/50/70."
+    inputs:
+      - "SI synthesis/activation protocol (INV-0707..0714, via GOAL-INV-004)"
+      - "PyBC ligand lots (GOAL-EXE-10 output)"
+      - "reagents/solvents (RES-017)"
+    outputs:
+      - "activated FDM-201 samples (independent batches)"
+      - "batch records and reproducibility statistics"
+    resource_ids: ["RES-013", "RES-017"]
+    assumption_ids: ["ASM-A1-N-01"]
+    replication:
+      independent_required: true
+      minimum_n: 2
+      planned_n_policy: "independent batch synthesis runs per spec WP-20; minimum n per ASM-A1-N-01"
+    analysis_protocol_ref: "ANL-010"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-30: structure and composition --------------
+  - goal_id: "GOAL-EXE-30"
+    wp: "WP-30"
+    title: "Structure and composition verification"
+    purpose: "Verify each independent batch's structure and composition: PXRD per batch, PXRD phase analysis, SCXRD if formally reported and practically reproducible, structure/model comparison against the CIF (INV-0102), TGA, any formally reported spectroscopy/compositional characterization, and stability PXRD under formally reported conditions (spec section 4 WP-30; INV-0101..0109)."
+    objective: "Establish sample identity for every batch used downstream: framework phase, unit cell, composition; acceptance evidence for the identity gate of GOAL-EXE-40/50."
+    unit_process_type: "characterization"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0101", "INV-0102", "INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109"]
+    resolves_in: ["INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-EXE-20"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-RES-003"
+        type: "informational"
+        note: "CIF for structure/model comparison (INV-0109)"
+      - goal_id: "GOAL-INV-004"
+        type: "informational"
+    acceptance_criteria:
+      - "AC-01: PXRD measured for each independent batch (INV-0104) and phase analysis performed (INV-0105); pattern matches the calculated pattern from the CIF for the target phase."
+      - "AC-02: INV-0102 revalidated: unit cell (cubic Fm-3m, a = 23.76 A abstract-level value) confirmed or corrected against the primary source/CIF; structure/model comparison (INV-0109) recorded."
+      - "AC-03: TGA (INV-0106), spectroscopy/compositional characterization (INV-0107) and stability PXRD (INV-0108) executed exactly when formally reported (existence resolved by GOAL-INV-001, AMB-0010); SCXRD (INV-0103) executed only if formally reported and practically reproducible."
+      - "AC-04: Identity evidence (acceptance evidence class EVID-STRUCTURE) is attached to every batch record used downstream."
+    inputs:
+      - "activated FDM-201 samples (GOAL-EXE-20 output)"
+      - "CIF (GOAL-RES-003 output)"
+    outputs:
+      - "per-batch PXRD/TGA/composition records"
+      - "identity acceptance evidence"
+    resource_ids: ["RES-003", "RES-014"]
+    assumption_ids: ["ASM-CVR-AMB-0010-INV-0103", "ASM-CVR-AMB-0010-INV-0106", "ASM-CVR-AMB-0010-INV-0108"]
+    replication:
+      independent_required: true
+      minimum_n: 2
+      planned_n_policy: "PXRD per independent batch; minimum n per ASM-A1-N-01"
+    analysis_protocol_ref: "ANL-020"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-40: porosity ---------------------------------
+  - goal_id: "GOAL-EXE-40"
+    wp: "WP-40"
+    title: "Porosity: N2 isotherm, BET and pore size"
+    purpose: "Reproduce the reported porosity: activation QC before adsorption, N2 isotherm at the reported temperature, BET analysis with frozen selection rules, pore-size analysis with the method actually reported, and independent-batch porosity statistics (spec section 4 WP-40; INV-0201..0207)."
+    objective: "Compare measured BET surface area (reported 1965 m2 g-1, INV-0201, REPORTED-NON-FINAL) and pore sizes (reported 7.9 A and 13.0 A, INV-0202) under the frozen acceptance design."
+    unit_process_type: "measurement"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0201", "INV-0202", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207"]
+    resolves_in: ["INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-EXE-20"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-30"
+        type: "soft_dependency"
+        execution_gate: false
+        acceptance_gate: true
+        note: "spec section 5: BET acceptance requires a hard acceptance gate on sample identity even if measurement execution started earlier"
+      - goal_id: "GOAL-INV-001"
+        type: "informational"
+    acceptance_criteria:
+      - "AC-01: Activation QC (INV-0206) performed before adsorption; N2 isotherm acquired at the reported temperature (INV-0203, conditions resolved by GOAL-INV-001, AMB-0012)."
+      - "AC-02: BET analysis uses the frozen selection rules (ASM-A1-FIT-02); BET value compared with the reported 1965 m2 g-1 under ASM-A1-TOL-02."
+      - "AC-03: Pore-size analysis uses the method actually reported (INV-0205, resolved by GOAL-INV-001, AMB-0014); results compared with reported 7.9 A / 13.0 A under ASM-A1-TOL-03."
+      - "AC-04: Independent-batch porosity statistics (INV-0207) per ANL-090 with minimum n per ASM-A1-N-01."
+    inputs:
+      - "activated FDM-201 samples (GOAL-EXE-20 output)"
+      - "reported porosity conditions (GOAL-INV-001 output)"
+    outputs:
+      - "N2 isotherms, BET and pore-size analysis records"
+      - "porosity comparison evidence (EV-* for INV-0201/0202)"
+    resource_ids: ["RES-015"]
+    assumption_ids: ["ASM-A1-N-01", "ASM-A1-FIT-02", "ASM-A1-FIT-03", "ASM-A1-TOL-02", "ASM-A1-TOL-03", "ASM-CVR-AMB-0012-INV-0203", "ASM-CVR-AMB-0013-INV-0204", "ASM-CVR-AMB-0014-INV-0205", "ASM-CVR-AMB-0011-INV-0207"]
+    replication:
+      independent_required: true
+      minimum_n: 2
+      planned_n_policy: "independent batch porosity statistics; minimum n per ASM-A1-N-01"
+    analysis_protocol_ref: "ANL-090"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-50: single-component adsorption -------------
+  - goal_id: "GOAL-EXE-50"
+    wp: "WP-50"
+    title: "Single-component C3H6/C2H4 adsorption isotherms"
+    purpose: "Reproduce the single-component adsorption isotherms: C3H6 and C2H4 isotherms at each reported temperature (separate unit processes per gas and condition when distinct datasets exist), desorption branch if formally reported, repeat/batch plan, and uptake comparison statistics (spec section 4 WP-50; INV-0301..0308)."
+    objective: "Compare measured 298 K / 1 bar uptakes (reported C3H6 180.5 cm3 g-1, C2H4 68.2 cm3 g-1, INV-0301/0302, REPORTED-NON-FINAL) and the full isotherm datasets under the frozen acceptance design."
+    unit_process_type: "measurement"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0301", "INV-0302", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308"]
+    resolves_in: ["INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-EXE-20"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-30"
+        type: "soft_dependency"
+        execution_gate: false
+        acceptance_gate: true
+        note: "uptake acceptance requires the sample-identity acceptance gate"
+      - goal_id: "GOAL-EXE-40"
+        type: "soft_dependency"
+        execution_gate: false
+        note: "activation QC from GOAL-EXE-40 informs adsorption readiness"
+    acceptance_criteria:
+      - "AC-01: C3H6 and C2H4 isotherms acquired at each reported temperature (INV-0303/0304; non-298 K set resolved by GOAL-INV-001, AMB-0003), with point grids matching the reported pressure ranges."
+      - "AC-02: 298 K / 1 bar uptakes (INV-0301/0302) compared under ASM-A1-TOL-01; full isotherm comparison per ANL-030."
+      - "AC-03: Desorption branch (INV-0306) executed iff formally reported; repeat/batch plan (INV-0307) and uptake comparison statistics (INV-0308) per ANL-090."
+      - "AC-04: Isotherm datasets handed to GOAL-EXE-60 (derived thermodynamics) with uncertainty information."
+    inputs:
+      - "activated FDM-201 samples (GOAL-EXE-20 output)"
+      - "reported isotherm conditions (GOAL-INV-001 output)"
+    outputs:
+      - "C3H6/C2H4 isotherm datasets per temperature"
+      - "uptake comparison evidence (EV-INV-0301, EV-INV-0302)"
+    resource_ids: ["RES-015"]
+    assumption_ids: ["ASM-A1-N-01", "ASM-A1-FIT-01", "ASM-A1-TOL-01", "ASM-CVR-AMB-0003-INV-0305", "ASM-CVR-AMB-0011-INV-0307"]
+    replication:
+      independent_required: true
+      minimum_n: 2
+      planned_n_policy: "repeat/batch plan per spec WP-50; minimum n per ASM-A1-N-01"
+    analysis_protocol_ref: "ANL-030"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-60: derived thermodynamic / selectivity -----
+  - goal_id: "GOAL-EXE-60"
+    wp: "WP-60"
+    title: "Derived thermodynamic and selectivity analysis"
+    purpose: "Derive the reported thermodynamic quantities: fit/interpolate isotherms with the frozen model/protocol, calculate IAST selectivity for every formally reported composition/condition, calculate Qst with the same reported method, and run uncertainty/sensitivity analysis (spec section 4 WP-60; INV-0401..0406)."
+    objective: "Compare derived IAST selectivity (reported 8.6 for 50/50 C3H6/C2H4 at 298 K / 100 kPa, INV-0401, REPORTED-NON-FINAL) and zero-coverage Qst (reported C3H6 27.1 kJ mol-1, C2H4 19.1 kJ mol-1, INV-0402/0403, REPORTED-NON-FINAL)."
+    unit_process_type: "analysis"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0008", "INV-0401", "INV-0402", "INV-0403", "INV-0404", "INV-0405", "INV-0406"]
+    resolves_in: ["INV-0404", "INV-0405", "INV-0406"]
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-EXE-50"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-002"
+        type: "informational"
+        note: "IAST/Qst procedures resolved by AMB-0004/AMB-0005"
+    acceptance_criteria:
+      - "AC-01: Isotherms fit with the frozen model/protocol (ASM-A1-FIT-01); fit quality and uncertainty reported per ANL-040."
+      - "AC-02: IAST selectivity calculated for every formally reported composition/condition (INV-0405/0406); 50/50 at 298 K / 100 kPa compared with 8.6 under ASM-A1-TOL-04."
+      - "AC-03: Qst calculated with the same reported method (INV-0404, resolved by GOAL-INV-002, AMB-0004); zero-coverage values compared with 27.1 / 19.1 kJ mol-1 under ASM-A1-TOL-05."
+      - "AC-04: Uncertainty/sensitivity analysis appropriate to the method per ANL-040."
+    inputs:
+      - "isotherm datasets (GOAL-EXE-50 output)"
+      - "reported IAST/Qst procedures (GOAL-INV-002 output)"
+    outputs:
+      - "IAST selectivity results, Qst results, fit records"
+      - "comparison evidence (EV-* for INV-0401/0402/0403)"
+    resource_ids: ["RES-007", "RES-015"]
+    assumption_ids: ["ASM-A1-FIT-01", "ASM-A1-FIT-04", "ASM-A1-TOL-04", "ASM-A1-TOL-05", "ASM-CVR-AMB-0004-INV-0404", "ASM-CVR-AMB-0005-INV-0405", "ASM-CVR-AMB-0005-INV-0406"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single analysis per frozen protocol; sensitivity analysis per ANL-040 (statistical validation, not replication)"
+    analysis_protocol_ref: "ANL-040"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-70: breakthrough -----------------------------
+  - goal_id: "GOAL-EXE-70"
+    wp: "WP-70"
+    title: "Breakthrough experiments"
+    purpose: "Reproduce the reported breakthrough experiments, with separate unit processes for every formally reported gas composition/temperature/cycle condition: 50/50 C3H6/C2H4 at 298 K (reported C2H4 ~23.5 min, C3H6 ~64.8 min, separation window ~41.3 min, INV-0501, REPORTED-NON-FINAL) and the 328 K diluted-mixture run (INV-0502), using the full WP-70 parameter set (INV-0511..0521)."
+    objective: "Compare measured breakthrough times and separation window under the frozen acceptance design, using the reported column/protocol parameters."
+    unit_process_type: "measurement"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0501", "INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    resolves_in: ["INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    resolves_ambiguities: ["AMB-0002", "AMB-0008"]
+    dependencies:
+      - goal_id: "GOAL-EXE-20"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-001"
+        type: "hard_gate"
+        execution_gate: true
+        note: "reported WP-70 parameter set and 328 K conditions"
+      - goal_id: "GOAL-EXE-50"
+        type: "informational"
+        note: "single-component uptake context"
+    acceptance_criteria:
+      - "AC-01: Column built and run per the WP-70 parameter set (INV-0511..0521); every parameter is the inventoried value or a registered A2 assumption (spec WP-70: any missing scientifically consequential parameter prevents pure strict classification)."
+      - "AC-02: 50/50 run at 298 K executed per INV-0501 conditions; breakthrough times compared with ~23.5 / ~64.8 min and window ~41.3 min under ASM-A1-TOL-06."
+      - "AC-03: 328 K diluted-mixture run executed per the conditions inventoried by GOAL-INV-001 (AMB-0002)."
+      - "AC-04: Cycle/repeat runs (INV-0503) executed per the cycling protocol (INV-0521) with minimum n per ASM-A1-N-01; detector calibration and dead-volume correction documented."
+    inputs:
+      - "activated FDM-201 samples (GOAL-EXE-20 output)"
+      - "WP-70 parameter set and 328 K conditions (GOAL-INV-001 output)"
+      - "gases (RES-017)"
+    outputs:
+      - "breakthrough curves and times per condition"
+      - "comparison evidence (EV-INV-0501, EV-INV-0502)"
+    resource_ids: ["RES-016", "RES-017"]
+    assumption_ids: ["ASM-A1-N-01", "ASM-A1-TOL-06", "ASM-FDM-0511", "ASM-FDM-0512", "ASM-FDM-0513", "ASM-FDM-0514", "ASM-FDM-0515", "ASM-FDM-0516", "ASM-FDM-0517", "ASM-FDM-0518", "ASM-FDM-0519", "ASM-FDM-0520", "ASM-FDM-0521", "ASM-CVR-AMB-0002-INV-0502", "ASM-CVR-AMB-0011-INV-0503"]
+    replication:
+      independent_required: true
+      minimum_n: 2
+      planned_n_policy: "cycle/repeat plan per spec WP-70; minimum n per ASM-A1-N-01"
+    analysis_protocol_ref: "ANL-050"
+    closure_contract_ref: "CC-EXPERIMENT"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-80: computational model construction --------
+  - goal_id: "GOAL-EXE-80"
+    wp: "WP-80"
+    title: "Computational model construction"
+    purpose: "Construct the simulation model from the published CIF: acquire the CIF (GOAL-RES-003), resolve disorder/model choices, construct the simulation cell, verify geometry and pore access, reproduce any linker rotation/dynamic pore argument if computationally reported, and register all assumed atom types/charges/force-field settings (spec section 4 WP-80; INV-0601..0605)."
+    objective: "Produce a validated simulation model (cell, atom types, charges, force field) frozen for GOAL-EXE-81/82, with every assumption registered."
+    unit_process_type: "simulation"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0004", "INV-0009", "INV-0102", "INV-0601", "INV-0602", "INV-0603", "INV-0604", "INV-0605"]
+    resolves_in: ["INV-0602", "INV-0603", "INV-0604", "INV-0605"]
+    resolves_ambiguities: ["AMB-0006"]
+    dependencies:
+      - goal_id: "GOAL-RES-003"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-002"
+        type: "hard_gate"
+        execution_gate: true
+        note: "force-field/charges/software settings (INV-0605, AMB-0006)"
+    acceptance_criteria:
+      - "AC-01: Simulation cell constructed from the fetched CIF (INV-0602); disorder/model choices resolved with reasons; geometry and pore access verified (INV-0603)."
+      - "AC-02: Linker rotation / dynamic pore argument reproduced iff computationally reported (INV-0604, existence resolved by GOAL-INV-002)."
+      - "AC-03: All atom types/charges/force-field settings registered (INV-0605); any setting not reported in the SI is registered as an assumption (ASM-A1-FF-01) and prevents pure strict classification where the paper reports settings."
+      - "AC-04: Model file and settings are frozen and versioned; handed to GOAL-EXE-81/82."
+    inputs:
+      - "CIF (GOAL-RES-003 output)"
+      - "reported computational settings (GOAL-INV-002 output)"
+    outputs:
+      - "frozen simulation model (cell + settings)"
+      - "assumption register entries"
+    resource_ids: ["RES-003", "RES-010", "RES-011"]
+    assumption_ids: ["ASM-A1-FF-01", "ASM-FDM-0605"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single model per frozen settings; geometry verification is a checklist (ANL-060), not replication"
+    analysis_protocol_ref: "ANL-060"
+    closure_contract_ref: "CC-COMPUTATION"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-81: binding-site / energy reproduction ------
+  - goal_id: "GOAL-EXE-81"
+    wp: "WP-81"
+    title: "Binding-site and static binding-energy reproduction"
+    purpose: "Reproduce the reported binding-site and static binding-energy calculations for C2H4 and C3H6: reproduce each binding-site calculation, reproduce the binding-energy calculation method, verify convergence/model assumptions, and compare the recovered energy difference to the paper under frozen equivalence criteria (spec section 4 WP-81; INV-0407..0409, INV-0609..0611)."
+    objective: "Compare static binding energies (reported C3H6 48.72 kJ mol-1, C2H4 38.61 kJ mol-1, INV-0407/0408, REPORTED-NON-FINAL; difference 10.11 kJ mol-1 derived from the seed facts) under the frozen electronic-structure settings."
+    unit_process_type: "simulation"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0407", "INV-0408", "INV-0409", "INV-0609", "INV-0610", "INV-0611"]
+    resolves_in: ["INV-0609", "INV-0610", "INV-0611"]
+    resolves_ambiguities: ["AMB-0007"]
+    dependencies:
+      - goal_id: "GOAL-EXE-80"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: C2H4 binding-site calculation reproduced (INV-0610); C3H6 binding-site calculation reproduced (INV-0609)."
+      - "AC-02: Binding-energy calculation method reproduced per the inventoried settings (INV-0611, resolved by GOAL-INV-002, AMB-0007); convergence and model assumptions verified."
+      - "AC-03: Recovered energies compared with 48.72 / 38.61 kJ mol-1 under ASM-A1-TOL-07; energy difference compared under the frozen equivalence criteria."
+      - "AC-04: Any electronic-structure setting not reported in the paper/SI is registered as an assumption before the calculation (per spec WP-81: register all assumed settings)."
+    inputs:
+      - "frozen simulation model (GOAL-EXE-80 output)"
+      - "reported binding-energy settings (GOAL-INV-002 output)"
+    outputs:
+      - "binding-site and energy results"
+      - "comparison evidence (EV-INV-0407, EV-INV-0408)"
+    resource_ids: ["RES-010", "RES-011"]
+    assumption_ids: ["ASM-A1-TOL-07", "ASM-CVR-AMB-0007-INV-0409", "ASM-CVR-AMB-0007-INV-0611"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single calculation per frozen settings; convergence analysis per ANL-061"
+    analysis_protocol_ref: "ANL-061"
+    closure_contract_ref: "CC-COMPUTATION"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-82: GCMC adsorption reproduction ------------
+  - goal_id: "GOAL-EXE-82"
+    wp: "WP-82"
+    title: "GCMC adsorption reproduction"
+    purpose: "Reproduce the reported GCMC adsorption simulations: C2H4 and C3H6 adsorption simulations, all reported temperatures/pressures required by the inventory, sampling/convergence analysis, and comparison of simulated and experimental trends/data as formally reported (spec section 4 WP-82; INV-0606..0608)."
+    objective: "Produce simulated single-component uptakes over the reported state grid and compare them with the experimental isotherms (GOAL-EXE-50) as formally reported in the paper."
+    unit_process_type: "simulation"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0009", "INV-0605", "INV-0606", "INV-0607", "INV-0608"]
+    resolves_in: ["INV-0606", "INV-0607", "INV-0608"]
+    resolves_ambiguities: ["AMB-0006"]
+    dependencies:
+      - goal_id: "GOAL-EXE-80"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-INV-002"
+        type: "informational"
+        note: "reported simulation settings and comparison figure/table"
+      - goal_id: "GOAL-EXE-50"
+        type: "informational"
+        note: "experimental isotherms for the simulated-vs-experimental comparison (INV-0608)"
+    acceptance_criteria:
+      - "AC-01: C2H4 GCMC simulation (INV-0607) and C3H6 GCMC simulation (INV-0606) run over all reported temperatures/pressures required by the inventory."
+      - "AC-02: Sampling/convergence analysis per ASM-A1-FF-02; results registered with uncertainties."
+      - "AC-03: Simulated vs experimental comparison (INV-0608) performed as formally reported, under the frozen equivalence criteria (ASM-A1-TOL-08)."
+      - "AC-04: Force-field/charges/software settings used are the inventoried values or registered assumptions (ASM-A1-FF-01 / ASM-FDM-0605)."
+    inputs:
+      - "frozen simulation model (GOAL-EXE-80 output)"
+      - "reported simulation settings (GOAL-INV-002 output)"
+      - "experimental isotherms (GOAL-EXE-50 output, informational)"
+    outputs:
+      - "GCMC uptake datasets per gas/temperature/pressure"
+      - "simulated-vs-experimental comparison evidence (EV-INV-0608)"
+    resource_ids: ["RES-010", "RES-011"]
+    assumption_ids: ["ASM-A1-FF-01", "ASM-A1-FF-02", "ASM-A1-TOL-08", "ASM-FDM-0605"]
+    replication:
+      independent_required: false
+      planned_n_policy: "single simulation per frozen settings; sampling/convergence analysis per ANL-062"
+    analysis_protocol_ref: "ANL-062"
+    closure_contract_ref: "CC-COMPUTATION"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+  # ----------------------- WP-90: final integration ------------------------
+  - goal_id: "GOAL-EXE-90"
+    wp: "WP-90"
+    title: "Final integration, closure matrix and report"
+    purpose: "Integrate all goal results: requirement closure matrix (all 82 items), scientific-outcome aggregation, method-reproducibility aggregation, traceability audit, and the final report (spec section 4 WP-90)."
+    objective: "Produce the benchmark closure record: per-requirement outcomes, method reproducibility, traceability from every reported value to its evidence, and the final reproduction verdict."
+    unit_process_type: "integration"
+    track: "STRICT_REPRODUCTION"
+    requirement_ids: ["INV-0001", "INV-0002", "INV-0003", "INV-0004", "INV-0005", "INV-0006", "INV-0007", "INV-0008", "INV-0009", "INV-0010", "INV-0101", "INV-0102", "INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109", "INV-0201", "INV-0202", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207", "INV-0301", "INV-0302", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308", "INV-0401", "INV-0402", "INV-0403", "INV-0404", "INV-0405", "INV-0406", "INV-0407", "INV-0408", "INV-0409", "INV-0501", "INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521", "INV-0601", "INV-0602", "INV-0603", "INV-0604", "INV-0605", "INV-0606", "INV-0607", "INV-0608", "INV-0609", "INV-0610", "INV-0611", "INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706", "INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+    resolves_in: []
+    resolves_ambiguities: []
+    dependencies:
+      - goal_id: "GOAL-AUD-001"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-10"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-20"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-30"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-40"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-50"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-60"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-70"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-80"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-81"
+        type: "hard_gate"
+        execution_gate: true
+      - goal_id: "GOAL-EXE-82"
+        type: "hard_gate"
+        execution_gate: true
+    acceptance_criteria:
+      - "AC-01: Requirement closure matrix produced: all 82 inventory items closed with outcome and evidence trace (per-requirement outcomes per 05-GOAL-RUN-SCHEMA.md section 2)."
+      - "AC-02: Scientific-outcome aggregation and method-reproducibility aggregation per ANL-090; final reproduction verdict recorded."
+      - "AC-03: Traceability audit: every reported value, assumption, and evidence record is reachable from its goal and inventory item; no dangling reference."
+      - "AC-04: Final report produced with the pass/fail/recovery/closure account of every goal (spec section 6: simulated pass/fail/recovery/closure scenarios correctly handled)."
+    inputs:
+      - "all goal results and evidence records"
+      - "completeness audit record (GOAL-AUD-001)"
+    outputs:
+      - "requirement closure matrix"
+      - "final benchmark report and verdict"
+    resource_ids: []
+    assumption_ids: []
+    replication:
+      independent_required: false
+      planned_n_policy: "single integration pass over closed goal records"
+    analysis_protocol_ref: "ANL-090"
+    closure_contract_ref: "CC-INTEGRATION"
+    version: "v1"
+    frozen: true
+    frozen_at: "2026-08-14T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Dependency summary (documented form of the DAG)
+# ---------------------------------------------------------------------------
+dag_summary:
+  total_goals: 20
+  branch_breakdown:
+    bootstrap: 9
+    experiment: 7
+    computation: 3
+    integration: 1
+  ordering:
+    - "GOAL-RES-001 (root) precedes GOAL-RES-002/003/004; GOAL-RES-001..004 precede GOAL-INV-001/002; GOAL-INV-001/002 precede GOAL-INV-003; GOAL-AUD-001 follows all GOAL-RES-*/GOAL-INV-* goals."
+    - "Experiment branch: GOAL-EXE-10 -> GOAL-EXE-20 -> GOAL-EXE-30 -> (GOAL-EXE-40 | GOAL-EXE-50) -> GOAL-EXE-60; GOAL-EXE-70 runs in parallel to the isotherm chain once samples (GOAL-EXE-20) and reported conditions (GOAL-INV-001) exist."
+    - "Computation branch: GOAL-RES-003 + GOAL-INV-002 -> GOAL-EXE-80 -> (GOAL-EXE-81 | GOAL-EXE-82); independent of wet-lab completion (spec section 5)."
+    - "GOAL-EXE-90 closes after every goal and GOAL-AUD-001."
+  parallelism_note: "Computations based on the published CIF can run independently of wet-lab completion; BET acceptance holds a hard acceptance gate on sample identity (GOAL-EXE-30 acceptance evidence) even if measurement execution started earlier (spec section 5)."
+  acyclicity: "validated deterministically by audit_check.py (topological sort over all dependency edges)."

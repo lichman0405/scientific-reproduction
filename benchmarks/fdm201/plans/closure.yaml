@@ -1,0 +1,150 @@
+# FDM-201 Plan v1 closure contracts (DEV-M12-G03)
+#
+# Closure criteria per goal class and for the whole benchmark, frozen at
+# Plan v1 (2026-08-14T00:00:00Z). Field vocabulary follows
+# schemas/closure-contract.schema.yaml (closure_id, frozen,
+# statistical_sufficiency, execution_validity, diagnosis, recovery,
+# literature, closure_allowed). Grounded in 08-STRICT-RECOVERY-CLOSURE.md
+# and 06-EVIDENCE-SYSTEM.md section 4 (recovery eligibility: R >= 3,
+# D >= 2, scientifically actionable).
+#
+# Goals reference these contracts via closure_contract_ref:
+#   CC-BOOTSTRAP    -> GOAL-RES-001..004, GOAL-INV-001..004
+#   CC-EXPERIMENT   -> GOAL-EXE-10..70
+#   CC-COMPUTATION  -> GOAL-EXE-80/81/82
+#   CC-INTEGRATION  -> GOAL-AUD-001, GOAL-EXE-90 (whole-benchmark closure)
+#
+# "Benchmark complete" (whole-benchmark closure) means: every goal closed
+# with valid evidence, the requirement closure matrix covers all 82
+# inventory items, every REPORTED-NON-FINAL value revalidated against the
+# primary source, GOAL-AUD-001 PASS for the final inventory, and the final
+# report issued with outcome and method-reproducibility verdicts.
+
+record_kind: benchmark_closure_contracts
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+frozen_at: "2026-08-14T00:00:00Z"
+contracts: 4
+
+closure_contracts:
+  - closure_id: "CC-BOOTSTRAP"
+    frozen: true
+    title: "Closure contract for source-acquisition and inventory goals"
+    applies_to: ["GOAL-RES-001", "GOAL-RES-002", "GOAL-RES-003", "GOAL-RES-004", "GOAL-INV-001", "GOAL-INV-002", "GOAL-INV-003", "GOAL-INV-004"]
+    statistical_sufficiency:
+      note: "Not applicable (registration/inventory goals are single-pass evidence tasks, not statistical measurements)."
+      non_statistical_justification: "Registration and extraction are source-fidelity tasks: closure is evidence completeness, not replicate statistics (05-GOAL-RUN-SCHEMA.md section 3: independently executable/observable/analyzable/reviewable unit process)."
+    execution_validity:
+      required: "every DEFERRED-TO-EXECUTION and REPORTED-NON-FINAL item assigned to the goal is populated (value, existence finding, or formal not-reported finding) with a primary-source location; no item closes without a recorded finding."
+      revalidation_required: true
+    diagnosis:
+      note: "Failure to populate an item is diagnosed as source unavailability (missing text section, bot-protected page) or ambiguity; the diagnosis is recorded on the item and the ambiguity register."
+    recovery:
+      eligibility_rule:
+        evidence_gate: "R >= 3 and D >= 2 and scientifically actionable (06-EVIDENCE-SYSTEM.md section 4)"
+        action: "re-fetch/alternative access route for the source; hypothesis that the value is absent from the paper is tested against the searched locations"
+      eligible_hypotheses_total: null
+      tested_or_ruled_out: null
+      remaining: null
+    literature:
+      required_search_families_completed: false
+      consecutive_zero_novelty_cycles: null
+      required_zero_novelty_cycles: 2
+      note: "Literature search families apply at final integration (GOAL-EXE-90), not during bootstrap."
+    closure_allowed: false
+    closure_criteria:
+      - "every assigned item carries a primary-source-backed finding"
+      - "every assigned ambiguity is resolved or re-registered with a reason"
+      - "evidence records EV-* exist for every assigned item"
+
+  - closure_id: "CC-EXPERIMENT"
+    frozen: true
+    title: "Closure contract for experimental execution goals"
+    applies_to: ["GOAL-EXE-10", "GOAL-EXE-20", "GOAL-EXE-30", "GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-60", "GOAL-EXE-70"]
+    statistical_sufficiency:
+      minimum_n: 2
+      policy: "independent batches per ASM-A1-N-01; the reported replicate count (AMB-0011, resolved by GOAL-INV-001) may raise minimum_n via change control"
+      required: "replicate spread and comparison statistics per ANL-090 before scientific closure"
+    execution_validity:
+      required: "run lifecycle closed (05-GOAL-RUN-SCHEMA.md section 7: RESULT_AVAILABLE -> ANALYZING -> SUBMITTED_FOR_REVIEW -> CLOSED); deviations registered; engineering retries within the goal's automatic retry policy"
+    diagnosis:
+      note: "FAIL diagnostics recorded per 08-STRICT-RECOVERY-CLOSURE.md: measurement, sample, protocol or reported-value discrepancy classes, each with evidence."
+    recovery:
+      eligibility_rule:
+        evidence_gate: "R >= 3 and D >= 2 and scientifically actionable (06-EVIDENCE-SYSTEM.md section 4)"
+        action: "Recovery runs admissible only on an eligible hypothesis; the hypothesis is recorded and the run labeled recovery (GoalTrack RECOVERY); if the discrepancy persists, non-reproduced handling per closure rules"
+      eligible_hypotheses_total: null
+      tested_or_ruled_out: null
+      remaining: null
+    literature:
+      required_search_families_completed: false
+      consecutive_zero_novelty_cycles: null
+      required_zero_novelty_cycles: 2
+    closure_allowed: false
+    closure_criteria:
+      - "all acceptance criteria of the goal passed with evidence records"
+      - "statistics per ANL-090 completed (replicate spread, comparison verdicts)"
+      - "every A2 assumption used by the goal is recorded and its strict-status effect applied"
+      - "no open Recovery hypothesis with remaining admissible actions"
+
+  - closure_id: "CC-COMPUTATION"
+    frozen: true
+    title: "Closure contract for computational execution goals"
+    applies_to: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]
+    statistical_sufficiency:
+      minimum_n: 1
+      policy: "single model per frozen settings (replication not applicable to deterministic simulations); convergence/sampling analysis per ANL-061/ANL-062 is the statistical-sufficiency evidence"
+      required: "convergence evidence recorded before scientific closure"
+    execution_validity:
+      required: "run lifecycle closed; settings used are exactly the frozen settings (or registered assumptions); no unregistered setting introduced"
+    diagnosis:
+      note: "FAIL diagnostics: model-construction defect, settings mismatch, convergence failure; each recorded with evidence."
+    recovery:
+      eligibility_rule:
+        evidence_gate: "R >= 3 and D >= 2 and scientifically actionable (06-EVIDENCE-SYSTEM.md section 4)"
+        action: "settings revision admissible only as a registered assumption change or Recovery run with an eligible hypothesis"
+      eligible_hypotheses_total: null
+      tested_or_ruled_out: null
+      remaining: null
+    literature:
+      required_search_families_completed: false
+      consecutive_zero_novelty_cycles: null
+      required_zero_novelty_cycles: 2
+    closure_allowed: false
+    closure_criteria:
+      - "all acceptance criteria of the goal passed with evidence records"
+      - "convergence/sampling evidence recorded"
+      - "every assumed atom type/charge/force-field setting registered in the assumption ledger"
+
+  - closure_id: "CC-INTEGRATION"
+    frozen: true
+    title: "Closure contract for audit and final integration (whole-benchmark closure)"
+    applies_to: ["GOAL-AUD-001", "GOAL-EXE-90"]
+    statistical_sufficiency:
+      note: "Aggregates the per-goal statistical verdicts (ANL-090); the audit verdict is a pure function of inventory state (R-AUD-U1/A1/P1)."
+      required: "all per-goal statistics records exist and are referenced by the closure matrix"
+    execution_validity:
+      required: "every goal record closed; traceability audit finds no dangling reference between goals, inventory items, assumptions, resources and evidence records"
+    diagnosis:
+      note: "Integration failures (missing closure matrix entries, traceability gaps) are repaired before closure; re-opening a goal requires change control."
+    recovery:
+      eligibility_rule:
+        evidence_gate: "R >= 3 and D >= 2 and scientifically actionable (06-EVIDENCE-SYSTEM.md section 4)"
+        action: "recovery is a per-goal concern; integration itself is not a recovery target"
+      eligible_hypotheses_total: null
+      tested_or_ruled_out: null
+      remaining: null
+    literature:
+      required_search_families_completed: true
+      consecutive_zero_novelty_cycles: 2
+      required_zero_novelty_cycles: 2
+      note: "final integration completes the required search families (same-author/analogous MOF works, INV-0010) and requires two consecutive zero-novelty cycles before closure (08-STRICT-RECOVERY-CLOSURE.md)."
+    closure_allowed: false
+    whole_benchmark_closure_criteria:
+      - "every goal closed with valid evidence (GOAL-EXE-90 hard gates all satisfied)"
+      - "requirement closure matrix covers all 82 inventory items, each with outcome and evidence trace"
+      - "every REPORTED-NON-FINAL value revalidated against the primary source (ANL-001); revalidation recorded"
+      - "GOAL-AUD-001 PASS for the final inventory (100% mapped, zero unresolved ambiguity)"
+      - "final report issued with scientific-outcome and method-reproducibility verdicts"
+    closure_criteria:
+      - "whole-benchmark closure criteria above all satisfied"

@@ -1,0 +1,551 @@
+# FDM-201 benchmark Plan v1 -- FROZEN (DEV-M12-G03)
+#
+# The frozen FDM-201 reproduction plan (v0.1 benchmark; 17-FDM201-REFERENCE-
+# CASE.md, DOI 10.1039/D5TA00771B). Core fields follow schemas/plan.schema.yaml
+# (plan_id, version, status, inventory_audit, goal_ids, requirement_ids,
+# parent_plan_version, work_packages, resource_ids, frozen_at, frozen_commit)
+# and core.models.Plan; benchmark extensions below are permitted by the
+# schema's additionalProperties: true.
+#
+# Freeze marker: Plan v1 is frozen at the fixed timestamp 2026-08-14T00:00:00Z
+# with the mapping audit PASS (82/82 items mapped, 0 unmapped, 0 unresolved
+# ambiguity; goals/mapping_audit.yaml). frozen_commit is recorded in the
+# change-control ledger at merge/review time (the commit hash is unknowable
+# before the freeze commit exists; the freeze marker is the timestamp).
+#
+# AC-03 objects: the experiment and computation branches, resource objects,
+# assumption objects, evidence objects, analysis objects and closure objects
+# are structured sections of this file; full object records live in the
+# referenced companion files (resources/, evidence/, plans/assumptions.yaml,
+# plans/analysis_plan.yaml, plans/closure.yaml) and are validated by
+# goals/audit_check.py.
+#
+# Determinism: no wall clock, no randomness, no network at runtime; no
+# placeholder text; every number below is traceable to the spec section 2
+# seed facts (REPORTED-NON-FINAL) or is an explicit assumption.
+
+record_kind: benchmark_reproduction_plan
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+reference_case_spec: "17-FDM201-REFERENCE-CASE.md"
+version: "v1"
+status: FROZEN
+parent_plan_version: null
+frozen_at: "2026-08-14T00:00:00Z"
+frozen_commit: null
+
+frozen_marker:
+  note: "Plan v1 is frozen at DEV-M12-G03 (fixed timestamp 2026-08-14T00:00:00Z) on the GOAL-AUD-001 anticipation: mapping audit PASS (82/82 mapped, 0 unmapped, 0 unresolved ambiguity)."
+  audit_ref: "benchmarks/fdm201/goals/mapping_audit.yaml"
+  goals_ref: "benchmarks/fdm201/goals/goals.yaml"
+  audit_check_ref: "benchmarks/fdm201/goals/audit_check.py"
+  frozen_commit: null
+  frozen_commit_note: "The freeze commit SHA is recorded by the review/merge process in the change-control ledger (see change_control below); the freeze marker itself is the fixed timestamp."
+
+# ---------------------------------------------------------------------------
+# Inventory audit (plan.schema.yaml inventory_audit; the GOAL-AUD-001 gate)
+# ---------------------------------------------------------------------------
+inventory_audit:
+  formally_reported_items: 82
+  mapped_items: 82
+  unmapped_items: 0
+  ambiguous_items: 0
+  coverage: 1.0
+  status: PASS
+  interpretation:
+    ambiguous_items: "0 unresolved ambiguities at freeze: all 14 ambiguity entries (AMB-0001..0014) are assigned to resolution goals defined in goals.yaml (see mapping_audit.yaml ambiguity_resolutions)."
+    unavailability_handling: "All source unavailability is formally handled per spec: 65 DEFERRED-TO-EXECUTION inventory items and 3 UNAVAILABLE acquisition-log items each carry resolution goals (mapping_audit.yaml formal_unavailability); nothing is ignored."
+  audit_ref: "benchmarks/fdm201/goals/mapping_audit.yaml"
+
+# ---------------------------------------------------------------------------
+# Goal and requirement coverage (the DAG is goals/goals.yaml)
+# ---------------------------------------------------------------------------
+goal_ids:
+  - "GOAL-RES-001"
+  - "GOAL-RES-002"
+  - "GOAL-RES-003"
+  - "GOAL-RES-004"
+  - "GOAL-INV-001"
+  - "GOAL-INV-002"
+  - "GOAL-INV-003"
+  - "GOAL-INV-004"
+  - "GOAL-AUD-001"
+  - "GOAL-EXE-10"
+  - "GOAL-EXE-20"
+  - "GOAL-EXE-30"
+  - "GOAL-EXE-40"
+  - "GOAL-EXE-50"
+  - "GOAL-EXE-60"
+  - "GOAL-EXE-70"
+  - "GOAL-EXE-80"
+  - "GOAL-EXE-81"
+  - "GOAL-EXE-82"
+  - "GOAL-EXE-90"
+requirement_ids:
+  - "INV-0001"
+  - "INV-0002"
+  - "INV-0003"
+  - "INV-0004"
+  - "INV-0005"
+  - "INV-0006"
+  - "INV-0007"
+  - "INV-0008"
+  - "INV-0009"
+  - "INV-0010"
+  - "INV-0101"
+  - "INV-0102"
+  - "INV-0103"
+  - "INV-0104"
+  - "INV-0105"
+  - "INV-0106"
+  - "INV-0107"
+  - "INV-0108"
+  - "INV-0109"
+  - "INV-0201"
+  - "INV-0202"
+  - "INV-0203"
+  - "INV-0204"
+  - "INV-0205"
+  - "INV-0206"
+  - "INV-0207"
+  - "INV-0301"
+  - "INV-0302"
+  - "INV-0303"
+  - "INV-0304"
+  - "INV-0305"
+  - "INV-0306"
+  - "INV-0307"
+  - "INV-0308"
+  - "INV-0401"
+  - "INV-0402"
+  - "INV-0403"
+  - "INV-0404"
+  - "INV-0405"
+  - "INV-0406"
+  - "INV-0407"
+  - "INV-0408"
+  - "INV-0409"
+  - "INV-0501"
+  - "INV-0502"
+  - "INV-0503"
+  - "INV-0511"
+  - "INV-0512"
+  - "INV-0513"
+  - "INV-0514"
+  - "INV-0515"
+  - "INV-0516"
+  - "INV-0517"
+  - "INV-0518"
+  - "INV-0519"
+  - "INV-0520"
+  - "INV-0521"
+  - "INV-0601"
+  - "INV-0602"
+  - "INV-0603"
+  - "INV-0604"
+  - "INV-0605"
+  - "INV-0606"
+  - "INV-0607"
+  - "INV-0608"
+  - "INV-0609"
+  - "INV-0610"
+  - "INV-0611"
+  - "INV-0701"
+  - "INV-0702"
+  - "INV-0703"
+  - "INV-0704"
+  - "INV-0705"
+  - "INV-0706"
+  - "INV-0707"
+  - "INV-0708"
+  - "INV-0709"
+  - "INV-0710"
+  - "INV-0711"
+  - "INV-0712"
+  - "INV-0713"
+  - "INV-0714"
+
+# ---------------------------------------------------------------------------
+# Work packages (WP-00..WP-90; the Goals DAG is the authoritative structure)
+# ---------------------------------------------------------------------------
+work_packages:
+  - wp_id: "WP-00"
+    title: "Source acquisition and inventory"
+    branch: "bootstrap"
+    goal_ids: ["GOAL-RES-001", "GOAL-RES-002", "GOAL-RES-003", "GOAL-RES-004", "GOAL-INV-001", "GOAL-INV-002", "GOAL-INV-003", "GOAL-INV-004", "GOAL-AUD-001"]
+    phases:
+      - "source acquisition and verification (paper, SI, CIF/depositions, linked data)"
+      - "reported-item extraction (experimental, computational)"
+      - "figure/table mapping (main text, SI)"
+      - "completeness audit (100% mapped, zero unresolved ambiguity before plan freeze)"
+    inputs: ["benchmarks/fdm201/sources/ (G01 registered source set)", "benchmarks/fdm201/inventory/INVENTORY.yaml (82 items, 14 ambiguities)"]
+    outputs: ["populated and revalidated inventory", "completeness audit record"]
+  - wp_id: "WP-10"
+    title: "Ligand / precursor reproduction"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-10"]
+    phases:
+      - "ligand precursor synthesis step 1"
+      - "ligand precursor purification/identity check"
+      - "PyBC synthesis"
+      - "PyBC purification"
+      - "PyBC identity/purity characterization"
+      - "any reported precursor/control synthesis"
+    inputs: ["SI synthesis protocol (INV-0701..0706, via GOAL-INV-004)", "reagents/solvents (RES-017)"]
+    outputs: ["PyBC ligand lots with identity/purity evidence"]
+  - wp_id: "WP-20"
+    title: "FDM-201 synthesis and activation"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-20"]
+    phases:
+      - "reaction mixture preparation exactly per SI"
+      - "solvothermal synthesis of FDM-201"
+      - "isolate/wash material"
+      - "solvent exchange"
+      - "activation"
+      - "sample storage/handling"
+      - "independent batch synthesis runs"
+      - "process-level batch reproducibility analysis"
+    inputs: ["SI synthesis/activation protocol (INV-0707..0714, via GOAL-INV-004)", "PyBC ligand lots (GOAL-EXE-10 output)"]
+    outputs: ["activated FDM-201 samples (independent batches)", "batch records and reproducibility statistics"]
+  - wp_id: "WP-30"
+    title: "Structure and composition verification"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-30"]
+    phases:
+      - "PXRD measurement for each independent batch"
+      - "PXRD phase analysis"
+      - "SCXRD/sample selection if formally reported and practically reproducible"
+      - "structure/model comparison (against the CIF)"
+      - "TGA"
+      - "any formally reported spectroscopy/compositional characterization"
+      - "stability PXRD under all formally reported conditions"
+    inputs: ["activated FDM-201 samples (GOAL-EXE-20 output)", "CIF (GOAL-RES-003 output)"]
+    outputs: ["per-batch identity evidence (PXRD/TGA/composition)", "structure/model comparison record"]
+  - wp_id: "WP-40"
+    title: "Porosity"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-40"]
+    phases:
+      - "activation QC before adsorption"
+      - "N2 isotherm acquisition at the reported temperature"
+      - "BET analysis using frozen selection rules"
+      - "pore-size analysis using the method actually reported"
+      - "independent batch porosity statistics"
+    inputs: ["activated FDM-201 samples (GOAL-EXE-20 output)", "reported porosity conditions (GOAL-INV-001 output)"]
+    outputs: ["N2 isotherms, BET and pore-size records", "porosity comparison evidence"]
+  - wp_id: "WP-50"
+    title: "Single-component C3H6/C2H4 adsorption"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-50"]
+    phases:
+      - "C3H6 adsorption isotherm at each reported temperature"
+      - "C2H4 adsorption isotherm at each reported temperature"
+      - "desorption branch if formally reported"
+      - "repeat/batch plan"
+      - "uptake comparison statistics"
+    inputs: ["activated FDM-201 samples (GOAL-EXE-20 output)", "reported isotherm conditions (GOAL-INV-001 output)"]
+    outputs: ["C3H6/C2H4 isotherm datasets", "uptake comparison evidence"]
+  - wp_id: "WP-60"
+    title: "Derived thermodynamic/selectivity analysis"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-60"]
+    phases:
+      - "fit/interpolate isotherms using the frozen model/protocol"
+      - "calculate IAST selectivity for every formally reported composition/condition"
+      - "calculate Qst using the same reported method"
+      - "uncertainty/sensitivity analysis appropriate to the method"
+    inputs: ["isotherm datasets (GOAL-EXE-50 output)", "reported IAST/Qst procedures (GOAL-INV-002 output)"]
+    outputs: ["IAST selectivity results", "Qst results with uncertainty"]
+  - wp_id: "WP-70"
+    title: "Breakthrough"
+    branch: "experiment"
+    goal_ids: ["GOAL-EXE-70"]
+    phases:
+      - "column setup with the inventoried WP-70 parameter set (column geometry, adsorbent mass, packing density, flow rate, gas composition/purity, temperature/pressure, detector calibration, dead-volume correction)"
+      - "50/50 C3H6/C2H4 breakthrough at 298 K"
+      - "328 K diluted-mixture breakthrough"
+      - "regeneration protocol and cycling protocol runs"
+    inputs: ["activated FDM-201 samples (GOAL-EXE-20 output)", "WP-70 parameter set (GOAL-INV-001 output)", "gases (RES-017)"]
+    outputs: ["breakthrough curves and times per condition", "comparison evidence"]
+  - wp_id: "WP-80"
+    title: "Computational model construction"
+    branch: "computation"
+    goal_ids: ["GOAL-EXE-80"]
+    phases:
+      - "acquire the published CIF"
+      - "resolve disorder/model choices"
+      - "construct simulation cell"
+      - "verify geometry and pore access"
+      - "reproduce any linker rotation/dynamic pore argument if computationally reported"
+      - "register all assumed atom types/charges/force-field settings"
+    inputs: ["CIF (GOAL-RES-003 output)", "reported computational settings (GOAL-INV-002 output)"]
+    outputs: ["frozen simulation model (cell + settings)"]
+  - wp_id: "WP-81"
+    title: "Binding-site / energy reproduction"
+    branch: "computation"
+    goal_ids: ["GOAL-EXE-81"]
+    phases:
+      - "reproduce C2H4 binding-site calculation"
+      - "reproduce C3H6 binding-site calculation"
+      - "reproduce binding-energy calculation method"
+      - "verify convergence/model assumptions"
+      - "compare recovered energy difference to the paper under frozen equivalence criteria"
+    inputs: ["frozen simulation model (GOAL-EXE-80 output)", "reported binding-energy settings (GOAL-INV-002 output)"]
+    outputs: ["binding-site and energy results", "comparison evidence"]
+  - wp_id: "WP-82"
+    title: "GCMC adsorption reproduction"
+    branch: "computation"
+    goal_ids: ["GOAL-EXE-82"]
+    phases:
+      - "reproduce C2H4 adsorption simulation"
+      - "reproduce C3H6 adsorption simulation"
+      - "simulate all reported temperatures/pressures required by the inventory"
+      - "sampling/convergence analysis"
+      - "compare simulated and experimental trends/data as formally reported"
+    inputs: ["frozen simulation model (GOAL-EXE-80 output)", "reported simulation settings (GOAL-INV-002 output)", "experimental isotherms (GOAL-EXE-50 output, informational)"]
+    outputs: ["GCMC uptake datasets", "simulated-vs-experimental comparison evidence"]
+  - wp_id: "WP-90"
+    title: "Final integration"
+    branch: "integration"
+    goal_ids: ["GOAL-EXE-90"]
+    phases:
+      - "requirement closure matrix"
+      - "scientific-outcome aggregation"
+      - "method-reproducibility aggregation"
+      - "traceability audit"
+      - "final report"
+    inputs: ["all goal results and evidence records", "completeness audit record (GOAL-AUD-001)"]
+    outputs: ["requirement closure matrix", "final benchmark report and verdict"]
+
+# ---------------------------------------------------------------------------
+# Experiment branch (AC-03)
+# ---------------------------------------------------------------------------
+experiment_branch:
+  branch_id: "experiment"
+  description: "Wet-lab reproduction of the reported experimental items: synthesis/activation (WP-20, GOAL-EXE-20; ligand chemistry WP-10/GOAL-EXE-10 upstream), structure/identity verification (WP-30, GOAL-EXE-30), porosity (WP-40, GOAL-EXE-40), single-component isotherms (WP-50, GOAL-EXE-50), derived thermodynamics (WP-60, GOAL-EXE-60) and breakthrough (WP-70, GOAL-EXE-70)."
+  phases:
+    - phase: "synthesis-and-activation"
+      description: "ligand/precursor chemistry then FDM-201 synthesis, isolation, solvent exchange, activation, storage; independent batches with process-level reproducibility analysis"
+      wp_ids: ["WP-10", "WP-20"]
+      goal_ids: ["GOAL-EXE-10", "GOAL-EXE-20"]
+      inputs: ["SI synthesis/activation protocol (INV-0701..0714, via GOAL-INV-004)", "reagents/solvents (RES-017)", "synthesis equipment (RES-013)"]
+      outputs: ["activated FDM-201 samples", "batch records", "process reproducibility statistics (ANL-010)"]
+    - phase: "structure-and-identity-verification"
+      description: "PXRD per batch, phase analysis, structure/model comparison against the CIF, TGA, compositional checks, stability PXRD; identity acceptance evidence for downstream goals"
+      wp_ids: ["WP-30"]
+      goal_ids: ["GOAL-EXE-30"]
+      inputs: ["activated samples (GOAL-EXE-20)", "CIF (GOAL-RES-003)"]
+      outputs: ["per-batch identity verdicts", "structure/model comparison record (INV-0109, ANL-020)"]
+    - phase: "porosity"
+      description: "activation QC, N2 isotherm at the reported temperature, BET with frozen selection rules, pore-size analysis with the reported method, batch statistics"
+      wp_ids: ["WP-40"]
+      goal_ids: ["GOAL-EXE-40"]
+      inputs: ["activated samples (GOAL-EXE-20)", "reported porosity conditions (GOAL-INV-001)", "adsorption instrumentation (RES-015)"]
+      outputs: ["BET comparison vs 1965 m2 g-1 (INV-0201)", "pore-size comparison vs 7.9 A / 13.0 A (INV-0202)", "porosity statistics (ANL-090)"]
+    - phase: "single-component-isotherms"
+      description: "C3H6 and C2H4 isotherms at each reported temperature, desorption branch if reported, repeat/batch plan, uptake comparison statistics"
+      wp_ids: ["WP-50"]
+      goal_ids: ["GOAL-EXE-50"]
+      inputs: ["activated samples (GOAL-EXE-20)", "reported isotherm conditions (GOAL-INV-001)", "adsorption instrumentation (RES-015)"]
+      outputs: ["isotherm datasets", "uptake comparison vs 180.5 / 68.2 cm3 g-1 at 298 K / 1 bar (INV-0301/0302, ANL-030)"]
+    - phase: "derived-thermodynamics"
+      description: "frozen-model isotherm fits, IAST selectivity for every reported composition/condition, Qst by the same reported method, uncertainty/sensitivity analysis"
+      wp_ids: ["WP-60"]
+      goal_ids: ["GOAL-EXE-60"]
+      inputs: ["isotherm datasets (GOAL-EXE-50)", "reported IAST/Qst procedures (GOAL-INV-002)"]
+      outputs: ["IAST selectivity comparison vs 8.6 at 298 K / 100 kPa (INV-0401)", "Qst comparison vs 27.1 / 19.1 kJ mol-1 (INV-0402/0403, ANL-040)"]
+    - phase: "breakthrough"
+      description: "column setup with the full WP-70 parameter set, 50/50 run at 298 K, 328 K diluted run, regeneration and cycling runs"
+      wp_ids: ["WP-70"]
+      goal_ids: ["GOAL-EXE-70"]
+      inputs: ["activated samples (GOAL-EXE-20)", "WP-70 parameter set (GOAL-INV-001)", "breakthrough apparatus (RES-016)", "gases (RES-017)"]
+      outputs: ["breakthrough time comparison vs ~23.5 / ~64.8 min, window ~41.3 min (INV-0501, ANL-050)", "328 K run record (INV-0502)"]
+
+# ---------------------------------------------------------------------------
+# Computation branch (AC-03)
+# ---------------------------------------------------------------------------
+computation_branch:
+  branch_id: "computation"
+  description: "Computational reproduction of the reported computational items from the published CIF and the inventoried settings: model construction (WP-80, GOAL-EXE-80), binding-site/energy reproduction (WP-81, GOAL-EXE-81) and GCMC adsorption reproduction (WP-82, GOAL-EXE-82). Independent of wet-lab completion (spec section 5); final comparison may depend on experimental evidence."
+  phases:
+    - phase: "model-construction"
+      description: "acquire the CIF (GOAL-RES-003), resolve disorder/model choices, construct the simulation cell, verify geometry and pore access, reproduce any linker-rotation argument if reported, register all assumed atom types/charges/force-field settings"
+      wp_ids: ["WP-80"]
+      goal_ids: ["GOAL-EXE-80"]
+      inputs: ["CIF (GOAL-RES-003)", "reported computational settings (GOAL-INV-002)", "software (RES-010)", "compute access (RES-011)"]
+      outputs: ["frozen simulation model (ANL-060)", "registered assumptions (ASM-A1-FF-01, ASM-FDM-0605)"]
+    - phase: "binding-sites"
+      description: "reproduce C2H4 and C3H6 binding-site calculations and the binding-energy calculation method with the inventoried electronic-structure settings; verify convergence; compare energies (48.72 / 38.61 kJ mol-1, REPORTED-NON-FINAL) and the energy difference under frozen equivalence criteria"
+      wp_ids: ["WP-81"]
+      goal_ids: ["GOAL-EXE-81"]
+      inputs: ["frozen model (GOAL-EXE-80)", "reported binding-energy settings (GOAL-INV-002)"]
+      outputs: ["binding energies with convergence evidence (ANL-061)", "comparison verdicts"]
+    - phase: "gcmc"
+      description: "reproduce C2H4 and C3H6 GCMC adsorption simulations over all reported temperatures/pressures; sampling/convergence analysis; compare simulated and experimental trends/data as formally reported"
+      wp_ids: ["WP-82"]
+      goal_ids: ["GOAL-EXE-82"]
+      inputs: ["frozen model (GOAL-EXE-80)", "reported simulation settings (GOAL-INV-002)", "experimental isotherms (GOAL-EXE-50, informational)"]
+      outputs: ["GCMC uptake datasets with block uncertainties (ANL-062)", "simulated-vs-experimental comparison (INV-0608)"]
+
+# ---------------------------------------------------------------------------
+# Resource objects (AC-03) -- full records in ../resources/resources.yaml
+# ---------------------------------------------------------------------------
+resource_ids:
+  - "RES-001"
+  - "RES-002"
+  - "RES-003"
+  - "RES-004"
+  - "RES-005"
+  - "RES-006"
+  - "RES-007"
+  - "RES-008"
+  - "RES-009"
+  - "RES-010"
+  - "RES-011"
+  - "RES-012"
+  - "RES-013"
+  - "RES-014"
+  - "RES-015"
+  - "RES-016"
+  - "RES-017"
+resources_summary:
+  note: "Every external resource the plan needs, with the G01 acquisition-log availability status and the goal that resolves/uses it. Full records: benchmarks/fdm201/resources/resources.yaml."
+  by_status:
+    REGISTERED: 2
+    PARTIAL: 4
+    UNAVAILABLE: 3
+    not_applicable_registration: 8
+  items:
+    - {resource_id: "RES-001", name: "Primary paper", acquisition_status: "REGISTERED", resolution_goal: "GOAL-RES-001", used_by: ["GOAL-RES-001", "GOAL-INV-001", "GOAL-INV-002", "GOAL-INV-003"]}
+    - {resource_id: "RES-002", name: "Supplementary information (ESI)", acquisition_status: "REGISTERED", resolution_goal: "GOAL-RES-002", used_by: ["GOAL-RES-002", "GOAL-INV-004", "GOAL-INV-001", "GOAL-INV-002"]}
+    - {resource_id: "RES-003", name: "FDM-201 CIF / CSD deposition", acquisition_status: "UNAVAILABLE", resolution_goal: "GOAL-RES-003", used_by: ["GOAL-RES-003", "GOAL-EXE-30", "GOAL-EXE-80", "GOAL-INV-004"]}
+    - {resource_id: "RES-004", name: "Related structure depositions", acquisition_status: "UNAVAILABLE", resolution_goal: "GOAL-RES-003", used_by: ["GOAL-RES-003", "GOAL-INV-003"]}
+    - {resource_id: "RES-005", name: "Data-availability resources", acquisition_status: "UNAVAILABLE", resolution_goal: "GOAL-RES-004", used_by: ["GOAL-RES-004", "GOAL-INV-001"]}
+    - {resource_id: "RES-006", name: "[Zn8SiO4] SBU chemistry reference set", acquisition_status: "PARTIAL", resolution_goal: "GOAL-INV-003", used_by: ["GOAL-INV-003"]}
+    - {resource_id: "RES-007", name: "Adsorption / IAST / Qst method reference set", acquisition_status: "PARTIAL", resolution_goal: "GOAL-INV-002", used_by: ["GOAL-INV-002", "GOAL-EXE-60"]}
+    - {resource_id: "RES-008", name: "Computational method / force-field reference set", acquisition_status: "PARTIAL", resolution_goal: "GOAL-INV-002", used_by: ["GOAL-INV-002", "GOAL-EXE-80", "GOAL-EXE-82"]}
+    - {resource_id: "RES-009", name: "Same-author / analogous MOF work set", acquisition_status: "PARTIAL", resolution_goal: "GOAL-INV-003", used_by: ["GOAL-INV-003", "GOAL-EXE-90"]}
+    - {resource_id: "RES-010", name: "Adsorption and simulation software", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]}
+    - {resource_id: "RES-011", name: "Computational access", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]}
+    - {resource_id: "RES-012", name: "Standards and reference data", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-40"]}
+    - {resource_id: "RES-013", name: "Synthesis and activation equipment", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-10", "GOAL-EXE-20"]}
+    - {resource_id: "RES-014", name: "Characterization instruments (PXRD/TGA)", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-30"]}
+    - {resource_id: "RES-015", name: "Gas sorption analyzer", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-60"]}
+    - {resource_id: "RES-016", name: "Breakthrough apparatus", acquisition_status: "not_registered", resolution_goal: "PROCURE", used_by: ["GOAL-EXE-70"]}
+    - {resource_id: "RES-017", name: "Reagents, solvents and gases", acquisition_status: "not_registered", resolution_goal: "GOAL-INV-004", used_by: ["GOAL-EXE-10", "GOAL-EXE-20", "GOAL-EXE-70"]}
+
+# ---------------------------------------------------------------------------
+# Assumption objects (AC-03) -- full records in assumptions.yaml
+# ---------------------------------------------------------------------------
+assumption_ids:
+  - "ASM-FDM-0511"
+  - "ASM-FDM-0512"
+  - "ASM-FDM-0513"
+  - "ASM-FDM-0514"
+  - "ASM-FDM-0515"
+  - "ASM-FDM-0516"
+  - "ASM-FDM-0517"
+  - "ASM-FDM-0518"
+  - "ASM-FDM-0519"
+  - "ASM-FDM-0520"
+  - "ASM-FDM-0521"
+  - "ASM-FDM-0605"
+  - "ASM-CVR-AMB-0001-INV-0004"
+  - "ASM-CVR-AMB-0001-INV-0601"
+  - "ASM-CVR-AMB-0002-INV-0502"
+  - "ASM-CVR-AMB-0003-INV-0305"
+  - "ASM-CVR-AMB-0004-INV-0404"
+  - "ASM-CVR-AMB-0005-INV-0405"
+  - "ASM-CVR-AMB-0005-INV-0406"
+  - "ASM-CVR-AMB-0007-INV-0409"
+  - "ASM-CVR-AMB-0007-INV-0611"
+  - "ASM-CVR-AMB-0010-INV-0103"
+  - "ASM-CVR-AMB-0010-INV-0106"
+  - "ASM-CVR-AMB-0010-INV-0108"
+  - "ASM-CVR-AMB-0011-INV-0207"
+  - "ASM-CVR-AMB-0011-INV-0307"
+  - "ASM-CVR-AMB-0011-INV-0503"
+  - "ASM-CVR-AMB-0011-INV-0713"
+  - "ASM-CVR-AMB-0012-INV-0203"
+  - "ASM-CVR-AMB-0013-INV-0204"
+  - "ASM-CVR-AMB-0014-INV-0205"
+  - "ASM-A1-FIT-01"
+  - "ASM-A1-FIT-02"
+  - "ASM-A1-FIT-03"
+  - "ASM-A1-FIT-04"
+  - "ASM-A1-FF-01"
+  - "ASM-A1-FF-02"
+  - "ASM-A1-N-01"
+  - "ASM-A1-TOL-01"
+  - "ASM-A1-TOL-02"
+  - "ASM-A1-TOL-03"
+  - "ASM-A1-TOL-04"
+  - "ASM-A1-TOL-05"
+  - "ASM-A1-TOL-06"
+  - "ASM-A1-TOL-07"
+  - "ASM-A1-TOL-08"
+assumptions_summary:
+  note: "Every assumption stated, none silent (see assumptions.yaml): the 12 inventory A2 registrations (WP-70 parameters and computational settings), the 19 ambiguity-coverage references (18 inventory self_check.py warnings + 1 documented coverage extension ASM-CVR-AMB-0007-INV-0611), and 15 Plan v1 methodological defaults (fit models, BET criteria, pore kernel, Qst protocol, force-field/charges candidates, convergence criteria, minimum-n replication policy, 8 acceptance tolerance bands)."
+  total: 46
+  a2: 12
+  ambiguity_coverage: 19
+  methodological_defaults: 15
+  ref: "benchmarks/fdm201/plans/assumptions.yaml"
+
+# ---------------------------------------------------------------------------
+# Evidence objects (AC-03) -- model and records in ../evidence/
+# ---------------------------------------------------------------------------
+evidence:
+  model_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+  records_ref: "benchmarks/fdm201/evidence/evidence_records.yaml"
+  note: "Evidence is assessed as Source x Claim per 06-EVIDENCE-SYSTEM.md; records follow schemas/evidence.schema.yaml (EV-* per inventory item). At Plan v1 every item has a pre-execution evidence record whose basis is the inventory's evidence_basis_enum (CROSSREF-METADATA / ACQUISITION-LOG / REFERENCE-CASE-SPEC / PUBLIC-SEARCH) and whose A/R/D assessment is derived deterministically from that basis. During execution each goal produces the expected evidence artifacts (primary-source revalidation records, raw data, analysis records) which replace the pre-execution basis."
+  evidence_basis_enum: ["CROSSREF-METADATA", "REFERENCE-CASE-SPEC", "ACQUISITION-LOG", "PUBLIC-SEARCH"]
+  what_counts_as_evidence:
+    - "identity items (INVENTORIED): the registered source record and acquisition-log entry"
+    - "reported values (REPORTED-NON-FINAL): primary-source quote + location (ANL-001 revalidation) plus, at execution, the measurement/simulation records compared under ANL-030..062"
+    - "deferred items (DEFERRED-TO-EXECUTION): the population record produced by the resolving goal with the primary-source location"
+    - "missing parameters (MISSING, A2): the resolution record of GOAL-INV-001 or the re-registered A2 entry with reason"
+
+# ---------------------------------------------------------------------------
+# Analysis objects (AC-03) -- full protocols in analysis_plan.yaml
+# ---------------------------------------------------------------------------
+analysis:
+  ref: "benchmarks/fdm201/plans/analysis_plan.yaml"
+  protocols: ["ANL-001", "ANL-010", "ANL-020", "ANL-030", "ANL-040", "ANL-050", "ANL-060", "ANL-061", "ANL-062", "ANL-090"]
+  note: "Frozen analysis protocols (all version v1, frozen): ANL-001 primary-source revalidation (the explicit justified non-statistical validation plan of spec section 6); ANL-010 process reproducibility; ANL-020 PXRD/identity; ANL-030 isotherm and uptake comparison; ANL-040 IAST/Qst derivation; ANL-050 breakthrough comparison; ANL-060 model-construction checklist; ANL-061 binding-energy comparison; ANL-062 GCMC comparison; ANL-090 statistics/acceptance design (the statistical validation plan)."
+  acceptance_thresholds:
+    note: "Per-quantity tolerance bands are A1 assumptions frozen at Plan v1 (ASM-A1-TOL-01..08), replaceable only via change control once the paper's own uncertainty is inventoried."
+    uptake: {ref: "ASM-A1-TOL-01", band: "relative deviation <= 10%", targets: ["180.5 cm3 g-1 (C3H6)", "68.2 cm3 g-1 (C2H4) at 298 K / 1 bar"]}
+    bet: {ref: "ASM-A1-TOL-02", band: "relative deviation <= 10%", target: "1965 m2 g-1"}
+    pore_size: {ref: "ASM-A1-TOL-03", band: "absolute deviation <= 0.5 A", targets: ["7.9 A", "13.0 A"]}
+    iast_selectivity: {ref: "ASM-A1-TOL-04", band: "relative deviation <= 15%", target: "8.6 at 298 K / 100 kPa, 50/50 C3H6/C2H4"}
+    qst: {ref: "ASM-A1-TOL-05", band: "relative deviation <= 10%", targets: ["27.1 kJ mol-1 (C3H6)", "19.1 kJ mol-1 (C2H4)"]}
+    breakthrough: {ref: "ASM-A1-TOL-06", band: "relative deviation <= 20%", targets: ["C2H4 ~23.5 min", "C3H6 ~64.8 min", "window ~41.3 min"]}
+    binding_energy: {ref: "ASM-A1-TOL-07", band: "relative deviation <= 15%", targets: ["48.72 kJ mol-1 (C3H6)", "38.61 kJ mol-1 (C2H4)"]}
+    gcmc: {ref: "ASM-A1-TOL-08", band: "trend agreement; point-wise relative deviation <= 25% where the paper reports quantitative simulated values"}
+  target_value_status: "All comparison targets are spec section 2 seed facts (REPORTED-NON-FINAL); they are revalidated against the primary source by GOAL-INV-001/002 (ANL-001) before final acceptance."
+
+# ---------------------------------------------------------------------------
+# Closure objects (AC-03) -- full contracts in closure.yaml
+# ---------------------------------------------------------------------------
+closure:
+  ref: "benchmarks/fdm201/plans/closure.yaml"
+  contracts: ["CC-BOOTSTRAP", "CC-EXPERIMENT", "CC-COMPUTATION", "CC-INTEGRATION"]
+  closure_criteria_per_goal: "Every goal carries a closure_contract_ref (CC-BOOTSTRAP for GOAL-RES/INV, CC-EXPERIMENT for GOAL-EXE-10..70, CC-COMPUTATION for GOAL-EXE-80/81/82, CC-INTEGRATION for GOAL-AUD-001/GOAL-EXE-90); each contract defines statistical sufficiency, execution validity, diagnosis, recovery eligibility (R >= 3, D >= 2, scientifically actionable) and literature requirements."
+  benchmark_complete: "The benchmark is complete when: every goal is closed with valid evidence; the requirement closure matrix covers all 82 inventory items; every REPORTED-NON-FINAL value is revalidated against the primary source (ANL-001); GOAL-AUD-001 passes for the final inventory (100% mapped, zero unresolved ambiguity); and GOAL-EXE-90 issues the final report with scientific-outcome and method-reproducibility verdicts."
+
+# ---------------------------------------------------------------------------
+# Change control (how Plan v1 changes after freeze)
+# ---------------------------------------------------------------------------
+change_control:
+  plan_versioning: "Plan v1 is FROZEN. Any change to goal contracts, branches, acceptance criteria, tolerance bands, assumption classifications or the inventory mapping requires a plan amendment; material changes produce Plan v2 (status SUPERSEDED for v1) through the benchmark change-control process with a fresh GOAL-AUD-001 audit before the new freeze."
+  amendment_policy:
+    - "Typographical/clerical corrections (no semantic change): recorded as a change-control entry on the plan; version stays v1."
+    - "Assumption reclassification or tolerance-band changes: allowed only with a recorded reason and, where the paper's reported method/uncertainty becomes known (GOAL-INV-001/002), the A1 defaults are replaced by the primary-source values; every change updates assumptions.yaml and the affected goal's acceptance."
+    - "Adding execution sub-goals (e.g. per-gas/per-temperature unit processes generated from the SI per spec WP-50): allowed without a plan version bump when they refine existing GOAL-EXE-* contracts; recorded in the change-control ledger."
+    - "Dropping or renaming inventory items: forbidden (the inventory is the G02-owned source of truth; the audit never drops items)."
+  supersede_policy: "When Plan v2 freezes, plan_v1.yaml status becomes SUPERSEDED with a pointer to the successor; v1 remains readable for traceability (parent_plan_version on the successor)."
+  frozen_commit_policy: "frozen_commit is recorded at merge/review time in the change-control ledger entry for this freeze; the freeze marker itself is the fixed timestamp 2026-08-14T00:00:00Z."
+  vacuous_verification_note: "The goal verification command `python -m pytest -q tests/benchmarks -k \"fdm201 and plan\"` is VACUOUS at this milestone: tests/benchmarks/ is owned by the frozen goal DEV-M12-G07 and does not exist yet (pytest exits 4 with 'file or directory not found'). No test files are created here (that scope belongs to G07); the audit gate for this milestone is goals/audit_check.py."
