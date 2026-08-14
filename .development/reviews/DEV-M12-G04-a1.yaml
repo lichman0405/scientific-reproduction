@@ -1,0 +1,158 @@
+review_id: DEV-M12-G04-a1
+goal_id: DEV-M12-G04
+attempt_id: DEV-M12-G04-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+pr:
+  number: 73
+  base: main
+  base_oid: 804191f862b7517650f922254129f829351be76d
+  head_ref: feat/dev-m12-g04-fdm201-execution-packages
+  head_oid: 7efa8267756e5242e60f1fe0aff634e8eebec879
+  commits: 1
+  files: 22 (+3464/-0), all under benchmarks/fdm201/execution_packages/**
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - benchmarks/fdm201/execution_packages/validate_packages.py (deterministic gate, 20/20 PASS, exit 0)
+    - independent review battery section S2 (schema conformance, independent implementation of required keys/enums/types per schemas/lab-execution-package.schema.yaml and schemas/worker-context.schema.yaml)
+    notes: >-
+      Every package validates against the normative schemas: lab packages
+      satisfy the 7 required keys + typed arrays/enums of
+      lab-execution-package.schema.yaml; worker-context packages satisfy
+      the 6 required keys + worker_role enum of worker-context.schema.yaml.
+      Compute packages are a documented extension (additionalProperties:
+      true): compute.scheduler == slurm, #SBATCH in every step, A0
+      engineering planning defaults per the ANL-060 precedent, logical
+      module groups mapped by the Slurm-over-SSH adapter at submission
+      from the inventoried software (RES-010) and compute access
+      (RES-011). The validator enforces the compute contract
+      deterministically. No invented cluster partitions, module names or
+      tool commands: every sbatch step executes the run-command.sh
+      contract the adapter fills at submission.
+  AC-02:
+    status: PASS
+    evidence:
+    - validate_packages.py traceability check (every *_refs id + plan_ref resolves to frozen data)
+    - independent battery S6 (full-text id resolution: EVERY string scalar in every package scanned, 0 dangling ids)
+    - independent battery S7 (numeric value fidelity: 100% of parameter values with numeric content trace to frozen inventory text)
+    notes: >-
+      Traceability is complete and verified two ways. The worker's
+      validator resolves every *_refs id and plan_ref against the frozen
+      files (GOAL-20 INV-82 EV-82 ASM-46 RES-17 ANL-10 AMB-14 WP-12
+      sr_source-13). The supervisor battery went further: it scanned
+      EVERY string scalar (objective prose, action text, comments,
+      parameter values -- not just *_refs keys) for id tokens and found
+      zero dangling ids. Numeric fidelity holds: BET 1965 m2/g (INV-0201),
+      pore 7.9/13.0 A (INV-0202), uptakes 180.5/68.2 cm3/g (INV-0301/02),
+      IAST 8.6, Qst 27.1/19.1 kJ/mol, binding energies 48.72/38.61 kJ/mol
+      (INV-0407/08), breakthrough conditions, cell 23.76 A Fm-3m fcu
+      [Zn8SiO4] (INV-0102/03) -- every numeric claim appears in the frozen
+      inventory's reported_value or description text. REPORTED-NON-FINAL
+      items are correctly marked as comparison targets; EXISTENCE-ONLY
+      items (N2 temperature, BET selection range, pore-size kernel,
+      breakthrough details, cluster specifics) are referenced as protocol
+      steps WITHOUT fabricated values; unresolved settings are registered
+      as A2 per ASM-FDM-0605, matching the frozen A2
+      DISQUALIFIES_PURE_STRICT semantics. Protocol attribution is
+      correct post-G03: EXE-40->ANL-090, EXE-81->ANL-061, EXE-82->ANL-062
+      etc., and the G03 assumption ASM-CVR-AMB-0007-INV-0611 is used in
+      CMP-02 for the INV-0611 convergence criteria.
+  AC-03:
+    status: PASS
+    evidence:
+    - validate_packages.py forbidden-pattern scan (raw text)
+    - independent battery S8 (independent pattern set: drive-letter paths, .development, .worktrees, src/, tests/, pyproject, package name, scripts/)
+    notes: >-
+      No unrelated project context in any package. Both the worker's
+      pattern set and the supervisor's independent set found zero hits in
+      the raw package text: no absolute local paths, no .development or
+      .worktrees markers, no repo source/test trees, no tooling. The only
+      external reference is the $schema JSON-Schema URL (standard
+      practice). Worker-context packages are single-goal scoped: they
+      reference only their own goal's execution package, protocol,
+      assumptions, resources and evidence; the worker of one goal never
+      sees another goal's context.
+
+findings: []
+
+observations:
+  - id: OBS-M12-G04-01
+    detail: >-
+      The compute variant (benchmark_compute_execution_package) is a
+      documented extension of lab-execution-package.schema.yaml, which
+      natively expresses only the lab shape (additionalProperties: true
+      admits the extension; the validator enforces the compute contract:
+      scheduler slurm, #SBATCH per step, run-command.sh contract, A0
+      planning defaults per ANL-060). This is sound engineering -- the
+      packages never fabricate cluster/software specifics -- but the
+      normative schema would be stronger if the compute block and the
+      sbatch_script step shape were first-class keys. Schema improvement
+      candidate for a future benchmark iteration; tracked at the M13
+      Release Gate, not in frozen v0.1 scope.
+  - id: OBS-M12-G04-02
+    detail: >-
+      validate_packages.py:348 passes package.get("record_kind") (typing:
+      Unknown | None) into validate_schema(kind: str). Runtime-safe: a
+      missing record_kind falls into the unknown-record_kind failure
+      branch and the per-directory expected-kind check fires first.
+      Cosmetic only -- mypy does not cover benchmarks/, ruff (the CI lint)
+      is clean, and the gate runs correctly (20/20). Could be tightened
+      with a kind: str annotation or a None-guard in a future cleanup.
+
+verification:
+  head: 7efa8267756e5242e60f1fe0aff634e8eebec879 (PR #73)
+  commands:
+  - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, 0 failures, exit 0 (worker + supervisor runs agree)"
+  - "review battery review-m12-g04-verify.py -> 10 sections S1-S10, 2033 checks, 0 failures, exit 0"
+  - "ruff check . (worktree root, benchmarks/ included, the CI invocation) -> clean, exit 0"
+  - "ruff check src tests -> clean, exit 0"
+  - "mypy src -> 111 files, no issues, exit 0"
+  - "pytest -q tests (supervisor run on head) -> 3016 passed, 7 skipped, 1 deselected, exit 0"
+  - "CI on head 7efa826: Test/lint/typecheck PASS + Validate development contracts PASS (run 31768456364)"
+  - "vacuous goal gate 'pytest -q tests/benchmarks -k package': file-or-directory not found, exit 4 (tests/benchmarks owned by DEV-M12-G07) - recorded; regression evidence is the full suite 3016 + CI"
+
+design_review:
+  decomposition: >-
+    The ten execution goals decompose cleanly into 7 experiment packages
+    (exp-pkg-01..07, WP-10..70 / GOAL-EXE-10..70, one per experiment
+    branch goal) and 3 computation packages (cmp-pkg-01..03, WP-80..82 /
+    GOAL-EXE-80..82), plus one worker-context package per goal. The
+    experiment/computation split matches Plan v1's 6 experiment + 3
+    computation phases; package procedure steps mirror the phase
+    contents (synthesis -> activation QC -> isotherm -> BET -> pore
+    size -> comparison; model construction -> binding energies -> GCMC).
+  cross_package: >-
+    Handoffs form a coherent chain consistent with the goals.yaml DAG:
+    exp01 (ligand lots) -> exp02 (synthesis) -> exp03/04/05/07
+    (characterization/porosity/isotherms/breakthrough) -> exp06 (derived
+    thermodynamics), cmp01 -> cmp02 -> cmp03, and every package hands off
+    to GOAL-EXE-90 / the closure process. The battery verified every
+    ../<pkg>/handoff/ input path resolves to a real package's
+    workspace_root, and every upstream_refs/handoff_refs id is a strict
+    DAG ancestor/descendant of the package's goal (S9/S10).
+  anti_fabrication: >-
+    The packages are planning artifacts that never invent scientific or
+    infrastructure facts: values only cite frozen inventory text,
+    EXISTENCE-ONLY items stay procedural, unresolved choices register as
+    A2 assumptions, cluster specifics defer to the adapter via the
+    run-command.sh contract with A0 planning defaults, and SBATCH
+    resource requests are declared as defaults adjustable from RES-011.
+    This matches the registration-only policy of G01/G03 and preserves
+    the benchmark's integrity for the execution milestones.
+  scope: >-
+    git status on the head is clean; only benchmarks/fdm201/execution_packages/**
+    was added (22 files). Frozen data untouched, no AC changes, no test
+    changes, no --no-verify.
+
+decision_notes: >-
+  PASS on head 7efa8267756e5242e60f1fe0aff634e8eebec879 with zero
+  findings. Independent battery 2033/0, validator 20/20, whole-repo ruff
+  clean, mypy 111 clean, full suite 3016 exactly, CI both jobs PASS.
+  Two non-blocking observations tracked for the M13 Release Gate.
+  Proceed to squash merge with --match-head-commit
+  7efa8267756e5242e60f1fe0aff634e8eebec879.
