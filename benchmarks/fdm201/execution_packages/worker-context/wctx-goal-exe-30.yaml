@@ -1,0 +1,44 @@
+# FDM-201 worker-context package: GOAL-EXE-30 (structure and identity
+# verification, WP-30).
+#
+# Context a worker needs to execute GOAL-EXE-30 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_30"
+worker_role: experiment_worker
+goal_id: "GOAL-EXE-30"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_exp03_pxrd_characterization"]
+source_refs: ["sr_source_86450d48aa337786cad25c306944daae", "sr_source_68539272137098c373f56bdea1b106cd"]
+evidence_refs: ["EV-INV-0101", "EV-INV-0102", "EV-INV-0103", "EV-INV-0104", "EV-INV-0105", "EV-INV-0106", "EV-INV-0107", "EV-INV-0108", "EV-INV-0109"]
+upstream_result_refs: ["GOAL-EXE-20"]
+protocol_refs: ["ANL-020"]
+resource_refs: ["RES-014"]
+assumption_refs: ["ASM-A1-N-01", "ASM-CVR-AMB-0010-INV-0103", "ASM-CVR-AMB-0010-INV-0106", "ASM-CVR-AMB-0010-INV-0108"]
+ambiguity_refs: ["AMB-0010"]
+environment:
+  runtime: "lab filesystem protocol runner"
+  workspace_root: "fdm201-lab/exp03-pxrd-characterization/"
+  records: "run-records/ raw-records/ batch-records/ pxrd-data/ identity-evidence/ handoff/"
+required_outputs:
+  - "handoff/identity-evidence-manifest.yaml"
+  - "handoff/exp03-handoff-manifest.yaml"
+  - "batch-records/identity-verdicts.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+allowed_actions:
+  - "execute the steps of the linked execution package in order"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change procedure parameters without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"

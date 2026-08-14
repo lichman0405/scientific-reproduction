@@ -1,0 +1,44 @@
+# FDM-201 worker-context package: GOAL-EXE-80 (simulation model
+# construction, WP-80).
+#
+# Context a worker needs to execute GOAL-EXE-80 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_80"
+worker_role: computation_worker
+goal_id: "GOAL-EXE-80"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_cmp01_model_construction"]
+source_refs: ["sr_source_68539272137098c373f56bdea1b106cd", "sr_source_699dfcc7d671d18011b21893043b6f52", "sr_source_86450d48aa337786cad25c306944daae"]
+evidence_refs: ["EV-INV-0004", "EV-INV-0009", "EV-INV-0102", "EV-INV-0601", "EV-INV-0602", "EV-INV-0603", "EV-INV-0604", "EV-INV-0605"]
+upstream_result_refs: []
+protocol_refs: ["ANL-060"]
+resource_refs: ["RES-003", "RES-010", "RES-011"]
+assumption_refs: ["ASM-A1-FF-01", "ASM-FDM-0605", "ASM-CVR-AMB-0001-INV-0004", "ASM-CVR-AMB-0001-INV-0601"]
+ambiguity_refs: ["AMB-0001", "AMB-0006"]
+environment:
+  runtime: "Slurm-over-SSH computation runner"
+  workspace_root: "fdm201-lab/cmp01-model-construction/"
+  records: "run-records/ cif-input/ frozen-model/ checklist/ logs/"
+  job_contract: "run-command.sh executed by every sbatch step; module loads and tool command registered by the adapter from RES-010/INV-0605"
+required_outputs:
+  - "frozen-model/frozen-model-manifest.yaml"
+  - "checklist/anl-060-checklist.yaml"
+  - "frozen-model/force-field-registry.yaml"
+  - "run-records/disorder-resolution.yaml"
+allowed_actions:
+  - "submit the sbatch steps of the linked execution package"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change force-field or model parameters without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"

@@ -1,0 +1,305 @@
+# FDM-201 computation execution package CMP-02: binding-site and static
+# binding-energy reproduction (Plan v1 computation branch phase
+# "binding-sites", WP-81, GOAL-EXE-81).
+#
+# Slurm-oriented computation execution package per
+# schemas/lab-execution-package.schema.yaml (compute variant). Every
+# procedure step is an sbatch-shaped script with #SBATCH directives and
+# engineering planning defaults (A0, precedent ANL-060); cluster
+# partition, module names and the scientific tool invocation are
+# registered at execution by the Slurm-over-SSH adapter from the
+# inventoried software (RES-010) and compute access (RES-011) settings,
+# through the run-command.sh contract. Every scientific parameter
+# traces to the frozen FDM-201 data (INV-*, EV-*, ASM-*, RES-*, ANL-*,
+# AMB-*, sr_source_*).
+
+record_kind: benchmark_compute_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_cmp02_binding_energy"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-81"
+goal_version: "v1"
+wp_id: "WP-81"
+run_id: "sr_run_fdm201_cmp02_binding_energy"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the reported C3H6 and C2H4 binding-site calculations and the static binding-energy method with the inventoried electronic-structure settings: reproduce the C3H6 (INV-0609) and C2H4 (INV-0610) binding-site calculations, verify convergence and model assumptions (INV-0611), and compare the energies against the reported static binding energies 48.72 kJ/mol (C3H6, INV-0407) and 38.61 kJ/mol (C2H4, INV-0408) and their difference under the frozen equivalence criteria (ASM-A1-TOL-07, ANL-061); deliver binding energies with convergence evidence and comparison verdicts to the closure process."
+
+compute:
+  scheduler: "slurm"
+  partition: "default"
+  partition_note: "A0 engineering planning default; the cluster-specific partition is selected by the Slurm-over-SSH adapter at submission from the compute access settings (RES-011)."
+  resource_requests:
+    nodes: 1
+    cpus_per_task: 16
+    mem_gb: 64
+    time: "24:00:00"
+    request_note: "A0 engineering planning defaults per ANL-060 precedent; the adapter may adjust sizes from the inventoried compute access (RES-011)."
+  modules:
+    - "electronic-structure-code"
+    - "structure-toolkit"
+    - "analysis-python"
+  modules_note: "logical module groups; the adapter maps each group to the concrete environment-module loads registered from the inventoried software (RES-010) at submission."
+  environment_contract: "At submission the adapter writes run-command.sh in the run workspace; every sbatch step executes './run-command.sh <step-id>'. run-command.sh performs the registered module loads and invokes the scientific tool command inventoried from RES-010 / INV-0605, so the package never invents software commands."
+  output_artifacts:
+    - "binding-energies/"
+    - "convergence-evidence/"
+    - "comparison-verdicts/"
+
+procedure:
+  - step: 1
+    id: "CMP02-S01"
+    title: "Read the binding-energy protocol"
+    action: "Read the reported binding-energy settings (INV-0407..0409, INV-0609..0611, via GOAL-INV-002) and write the protocol reference into the run record."
+    inputs: ["run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0407", "INV-0408", "INV-0409", "INV-0609", "INV-0610", "INV-0611"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-proto
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp02-01-%j.out
+      #SBATCH --error=logs/cmp02-01-%j.err
+
+      # A0 engineering planning defaults (ANL-060 precedent); partition
+      # and module specifics are supplied by the adapter at submission
+      # from the inventoried settings (RES-010, RES-011).
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s01
+  - step: 2
+    id: "CMP02-S02"
+    title: "Receive the frozen model"
+    action: "Receive the frozen simulation model from GOAL-EXE-80 (CMP-01 handoff) and record its manifest id in the run record."
+    inputs: ["../cmp01-model-construction/handoff/frozen-model-manifest.yaml"]
+    outputs: ["run-records/model-input.yaml"]
+    trace_refs: ["GOAL-EXE-80"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-model
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp02-02-%j.out
+      #SBATCH --error=logs/cmp02-02-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s02
+  - step: 3
+    id: "CMP02-S03"
+    title: "Prepare binding-site calculations"
+    action: "Prepare the C3H6 (INV-0609) and C2H4 (INV-0610) binding-site calculations with the inventoried electronic-structure settings (level, functional, basis set, dispersion correction, INV-0409); unresolved settings are registered as A2 per ASM-FDM-0605."
+    inputs: ["run-records/model-input.yaml"]
+    outputs: ["binding-energies/c3h6-inputs/", "binding-energies/c2h4-inputs/", "run-records/settings-registry.yaml"]
+    trace_refs: ["INV-0609", "INV-0610", "INV-0409", "AMB-0007"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-prep
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=02:00:00
+      #SBATCH --output=logs/cmp02-03-%j.out
+      #SBATCH --error=logs/cmp02-03-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s03
+  - step: 4
+    id: "CMP02-S04"
+    title: "C3H6 static binding-energy calculation"
+    action: "Run the C3H6 static binding-energy calculation at the reproduced binding sites (INV-0609); write the raw energies and the energy components into the output artifacts."
+    inputs: ["binding-energies/c3h6-inputs/"]
+    outputs: ["binding-energies/c3h6/"]
+    trace_refs: ["INV-0609", "INV-0407"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-c3h6
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=16
+      #SBATCH --mem=64G
+      #SBATCH --time=24:00:00
+      #SBATCH --output=logs/cmp02-04-%j.out
+      #SBATCH --error=logs/cmp02-04-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s04
+  - step: 5
+    id: "CMP02-S05"
+    title: "C2H4 static binding-energy calculation"
+    action: "Run the C2H4 static binding-energy calculation at the reproduced binding sites (INV-0610); write the raw energies and the energy components into the output artifacts."
+    inputs: ["binding-energies/c2h4-inputs/"]
+    outputs: ["binding-energies/c2h4/"]
+    trace_refs: ["INV-0610", "INV-0408"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-c2h4
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=16
+      #SBATCH --mem=64G
+      #SBATCH --time=24:00:00
+      #SBATCH --output=logs/cmp02-05-%j.out
+      #SBATCH --error=logs/cmp02-05-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s05
+  - step: 6
+    id: "CMP02-S06"
+    title: "Verify convergence and model assumptions"
+    action: "Verify the convergence and model assumptions (functional, basis set, dispersion correction, convergence criteria, INV-0611; A1 default per ASM-CVR-AMB-0007-INV-0611) and write the convergence evidence."
+    inputs: ["binding-energies/"]
+    outputs: ["convergence-evidence/"]
+    trace_refs: ["INV-0611", "ASM-CVR-AMB-0007-INV-0611", "AMB-0007"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-conv
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=8
+      #SBATCH --mem=32G
+      #SBATCH --time=08:00:00
+      #SBATCH --output=logs/cmp02-06-%j.out
+      #SBATCH --error=logs/cmp02-06-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s06
+  - step: 7
+    id: "CMP02-S07"
+    title: "Energy comparison and verdicts"
+    action: "Compare the reproduced binding energies against 48.72 kJ/mol (C3H6, INV-0407) and 38.61 kJ/mol (C2H4, INV-0408), and the energy difference (~10.11 kJ/mol), under the frozen equivalence criteria (ASM-A1-TOL-07) per ANL-061; write the comparison verdicts."
+    inputs: ["binding-energies/", "convergence-evidence/"]
+    outputs: ["comparison-verdicts/", "run-records/comparison.yaml"]
+    trace_refs: ["INV-0407", "INV-0408", "ASM-A1-TOL-07", "ANL-061"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-verdict
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=02:00:00
+      #SBATCH --output=logs/cmp02-07-%j.out
+      #SBATCH --error=logs/cmp02-07-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s07
+  - step: 8
+    id: "CMP02-S08"
+    title: "Handoff of binding-energy evidence"
+    action: "Write the binding energies, convergence evidence, comparison verdicts and deviation register into the handoff directory for the closure process."
+    inputs: ["binding-energies/", "convergence-evidence/", "comparison-verdicts/"]
+    outputs: ["handoff/cmp02-handoff-manifest.yaml", "handoff/binding-energy-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-90"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp02-handoff
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp02-08-%j.out
+      #SBATCH --error=logs/cmp02-08-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp02-s08
+
+required_return:
+  - "handoff/binding-energy-evidence-manifest.yaml"
+  - "handoff/cmp02-handoff-manifest.yaml"
+  - "run-records/comparison.yaml"
+  - "convergence-evidence/"
+
+filesystem:
+  workspace_root: "fdm201-lab/cmp02-binding-energy/"
+  directories:
+    - "run-records/"
+    - "binding-energies/c3h6-inputs/"
+    - "binding-energies/c2h4-inputs/"
+    - "binding-energies/c3h6/"
+    - "binding-energies/c2h4/"
+    - "convergence-evidence/"
+    - "comparison-verdicts/"
+    - "handoff/"
+    - "logs/"
+  files:
+    - "run-command.sh"
+    - "run-records/protocol-reference.yaml"
+    - "run-records/model-input.yaml"
+    - "run-records/settings-registry.yaml"
+    - "run-records/comparison.yaml"
+    - "handoff/cmp02-handoff-manifest.yaml"
+    - "handoff/binding-energy-evidence-manifest.yaml"
+
+parameters:
+  - name: "reported C3H6 static binding energy (comparison target)"
+    value: "48.72 kJ/mol"
+    unit: "kJ/mol"
+    kind: "inventory"
+    note: "REPORTED-NON-FINAL seed fact"
+    source_refs: ["INV-0407"]
+  - name: "reported C2H4 static binding energy (comparison target)"
+    value: "38.61 kJ/mol"
+    unit: "kJ/mol"
+    kind: "inventory"
+    note: "REPORTED-NON-FINAL seed fact; reported difference with C3H6 ~10.11 kJ/mol"
+    source_refs: ["INV-0408"]
+  - name: "binding-energy method settings"
+    value: "electronic-structure level, functional, basis set, dispersion correction per the inventoried settings (INV-0409)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0409", "AMB-0007"]
+  - name: "C3H6 binding-site calculation"
+    value: "per INV-0609"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0609"]
+  - name: "C2H4 binding-site calculation"
+    value: "per INV-0610"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0610"]
+  - name: "convergence criteria"
+    value: "per INV-0611; A1 default per ASM-CVR-AMB-0007-INV-0611 where the report is silent"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0611", "ASM-CVR-AMB-0007-INV-0611"]
+  - name: "binding-energy tolerance band"
+    value: "ASM-A1-TOL-07"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-07"]
+  - name: "binding-energy protocol"
+    value: "ANL-061 binding-site and static binding-energy comparison"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-061"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-81"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0407", "INV-0408", "INV-0409", "INV-0609", "INV-0610", "INV-0611"]
+  evidence_refs: ["EV-INV-0407", "EV-INV-0408", "EV-INV-0409", "EV-INV-0609", "EV-INV-0610", "EV-INV-0611"]
+  assumption_refs: ["ASM-A1-TOL-07", "ASM-CVR-AMB-0007-INV-0409", "ASM-CVR-AMB-0007-INV-0611"]
+  resource_refs: ["RES-010", "RES-011"]
+  protocol_refs: ["ANL-061"]
+  ambiguity_refs: ["AMB-0007"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-EXE-80"]
+  handoff_refs: ["GOAL-EXE-90"]

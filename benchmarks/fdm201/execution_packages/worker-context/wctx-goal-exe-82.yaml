@@ -1,0 +1,44 @@
+# FDM-201 worker-context package: GOAL-EXE-82 (GCMC adsorption
+# reproduction, WP-82).
+#
+# Context a worker needs to execute GOAL-EXE-82 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_82"
+worker_role: computation_worker
+goal_id: "GOAL-EXE-82"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_cmp03_gcmc"]
+source_refs: ["sr_source_a52c59975078f26cac0e43df7c1c30ba", "sr_source_699dfcc7d671d18011b21893043b6f52", "sr_source_86450d48aa337786cad25c306944daae"]
+evidence_refs: ["EV-INV-0009", "EV-INV-0301", "EV-INV-0302", "EV-INV-0605", "EV-INV-0606", "EV-INV-0607", "EV-INV-0608"]
+upstream_result_refs: ["GOAL-EXE-80", "GOAL-EXE-50"]
+protocol_refs: ["ANL-062"]
+resource_refs: ["RES-010", "RES-011"]
+assumption_refs: ["ASM-A1-FF-01", "ASM-A1-FF-02", "ASM-A1-TOL-08", "ASM-FDM-0605"]
+ambiguity_refs: ["AMB-0006"]
+environment:
+  runtime: "Slurm-over-SSH computation runner"
+  workspace_root: "fdm201-lab/cmp03-gcmc/"
+  records: "run-records/ gcmc-datasets/ block-uncertainties/ comparison/ logs/"
+  job_contract: "run-command.sh executed by every sbatch step; module loads and tool command registered by the adapter from RES-010/INV-0605"
+required_outputs:
+  - "handoff/gcmc-evidence-manifest.yaml"
+  - "handoff/cmp03-handoff-manifest.yaml"
+  - "block-uncertainties/"
+  - "comparison/"
+allowed_actions:
+  - "submit the sbatch steps of the linked execution package"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change simulation settings without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"

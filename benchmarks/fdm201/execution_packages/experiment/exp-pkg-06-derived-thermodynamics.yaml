@@ -1,0 +1,228 @@
+# FDM-201 experiment execution package EXP-06: derived thermodynamics
+# (Plan v1 phase "derived-thermodynamics", WP-60, GOAL-EXE-60).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp06_derived_thermodynamics"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-60"
+goal_version: "v1"
+wp_id: "WP-60"
+run_id: "sr_run_fdm201_exp06_derived_thermodynamics"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the reported derived thermodynamics of FDM-201 from the frozen-model isotherm fits: IAST selectivity for every formally reported composition/condition and the isosteric heat of adsorption (Qst) by the same reported method, with uncertainty/sensitivity analysis; deliver the IAST selectivity comparison vs 8.6 at 298 K / 100 kPa (INV-0401) and the Qst comparison vs 27.1 / 19.1 kJ/mol (INV-0402/0403, ANL-040) to the closure process."
+
+procedure:
+  - step: 1
+    id: "EXP06-S01"
+    title: "Read the derivation protocol"
+    action: "Read the reported IAST/Qst procedures (INV-0401..0406, canonical IAST method reference per INV-0008, via GOAL-INV-002) and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0401", "INV-0402", "INV-0403", "INV-0404", "INV-0405", "INV-0406", "INV-0008"]
+  - step: 2
+    id: "EXP06-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (run-records/, raw-records/, batch-records/, analysis/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["run-records/", "raw-records/", "batch-records/", "analysis/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP06-S03"
+    title: "Receive isotherm datasets"
+    action: "Receive the single-component isotherm datasets from GOAL-EXE-50 (EXP-05 handoff) and record their ids in the run record."
+    inputs: ["../exp05-single-component-isotherms/handoff/isotherm-evidence-manifest.yaml"]
+    outputs: ["raw-records/isotherm-inputs.yaml"]
+    trace_refs: ["GOAL-EXE-50"]
+  - step: 4
+    id: "EXP06-S04"
+    title: "Frozen-model isotherm fits"
+    action: "Fit the pure-component isotherms with the frozen model (fit model per ASM-A1-FIT-01, per INV-0405); record fit quality and parameters."
+    inputs: ["raw-records/isotherm-inputs.yaml"]
+    outputs: ["analysis/isotherm-fits.yaml"]
+    trace_refs: ["INV-0405", "ASM-A1-FIT-01"]
+  - step: 5
+    id: "EXP06-S05"
+    title: "IAST selectivity for every reported composition/condition"
+    action: "Calculate the IAST selectivity for every formally reported composition/condition (INV-0406; only 50/50 at 100 kPa is known at registration); method per the canonical IAST reference (INV-0008)."
+    inputs: ["analysis/isotherm-fits.yaml"]
+    outputs: ["analysis/iast-selectivity.yaml"]
+    trace_refs: ["INV-0406", "INV-0008", "ASM-A1-TOL-04", "AMB-0004"]
+  - step: 6
+    id: "EXP06-S06"
+    title: "Qst by the same reported method"
+    action: "Calculate the zero-coverage isosteric heat of adsorption for C3H6 and C2H4 with the same reported method (fit model, temperature set, coverage range, INV-0404; method per ASM-A1-FIT-04)."
+    inputs: ["analysis/isotherm-fits.yaml"]
+    outputs: ["analysis/qst.yaml"]
+    trace_refs: ["INV-0404", "ASM-A1-FIT-04", "ASM-A1-TOL-05", "AMB-0005"]
+  - step: 7
+    id: "EXP06-S07"
+    title: "Uncertainty / sensitivity analysis"
+    action: "Propagate the fit uncertainty into the IAST selectivity and Qst values and write the uncertainty/sensitivity record."
+    inputs: ["analysis/iast-selectivity.yaml", "analysis/qst.yaml"]
+    outputs: ["analysis/uncertainty.yaml"]
+    trace_refs: ["INV-0406", "INV-0404"]
+  - step: 8
+    id: "EXP06-S08"
+    title: "Derived-thermodynamics comparison"
+    action: "Write the IAST selectivity comparison vs 8.6 at 298 K / 100 kPa (INV-0401, tolerance ASM-A1-TOL-04) and the Qst comparison vs 27.1 / 19.1 kJ/mol (INV-0402/0403, tolerance ASM-A1-TOL-05) per ANL-040, with the batch statistics per ANL-090."
+    inputs: ["analysis/"]
+    outputs: ["analysis/comparison.yaml", "batch-records/batch-statistics.yaml"]
+    trace_refs: ["INV-0401", "INV-0402", "INV-0403", "ASM-A1-TOL-04", "ASM-A1-TOL-05", "ANL-040", "ANL-090"]
+  - step: 9
+    id: "EXP06-S09"
+    title: "Handoff of derived-thermodynamics evidence"
+    action: "Write the derivation records and deviation register into the handoff directory for the closure process."
+    inputs: ["analysis/"]
+    outputs: ["handoff/exp06-handoff-manifest.yaml", "handoff/thermodynamics-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-90"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp06-derived-thermodynamics/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "analysis/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "raw-records/isotherm-inputs.yaml"
+    - "analysis/isotherm-fits.yaml"
+    - "analysis/iast-selectivity.yaml"
+    - "analysis/qst.yaml"
+    - "analysis/uncertainty.yaml"
+    - "analysis/comparison.yaml"
+    - "batch-records/batch-statistics.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp06-handoff-manifest.yaml"
+    - "handoff/thermodynamics-evidence-manifest.yaml"
+
+instruments:
+  - name: "Analysis software"
+    description: "Software for the frozen-model isotherm fits, IAST and Qst derivations"
+    resource_refs: ["RES-012"]
+
+critical_control_variables:
+  - name: "Fit model"
+    value: "frozen model per ASM-A1-FIT-01; no ad-hoc model selection"
+    trace_refs: ["ASM-A1-FIT-01"]
+  - name: "IAST method"
+    value: "canonical IAST (Myers & Prausnitz 1965, INV-0008)"
+    trace_refs: ["INV-0008"]
+  - name: "Qst method"
+    value: "the same reported method (fit model, temperature set, coverage range, INV-0404; ASM-A1-FIT-04)"
+    trace_refs: ["INV-0404", "ASM-A1-FIT-04"]
+  - name: "IAST conditions"
+    value: "every formally reported composition/condition; only 50/50 at 100 kPa is known at registration (INV-0406, AMB-0004)"
+    trace_refs: ["INV-0406", "AMB-0004"]
+  - name: "Qst reference values"
+    value: "27.1 (C3H6) / 19.1 (C2H4) kJ/mol at zero coverage (INV-0402/0403)"
+    trace_refs: ["INV-0402", "INV-0403"]
+  - name: "Tolerance bands"
+    value: "ASM-A1-TOL-04 (IAST) and ASM-A1-TOL-05 (Qst)"
+    trace_refs: ["ASM-A1-TOL-04", "ASM-A1-TOL-05"]
+
+prohibited_changes:
+  - "Changing the pure-component fit model or its constraints once frozen"
+  - "Using a different IAST or Qst method than the reported one without a registered deviation"
+  - "Dropping formally reported compositions/conditions from the IAST calculation"
+  - "Reporting selectivity/Qst without the uncertainty/sensitivity record"
+  - "Deleting or cherry-picking fit results from the run records"
+
+required_operator_records:
+  - "Input isotherm dataset ids"
+  - "Fit model, parameters and fit quality"
+  - "IAST compositions/conditions calculated"
+  - "Qst method trace (model, temperatures, coverage range)"
+  - "Uncertainty/sensitivity calculations"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/thermodynamics-evidence-manifest.yaml"
+  - "handoff/exp06-handoff-manifest.yaml"
+  - "analysis/iast-selectivity.yaml"
+  - "analysis/qst.yaml"
+  - "analysis/comparison.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "No wet-lab hazards in this analysis package; follow the analysis environment and data-management rules"
+
+parameters:
+  - name: "reported IAST selectivity (comparison target)"
+    value: "8.6 at 298 K / 100 kPa"
+    unit: null
+    kind: "inventory"
+    note: "comparison target for the reproduced IAST selectivity"
+    source_refs: ["INV-0401"]
+  - name: "reported zero-coverage Qst C3H6 (comparison target)"
+    value: "27.1 kJ/mol"
+    unit: "kJ/mol"
+    kind: "inventory"
+    source_refs: ["INV-0402"]
+  - name: "reported zero-coverage Qst C2H4 (comparison target)"
+    value: "19.1 kJ/mol"
+    unit: "kJ/mol"
+    kind: "inventory"
+    source_refs: ["INV-0403"]
+  - name: "Qst method"
+    value: "the same reported method (fit model, temperature set, coverage range)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0404"]
+  - name: "pure-component fit model"
+    value: "ASM-A1-FIT-01 frozen model"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-FIT-01"]
+  - name: "IAST method"
+    value: "canonical IAST per Myers & Prausnitz 1965 (INV-0008)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0008"]
+  - name: "Qst derivation model"
+    value: "ASM-A1-FIT-04 default"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-FIT-04"]
+  - name: "IAST tolerance band"
+    value: "ASM-A1-TOL-04"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-04"]
+  - name: "Qst tolerance band"
+    value: "ASM-A1-TOL-05"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-05"]
+  - name: "derivation protocol"
+    value: "ANL-040 IAST selectivity and Qst derivation"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-040"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-60"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0008", "INV-0401", "INV-0402", "INV-0403", "INV-0404", "INV-0405", "INV-0406"]
+  evidence_refs: ["EV-INV-0008", "EV-INV-0401", "EV-INV-0402", "EV-INV-0403", "EV-INV-0404", "EV-INV-0405", "EV-INV-0406"]
+  assumption_refs: ["ASM-A1-FIT-01", "ASM-A1-FIT-04", "ASM-A1-TOL-04", "ASM-A1-TOL-05"]
+  resource_refs: ["RES-012", "RES-015"]
+  protocol_refs: ["ANL-040", "ANL-090"]
+  ambiguity_refs: ["AMB-0004", "AMB-0005"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae", "sr_source_fb13edb5df0d0f7096a69a8e477ceee9"]
+  upstream_refs: ["GOAL-EXE-50"]
+  handoff_refs: ["GOAL-EXE-90"]

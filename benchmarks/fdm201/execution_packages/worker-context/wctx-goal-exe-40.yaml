@@ -1,0 +1,46 @@
+# FDM-201 worker-context package: GOAL-EXE-40 (porosity / N2 BET,
+# WP-40).
+#
+# Context a worker needs to execute GOAL-EXE-40 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_40"
+worker_role: experiment_worker
+goal_id: "GOAL-EXE-40"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_exp04_porosity_n2_bet"]
+source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+evidence_refs: ["EV-INV-0201", "EV-INV-0202", "EV-INV-0203", "EV-INV-0204", "EV-INV-0205", "EV-INV-0206", "EV-INV-0207"]
+upstream_result_refs: ["GOAL-EXE-20", "GOAL-EXE-30"]
+protocol_refs: ["ANL-090"]
+resource_refs: ["RES-015", "RES-012"]
+assumption_refs: ["ASM-A1-N-01", "ASM-A1-FIT-02", "ASM-A1-FIT-03", "ASM-A1-TOL-02", "ASM-A1-TOL-03"]
+ambiguity_refs: ["AMB-0011", "AMB-0012", "AMB-0013", "AMB-0014"]
+environment:
+  runtime: "lab filesystem protocol runner"
+  workspace_root: "fdm201-lab/exp04-porosity-n2-bet/"
+  records: "run-records/ raw-records/ batch-records/ isotherm-data/ analysis/ handoff/"
+required_outputs:
+  - "handoff/porosity-evidence-manifest.yaml"
+  - "handoff/exp04-handoff-manifest.yaml"
+  - "analysis/bet.yaml"
+  - "analysis/pore-size.yaml"
+  - "analysis/comparison.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+allowed_actions:
+  - "execute the steps of the linked execution package in order"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change procedure parameters without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"
