@@ -12,10 +12,11 @@ the fixed timestamp `2026-08-14T00:00:00Z`.
   packages WP-00..WP-90, the experiment branch (WP-10/20..70) and the
   computation branch (WP-80..82), resource/assumption/evidence/analysis/
   closure object sections (AC-03), and the change-control section.
-- `assumptions.yaml` — 45 assumption objects: the 12 inventory A2
+- `assumptions.yaml` — 46 assumption objects: the 12 inventory A2
   registrations (WP-70 parameters INV-0511..0521, computational settings
-  INV-0605) with `strict_status_effect: DISQUALIFIES_PURE_STRICT`; the 18
-  ambiguity-coverage references (inventory `self_check.py` warnings, A1); and
+  INV-0605) with `strict_status_effect: DISQUALIFIES_PURE_STRICT`; the 19
+  ambiguity-coverage references (18 inventory `self_check.py` warnings plus 1
+  documented coverage extension ASM-CVR-AMB-0007-INV-0611, A1); and
   15 Plan v1 methodological defaults (A1: fit models, BET criteria, pore
   kernel, Qst protocol, force-field/charges candidates, convergence criteria,
   minimum-n replication policy, 8 acceptance tolerance bands).

@@ -16,9 +16,10 @@ against the G02 inventory (source of truth for the 82 items):
 - Plan v1: version/status/freeze timestamp, the inventory_audit block, and
   the goal_ids / requirement_ids sets match the recomputed sets.
 - Assumptions: 12 A2 inventory registrations (ASM-FDM-*,
-  DISQUALIFIES_PURE_STRICT), exactly the 18 ambiguity-coverage references
-  recomputed from the inventory self_check warning rule (ASM-CVR-*), and 15
-  Plan v1 methodological defaults (ASM-A1-*); total 45.
+  DISQUALIFIES_PURE_STRICT), 19 ambiguity-coverage references (the 18
+  recomputed from the inventory self_check warning rule plus the documented
+  extension ASM-CVR-AMB-0007-INV-0611, ASM-CVR-*), and 15 Plan v1
+  methodological defaults (ASM-A1-*); total 46.
 - Evidence: 82 EV-INV-* records, one per item, A/R/D assessment matching the
   frozen basis mapping, used_by goals defined.
 - Resources: 17 RES-* records, schema enums, G01 acquisition-log
@@ -126,6 +127,8 @@ def main() -> int:
     evidence = load_yaml(EVIDENCE_RECORDS_PATH)
     resources = load_yaml(RESOURCES_PATH)
     acq = load_yaml(ACQ_LOG_PATH)
+    anl_ids = {p.get("analysis_id") for p in (analysis.get("protocols") or [])}
+    asm_id_set = {a.get("assumption_id") for a in (assumptions.get("assumptions") or [])}
 
     failures: list[str] = []
     checks_run = 0
@@ -198,8 +201,8 @@ def main() -> int:
     check(cov.get("status") == "PASS", "audit coverage: status = PASS")
     asm_cov = audit.get("assumptions_coverage") or {}
     check(asm_cov.get("a2_registrations") == 12, "audit assumptions_coverage: a2_registrations = 12")
-    check(asm_cov.get("ambiguity_coverage_references") == 18, "audit assumptions_coverage: ambiguity_coverage_references = 18")
-    check(asm_cov.get("assumption_objects") == 45, "audit assumptions_coverage: assumption_objects = 45")
+    check(asm_cov.get("ambiguity_coverage_references") == 19, "audit assumptions_coverage: ambiguity_coverage_references = 19")
+    check(asm_cov.get("assumption_objects") == 46, "audit assumptions_coverage: assumption_objects = 46")
 
     # ------------------------------------------------------------------
     # 4. Ambiguity resolutions (14/14, all to defined goals)
@@ -233,6 +236,8 @@ def main() -> int:
                 )
             edges.append((dep["goal_id"], g["goal_id"]))
         check(g.get("frozen_at") == FIXED_TIMESTAMP, f"{g['goal_id']}: frozen_at fixed timestamp")
+        check(g.get("analysis_protocol_ref") in anl_ids, f"{g['goal_id']}: analysis_protocol_ref is a defined ANL protocol")
+        check(set(g.get("assumption_ids", [])) <= asm_id_set, f"{g['goal_id']}: assumption_ids all defined in assumptions.yaml")
     indegree = {gid: 0 for gid in goal_ids}
     out: dict[str, list[str]] = {gid: [] for gid in goal_ids}
     for src, dst in edges:
@@ -266,6 +271,10 @@ def main() -> int:
         set(plan.get("requirement_ids", [])) == set(item_ids),
         "plan_v1.yaml requirement_ids equal the 82 inventory items",
     )
+    check(
+        set(plan.get("assumption_ids", [])) == asm_id_set,
+        "plan_v1.yaml assumption_ids equal the full assumption set in assumptions.yaml",
+    )
     ia = plan.get("inventory_audit") or {}
     check(ia.get("formally_reported_items") == 82, "plan inventory_audit: formally_reported_items = 82")
     check(ia.get("mapped_items") == 82, "plan inventory_audit: mapped_items = 82")
@@ -276,16 +285,16 @@ def main() -> int:
     check(plan.get("frozen_marker", {}).get("frozen_commit") is None, "plan frozen_marker.frozen_commit = null (recorded at merge)")
 
     # ------------------------------------------------------------------
-    # 7. Assumptions (12 A2 + 18 CVR + 15 A1 = 45)
+    # 7. Assumptions (12 A2 + 19 CVR + 15 A1 = 46)
     # ------------------------------------------------------------------
     counts = assumptions.get("counts") or {}
     asm_list = assumptions.get("assumptions") or []
     asm_ids = [a.get("assumption_id") for a in asm_list]
-    check(len(asm_list) == 45, "assumptions.yaml has 45 objects")
+    check(len(asm_list) == 46, "assumptions.yaml has 46 objects")
     check(len(set(asm_ids)) == len(asm_ids), "assumption ids are unique")
-    check(counts.get("total") == 45, "assumptions counts.total = 45")
+    check(counts.get("total") == 46, "assumptions counts.total = 46")
     check(counts.get("a2_inventory_registrations") == 12, "assumptions counts.a2 = 12")
-    check(counts.get("ambiguity_coverage_references") == 18, "assumptions counts.cvr = 18")
+    check(counts.get("ambiguity_coverage_references") == 19, "assumptions counts.cvr = 19")
     check(counts.get("plan_v1_methodological_defaults") == 15, "assumptions counts.a1 = 15")
     a2_asm = [a for a in asm_list if a["assumption_id"].startswith("ASM-FDM-")]
     check(len(a2_asm) == 12, "12 ASM-FDM-* A2 registrations")
@@ -308,7 +317,11 @@ def main() -> int:
     expected_cvr = {f"ASM-CVR-{amb}-{item}" for item, amb in warnings}
     actual_cvr = {a["assumption_id"] for a in asm_list if a["assumption_id"].startswith("ASM-CVR-")}
     check(len(warnings) == 18, "inventory self_check rule yields exactly 18 ambiguity-coverage warnings")
-    check(actual_cvr == expected_cvr, "ASM-CVR-* set equals the recomputed 18 warnings (1:1, none extra)")
+    check(expected_cvr <= actual_cvr, "ASM-CVR-* set covers the recomputed 18 warnings (none missing)")
+    check(
+        actual_cvr - expected_cvr == {"ASM-CVR-AMB-0007-INV-0611"},
+        "ASM-CVR-* extras are exactly the documented extension ASM-CVR-AMB-0007-INV-0611 (INV-0611 carries ambiguity_ref AMB-0007, so it is not a self_check warning; the entry is required by GOAL-INV-002/GOAL-EXE-81 assumption_ids and GOAL-EXE-81 AC-02)",
+    )
     for a in asm_list:
         if a["assumption_id"].startswith("ASM-CVR-"):
             check(a.get("classification") == "A1_METHODOLOGICAL_DEFAULT", f"{a['assumption_id']}: classification A1")
@@ -377,6 +390,8 @@ def main() -> int:
     check(len(protocols) == 10, "analysis_plan.yaml has 10 protocols")
     check(len({p.get("analysis_id") for p in protocols}) == 10, "analysis ids are unique")
     check(all(p.get("frozen") is True for p in protocols), "all analysis protocols frozen")
+    goal_protocol_refs = {g.get("analysis_protocol_ref") for g in goals["goals"]}
+    check(anl_ids <= goal_protocol_refs, "every ANL protocol is referenced by at least one goal")
     contracts = closure.get("closure_contracts") or []
     check(closure.get("contracts") == 4, "closure.yaml contracts = 4")
     check(len(contracts) == 4, "closure.yaml has 4 contracts")
@@ -414,7 +429,7 @@ def main() -> int:
     print("  coverage                    = 1.0")
     print("  goals_defined               = 20")
     print("  dag_acyclic_ordering_count  = " + str(len(ordered)))
-    print("  assumptions                 = 45 (12 A2 + 18 CVR + 15 A1)")
+    print("  assumptions                 = 46 (12 A2 + 19 CVR + 15 A1)")
     print("  evidence_records            = 82")
     print("  resource_records            = 17")
     print("  analysis_protocols          = 10")

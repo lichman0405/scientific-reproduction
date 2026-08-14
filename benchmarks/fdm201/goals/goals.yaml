@@ -476,7 +476,7 @@ goals:
       independent_required: true
       minimum_n: 2
       planned_n_policy: "independent batch logic per spec WP-10; minimum n per ASM-A1-N-01"
-    analysis_protocol_ref: "ANL-090"
+    analysis_protocol_ref: "ANL-010"
     closure_contract_ref: "CC-EXPERIMENT"
     version: "v1"
     frozen: true
@@ -503,7 +503,7 @@ goals:
         execution_gate: true
     acceptance_criteria:
       - "AC-01: Reaction mixture prepared exactly per SI (INV-0707); solvothermal synthesis run per protocol (INV-0708); isolation/wash, solvent exchange, activation, storage per protocol (INV-0709..0712)."
-      - "AC-02: Independent batch synthesis runs (INV-0713) executed with minimum n per ASM-A1-N-01; process-level batch reproducibility analysis (INV-0714) per ANL-090."
+      - "AC-02: Independent batch synthesis runs (INV-0713) executed with minimum n per ASM-A1-N-01; process-level batch reproducibility analysis (INV-0714) per ANL-010."
       - "AC-03: Activation protocol parameters (INV-0711, AMB-0009) are the SI values; if the SI is silent, A2 registration per the assumption ledger prevents pure strict classification."
       - "AC-04: Output: activated FDM-201 samples with batch records, handed to GOAL-EXE-30/40/50/70."
     inputs:
@@ -519,7 +519,7 @@ goals:
       independent_required: true
       minimum_n: 2
       planned_n_policy: "independent batch synthesis runs per spec WP-20; minimum n per ASM-A1-N-01"
-    analysis_protocol_ref: "ANL-090"
+    analysis_protocol_ref: "ANL-010"
     closure_contract_ref: "CC-EXPERIMENT"
     version: "v1"
     frozen: true
@@ -607,7 +607,7 @@ goals:
       independent_required: true
       minimum_n: 2
       planned_n_policy: "independent batch porosity statistics; minimum n per ASM-A1-N-01"
-    analysis_protocol_ref: "ANL-020"
+    analysis_protocol_ref: "ANL-090"
     closure_contract_ref: "CC-EXPERIMENT"
     version: "v1"
     frozen: true

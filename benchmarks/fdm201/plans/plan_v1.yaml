@@ -343,7 +343,7 @@ experiment_branch:
       wp_ids: ["WP-40"]
       goal_ids: ["GOAL-EXE-40"]
       inputs: ["activated samples (GOAL-EXE-20)", "reported porosity conditions (GOAL-INV-001)", "adsorption instrumentation (RES-015)"]
-      outputs: ["BET comparison vs 1965 m2 g-1 (INV-0201)", "pore-size comparison vs 7.9 A / 13.0 A (INV-0202)", "porosity statistics (ANL-030)"]
+      outputs: ["BET comparison vs 1965 m2 g-1 (INV-0201)", "pore-size comparison vs 7.9 A / 13.0 A (INV-0202)", "porosity statistics (ANL-090)"]
     - phase: "single-component-isotherms"
       description: "C3H6 and C2H4 isotherms at each reported temperature, desorption branch if reported, repeat/batch plan, uptake comparison statistics"
       wp_ids: ["WP-50"]
@@ -460,6 +460,7 @@ assumption_ids:
   - "ASM-CVR-AMB-0005-INV-0405"
   - "ASM-CVR-AMB-0005-INV-0406"
   - "ASM-CVR-AMB-0007-INV-0409"
+  - "ASM-CVR-AMB-0007-INV-0611"
   - "ASM-CVR-AMB-0010-INV-0103"
   - "ASM-CVR-AMB-0010-INV-0106"
   - "ASM-CVR-AMB-0010-INV-0108"
@@ -486,10 +487,10 @@ assumption_ids:
   - "ASM-A1-TOL-07"
   - "ASM-A1-TOL-08"
 assumptions_summary:
-  note: "Every assumption stated, none silent (see assumptions.yaml): the 12 inventory A2 registrations (WP-70 parameters and computational settings), the 18 ambiguity-coverage references (inventory self_check.py warnings), and 15 Plan v1 methodological defaults (fit models, BET criteria, pore kernel, Qst protocol, force-field/charges candidates, convergence criteria, minimum-n replication policy, 8 acceptance tolerance bands)."
-  total: 45
+  note: "Every assumption stated, none silent (see assumptions.yaml): the 12 inventory A2 registrations (WP-70 parameters and computational settings), the 19 ambiguity-coverage references (18 inventory self_check.py warnings + 1 documented coverage extension ASM-CVR-AMB-0007-INV-0611), and 15 Plan v1 methodological defaults (fit models, BET criteria, pore kernel, Qst protocol, force-field/charges candidates, convergence criteria, minimum-n replication policy, 8 acceptance tolerance bands)."
+  total: 46
   a2: 12
-  ambiguity_coverage: 18
+  ambiguity_coverage: 19
   methodological_defaults: 15
   ref: "benchmarks/fdm201/plans/assumptions.yaml"
 

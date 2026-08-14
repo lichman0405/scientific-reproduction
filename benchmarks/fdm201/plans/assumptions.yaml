@@ -9,10 +9,13 @@
 #     DISQUALIFIES_PURE_STRICT (spec WP-70: a missing scientifically
 #     consequential parameter is registered as A2 and prevents pure strict
 #     classification);
-#   - the 18 ambiguity-coverage references (the inventory self_check.py
-#     warnings: items affected by an ambiguity that carry no ambiguity_ref;
+#   - the 19 ambiguity-coverage references: the 18 inventory self_check.py
+#     warnings (items affected by an ambiguity that carry no ambiguity_ref;
 #     the audit mapping treats the ambiguity as covering the item -- a
-#     methodological, audit-interpretation default, classification A1);
+#     methodological, audit-interpretation default, classification A1) plus
+#     1 documented coverage extension (ASM-CVR-AMB-0007-INV-0611: INV-0611
+#     already carries ambiguity_ref AMB-0007; the entry states that coverage
+#     explicitly for the goals resolving it, GOAL-INV-002 / GOAL-EXE-81);
 #   - the 15 Plan v1 methodological defaults (fit models, BET criteria,
 #     pore kernel, Qst protocol, force-field/charges candidates,
 #     convergence criteria, minimum-n replication policy, and the frozen
@@ -30,9 +33,9 @@ goal_id: "DEV-M12-G03"
 benchmark_id: "fdm201"
 frozen_at: "2026-08-14T00:00:00Z"
 counts:
-  total: 45
+  total: 46
   a2_inventory_registrations: 12
-  ambiguity_coverage_references: 18
+  ambiguity_coverage_references: 19
   plan_v1_methodological_defaults: 15
 
 assumptions:
@@ -206,6 +209,14 @@ assumptions:
     classification: "A1_METHODOLOGICAL_DEFAULT"
     rationale: "INV-0409 is affected by AMB-0007 but carries no ambiguity_ref (inventory self_check.py warning); the electronic-structure settings ambiguity covers the item, resolved by GOAL-INV-002 / GOAL-EXE-81."
     source_refs: ["INV-0409", "AMB-0007", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-002", "GOAL-EXE-81"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0007-INV-0611"
+    parameter: "Ambiguity coverage: AMB-0007 (binding-energy electronic-structure settings) covers INV-0611"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0611 is affected by AMB-0007 and already carries ambiguity_ref AMB-0007 in the inventory (not a self_check.py warning); this documented coverage extension states the ambiguity explicitly for the goals that resolve the item under AMB-0007 (GOAL-INV-002 registration, GOAL-EXE-81 AC-02 binding-energy settings)."
+    source_refs: ["INV-0611", "AMB-0007", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
     affected_goal_ids: ["GOAL-INV-002", "GOAL-EXE-81"]
     strict_status_effect: "NONE"
   - assumption_id: "ASM-CVR-AMB-0010-INV-0103"

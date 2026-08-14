@@ -929,12 +929,15 @@ assumptions_coverage:
   a2_item_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521", "INV-0605"]
   a2_policy: "each A2 registration becomes an assumption object in ../plans/assumptions.yaml
     with strict_status_effect DISQUALIFIES_PURE_STRICT"
-  ambiguity_coverage_references: 18
-  ambiguity_coverage_policy: "the 18 inventory self_check.py warnings (items affected by an
-    ambiguity without an ambiguity_ref) are declared as assumption objects in
-    ../plans/assumptions.yaml (classification A1: audit-interpretation default); every
-    ambiguity coverage is stated, none is silent"
-  assumption_objects: 45
+  ambiguity_coverage_references: 19
+  ambiguity_coverage_policy: "19 ambiguity-coverage references = the 18 inventory
+    self_check.py warnings (items affected by an ambiguity without an ambiguity_ref)
+    plus 1 documented coverage extension (ASM-CVR-AMB-0007-INV-0611, referenced by the
+    goals' assumption_ids and resolving INV-0611 under AMB-0007 per GOAL-EXE-81 AC-02;
+    INV-0611 already carries ambiguity_ref AMB-0007); all are declared as assumption
+    objects in ../plans/assumptions.yaml (classification A1: audit-interpretation
+    default); every ambiguity coverage is stated, none is silent"
+  assumption_objects: 46
   assumption_objects_ref: "benchmarks/fdm201/plans/assumptions.yaml"
 
 notes:
