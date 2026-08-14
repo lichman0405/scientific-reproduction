@@ -1,0 +1,79 @@
+# FDM-201 benchmark-state reload and audit acceptance review -- AC-03
+# (DEV-M12-G07)
+#
+# Acceptance record for AC-03 of .development/goals/DEV-M12-G07.yaml:
+# "Benchmark state can be reloaded and audited". The evidence is the
+# deterministic reload/audit suite tests/benchmarks/test_fdm201_reload_audit.py:
+# the frozen register (project record, 82-item/82-requirement inventory,
+# full 20-goal contract family with acceptance/analysis/closure records)
+# reloads through the REAL planning machinery into a fresh workspace and
+# re-audits to the frozen verdict.
+
+review_id: REVIEW-FDM201-RELOAD-001
+goal_id: DEV-M12-G07
+attempt_id: REVIEW-FDM201-RELOAD-001
+reviewer: Development Worker DEV-M12-G07
+reviewed_at: '2026-08-14'
+decision: PASS
+verdict: >-
+  AC-03 reload/audit acceptance: the frozen benchmark state reloads
+  through the real planning APIs and re-audits to the frozen PASS verdict
+  (82/82, coverage 1.0, R-AUD-P1), deterministically
+
+# Filled by the Supervisor review of this goal's PR (DEV-M12-G07).
+supervisor_review_id: null
+
+pr:
+  number: null
+  base: main
+
+evidence:
+- >-
+  tests/benchmarks/test_fdm201_reload_audit.py (10 tests, all PASS)
+- >-
+  project reload: initialize_project with the frozen project_id
+  sr_project_c0e2b9a52c011ab5acd33a4feb732b4d and fixed
+  identity/timestamp; primary_target DOI and registry initial plan
+  version asserted on the registered record
+- >-
+  full inventory reload: all 82 frozen items + 82 requirements registered
+  through register_inventory_item / register_requirement (items first),
+  requirement_id == item_id mirroring the frozen plan's requirement_ids;
+  audit_inventory_registry -> PASS, matched rule R-AUD-P1, 82/82 mapped,
+  coverage 1.0, zero offending items
+- >-
+  PlanInventoryAudit view (plan_inventory_audit()) equals the frozen
+  inventory_audit blocks of mapping_audit.yaml and plan_v1.yaml exactly
+  (82/82/0/0/1.0/PASS)
+- >-
+  reloaded requirement set == frozen plan requirement_ids; resolved goal
+  ids == the 18 item-mapped goals (GOAL-AUD-001 and GOAL-EXE-90 carry no
+  item mapping, per INVENTORY.yaml requirement_mapping_policy; both are
+  covered by the frozen plan and the frozen family)
+- >-
+  full goal-contract family reload: all 20 goals + 20 acceptance records
+  + 10 analysis protocols (ANL-001..090) + 4 closure contracts (CC-*),
+  every value read from the frozen register; GOAL-EXE-50 family values
+  asserted verbatim on the stored record (title, unit process, objective,
+  8 requirement ids, 3 dependency edges, replication policy, ANL-030,
+  CC-EXPERIMENT, RES-015, 5 assumption ids)
+- >-
+  freeze round-trip: freeze_plan over the reloaded state -> FROZEN v1 at
+  2026-08-14T00:00:00Z with the embedded 82/82 PASS audit, the whole
+  20-goal family frozen by the freeze, read_plan(v1) byte-identical,
+  second freeze rejected (PlanAlreadyFrozenError)
+- >-
+  determinism: two fresh workspaces replay identical audit records,
+  byte-identical registry trees and byte-identical frozen plans
+  (tree_bytes with workspace-path normalization)
+
+notes: >-
+  API gaps documented (no source change; also in the PR body):
+  (1) goals.yaml inline acceptance-criteria text is not expressible by
+  the registry GoalContract model (acceptance is a criteria_ref id) --
+  the G05 finding from PR #75; the reload derives criteria_ref ACC-<goal_id>
+  and preserves the frozen AC text in the acceptance record's criteria
+  list, and the frozen inline text is asserted directly on the frozen
+  file; (2) there is no register_assumption API, so the 46-entry
+  assumptions register is asserted via the frozen file and the core
+  assumption schema (planning-benchmark file).

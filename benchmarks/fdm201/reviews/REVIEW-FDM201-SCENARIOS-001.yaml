@@ -1,0 +1,65 @@
+# FDM-201 scenario-suite acceptance review -- AC-02 (DEV-M12-G07)
+#
+# Acceptance record for AC-02 of .development/goals/DEV-M12-G07.yaml:
+# "All scenarios A-J pass in one clean run". The one-clean-run evidence
+# is the goal's verification command itself:
+#   python -m pytest -q tests/benchmarks tests/scenarios
+# which collected and passed 165 tests (115 scenario tests + 50
+# benchmark-acceptance tests) in a single run. The fixture file
+# tests/benchmarks/test_fdm201_scenarios_all.py pins the scenario suite:
+# the ten files, their per-file collected counts, and the scenario-to-AC
+# mapping table.
+
+review_id: REVIEW-FDM201-SCENARIOS-001
+goal_id: DEV-M12-G07
+attempt_id: REVIEW-FDM201-SCENARIOS-001
+reviewer: Development Worker DEV-M12-G07
+reviewed_at: '2026-08-14'
+decision: PASS
+verdict: >-
+  AC-02 scenario-suite acceptance: all scenarios A-J pass in one clean
+  run (165 passed, 0 failed)
+
+# Filled by the Supervisor review of this goal's PR (DEV-M12-G07).
+supervisor_review_id: null
+
+pr:
+  number: null
+  base: main
+
+evidence:
+- >-
+  one clean run: "python -m pytest -q tests/benchmarks tests/scenarios"
+  -> 165 passed in 176.00s (0 failed, 0 skipped, 0 deselected)
+- >-
+  tests/benchmarks/test_fdm201_scenarios_all.py (24 tests, all PASS)
+- >-
+  the ten frozen scenario files exist under tests/scenarios/ with the
+  documented names, and no other test_*.py file is present
+- >-
+  per-file collected counts pinned and asserted: A 7, B 9, C 8, D 18,
+  E 14, F 16, G 11, H 10, I 12, J 10 = 115 scenario tests (offline
+  importlib enumeration; no scenario test is parametrized)
+- >-
+  scenario-to-goal-AC mapping table asserted per file and grounded in the
+  frozen G05/G06 review records:
+  A -> DEV-M12-G05 AC-01 (every test test_A_ac01_*)
+  B -> DEV-M12-G05 AC-02 (every test test_B_ac02_*)
+  C -> DEV-M12-G05 AC-03 (every test test_C_ac03_*)
+  D -> DEV-M12-G05 AC-04 (test_D_*; no ac-prefix)
+  E -> DEV-M12-G05 AC-05 (test_E_ac01_*/ac02_*/ac03_* families)
+  F -> DEV-M12-G06 AC-01 (test_F_ac01_*)
+  G -> DEV-M12-G06 AC-02 (test_G_ac02_*/ac03_*)
+  H -> DEV-M12-G06 AC-03 (test_H_ac02_*/ac03_*)
+  I -> DEV-M12-G06 AC-04 (every test test_I_ac04_*)
+  J -> DEV-M12-G06 AC-05 (every test test_J_ac05_*)
+
+notes: >-
+  Deviation from the DEV-M12-G07 task brief, documented here and in the
+  PR body: the brief quotes "92 tests" for scenarios A-J; the actual
+  frozen suite collects 115 tests (per-file counts pinned above), which
+  is the count accepted by this record. The brief's suggested AC-prefix
+  conventions (test_D_ac04_*, test_E_ac05_*) do not match the actual
+  suite: scenario D uses plain test_D_* names (G05 AC-04) and scenario E
+  uses the ac01/ac02/ac03 family split (G05 AC-05). The mapping table
+  above is the accepted one.
