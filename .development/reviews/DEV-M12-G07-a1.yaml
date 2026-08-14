@@ -146,6 +146,11 @@ verification:
   - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, exit 0"
   - "CI on head 60472fd: Test/lint/typecheck PASS (3m34s) + Validate development contracts PASS (9s)"
   - "frozen-data grounding spot-checked in the main tree: mapping_audit 82/82 coverage 1.0 PASS; plan_v1 FROZEN @ 2026-08-14T00:00:00Z; GOAL-EXE-50 full family verbatim; INVENTORY requirement_mapping_policy"
+  post_merge: >-
+    Post-merge suite on origin/main 7243a409 (after squash merge of PR #76):
+    3113 passed, 7 skipped, 1 deselected in 314.51s, exit 0 (3063 baseline
+    + 50 new benchmark-acceptance tests). No DEV-DEFECT-002 flake
+    occurrence in the post-merge run.
 
 design_review:
   decomposition: >-
