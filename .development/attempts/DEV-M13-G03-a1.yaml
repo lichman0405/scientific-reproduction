@@ -1,0 +1,51 @@
+goal_id: DEV-M13-G03
+attempt_id: DEV-M13-G03-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 8c7c171c9f6a3ffa1718b7f28fc94525b068e583
+branch: feat/dev-m13-g03-summary
+worktree: .worktrees/dev-m13-g03
+status: MERGED
+pr:
+  number: 79
+  url: https://github.com/lichman0405/scientific-reproduction/pull/79
+  head_sha: a18f28846383705b88bb2a02d95db3e849e27c8c
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M13-G03-a1
+merge_commit_sha: ed6c3aece125c448f2e84069bc064dc8b0b51369
+merged_at: '2026-08-14'
+commit_shas:
+- a18f28846383705b88bb2a02d95db3e849e27c8c
+review_notes: >-
+  Single-attempt PASS review (DEV-M13-G03-a1, zero findings, three
+  non-blocking observations OBS-M13-G03-01 the missing 07-AGGREGATION-RULES.md
+  finding verified (no such file in the frozen pack; docstring correctly
+  cites 04-PROJECT-LIFECYCLE.md sections 4-6 with the versioned-rule-module
+  mandate at L60; no change required), OBS-M13-G03-02 `-k summary` selects
+  exactly the 17 summary tests (33 deselected, precise surface), OBS-M13-G03-03
+  double-pytest-process phenomenon recurrence, all tracked for the M13
+  Release Gate). Delivered 2 new files (+1104):
+  src/scientific_reproduction/reporting/summary.py (final outcome and
+  method-reproducibility summary: build_summary CONSUMES the Core
+  aggregation results -- core.rules.outcome.aggregate_project_outcome over
+  RequirementOutcomeRecord built by the Core's own input model with the
+  recorded closure decision (or None/unassessed when nothing recorded or
+  conflicting, mirroring the rules.closure unresolved-gate philosophy) and
+  aggregate_method_reproducibility -- rendering the aggregation's own values
+  verbatim (ReproductionOutcome, ruleset version, matched rule id, blocking
+  reasons); per-requirement entries verbatim (OPEN stays OPEN; unrated
+  method_reproducibility renders the canonical UNDETERMINED); project_phase
+  in its own section/vocabulary, never conflated with any outcome value
+  (AC-02); RecoverySummary counts only recorded values (REPRODUCED_WITH_RECOVERY
+  requirements, RECOVERY/METHOD_REDESIGN goal tracks, closure decisions,
+  AC-03); read-only, canonical JSON, error hierarchy mirroring audit.py /
+  report.py), tests/reporting/test_summary.py (17 tests: ac01 x4, ac02 x3,
+  ac03 x5, boundaries x5). Worker findings verified non-defects (spec
+  citation, test-local helper documented, conflicting closure decisions
+  -> unassessed, stale pyright diagnostics). Supervisor independent
+  battery: goal command 17 passed (11.53s, 33 deselected), full suite 3163
+  passed / 7 skipped / 1 deselected (313.56s, no DEV-DEFECT-002 flake in
+  the supervisor run), ruff clean, mypy 114 clean, validator 20/20, CI
+  both jobs PASS. Merged count: 78/80. M13-G05 waiting on G04.

@@ -141,7 +141,7 @@ verification:
   head: a18f28846383705b88bb2a02d95db3e849e27c8c (PR #79)
   commands:
   - "pytest -q tests/reporting -k summary (supervisor independent run on head, review venv .sup-review-venv-dev-m13-g03) -> 17 passed, 33 deselected in 11.53s, exit 0"
-  - "pytest -q tests (supervisor independent run) -> 3146 baseline + 17 summary tests = 3163 passed expected; result pending in post_merge block"
+  - "pytest -q tests (supervisor independent run) -> 3163 passed, 7 skipped, 1 deselected in 313.56s, exit 0 (3063 baseline + 50 benchmark-acceptance + 33 audit/trace + 17 summary). No DEV-DEFECT-002 flake occurrence in the supervisor run; the worker's background run had one occurrence with an isolated rerun pass (accepted-defect policy, not a regression)."
   - "ruff check . (worktree root, the CI invocation) -> clean, exit 0"
   - "ruff check src tests -> clean, exit 0"
   - "mypy src -> 114 files, no issues, exit 0"

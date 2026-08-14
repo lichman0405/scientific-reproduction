@@ -1,0 +1,34 @@
+event_id: EVT-20260814-0086
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M13-G03
+milestone: M13
+attempt_id: DEV-M13-G03-a1
+pr_number: 79
+merge_commit_sha: ed6c3aece125c448f2e84069bc064dc8b0b51369
+merge_method: squash
+head_sha: a18f28846383705b88bb2a02d95db3e849e27c8c
+base_sha: 8c7c171c9f6a3ffa1718b7f28fc94525b068e583
+review_id: DEV-M13-G03-a1
+review_decision: PASS
+findings: []
+summary: >-
+  DEV-M13-G03 (final outcome and method-reproducibility summaries for the
+  v0.1 report chain) merged via PR #79 with a single PASS review
+  (DEV-M13-G03-a1, zero findings). Delivered 2 new files (+1104):
+  src/scientific_reproduction/reporting/summary.py (build_summary consumes
+  the Core aggregation results -- core.rules.outcome aggregate_project_
+  outcome + aggregate_method_reproducibility over the Core's own input
+  models -- rendering the aggregation's own values verbatim; project_phase
+  never conflated with any outcome value (AC-02); RecoverySummary counts
+  only recorded recovery values (AC-03); recorded closure decisions
+  consumed with unassessed (None) on conflict; read-only, canonical JSON)
+  + tests/reporting/test_summary.py (17 tests). Supervisor independent
+  battery on head a18f288: goal command 17 passed (11.53s, 33 deselected),
+  full suite 3163 passed / 7 skipped / 1 deselected (313.56s, no
+  DEV-DEFECT-002 flake in the supervisor run; worker background run had
+  one occurrence with isolated rerun pass -- accepted-defect policy),
+  ruff clean, mypy 114 files clean, validator 20/20, CI both jobs PASS.
+  Worker findings verified non-defects. Observations OBS-M13-G03-01/02/03
+  tracked for the M13 Release Gate. Merged count: 78/80. M13-G05 waiting
+  on G04.
