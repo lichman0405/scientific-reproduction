@@ -133,11 +133,13 @@ goals:
     merged_at: '2026-08-14'
     outcome: PASS
   DEV-M10-G06:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
+    status: MERGED
+    attempts:
+    - DEV-M10-G06-a1
+    reviews:
+    - DEV-M10-G06-a1
+    merged_sha: e23ed7b0b7681bc6aec26e2b6a1e3c239dfb3007
+    merged_at: '2026-08-14'
     outcome: null
   DEV-M11-G01:
     status: MERGED

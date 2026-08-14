@@ -1,0 +1,251 @@
+review_id: DEV-M10-G06-a1
+goal_id: DEV-M10-G06
+attempt_id: DEV-M10-G06-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_contract_capability_declares_the_same_native_operations
+    - test_contract_adapter_implements_the_locked_interface_surface
+    - test_contract_session_identity_is_a_pure_function_of_the_context
+    - test_contract_transport_record_alone_never_creates_identity
+    - test_contract_spawn_persistent_role_is_native_and_registered
+    - test_contract_spawn_worker_is_native_and_deterministic
+    - test_contract_unavailable_transport_answers_explicit_unsupported
+    - test_contract_resume_answers_native_and_fallback_typed_modes
+    - test_contract_alive_answers_observed_or_explicit_unsupported
+    - test_contract_command_delivery_is_native_or_durable_outbox
+    - test_contract_terminate_answers_typed_modes_and_durable_state
+    - test_contract_fallback_subagent_always_answers_explicit_fallback
+    - test_contract_unknown_session_is_session_not_found
+    - test_contract_corrupt_data_is_data_error_and_bad_types_are_type_error
+    - test_contract_result_records_serialize_canonically
+    - test_contract_full_flow_is_deterministic_and_repeatable
+    - test_contract_documented_differences_are_the_only_differences
+    notes: >-
+      AC-01 is delivered as a genuinely shared battery, not duplicated
+      per-platform suites: the PlatformRig abstraction exposes the SAME
+      scripted fake surface (records/live/submissions/stops/deliveries,
+      accept/unavailable, spawns) for both adapters, and 32 parameterized
+      tests drive ClaudeCodePlatformAdapter and CodexPlatformAdapter
+      through byte-identical assertions (test ids [claude] and [codex]
+      of every test_contract_*). The battery pins the frozen shared
+      vocabulary of adapters/platform/base.py across BOTH adapters:
+      capability declarations (the same six native PlatformOperation
+      values in the same order, supports() consistency with the declared
+      operations for every member of the frozen vocabulary, canonical
+      serialization round-trip, and -- the honest part -- the capability
+      record independent of runtime availability: an unavailable
+      transport answers the same record); the locked abstract interface
+      surface (no abstract method left unimplemented); session identity
+      discipline (session_ref a pure deterministic function of the
+      canonical context via derive_worker_session_ref, transport ids
+      derived from session_ref via generate_id -- never the reverse, and
+      rehydration self-correcting a stale/corrupt persisted session_ref,
+      so the store is never authoritative); the typed result taxonomy
+      (NATIVE vs FALLBACK vs UNSUPPORTED with stable non-empty reasons
+      for the same scripted probe states -- resume limitation, liveness
+      unobservable/durable-False, outbox preservation, idempotent
+      terminate, refused/unavailable transports); the boundary error
+      taxonomy (SessionNotFoundError for unknown sessions, corrupt
+      records as PlatformAdapterDataError, TypeError at the public
+      boundaries); and full-flow determinism (byte-identical results and
+      snapshots across fresh executions). Where the adapters legitimately
+      differ, the single non-parameterized
+      test_contract_documented_differences_are_the_only_differences pins
+      the differences as EXACTLY the documented ones (reason-string
+      vocabulary, fallback-channel naming) and asserts everything else
+      identical -- including the platform-neutral durable facts
+      (terminated-session reasons and the "durable session registry"
+      vocabulary shared verbatim by both platforms).
+  AC-02:
+    status: PASS
+    evidence:
+    - test_ac02_goal_through_each_adapter_yields_identical_run_semantics
+    - test_ac02_forced_fallback_answers_leave_goal_run_evidence_unchanged
+    - test_ac02_fresh_instance_over_same_state_directory_answers_same_identity
+    - test_ac02_full_flow_is_deterministic_and_repeatable
+    notes: >-
+      AC-02 defines "identical semantics" precisely: Run records are
+      byte-identical modulo the documented platform-scoped identity
+      fields (worker_session_ref and external.backend), asserted through
+      the semantic_projection helper -- and the flows use the REAL core
+      machinery throughout (frozen GoalContract/Run/ClaimSpecificEvidence
+      models, generate_id, compute_sha256 + the real ArtifactRegistry
+      with its persistence gate, schema validation through
+      core.schema_validation validate_object/validate_and_reject; only
+      the platform transport boundaries are faked, exactly the M7-G05
+      test_external_adapters pattern). Three axes: (1) one frozen Goal /
+      worker-context package (carrying evidence refs) dispatched through
+      BOTH adapters yields schema-valid Runs identical modulo the two
+      documented fields, with the worker_session_ref of each Run equal
+      to the canonical derive_worker_session_ref and never the reverse;
+      (2) forcing each platform's documented FALLBACK answers (explicit
+      subagent channel, resume limitation, durable outbox) on the same
+      logical context leaves Goal/Run/Evidence state byte-identical to
+      the all-NATIVE flow and every record still schema-valid, and the
+      durable session_ref survives the fallbacks unrewritten (AC-02 of
+      the sibling adapters); (3) the worker exits -- a fresh adapter over
+      the same state directory (own transport, registry rehydrated from
+      the durable snapshot, the 13-EXECUTION-MONITOR.md SS3-SS4
+      reconstruction) answers the same identity, reconstructs a
+      byte-identical Run, and the persisted state validates through the
+      core machinery with the artifact checksum still verifying against
+      the real file. Determinism is pinned end to end: fixed timestamps,
+      no network/sleeps/randomness, and two fresh executions of the full
+      flow produce byte-identical records, snapshots and state files.
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m10-g06 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: 686dcb152dac6d716796e1e377900c991866227d
+  commands:
+  - cmd: pytest -q tests/integration/test_platform_contract.py tests/integration/test_platform_contract_semantics.py
+    result: '40 passed in 0.90s (the goal verification battery, matches
+      the worker claim exactly: 33 battery tests + 7 semantics tests)'
+  - cmd: pytest -q tests/platform tests/integration
+    result: '330 passed, 1 skipped in 12.14s (the frozen goal verification
+      command; platform baseline 147 + 1 skip preserved, integration
+      143 baseline + 40 new; no regression)'
+  - cmd: ruff check .
+    result: All checks passed
+  - cmd: mypy src/
+    result: 'Success: no issues found in 109 source files (103 baseline +
+      6 new codex modules from DEV-M10-G05; this goal adds tests only)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (worktree at 686dcb1)
+    result: '2958 passed, 7 skipped, 1 deselected in 141.98s -- exactly
+      the expected count (2918 base at 68cd52d + 40 new), zero failures,
+      no lease flake in this run'
+  - cmd: gh pr checks 67
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head 686dcb1)'
+
+design_review:
+  shared_battery_not_duplication: >-
+    The goal deliverable is a shared contract battery, and the
+    architecture proves it: PlatformRig wraps each adapter with the same
+    scripted fake surface (both fakes expose records/live/submissions/
+    stops/deliveries/accept/unavailable and spawns/accept), so 32
+    parameterized tests execute identical assertion bodies against both
+    platforms (pytest ids [claude] / [codex]), plus the one
+    non-parameterized comparison test. The per-platform differences are
+    contained to documented constants (the exported reason vocabulary,
+    the platform ids, the transport-id derivation team_task vs
+    codex_session) surfaced through rig.transport_id -- the battery never
+    special-cases one platform inside an assertion. This is the honest
+    reading of "the same core contract tests where capabilities overlap":
+    where the frozen vocabulary is platform-neutral (session identity,
+    capability records, error taxonomy, durable facts), the assertions
+    are identical; where the adapters are documented to differ (reason
+    wording, fallback channel naming), the differences test pins exactly
+    those and nothing more -- including the shared verbatim vocabulary
+    (SUBAGENT_FALLBACK_REASON equal on both platforms, "durable session
+    registry" in both terminate-fallback reasons).
+  semantics_defined_not_handwaved: >-
+    AC-02's "do not alter Goal/Run/Evidence semantics" is given a precise
+    operational meaning: the semantic_projection (Run record minus the
+    documented platform-scoped identity fields) is byte-equal across
+    platforms for identical inputs, and every record validates through
+    the real core schema machinery -- no ad-hoc assertions of shape. The
+    forced-fallback test proves the stronger claim: the SAME logical
+    context answered through the documented fallback channels yields the
+    same schema-valid Run as the all-NATIVE flow, and the durable
+    session_ref survives every fallback unrewritten (the AC-02
+    discipline of the M10-G03/G05 adapters, asserted here at the
+    integration layer where the run record is built from the adapter
+    answers).
+  reconstruction_mirrors_the_siblings: >-
+    The fresh-instance test is the M10-G03/G05 scenario-G reconstruction
+    exercised at integration level with real machinery: durable snapshot
+    (registry.to_records) persisted under the state directory, a brand
+    new adapter with its own transport and a from_records-rehydrated
+    registry answering resume (FALLBACK limitation with the same handle)
+    and replace (NATIVE, same session_ref), the reconstructed Run
+    byte-identical to the original worker's record, and the persisted
+    goal/worker-context/run/evidence all validating through
+    validate_object with the artifact manifest re-verified against the
+    real file by the real registry and checksum. No mocks at the core
+    layer anywhere (the M7-G05 discipline).
+  determinism_hygiene: >-
+    The suite holds the determinism discipline: fixed FIXED_STAMP for
+    every timestamp, tmp_path for every filesystem artifact, ids
+    exclusively via generate_id as pure functions of the canonical
+    project/goal/run constants shared across both files, no network, no
+    sleeps, no wall clock, no randomness, and byte-identical
+    repeatability tests on both the battery flow and the full
+    Goal -> Run -> Evidence flow.
+  house_style: >-
+    The files follow the house style: module docstrings mapping the goal
+    and ACs to test names, comment-per-assertion density of the
+    integration suites, frozen models from core.models used directly,
+    schema validation through the core persistence gates, and the
+    sibling-module import pattern (semantics file imports the rig from
+    the battery file -- verified as the established house pattern via
+    tests/integration/test_artifact_git.py:31 importing
+    artifact_git_helpers; pytest resolves the sibling import through the
+    rootdir path insertion).
+  observations: >-
+    Three notes, none of them findings: (1) The reason-vocabulary
+    assertions are verbatim against the exported adapter constants
+    (e.g. "in-process" in the claude outbox reason and absent from the
+    codex one; "agent teams" / "codex sessions" in the resume reasons) --
+    deliberate, matching the unit suites' verbatim assertions of the
+    stable exported constants, so a wording change breaks the battery
+    loudly rather than silently. (2)
+    is_valid_session_ref in the semantics file is defined in the trailing
+    "Supporting helpers" section (line ~505) though used at line ~308 --
+    valid at runtime (module-level function called post-import) and
+    documented, only slightly unconventional placement. (3) The pyright
+    marks seen during development are all known noise classes (the
+    "Expected symbol after as" / "(" was not closed diagnostics on the
+    multiline claude_code import blocks and the reportMissingImports
+    scanner artifacts are from pyright running without the venv context;
+    ruff and mypy -- the authoritative gates -- are clean, and pytest
+    collected and passed everything, so the files parse).
+
+findings: []
+
+scope_check: PASS
+notes: >-
+  Full review of both new files completed line by line
+  (tests/integration/test_platform_contract.py 1196 new lines, 33 tests;
+  tests/integration/test_platform_contract_semantics.py 509 new lines,
+  7 tests; 40 tests total, +1704/-0). Three-dot diff
+  68cd52d...686dcb1 = exactly these 2 files, both within the frozen
+  allowed_scope (tests/integration/test_platform_contract*). No src/
+  change, no existing test modified (the semantics file imports the
+  battery's rig via the established sibling-module pattern). The branch
+  parent 686dcb1~1 = 68cd52d == origin/main at dispatch time and at
+  review time (no merge landed since -- M11-G05 still in flight) --
+  exact chain, no stale base. No deviations from the frozen contract:
+  allowed_scope respected, no --no-verify, Draft PR (no reviewers), a
+  conventional subject-only commit message with [DEV-M10-G06], and the
+  PR was opened via the gh CLI. The plan_approval_required goal contract
+  was satisfied (false): the implementation plan (shared-battery design,
+  the documented-differences test, the semantic-projection definition of
+  AC-02, the three-axis semantics suite, test plan) was delivered in the
+  PR description. All worker-reported gates independently confirmed (40 /
+  330+1 skip / ruff / mypy 109 / contracts / full suite 2958 passed
+  exactly with no flake in this run / CI both jobs PASS on head
+  686dcb1). Zero findings. Decision: PASS; merge authorized as squash.
+
+git_review:
+  pr_number: 67
+  pr_title: 'test(platform): cross-platform orchestration contract acceptance [DEV-M10-G06]'
+  branch: feat/dev-m10-g06-platform-contract
+  base_sha: 68cd52d296df1c337faf342ff9cb11862d70392f
+  reviewed_head_sha: 686dcb152dac6d716796e1e377900c991866227d
+  changed_files: 2 (tests/integration/test_platform_contract.py,
+    tests/integration/test_platform_contract_semantics.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
