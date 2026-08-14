@@ -283,12 +283,14 @@ goals:
     merged_at: '2026-08-14'
     outcome: PASS
   DEV-M13-G04:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M13-G04-a1
+    reviews:
+    - DEV-M13-G04-a1
+    merged_sha: 898268fcfb3cccadf150530b08d4ce93921f966a
+    merged_at: '2026-08-14'
+    outcome: PASS
   DEV-M13-G05:
     status: READY
     attempts: []

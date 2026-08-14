@@ -1,0 +1,30 @@
+event_id: EVT-20260814-0087
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M13-G04
+milestone: M13
+attempt_id: DEV-M13-G04-a1
+pr_number: 80
+merge_commit_sha: 898268fcfb3cccadf150530b08d4ce93921f966a
+merge_method: squash
+head_sha: 45e08116538b6bffe4b6057b4d52803c63d3a92e
+base_sha: 784e13a5729dcb19cfc8761ad4aff23e707e596e
+review_id: DEV-M13-G04-a1
+review_decision: PASS
+findings: []
+summary: >-
+  DEV-M13-G04 (README quickstart + user/operations documentation: install &
+  verify guide, /reproduce and /goals usage, Monitor recovery and Lab
+  handoff, Slurm-over-SSH adapter guide) merged via PR #80 with a single PASS
+  review (DEV-M13-G04-a1, zero findings). Docs-only deliverable, 5 files
+  (+819), src/tests byte-identical to main. Supervisor independent battery on
+  head 45e0811: full suite 3181 passed / 7 skipped / 1 deselected in 329.61s,
+  ruff clean, mypy 115 files clean (OBS-M13-G04-01: count differs from the
+  G03 venv's 114 with no src change -- environment-dependent), validator
+  20/20, CI both jobs PASS; CLI determinism live-verified byte-identically
+  (OBS-M13-G04-02); /goals-no-CLI honesty finding verified accurate
+  (OBS-M13-G04-03); double-pytest phenomenon did not recur (OBS-M13-G04-04).
+  ~40 API/citation claims grep-verified against src; two spec quotes
+  verified. Merged count: 79/80. M13-G05 (final goal: .development/reviews +
+  docs/release, plan_approval_required) is now unblocked -- proceeds via the
+  plan-approval flow.
