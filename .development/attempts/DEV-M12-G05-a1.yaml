@@ -1,0 +1,43 @@
+goal_id: DEV-M12-G05
+attempt_id: DEV-M12-G05-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 306cd854e7337abb329b6fbd6102bc312a08dacd
+branch: feat/dev-m12-g05-scenarios-a-e
+worktree: .worktrees/dev-m12-g05
+status: MERGED
+pr:
+  number: 75
+  url: https://github.com/lichman0405/scientific-reproduction/pull/75
+  head_sha: 3a084acdbab7449b6d29ab4682867b7dd7f405cb
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M12-G05-a1
+merge_commit_sha: 417c09f6f380d9fb42428b37dd243e7717f95bcc
+merged_at: '2026-08-14'
+commit_shas:
+- 3a084acdbab7449b6d29ab4682867b7dd7f405cb
+review_notes: >-
+  Single-attempt PASS review (DEV-M12-G05-a1, zero findings, three
+  non-blocking observations OBS-M12-G05-01 requirement registry once-only,
+  OBS-M12-G05-02 no durable HumanGate registry (cross-linked with
+  OBS-M12-G06-02), OBS-M12-G05-03 scenario file size / shared-fixture
+  factoring candidate, all tracked for the M13 Release Gate). Delivered 3
+  new files under tests/scenarios/: test_A_fdm201_strict_success.py (7
+  tests, AC-01: strict success closes REPRODUCED with DIRECTLY_REPRODUCIBLE
+  via R-REQOUT-1/R-PRJ-1/R-MR-3, no recovery anywhere, event-by-event
+  audit chain, byte-identical replay), test_B_fdm201_recovery_success.py
+  (9 tests, AC-02: statistically sufficient strict failure -> real
+  Diagnosis Worker -> supervisor research request -> eligible hypothesis
+  via real R>=3/D>=2 gate -> versioned Recovery Goal GOAL-EXE-50-R1 ->
+  labeled recovery runs pass with measurably lower precision ->
+  REPRODUCED_WITH_RECOVERY via R-REQOUT-2/R-PRJ-1/R-MR-3 asserted against
+  the real METHOD_REPRODUCIBILITY_ORDER), test_C_fdm201_not_reproduced_closure.py
+  (8 tests, AC-03: exhaustive research trail -> real saturation record
+  SATURATED R-SAT-S1 -> closure contract CLOSURE_ALLOWED R-CLOSE-2 BEFORE
+  the requirement outcome (event ordering asserted) -> NOT_REPRODUCED
+  R-REQOUT-3 / R-PRJ-3 -> Human Termination Gate TERMINATION_GATE/OPEN
+  created after closure). test_D/test_E verified unchanged against
+  AC-04/AC-05. All on real machinery with constants parsed from frozen
+  benchmark files; no src/benchmark/.development changes.
