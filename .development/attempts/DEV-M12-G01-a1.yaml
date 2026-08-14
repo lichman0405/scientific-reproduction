@@ -1,0 +1,20 @@
+goal_id: DEV-M12-G01
+attempt_id: DEV-M12-G01-a1
+change_type: FEATURE
+base_branch: main
+base_sha: fc21036b5c96652cfd497372db46ccb51dea9723
+branch: feat/dev-m12-g01-fdm201-sources
+worktree: .worktrees/dev-m12-g01
+status: MERGED
+pr:
+  number: 70
+  url: https://github.com/lichman0405/scientific-reproduction/pull/70
+  head_sha: 86e212e275416b71c0c7953ba7012ce6b3245ee3
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M12-G01-a1
+merge_commit_sha: 69930b2c003477ca2e3a30fdcde4dcee888edc55
+merged_at: '2026-08-14'
+commit_shas:
+- 86e212e275416b71c0c7953ba7012ce6b3245ee3

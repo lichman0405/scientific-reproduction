@@ -1,0 +1,305 @@
+review_id: DEV-M12-G01-a1
+goal_id: DEV-M12-G01
+attempt_id: DEV-M12-G01-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - benchmarks/fdm201/sources/records/01_primary_paper.yaml
+    - benchmarks/fdm201/sources/ACQUISITION_LOG.yaml (item 1)
+    - benchmarks/fdm201/project/project.yaml (primary_target)
+    - independent canonical_identity check (78/78 verification battery)
+    notes: >-
+      The primary paper identity is correct and consistent across all
+      three files. The registered record carries DOI 10.1039/D5TA00771B
+      (target_paper), title "A highly connected metal-organic framework
+      with stretched inorganic units for propylene/ethylene separation",
+      publication_year 2025; the acquisition log's item 1 records the
+      Crossref-verified metadata (J. Mater. Chem. A 2025, 13(16),
+      11382-11388, RSC, 10 named authors) and notes that normalize_doi
+      yields 10.1039/d5ta00771b -- independently confirmed by the
+      reviewer: normalize_doi("10.1039/D5TA00771B") ==
+      "10.1039/d5ta00771b", and canonical_identity(record 01) returns
+      key "doi:10.1039/d5ta00771b" through the real research subsystem.
+      project.yaml's primary_target (source_type doi, same identifier
+      and title) matches the record and the reference-case spec. Journal
+      and year match 17-FDM201-REFERENCE-CASE.md.
+  AC-02:
+    status: PASS
+    evidence:
+    - benchmarks/fdm201/sources/ACQUISITION_LOG.yaml (items 2-9)
+    - benchmarks/fdm201/sources/records/02_supplementary_information.yaml
+    - benchmarks/fdm201/sources/records/03_fdm201_cif.yaml
+    - benchmarks/fdm201/sources/records/04_related_structures.yaml
+    - benchmarks/fdm201/sources/records/05_data_availability.yaml
+    - benchmarks/fdm201/sources/records/06a_sbu_cavka_2008.yaml
+    - benchmarks/fdm201/sources/records/06b_sbu_yaghi_2003.yaml
+    - benchmarks/fdm201/sources/records/07a_method_iast_myers_1965.yaml
+    - benchmarks/fdm201/sources/records/07b_method_bet_brunauer_1938.yaml
+    - benchmarks/fdm201/sources/records/08a_method_uff_rappe_1992.yaml
+    - benchmarks/fdm201/sources/records/08b_method_gcmc_dubbeldam_2013.yaml
+    - benchmarks/fdm201/sources/records/09a_same_author_fdm22_2018.yaml
+    - benchmarks/fdm201/sources/records/09b_same_author_fdm6_2023.yaml
+    notes: >-
+      Every one of the 9 required bootstrap items is either REGISTERED
+      or carries an explicit availability record with a reason. The SI is
+      REGISTERED with a publisher-domain ESI locator
+      (https://www.rsc.org/suppdata/d5/ta/d5ta00771b/d5ta00771b1.pdf,
+      found via public search, content NOT downloaded). The three
+      genuinely unavailable items are UNAVAILABLE with concrete reasons:
+      item 3 (FDM-201 CIF) -- CCDC/CSD deposition search by DOI returned
+      no deposited structures and no deposition number exists in public
+      search, with re-verification during execution (GOAL-RES-003 /
+      WP-80); item 4 (related deposited structures) -- the in-paper
+      deposition list is unreadable under the no-download policy and none
+      was found publicly; item 5 (data-availability resources) -- no
+      external repository located and the RSC article page is
+      bot-protected (HTTP 403 to automated fetch), statement to be
+      inventoried during execution (GOAL-RES-004 / GOAL-INV-001). The
+      four in-paper citation sets (items 6-9) are PARTIAL with
+      verified canonical candidates (Cavka 2008, Yaghi 2003, Myers &
+      Prausnitz 1965, BET 1938, UFF 1992, GCMC 2013, FDM-22 2018, FDM-6
+      2023 -- all Crossref-verified) and explicit deferral reasons. The
+      reviewer's verification battery confirmed every UNAVAILABLE and
+      PARTIAL entry has a non-empty unavailability_reason, and the
+      inventory block (REGISTERED 2 / PARTIAL 4 / UNAVAILABLE 3,
+      total 9) matches project.yaml exactly.
+  AC-03:
+    status: PASS
+    evidence:
+    - all 13 records load via ResearchSource.from_dict and round-trip byte-stable (reviewer battery, 78/78)
+    - validate_object("source", ...) clean on all 13 records (worker + reviewer)
+    - validate_object("project", ...) clean on project.yaml (reviewer)
+    - normalize_doi / normalize_url / canonical_identity through real research APIs
+    - benchmarks/fdm201/sources/README.md (policies)
+    notes: >-
+      Supporting sources are normalized through the Research subsystem:
+      every record is exactly the serialization of the frozen
+      core.models.ResearchSource (to_dict() field order, None optional
+      fields omitted -- proven by the reviewer's byte-stable from_dict
+      -> to_dict round-trip on all 13 files, including the mixed-case
+      stored DOI 10.1039/D5TA00771B which reproduces exactly);
+      source_ids are all of the form sr_source_<32 hex> (generate_id
+      output, prefix verified against the real generate_id);
+      canonical identities behave per the subsystem's normative
+      readings -- mirror-collapsible types (target_paper,
+      peer_reviewed_paper) derive doi:<normalized> keys while the
+      record-scoped types (supplementary_information,
+      structure_deposition, dataset) keep record:<source_id> keys,
+      matching RECORD_SCOPED_TYPES semantics and never collapsing into
+      the parent paper's DOI (AC-02 of the research subsystem). The ESI
+      locator URL normalizes. project.yaml loads through the frozen
+      core.models.Project and validates against schemas/project.schema.
+      yaml with its benchmark extensions (permitted by
+      additionalProperties: true). Ids, timestamps and field values are
+      deterministic; no wall clock, no randomness, no network at
+      runtime.
+
+plan_approval:
+  requirement: plan_approval_required: true (goal DEV-M12-G01)
+  status: APPROVED
+  basis: >-
+    Per the M10-G03 precedent (plan delivered in the PR description and
+    reviewed as part of the supervisor review), the implementation plan
+    in PR #70's description is approved as part of this review. The plan
+    specifies: source-set design (9 required bootstrap items, registration
+    only, no content downloads), record schema/fields (exact
+    ResearchSource serialization, generate_id ids, normalization through
+    real APIs, record-scoped types), acquisition-log format (9 items with
+    status/reasons/inventory), project-record shape (core fields through
+    Project + schema, benchmark extensions, NON-FINAL status_note),
+    availability policy (REGISTERED/PARTIAL/UNAVAILABLE semantics, no
+    TBD/TODO placeholders), and the test/verification approach (no tests
+    added -- tests/benchmarks owned by frozen DEV-M12-G07 -- verification
+    via data validation through real APIs). The executed work matches the
+    plan on every point.
+  deviations_from_plan: none
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m12-g01 (fresh venv, editable
+    install with [dev] extras; gates run with PYTHONPATH=src pointing at
+    the worktree)
+  base_sha: fc21036b5c96652cfd497372db46ccb51dea9723
+  head_sha: 86e212e275416b71c0c7953ba7012ce6b3245ee3
+  commands:
+  - cmd: pytest -q tests (head 86e212e)
+    result: >-
+      3016 passed, 7 skipped, 1 deselected in 113.26s (exit 0) --
+      identical to the base count (fc21036, 3016), zero regression;
+      data-only change adds no tests, breaks none.
+  - cmd: ruff check src tests
+    result: All checks passed
+  - cmd: mypy src
+    result: 'Success: no issues found in 111 source files'
+  - cmd: gh pr checks 70
+    result: >-
+      Test, lint, and type check: pass; Validate development contracts:
+      pass (both jobs, on head 86e212e)
+  - cmd: 'pytest -q tests/benchmarks -k fdm201 (frozen verification,
+      vacuous)'
+    result: >-
+      "ERROR: file or directory not found: tests/benchmarks" / "no tests
+      ran in 0.00s", exit code 4 -- VACUOUS, recorded honestly: the
+      tests/benchmarks directory is owned by the frozen goal DEV-M12-G07
+      (which creates the benchmark tests) and does not exist yet. The
+      gate is satisfied as an empty set; the review does NOT treat this
+      as a passing regression gate. Regression evidence for this goal is
+      the full suite (3016) + CI, both green. No test file was created
+      or modified to force this command to run (the worker correctly did
+      not exceed its allowed scope).
+  - cmd: independent data verification battery (reviewer script)
+    result: >-
+      78 checks, 0 failed: 13 records load via ResearchSource.from_dict
+      and round-trip byte-stable (field order + None omission exact);
+      id format sr_source_<32 hex> on all; canonical_identity
+      doi:10.1039/d5ta00771b on paper and doi:<normalized> on the
+      collapsible types; record:<source_id> on SI/deposition/dataset;
+      normalize_doi("10.1039/D5TA00771B") == "10.1039/d5ta00771b"; ESI
+      URL normalizes; project.yaml loads via Project.from_dict and
+      validates against schemas/project.schema.yaml; acquisition log
+      9 items, statuses 2/4/3, every source_id resolves to a record,
+      every record referenced by some item, log inventory ==
+      project.yaml inventory, record_count 13.
+  - cmd: 'flake probe: tests/state/test_leases.py::test_concurrent_
+    takeover_of_expired_lease_single_winner x3 (reviewer, isolation)'
+    result: '3/3 passed (0.10s, 5.56s, 0.11s) -- confirms the worker''s
+      diagnosis of a pre-existing timing-sensitive thread-race flake,
+      unrelated to this data-only change'
+
+design_review:
+  registration_only: >-
+    The goal's core discipline -- registration only, no content
+    downloads, no redistribution of publisher content -- is honored
+    uniformly: no paper text, SI or CIF exists in the repository; the
+    records carry only the authoritative identity (DOI / stable
+    identifier / locator URL) and the availability status. The ESI
+    locator points at the publisher's own domain (rsc.org) and is not
+    mirrored. This is the correct copyright posture for a benchmark that
+    must never redistribute publisher content, and it is declared in
+    every layer: README policies, acquisition-log method block
+    (no_download_note), record comments, and the PR body.
+  identity_through_real_apis: >-
+    Every identity in the source set is established through the real
+    research subsystem: DOIs via normalize_doi (the paper's DOI
+    normalizes to 10.1039/d5ta00771b), URLs via normalize_url, ids via
+    core.ids.generate_id, canonical identities via canonical_identity,
+    and records are exact serializations of the frozen
+    core.models.ResearchSource. The record-scoped semantics of
+    RECORD_SCOPED_TYPES (SI/dataset/structure_deposition keep
+    record:<source_id>, never the parent paper's DOI) are correctly
+    applied -- verified independently, not asserted. Nothing here
+    reimplements or bypasses the subsystem.
+  honesty_over_fabrication: >-
+    The availability policy is honest by design: where a source is not
+    accessible at registration (no CSD/CCDC deposition located, RSC page
+    bot-protected, in-paper citation lists unreadable under the
+    no-download policy), the log records UNAVAILABLE or PARTIAL with an
+    explicit reason and a pointer to the execution-phase goal that
+    re-verifies it -- it never invents content, never fills silent
+    blanks, and a placeholder scan (TBD/TODO) is clean. The benchmark
+    project record is explicitly NON-FINAL: no reported number of the
+    reference case (uptake, selectivity, Qst, BET, pore sizes,
+    breakthrough times) is asserted at registration; every number is
+    revalidated against the primary source during benchmark execution
+    (DEV-M12-G02+). This correctly keeps registration-time facts (paper
+    identity, availability status) separate from execution-time
+    scientific claims.
+  vacuous_gate_recorded: >-
+    The frozen verification command (pytest -q tests/benchmarks -k
+    fdm201) cannot literally pass before DEV-M12-G07 creates
+    tests/benchmarks: pytest exits 4 ("file or directory not found").
+    The review records this vacuous state verbatim in the verification
+    section -- it is NOT reported as a green regression gate. The
+    worker's PR body does the same. This is the correct handling of a
+    temporarily-empty gate: the gate becomes meaningful when G07 lands,
+    and G01's regression evidence is the full suite (3016) plus CI,
+    both green.
+  determinism: >-
+    The source set is deterministic by construction: a single fixed
+    registration timestamp (2026-08-14T00:00:00Z) in every record, log
+    and project file; no wall clock, no randomness, no network at
+    runtime; deterministic ids (generate_id, verified by recomputation
+    in the worker's battery and by format in the reviewer's); stable
+    field order. The set can be re-derived byte-identically from the
+    same inputs, which is what a benchmark fixture needs.
+  scope_discipline: >-
+    The change is exactly the frozen allowed_scope
+    (benchmarks/fdm201/sources/** + benchmarks/fdm201/project/**): 16
+    files, +349 lines, no product code, no test files, no schema
+    changes, no docs outside the benchmark directory. The worker did
+    not "fix" the vacuous frozen gate by creating tests (correctly --
+    that scope belongs to G07), did not weaken any gate, did not touch
+    frozen contracts, and reported the pip-install quirk (editable
+    install pointing at another worktree) instead of silently working
+    around it: all gates were run with PYTHONPATH=src pointing at this
+    worktree.
+  house_style: >-
+    Files follow the repo's house conventions: explanatory comment
+    headers on every file mapping the record to its required bootstrap
+    item and its spec reference; consistent field order matching the
+    frozen model's to_dict(); cross-references between the acquisition
+    log, records and project record; every UNAVAILABLE/PARTIAL entry
+    carries a reason. The README documents layout and policies. YAML
+    style (quoted strings, nulls as `null`, lists as block sequences)
+    matches the existing .development/ files.
+
+git_review:
+  pr: 70
+  base_sha: fc21036b5c96652cfd497372db46ccb51dea9723
+  head_sha: 86e212e275416b71c0c7953ba7012ce6b3245ee3
+  head_branch: feat/dev-m12-g01-fdm201-sources
+  commit_count: 1
+  commit_subject: 'feat(benchmarks): register FDM-201 source set and acquisition log [DEV-M12-G01]'
+  diff_summary: '16 files changed, 349 insertions(+), 0 deletions -- all under benchmarks/fdm201/, all within the frozen allowed_scope'
+  notes: >-
+    Single commit, conventional subject with goal id; diff exactly the
+    reviewed files; no merge commits, no unrelated changes, no test or
+    CI file touched; base matches the dispatch-time origin/main
+    (fc21036).
+
+findings: []
+
+observations:
+- id: OBS-M12-G01-01
+  severity: info
+  text: >-
+    Pre-existing flake in tests/state/test_leases.py::
+    test_concurrent_takeover_of_expired_lease_single_winner (timing-
+    sensitive thread race; both racing threads can receive
+    LeaseHeldError("contested by concurrent claimers")). Not caused by
+    this data-only change (no imports, no code); passes in isolation
+    (reviewer probe 3/3; worker observed ~2/30 solo runs). Already
+    encountered in earlier goals. Tracked for the M13 Release Gate:
+    either a DEVELOPMENT_CHANGE_REQUEST for a robustness fix
+    (barrier/timeout hardening) or a documented exclusion may be
+    warranted before release acceptance, since a flaky suite undermines
+    release confidence.
+
+summary: >-
+  PASS with zero findings. DEV-M12-G01 (FDM-201 benchmark source
+  acquisition and registration) is delivered as 16 deterministic data
+  files under benchmarks/fdm201/ (13 ResearchSource records + 9-item
+  acquisition log + README + benchmark project record), all within the
+  frozen allowed_scope. AC-01 (primary paper identity) verified against
+  Crossref metadata and the real research APIs; AC-02 (register or
+  explicit unavailability with reasons) verified for all 9 items
+  (REGISTERED 2 / PARTIAL 4 / UNAVAILABLE 3, every PARTIAL/UNAVAILABLE
+  with a reason); AC-03 (normalization through the Research subsystem)
+  proven by the reviewer's independent 78/78 battery (byte-stable
+  round-trips, generate_id format, canonical identity semantics,
+  schema validation of all records and the project record). The
+  implementation plan (plan_approval_required: true) was delivered in
+  the PR description and is approved as part of this review (M10-G03
+  precedent). Gates: full suite 3016 passed on head (no regression),
+  ruff and mypy clean, both CI jobs PASS. The frozen verification
+  (pytest -q tests/benchmarks -k fdm201) is VACUOUS -- tests/benchmarks
+  is owned by DEV-M12-G07 -- and is recorded honestly (exit 4, no tests
+  ran) rather than fabricated as a pass; regression evidence is the
+  full suite + CI. One info-level observation (OBS-M12-G01-01): the
+  pre-existing test_leases flake, to track at M13. Merge
+  recommendation: SQUASH MERGE to origin/main.
