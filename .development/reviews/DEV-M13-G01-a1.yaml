@@ -141,7 +141,11 @@ verification:
   - "mypy src -> 113 files, no issues, exit 0"
   - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, exit 0"
   - "CI on head 59c5997: Test/lint/typecheck PASS (4m6s) + Validate development contracts PASS (18s); CodeRabbit skipped (draft)"
-  post_merge: ""
+  post_merge: >-
+    Post-merge suite on origin/main 19c5bda (after squash merge of PR #77):
+    3146 passed, 7 skipped, 1 deselected in 326.66s, exit 0 (3063 baseline +
+    50 benchmark-acceptance + 33 reporting tests). No DEV-DEFECT-002 flake
+    occurrence in the post-merge run.
 
 design_review:
   decomposition: >-
