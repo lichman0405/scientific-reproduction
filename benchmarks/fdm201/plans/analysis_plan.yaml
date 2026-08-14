@@ -1,0 +1,236 @@
+# FDM-201 Plan v1 analysis objects (DEV-M12-G03)
+#
+# Frozen analysis protocols for the FDM-201 benchmark (Plan v1,
+# 2026-08-14T00:00:00Z). Field vocabulary follows
+# schemas/analysis.schema.yaml (analysis_id, kind, profile,
+# primary_or_exploratory, protocol_version, frozen, methods, outputs,
+# uncertainty) with benchmark extensions (target_value_ref,
+# acceptance_tolerance_assumption, comparison_quantity).
+#
+# Policy: every number compared is traceable to the spec section 2 seed
+# facts (REPORTED-NON-FINAL until revalidated against the primary source by
+# GOAL-INV-001/002 per ANL-001) or is an explicit assumption in
+# assumptions.yaml. Tolerance bands are A1 assumptions (ASM-A1-TOL-01..08)
+# frozen at Plan v1 and replaceable only via the change-control process
+# once the paper's own uncertainty/method is inventoried.
+#
+# Spec section 6: each quantitative goal has a frozen acceptance/statistics
+# design or an explicit justified non-statistical validation plan. ANL-001
+# is the non-statistical validation plan (source revalidation); ANL-090 is
+# the statistical validation plan; ANL-010..062 are the per-quantity
+# comparison protocols.
+
+record_kind: benchmark_analysis_plan
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+frozen_at: "2026-08-14T00:00:00Z"
+analysis_objects: 10
+
+protocols:
+  # -------------------------------------------------------------------------
+  # ANL-001: reported-value revalidation protocol (GOAL-INV-001/002)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-001"
+    kind: "protocol"
+    profile: "ROUTINE_ANALYSIS"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Primary-source revalidation of REPORTED-NON-FINAL values"
+    purpose: "Revalidate every REPORTED-NON-FINAL value (spec section 2 seed facts and acquisition-log abstract-level facts) against the primary source text (paper/SI/CIF) during execution; this is the explicit justified non-statistical validation plan for the inventory-extraction goals."
+    methods:
+      - "For each REPORTED-NON-FINAL item: locate the value in the primary source (section/figure/table/SI page), quote the source text, and record seed-fact-vs-source comparison in the item's evidence record (EV-*) and inventory record."
+      - "On mismatch: the primary source wins; the inventory record is corrected with a change note; the mismatch is recorded in the evidence record."
+      - "For DEFERRED-TO-EXECUTION items: populate the value or record a formal 'not reported' finding with the searched locations."
+      - "For MISSING (A2) parameters: attempt full recovery; any parameter still missing is re-registered as A2 with reason and remains DISQUALIFIES_PURE_STRICT."
+    outputs:
+      - "revalidation records per item (primary-source location, quoted value, verdict CONFIRMED / CORRECTED / NOT-REPORTED)"
+      - "updated inventory item records"
+    uncertainty:
+      note: "Revalidation is a source-fidelity check, not a measurement; uncertainty of the reported value is recorded when the paper reports it (GOAL-INV-001/002)."
+  # -------------------------------------------------------------------------
+  # ANL-010: synthesis/process reproducibility analysis (GOAL-EXE-10/20)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-010"
+    kind: "protocol"
+    profile: "STATISTICAL_VALIDATION"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Process-level batch reproducibility analysis"
+    purpose: "Analyze independent-batch synthesis reproducibility (INV-0714) per spec WP-20 and the statistics design of 07-STATISTICS-AND-ACCEPTANCE.md."
+    methods:
+      - "Per-lot records: yield, identity evidence (PXRD match), activation mass loss where reported."
+      - "Between-batch statistics: mean, standard deviation, range across n >= minimum_n (ASM-A1-N-01); batch-to-batch relative variability reported."
+      - "Reproducibility conclusion: process-level pass/fail vs the reported outcome under the goal acceptance criteria."
+    outputs:
+      - "batch statistics table"
+      - "process reproducibility verdict"
+    uncertainty:
+      note: "Reported per-batch spread plus measurement uncertainty where available; the paper's replicate counts are resolved by GOAL-INV-001 (AMB-0011)."
+  # -------------------------------------------------------------------------
+  # ANL-020: structure/identity verification analysis (GOAL-EXE-30)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-020"
+    kind: "protocol"
+    profile: "ROUTINE_ANALYSIS"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "PXRD phase identity and structure/model comparison"
+    purpose: "Establish sample identity (INV-0104/0105/0109): measured PXRD vs the calculated pattern from the CIF; unit-cell comparison vs the reported cubic Fm-3m, a = 23.76 A (INV-0102, REPORTED-NON-FINAL)."
+    methods:
+      - "Pattern matching with a deterministic similarity metric (Pearson correlation over the reported 2theta range) and visual inspection by two independent reviewers."
+      - "Identity gate: measured pattern of each batch matches the calculated FDM-201 pattern within the frozen criterion (no significant unassigned peaks; relative intensities within the A1 comparison tolerance)."
+      - "Unit-cell refinement (Le Bail/Pawley) where reported; compared with a = 23.76 A under the structure-comparison criterion (ASM-A1-TOL-03 applies to derived lengths; deviations recorded)."
+      - "TGA/compositional checks per the formally reported method (INV-0106/0107)."
+    outputs:
+      - "per-batch identity verdict (PASS/FAIL) and evidence"
+      - "structure/model comparison record (INV-0109)"
+    uncertainty:
+      note: "PXRD peak positions carry instrument calibration uncertainty; refinement uncertainties are reported where computed."
+  # -------------------------------------------------------------------------
+  # ANL-030: isotherm analysis (GOAL-EXE-50)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-030"
+    kind: "protocol"
+    profile: "ROUTINE_ANALYSIS"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Single-component isotherm acquisition and uptake comparison"
+    purpose: "Compare measured C3H6/C2H4 isotherms (INV-0303/0304) and the 298 K / 1 bar uptakes (INV-0301: 180.5 cm3 g-1, INV-0302: 68.2 cm3 g-1, REPORTED-NON-FINAL) with the revalidated reported values."
+    methods:
+      - "Isotherm acquisition at each reported temperature with a point grid matching the reported pressure range (grid resolution per GOAL-INV-001)."
+      - "Uptake comparison at 298 K / 1 bar under ASM-A1-TOL-01 (relative deviation <= 10%)."
+      - "Full-isotherm comparison: relative deviation at every shared pressure point; deviation profile reported."
+      - "Desorption branch (INV-0306) measured iff formally reported; hysteresis reported."
+    outputs:
+      - "uptake comparison table and deviation profile"
+      - "isotherm datasets (inputs to ANL-040)"
+    uncertainty:
+      note: "Duplicate/technical-replicate spread and instrument accuracy reported per 07-STATISTICS-AND-ACCEPTANCE.md."
+  # -------------------------------------------------------------------------
+  # ANL-040: derived thermodynamics (GOAL-EXE-60)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-040"
+    kind: "protocol"
+    profile: "STATISTICAL_VALIDATION"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "IAST selectivity and Qst derivation"
+    purpose: "Derive IAST selectivity (INV-0401: 8.6 for 50/50 C3H6/C2H4 at 298 K / 100 kPa, REPORTED-NON-FINAL) and zero-coverage Qst (INV-0402: 27.1 kJ mol-1 C3H6; INV-0403: 19.1 kJ mol-1 C2H4, REPORTED-NON-FINAL) with the frozen model/protocol."
+    methods:
+      - "Fit single-component isotherms with the frozen model (ASM-A1-FIT-01); fit quality (residuals, parameter uncertainty) reported."
+      - "IAST selectivity for every formally reported composition/condition (INV-0405/0406, resolved by GOAL-INV-002); 50/50 at 298 K / 100 kPa compared with 8.6 under ASM-A1-TOL-04 (<= 15%)."
+      - "Qst via the same reported method (ASM-A1-FIT-04); zero-coverage values compared under ASM-A1-TOL-05 (<= 10%)."
+      - "Uncertainty/sensitivity: propagate fit-parameter uncertainty into selectivity/Qst; report sensitivity to fit range and model."
+    outputs:
+      - "IAST selectivity results per composition/condition"
+      - "Qst results with uncertainty"
+    uncertainty:
+      note: "Fit-parameter covariance propagated; model-selection sensitivity reported as a sensitivity band, not folded into the acceptance band."
+  # -------------------------------------------------------------------------
+  # ANL-050: breakthrough analysis (GOAL-EXE-70)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-050"
+    kind: "protocol"
+    profile: "ROUTINE_ANALYSIS"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Breakthrough time and separation-window comparison"
+    purpose: "Compare measured breakthrough times (INV-0501: C2H4 ~23.5 min, C3H6 ~64.8 min, separation window ~41.3 min for 50/50 at 298 K, REPORTED-NON-FINAL) and the 328 K diluted run (INV-0502) under the frozen acceptance design."
+    methods:
+      - "Breakthrough time definition (e.g. C/C0 = 0.05 threshold) frozen at Plan v1 per ANL-050; recorded in the analysis record; adjusted to the paper's definition once inventoried (GOAL-INV-001)."
+      - "Detector calibration and dead-volume correction applied per the WP-70 parameter set (INV-0518/0519) or the registered A2 assumptions."
+      - "Times compared under ASM-A1-TOL-06 (<= 20% relative); separation window compared under the same band."
+      - "Cycle/repeat runs (INV-0503) analyzed per the cycling protocol (INV-0521); run-to-run reproducibility reported."
+    outputs:
+      - "breakthrough curves and time table per condition"
+      - "comparison verdicts for 298 K and 328 K runs"
+    uncertainty:
+      note: "Time resolution and flow stability contribute; run-to-run spread reported."
+  # -------------------------------------------------------------------------
+  # ANL-060: model construction verification (GOAL-EXE-80)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-060"
+    kind: "protocol"
+    profile: "ROUTINE_ANALYSIS"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Simulation model construction checklist"
+    purpose: "Verify the constructed simulation model (INV-0602/0603): cell reproduction from the CIF, geometry and pore-access verification, disorder/model choices, and registered settings (INV-0605)."
+    methods:
+      - "Cell parameters and atom coordinates reproduced from the CIF within numerical precision; cell volume and symmetry checks."
+      - "Pore access verification: probe-accessible surface/pore network check with the frozen probe radius; reported accessible volume recorded."
+      - "Disorder/model choices resolved with reasons (from GOAL-INV-002 or a registered assumption)."
+      - "Every assumed atom type/charge/force-field setting registered in the assumption ledger before simulation."
+    outputs:
+      - "model verification checklist (pass/fail per item)"
+      - "frozen model record"
+    uncertainty:
+      note: "Checklist verification is not statistical; numerical tolerances are engineering defaults (A0)."
+  # -------------------------------------------------------------------------
+  # ANL-061: binding-site/energy analysis (GOAL-EXE-81)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-061"
+    kind: "protocol"
+    profile: "STATISTICAL_VALIDATION"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Binding-site and static binding-energy comparison"
+    purpose: "Compare static binding energies (INV-0407: 48.72 kJ mol-1 C3H6; INV-0408: 38.61 kJ mol-1 C2H4, REPORTED-NON-FINAL) and the recovered energy difference (10.11 kJ mol-1, derived from the seed facts) under frozen equivalence criteria."
+    methods:
+      - "Reproduce each binding-site calculation (INV-0609/0610) with the inventoried electronic-structure settings (INV-0611, resolved by GOAL-INV-002)."
+      - "Convergence verification: energy vs settings (basis, dispersion, k-points) monotonic within the frozen threshold (A0 engineering default)."
+      - "Comparison under ASM-A1-TOL-07 (<= 15% relative per energy; same band on the difference)."
+    outputs:
+      - "binding energies with convergence evidence"
+      - "comparison verdict per energy and for the difference"
+    uncertainty:
+      note: "Convergence residual and method-sensitivity reported as the uncertainty of the computed values."
+  # -------------------------------------------------------------------------
+  # ANL-062: GCMC analysis (GOAL-EXE-82)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-062"
+    kind: "protocol"
+    profile: "STATISTICAL_VALIDATION"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "GCMC sampling/convergence and simulated-vs-experimental comparison"
+    purpose: "Produce GCMC uptakes (INV-0606/0607) with sampling/convergence analysis and compare with the experimental isotherms as formally reported (INV-0608)."
+    methods:
+      - "Sampling: equilibration/statistics split per ASM-A1-FF-02; convergence check on the running uptake average (block averages; acceptance when the block error meets the frozen threshold)."
+      - "Simulate all reported temperatures/pressures required by the inventory (GOAL-INV-002)."
+      - "Comparison per ASM-A1-TOL-08: trend agreement as formally reported; point-wise relative deviation <= 25% where the paper reports quantitative simulated values."
+    outputs:
+      - "GCMC uptake datasets with block-mean uncertainties"
+      - "simulated-vs-experimental comparison record (INV-0608)"
+    uncertainty:
+      note: "Statistical block error reported per state point; force-field uncertainty is out of scope of the GCMC protocol (registered in the assumption ledger)."
+  # -------------------------------------------------------------------------
+  # ANL-090: statistics and acceptance design (all quantitative goals)
+  # -------------------------------------------------------------------------
+  - analysis_id: "ANL-090"
+    kind: "protocol"
+    profile: "STATISTICAL_VALIDATION"
+    primary_or_exploratory: "PRIMARY"
+    protocol_version: "v1"
+    frozen: true
+    title: "Statistics, uncertainty reporting and goal closure design"
+    purpose: "Frozen statistics design per 07-STATISTICS-AND-ACCEPTANCE.md: replication policy, comparison statistics, uncertainty reporting, and the acceptance/closure flow for every quantitative goal."
+    methods:
+      - "Replication: independent batches per ASM-A1-N-01 (minimum n = 2) for experimental goals; technical repeats per instrument practice; reported replicate counts (AMB-0011) may raise minimum_n via change control."
+      - "Comparison statistics: per-state-point relative deviation; aggregate goal verdict from the per-quantity tolerance bands (ASM-A1-TOL-01..08) with all-or-none acceptance (no cherry picking of state points)."
+      - "Uncertainty reporting: measurement uncertainty, replicate spread, and (for computations) convergence residual reported for every compared quantity."
+      - "Closure flow: goal closes when all acceptance criteria pass with evidence records; otherwise Recovery or non-reproduced handling per the closure contracts (../plans/closure.yaml) and 08-STRICT-RECOVERY-CLOSURE.md."
+    outputs:
+      - "per-goal statistics and verdict records"
+      - "aggregate acceptance report for GOAL-EXE-90"
+    uncertainty:
+      note: "Uncertainty propagation rules are frozen with this protocol version."

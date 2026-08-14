@@ -1,0 +1,952 @@
+# FDM-201 100% mapping audit (DEV-M12-G03)
+#
+# The GOAL-AUD-001 anticipation at Plan v1 freeze: every one of the 82
+# formally reported inventory items (../inventory/INVENTORY.yaml,
+# DEV-M12-G02) is mapped to at least one goal defined in goals.yaml, and
+# every one of the 14 ambiguity entries (AMB-0001..0014) is assigned to
+# the goal(s) that resolve it. Mapped = 82/82, unmapped = 0,
+# ambiguities resolved = 14/14, unresolved = 0. All source unavailability
+# is formally handled per spec (never ignored): the 65
+# DEFERRED-TO-EXECUTION items and the 3 UNAVAILABLE acquisition-log items
+# each carry explicit resolution goals. The audit is deterministic: the
+# per-item mapping is the inventory requirement_mapping resolved via the
+# goals.yaml wp_alias table, extended with the inventory resolves_in
+# goals; audit_check.py recomputes and asserts every number.
+
+record_kind: benchmark_mapping_audit
+audit_id: "AUD-FDM201-PLAN-V1"
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+audited_at: "2026-08-14T00:00:00Z"
+inventory_ref: "benchmarks/fdm201/inventory/INVENTORY.yaml"
+goals_ref: "benchmarks/fdm201/goals/goals.yaml"
+plan_ref: "benchmarks/fdm201/plans/plan_v1.yaml"
+
+interpretation:
+  mapped_item: "a formally reported inventory item is mapped iff its requirement_mapping
+    (resolved via the goals.yaml wp_alias table) plus its resolves_in goals reference at
+    least one goal defined in goals.yaml; mapped_to below is that resolved set"
+  unresolved_ambiguity: "an ambiguity entry is unresolved at freeze iff it has no
+    resolution goal defined in goals.yaml; all 14 entries have resolution goals"
+  formal_unavailability: "source unavailability (acquisition-log UNAVAILABLE/PARTIAL and
+    inventory DEFERRED-TO-EXECUTION items) is handled formally when the item or log entry
+    carries a resolution goal in goals.yaml; nothing is silently ignored (spec AC-02)"
+
+coverage:
+  formally_reported_items: 82
+  mapped_items: 82
+  unmapped_items: 0
+  ambiguous_items: 0
+  unresolved_ambiguities: 0
+  coverage: 1.0
+  status: "PASS"
+
+by_category:
+  "00": {total: 10, mapped: 10, unmapped: 0}
+  "a": {total: 9, mapped: 9, unmapped: 0}
+  "b": {total: 7, mapped: 7, unmapped: 0}
+  "c": {total: 8, mapped: 8, unmapped: 0}
+  "d": {total: 9, mapped: 9, unmapped: 0}
+  "e": {total: 14, mapped: 14, unmapped: 0}
+  "f": {total: 11, mapped: 11, unmapped: 0}
+  "g": {total: 14, mapped: 14, unmapped: 0}
+by_status:
+  INVENTORIED: {total: 3, mapped: 3, unmapped: 0}
+  INVENTORIED-DEFERRED: {total: 14, mapped: 14, unmapped: 0}
+  DEFERRED-TO-EXECUTION: {total: 65, mapped: 65, unmapped: 0}
+
+# ---------------------------------------------------------------------------
+# Per-item mapping (82 entries; one per inventory item, none dropped)
+# ---------------------------------------------------------------------------
+item_mappings:
+  - item_id: "INV-0001"
+    title: "Primary paper identity (title, journal, year, volume, pages, DOI)"
+    category: "00"
+    status: INVENTORIED
+    value_status: NOT-APPLICABLE
+    requirement_mapping: ["GOAL-RES-001"]
+    mapped_to: ["GOAL-RES-001"]
+    mapping_note: "reproduced/verified by GOAL-RES-001; identity established from accessible material; verified by the mapped goal"
+  - item_id: "INV-0002"
+    title: "Primary paper author list"
+    category: "00"
+    status: INVENTORIED
+    value_status: NOT-APPLICABLE
+    requirement_mapping: ["GOAL-RES-001"]
+    mapped_to: ["GOAL-RES-001"]
+    mapping_note: "reproduced/verified by GOAL-RES-001; identity established from accessible material; verified by the mapped goal"
+  - item_id: "INV-0003"
+    title: "Electronic supplementary information (ESI) locator"
+    category: "00"
+    status: INVENTORIED
+    value_status: ESTABLISHED
+    requirement_mapping: ["GOAL-RES-002", "GOAL-INV-004"]
+    mapped_to: ["GOAL-INV-004", "GOAL-RES-002"]
+    mapping_note: "reproduced/verified by GOAL-RES-002; identity established from accessible material; verified by the mapped goal"
+  - item_id: "INV-0004"
+    title: "FDM-201 deposited crystal structure (CIF) / CSD-CCDC deposition"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-RES-003", "WP-80"]
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-INV-004", "GOAL-RES-003"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0005"
+    title: "Related deposited structure(s) used by the paper"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-RES-003", "GOAL-INV-003"]
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-003"]
+    mapped_to: ["GOAL-INV-003", "GOAL-RES-003"]
+    mapping_note: "reproduced/verified by GOAL-RES-003; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0006"
+    title: "Data-availability resources / statement"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-RES-004", "GOAL-INV-001"]
+    resolves_in: ["GOAL-RES-004", "GOAL-INV-001"]
+    mapped_to: ["GOAL-INV-001", "GOAL-RES-004"]
+    mapping_note: "reproduced/verified by GOAL-RES-004; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0007"
+    title: "In-paper reference set for [Zn8SiO4] SBU chemistry"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-003"]
+    resolves_in: ["GOAL-INV-003"]
+    mapped_to: ["GOAL-INV-003"]
+    mapping_note: "reproduced/verified by GOAL-INV-003; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0008"
+    title: "In-paper reference set for adsorption / IAST / Qst methods"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0009"
+    title: "In-paper reference set for computational methods / force fields"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-80", "WP-82"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-EXE-82", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0010"
+    title: "Same-author and analogous MOF work set"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-003"]
+    resolves_in: ["GOAL-INV-003"]
+    mapped_to: ["GOAL-INV-003"]
+    mapping_note: "reproduced/verified by GOAL-INV-003; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0101"
+    title: "Reported framework description: stretched [Zn8SiO4] node, PyBC-type linker, 12-connected fcu"
+    category: "a"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0102"
+    title: "Reported crystal system and unit cell (cubic Fm-3m, a = 23.76 A)"
+    category: "a"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-30", "WP-80"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-EXE-80", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0103"
+    title: "SCXRD structure determination"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0104"
+    title: "PXRD measurement (per independent batch)"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0105"
+    title: "PXRD phase analysis"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0106"
+    title: "TGA (thermogravimetric analysis)"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0107"
+    title: "Spectroscopy / compositional characterization (any formally reported)"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0108"
+    title: "Stability PXRD tests under formally reported conditions"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0109"
+    title: "Structure / model comparison"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-30", "GOAL-INV-001", "GOAL-RES-003"]
+    mapping_note: "reproduced/verified by GOAL-EXE-30; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0201"
+    title: "BET surface area"
+    category: "b"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0202"
+    title: "Reported pore sizes"
+    category: "b"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0203"
+    title: "N2 isotherm acquisition"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0204"
+    title: "BET analysis protocol"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0205"
+    title: "Pore-size analysis method"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0206"
+    title: "Activation QC before adsorption"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0207"
+    title: "Independent batch porosity statistics"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-40", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-40; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0301"
+    title: "C3H6 single-component uptake at 298 K, 1 bar"
+    category: "c"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0302"
+    title: "C2H4 single-component uptake at 298 K, 1 bar"
+    category: "c"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0303"
+    title: "C3H6 full adsorption isotherm (point grid, pressure range)"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0304"
+    title: "C2H4 full adsorption isotherm (point grid, pressure range)"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0305"
+    title: "Single-component isotherms at temperatures other than 298 K"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0306"
+    title: "Desorption branch (if formally reported)"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0307"
+    title: "Isotherm repeat / batch plan"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0308"
+    title: "Uptake comparison statistics"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-50", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-50; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0401"
+    title: "IAST selectivity, 50/50 C3H6/C2H4 at 298 K / 100 kPa"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0402"
+    title: "Zero-coverage isosteric heat of adsorption Qst, C3H6"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0403"
+    title: "Zero-coverage isosteric heat of adsorption Qst, C2H4"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0404"
+    title: "Qst calculation procedure"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0405"
+    title: "IAST implementation details"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0406"
+    title: "IAST selectivity at other compositions / conditions"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-60", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-60; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0407"
+    title: "Static binding energy, C3H6"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+    mapped_to: ["GOAL-EXE-81", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-81; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0408"
+    title: "Static binding energy, C2H4"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+    mapped_to: ["GOAL-EXE-81", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-81; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0409"
+    title: "Binding-energy calculation method"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-81", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-81; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0501"
+    title: "Breakthrough experiment, 50/50 C3H6/C2H4 at 298 K"
+    category: "e"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0502"
+    title: "Breakthrough experiment, 328 K diluted-mixture conditions"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0503"
+    title: "Breakthrough cycle / repeat runs"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0511"
+    title: "WP-70 parameter: column geometry"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0512"
+    title: "WP-70 parameter: adsorbent mass"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0513"
+    title: "WP-70 parameter: packing density"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0514"
+    title: "WP-70 parameter: flow rate"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0515"
+    title: "WP-70 parameter: gas composition / purity"
+    category: "e"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0516"
+    title: "WP-70 parameter: gas purity (separate record)"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0517"
+    title: "WP-70 parameter: temperature / pressure"
+    category: "e"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; value is REPORTED-NON-FINAL; revalidated against the primary source by the mapped goals"
+  - item_id: "INV-0518"
+    title: "WP-70 parameter: detector calibration"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0519"
+    title: "WP-70 parameter: dead-volume correction"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0520"
+    title: "WP-70 parameter: regeneration protocol"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0521"
+    title: "WP-70 parameter: cycling protocol"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+    resolves_in: ["GOAL-INV-001"]
+    mapped_to: ["GOAL-EXE-70", "GOAL-INV-001"]
+    mapping_note: "reproduced/verified by GOAL-EXE-70; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0601"
+    title: "Published CIF acquisition (model construction input)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-RES-003", "WP-80"]
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-INV-004", "GOAL-RES-003"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0602"
+    title: "Simulation model construction (disorder, cell, atom types)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+    resolves_in: ["GOAL-INV-002", "GOAL-RES-003"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-INV-002", "GOAL-RES-003"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0603"
+    title: "Geometry and pore-access verification"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+    resolves_in: ["GOAL-INV-002", "GOAL-RES-003"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-INV-002", "GOAL-RES-003"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0604"
+    title: "Linker rotation / dynamic pore argument (if computationally reported)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0605"
+    title: "Force-field / charges / software settings"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-80", "WP-82"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-80", "GOAL-EXE-82", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-80; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0606"
+    title: "GCMC adsorption simulation, C3H6"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-82"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-82", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-82; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0607"
+    title: "GCMC adsorption simulation, C2H4"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-82"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-82", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-82; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0608"
+    title: "Simulated vs experimental comparison (as formally reported)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-82"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-82", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-82; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0609"
+    title: "C3H6 binding-site calculation"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-81", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-81; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0610"
+    title: "C2H4 binding-site calculation"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-81", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-81; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0611"
+    title: "Electronic-structure settings for binding energies"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+    resolves_in: ["GOAL-INV-002"]
+    mapped_to: ["GOAL-EXE-81", "GOAL-INV-002"]
+    mapping_note: "reproduced/verified by GOAL-EXE-81; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0701"
+    title: "Ligand precursor synthesis step 1"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-10", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-10; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0702"
+    title: "Ligand precursor purification / identity check"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-10", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-10; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0703"
+    title: "PyBC ligand synthesis"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-10", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-10; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0704"
+    title: "PyBC purification"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-10", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-10; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0705"
+    title: "PyBC identity / purity characterization"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-10", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-10; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0706"
+    title: "Any reported precursor / control synthesis"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-10", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-10; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0707"
+    title: "Reaction mixture preparation (per SI)"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0708"
+    title: "Solvothermal synthesis of FDM-201"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0709"
+    title: "Isolation / wash"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0710"
+    title: "Solvent exchange"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0711"
+    title: "Activation protocol"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0712"
+    title: "Sample storage / handling"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0713"
+    title: "Independent batch synthesis runs"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+  - item_id: "INV-0714"
+    title: "Process-level batch reproducibility analysis"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+    resolves_in: ["GOAL-INV-004"]
+    mapped_to: ["GOAL-EXE-20", "GOAL-INV-004"]
+    mapping_note: "reproduced/verified by GOAL-EXE-20; populated and revalidated by the mapped goals during execution"
+
+# ---------------------------------------------------------------------------
+# Ambiguity resolutions (14 entries; AMB-0001..0014, none unresolved)
+# ---------------------------------------------------------------------------
+ambiguity_resolutions:
+  - ambiguity_id: "AMB-0001"
+    title: "FDM-201 CIF deposition location"
+    affected_item_ids: ["INV-0004", "INV-0601"]
+    declared_resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
+    resolution_goals: ["GOAL-INV-004", "GOAL-RES-003"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0002"
+    title: "328 K diluted-mixture breakthrough conditions"
+    affected_item_ids: ["INV-0502", "INV-0515", "INV-0517"]
+    declared_resolves_in: ["GOAL-INV-001", "WP-70"]
+    resolution_goals: ["GOAL-EXE-70", "GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0003"
+    title: "Single-component isotherm temperatures beyond 298 K"
+    affected_item_ids: ["INV-0305"]
+    declared_resolves_in: ["GOAL-INV-001"]
+    resolution_goals: ["GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0004"
+    title: "Exact Qst calculation procedure"
+    affected_item_ids: ["INV-0404"]
+    declared_resolves_in: ["GOAL-INV-002", "WP-60"]
+    resolution_goals: ["GOAL-EXE-60", "GOAL-INV-002"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0005"
+    title: "IAST implementation details and covered conditions"
+    affected_item_ids: ["INV-0405", "INV-0406"]
+    declared_resolves_in: ["GOAL-INV-002", "WP-60"]
+    resolution_goals: ["GOAL-EXE-60", "GOAL-INV-002"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0006"
+    title: "Simulation force field, charges and software"
+    affected_item_ids: ["INV-0605"]
+    declared_resolves_in: ["GOAL-INV-002", "WP-80", "WP-82"]
+    resolution_goals: ["GOAL-EXE-80", "GOAL-EXE-82", "GOAL-INV-002"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0007"
+    title: "Binding-energy electronic-structure settings"
+    affected_item_ids: ["INV-0409", "INV-0611"]
+    declared_resolves_in: ["GOAL-INV-002", "WP-81"]
+    resolution_goals: ["GOAL-EXE-81", "GOAL-INV-002"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0008"
+    title: "Breakthrough apparatus and protocol parameters"
+    affected_item_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    declared_resolves_in: ["GOAL-INV-001", "WP-70"]
+    resolution_goals: ["GOAL-EXE-70", "GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0009"
+    title: "Activation protocol parameters"
+    affected_item_ids: ["INV-0711"]
+    declared_resolves_in: ["GOAL-INV-004", "WP-20"]
+    resolution_goals: ["GOAL-EXE-20", "GOAL-INV-004"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0010"
+    title: "Whether TGA / SCXRD / stability PXRD are formally reported"
+    affected_item_ids: ["INV-0103", "INV-0106", "INV-0108"]
+    declared_resolves_in: ["GOAL-INV-001"]
+    resolution_goals: ["GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0011"
+    title: "Number of independent batches / replicates"
+    affected_item_ids: ["INV-0207", "INV-0307", "INV-0503", "INV-0713"]
+    declared_resolves_in: ["GOAL-INV-001"]
+    resolution_goals: ["GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0012"
+    title: "N2 isotherm measurement conditions"
+    affected_item_ids: ["INV-0203"]
+    declared_resolves_in: ["GOAL-INV-001"]
+    resolution_goals: ["GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0013"
+    title: "BET protocol criteria"
+    affected_item_ids: ["INV-0204"]
+    declared_resolves_in: ["GOAL-INV-001"]
+    resolution_goals: ["GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+  - ambiguity_id: "AMB-0014"
+    title: "Pore-size analysis method"
+    affected_item_ids: ["INV-0205"]
+    declared_resolves_in: ["GOAL-INV-001"]
+    resolution_goals: ["GOAL-INV-001"]
+    resolution_note: "resolved during benchmark execution by the listed goal(s); the
+      resolution updates the affected inventory item(s) from the primary source"
+
+# ---------------------------------------------------------------------------
+# Formal unavailability handling (AC-02: handled per spec, never ignored)
+# ---------------------------------------------------------------------------
+formal_unavailability:
+  deferred_to_execution_items: 65
+  deferred_resolved: 65
+  deferred_policy: "each DEFERRED-TO-EXECUTION item carries a resolves_in goal set in the
+    inventory (validated by audit_check.py); the resolving goals populate the item from the
+    primary source during execution"
+  unavailable_log_items: 3
+  unavailable_log_detail:
+    - acquisition_item: 3
+      required_item: "FDM-201 deposited crystal structure/CIF"
+      resolution_goals: ["GOAL-RES-003", "GOAL-INV-004"]
+      note: "no CSD/CCDC deposition located at registration; CIF may be embedded in the ESI"
+    - acquisition_item: 4
+      required_item: "any related deposited structure(s) used by the paper"
+      resolution_goals: ["GOAL-RES-003", "GOAL-INV-003"]
+      note: "deposition list unreadable without the paper text; public search found none"
+    - acquisition_item: 5
+      required_item: "data-availability resources"
+      resolution_goals: ["GOAL-RES-004", "GOAL-INV-001"]
+      note: "RSC article page bot-protected (HTTP 403) at registration"
+  missing_value_parameters: 9
+  missing_value_parameter_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0516", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+  missing_value_policy: "all 9 are WP-70 breakthrough parameters registered with
+    assumption_class A2 (spec WP-70: any missing scientifically consequential parameter is
+    registered as A2 and prevents pure strict classification); each is resolved by
+    GOAL-INV-001 and used by GOAL-EXE-70"
+  reported_non_final_items: 14
+  reported_non_final_policy: "all REPORTED-NON-FINAL values (spec section 2 seed facts and
+    acquisition-log abstract-level facts) are revalidated against the primary source during
+    execution by GOAL-INV-001 (experimental) / GOAL-INV-002 (computational) per the ANL-001
+    revalidation protocol; none is treated as final at Plan v1"
+
+# ---------------------------------------------------------------------------
+# Assumption coverage at freeze
+# ---------------------------------------------------------------------------
+assumptions_coverage:
+  a2_registrations: 12
+  a2_item_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521", "INV-0605"]
+  a2_policy: "each A2 registration becomes an assumption object in ../plans/assumptions.yaml
+    with strict_status_effect DISQUALIFIES_PURE_STRICT"
+  ambiguity_coverage_references: 18
+  ambiguity_coverage_policy: "the 18 inventory self_check.py warnings (items affected by an
+    ambiguity without an ambiguity_ref) are declared as assumption objects in
+    ../plans/assumptions.yaml (classification A1: audit-interpretation default); every
+    ambiguity coverage is stated, none is silent"
+  assumption_objects: 45
+  assumption_objects_ref: "benchmarks/fdm201/plans/assumptions.yaml"
+
+notes:
+  - "The per-item mapping extends the inventory requirement_mapping with the inventory
+    resolves_in goals; the union is asserted by audit_check.py to equal each item mapped_to
+    set (nothing silently dropped or added)."
+  - "GOAL-AUD-001 and GOAL-EXE-90 are defined in the DAG and cover the whole inventory (audit
+    and final integration respectively); individual items map to the goals that extract,
+    reproduce or verify them."
+  - "This audit is the Plan v1 anticipation of GOAL-AUD-001; the execution-phase re-run
+    (after GOAL-INV-001..004 populate the inventory from the primary source) applies the
+    same 100%-mapped / zero-unresolved-ambiguity gate to every later plan freeze."
+
+audit_conclusion: "At Plan v1 freeze: mapped 82/82, unmapped 0, ambiguities resolved 14/14,
+  unresolved ambiguity 0, coverage 1.0, status PASS. GOAL-AUD-001 anticipation satisfied."

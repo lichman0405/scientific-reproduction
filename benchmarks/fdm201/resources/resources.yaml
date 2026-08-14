@@ -1,0 +1,274 @@
+# FDM-201 Plan v1 resource records (DEV-M12-G03)
+#
+# The resources Plan v1 needs, frozen 2026-08-14T00:00:00Z. Field vocabulary
+# follows schemas/resource.schema.yaml: resource_id, name, resource_type
+# (reagent | consumable | instrument | external_service | compute_access |
+# database_access | safety_capability | other), availability_state (AVAILABLE
+# | PROCURE | OUTSOURCE | CAPABILITY_GAP), blocks_goal_ids, estimated_cost,
+# currency, human_gate_required, notes. Benchmark extensions: acquisition_
+# status (the G01 log status of the tied acquisition-log item, or
+# not_registered), g01_acquisition_item, source_ids, resolution_goal_id
+# (the goal that resolves the resource gap, or the token "PROCURE" for
+# plan-side procurement), used_by_goal_ids.
+#
+# G01 coverage: acquisition-log items 1-9 map to RES-001..009 with their
+# REGISTERED / PARTIAL / UNAVAILABLE statuses; resources 10-17 are not G01
+# registration items (acquisition_status not_registered) and are procured at
+# execution.
+#
+# Determinism: fixed timestamp, no wall clock, no randomness, no network at
+# runtime; no placeholder text. No cost estimates are invented
+# (estimated_cost/currency null until procurement planning).
+
+record_kind: benchmark_resource_records
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+frozen_at: "2026-08-14T00:00:00Z"
+resource_count: 17
+acquisition_log_ref: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml"
+
+resources:
+  # -------------------------------------------------------------------------
+  # G01 registration items (acquisition log items 1-9)
+  # -------------------------------------------------------------------------
+  - resource_id: "RES-001"
+    name: "Primary paper"
+    resource_type: "database_access"
+    availability_state: AVAILABLE
+    acquisition_status: REGISTERED
+    g01_acquisition_item: 1
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    resolution_goal_id: "GOAL-RES-001"
+    used_by_goal_ids: ["GOAL-RES-001", "GOAL-INV-001", "GOAL-INV-002", "GOAL-INV-003"]
+    blocks_goal_ids: []
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Crossref-verified identity at registration; article text fetched at execution (human/browser gate; publisher page bot-protected). GOAL-RES-001 re-verifies identity."
+  - resource_id: "RES-002"
+    name: "Supplementary information (ESI)"
+    resource_type: "database_access"
+    availability_state: AVAILABLE
+    acquisition_status: REGISTERED
+    g01_acquisition_item: 2
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    resolution_goal_id: "GOAL-RES-002"
+    used_by_goal_ids: ["GOAL-RES-002", "GOAL-INV-004", "GOAL-INV-001", "GOAL-INV-002"]
+    blocks_goal_ids: []
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "RSC ESI locator registered; content not downloaded (registration-only). SI inventory (GOAL-INV-004) and any SI-only data (e.g. CIF) established at execution."
+  - resource_id: "RES-003"
+    name: "FDM-201 deposited crystal structure (CIF)"
+    resource_type: "database_access"
+    availability_state: PROCURE
+    acquisition_status: UNAVAILABLE
+    g01_acquisition_item: 3
+    source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+    resolution_goal_id: "GOAL-RES-003"
+    used_by_goal_ids: ["GOAL-RES-003", "GOAL-EXE-30", "GOAL-EXE-80", "GOAL-INV-004"]
+    blocks_goal_ids: ["GOAL-EXE-30", "GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "No CSD/CCDC deposition located at registration; CIF may exist only inside the SI. GOAL-RES-003 locates/re-verifies it during execution; the computational branch and the PXRD comparison are blocked until resolved."
+  - resource_id: "RES-004"
+    name: "Related deposited structure(s) used by the paper"
+    resource_type: "database_access"
+    availability_state: PROCURE
+    acquisition_status: UNAVAILABLE
+    g01_acquisition_item: 4
+    source_ids: ["sr_source_9280af72ee87eb99511040e333e4f244"]
+    resolution_goal_id: "GOAL-RES-003"
+    used_by_goal_ids: ["GOAL-RES-003", "GOAL-INV-003"]
+    blocks_goal_ids: []
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Deposition list unreadable without the paper text; public search found none at registration. Resolved by GOAL-RES-003 / GOAL-INV-003 during execution."
+  - resource_id: "RES-005"
+    name: "Data-availability resources"
+    resource_type: "database_access"
+    availability_state: PROCURE
+    acquisition_status: UNAVAILABLE
+    g01_acquisition_item: 5
+    source_ids: ["sr_source_8cbf12c17f81fbce1a839725e46d5b5f"]
+    resolution_goal_id: "GOAL-RES-004"
+    used_by_goal_ids: ["GOAL-RES-004", "GOAL-INV-001"]
+    blocks_goal_ids: []
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "No external repository located at registration; RSC article page bot-protected (HTTP 403), so the data-availability statement is read at execution."
+  - resource_id: "RES-006"
+    name: "[Zn8SiO4] SBU chemistry reference set"
+    resource_type: "database_access"
+    availability_state: AVAILABLE
+    acquisition_status: PARTIAL
+    g01_acquisition_item: 6
+    source_ids: ["sr_source_0efcf3f9b1f3ea8dac12a833870a1edd", "sr_source_3d290ce0c9895b5025964e518d59f9de"]
+    resolution_goal_id: "GOAL-INV-003"
+    used_by_goal_ids: ["GOAL-INV-003"]
+    blocks_goal_ids: []
+    human_gate_required: false
+    estimated_cost: null
+    currency: null
+    notes: "Representative set registered (fcu archetype Cavka 2008, reticular synthesis Yaghi 2003); the in-paper reference list is completed at execution."
+  - resource_id: "RES-007"
+    name: "Adsorption / IAST / Qst method reference set"
+    resource_type: "database_access"
+    availability_state: AVAILABLE
+    acquisition_status: PARTIAL
+    g01_acquisition_item: 7
+    source_ids: ["sr_source_fb13edb5df0d0f7096a69a8e477ceee9", "sr_source_804629f070652078d800d125a6c7d7fb"]
+    resolution_goal_id: "GOAL-INV-002"
+    used_by_goal_ids: ["GOAL-INV-002", "GOAL-EXE-60"]
+    blocks_goal_ids: []
+    human_gate_required: false
+    estimated_cost: null
+    currency: null
+    notes: "Canonical method references registered (IAST Myers & Prausnitz 1965; BET 1938); the paper's own method citations and Qst procedure are inventoried at execution."
+  - resource_id: "RES-008"
+    name: "Computational method / force-field reference set"
+    resource_type: "database_access"
+    availability_state: AVAILABLE
+    acquisition_status: PARTIAL
+    g01_acquisition_item: 8
+    source_ids: ["sr_source_699dfcc7d671d18011b21893043b6f52", "sr_source_a52c59975078f26cac0e43df7c1c30ba"]
+    resolution_goal_id: "GOAL-INV-002"
+    used_by_goal_ids: ["GOAL-INV-002", "GOAL-EXE-80", "GOAL-EXE-82"]
+    blocks_goal_ids: []
+    human_gate_required: false
+    estimated_cost: null
+    currency: null
+    notes: "Canonical references registered (UFF Rappe 1992; GCMC methodology 2013); the paper's actual settings (force field, charges, software) are inventoried at execution (SI)."
+  - resource_id: "RES-009"
+    name: "Same-author / analogous MOF work set"
+    resource_type: "database_access"
+    availability_state: AVAILABLE
+    acquisition_status: PARTIAL
+    g01_acquisition_item: 9
+    source_ids: ["sr_source_1eb6b648eb2eddecf250a7976d48b305", "sr_source_2fb00aadfa95bfe62e7481958926c9b1"]
+    resolution_goal_id: "GOAL-INV-003"
+    used_by_goal_ids: ["GOAL-INV-003", "GOAL-EXE-90"]
+    blocks_goal_ids: []
+    human_gate_required: false
+    estimated_cost: null
+    currency: null
+    notes: "Same-author works registered (FDM-22 Chem. Mater. 2018; FDM-6 ACS Appl. Mater. Interfaces 2023); the full set including paper-cited works is completed at final integration (required search families, CC-INTEGRATION)."
+  # -------------------------------------------------------------------------
+  # Execution resources (not G01 registration items; procured at execution)
+  # -------------------------------------------------------------------------
+  - resource_id: "RES-010"
+    name: "Adsorption and simulation software"
+    resource_type: "external_service"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]
+    blocks_goal_ids: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Licenses/procurement decided at execution (free or licensed tools per the inventoried paper settings); no cost estimate invented."
+  - resource_id: "RES-011"
+    name: "Computational access"
+    resource_type: "compute_access"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]
+    blocks_goal_ids: ["GOAL-EXE-80", "GOAL-EXE-81", "GOAL-EXE-82"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Local or shared compute allocated at execution; no cost estimate invented."
+  - resource_id: "RES-012"
+    name: "Standards and reference data"
+    resource_type: "consumable"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-40"]
+    blocks_goal_ids: []
+    human_gate_required: false
+    estimated_cost: null
+    currency: null
+    notes: "Calibration/reference materials and reference data (e.g. NIST standard reference data) procured for BET/pore-size work at execution."
+  - resource_id: "RES-013"
+    name: "Synthesis and activation equipment"
+    resource_type: "instrument"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-10", "GOAL-EXE-20"]
+    blocks_goal_ids: ["GOAL-EXE-10", "GOAL-EXE-20"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Schlenk/glovebox/solvothermal hardware per the SI protocol; procurement at execution."
+  - resource_id: "RES-014"
+    name: "Characterization instruments (PXRD / TGA / SCXRD)"
+    resource_type: "instrument"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-30"]
+    blocks_goal_ids: ["GOAL-EXE-30"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Instrument time and calibration at execution; SCXRD only if formally reported (AMB-0010)."
+  - resource_id: "RES-015"
+    name: "Gas sorption analyzer"
+    resource_type: "instrument"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-60"]
+    blocks_goal_ids: ["GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-60"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "N2/C3H6/C2H4 sorption analyzer with the pressure/temperature ranges required by the inventory; procurement at execution."
+  - resource_id: "RES-016"
+    name: "Breakthrough apparatus"
+    resource_type: "instrument"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "PROCURE"
+    used_by_goal_ids: ["GOAL-EXE-70"]
+    blocks_goal_ids: ["GOAL-EXE-70"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Column, mass-flow control, detector and dead-volume calibration per the WP-70 parameter set (INV-0511..0521); procurement/commissioning at execution."
+  - resource_id: "RES-017"
+    name: "Reagents, solvents and gases"
+    resource_type: "reagent"
+    availability_state: PROCURE
+    acquisition_status: not_registered
+    g01_acquisition_item: null
+    source_ids: []
+    resolution_goal_id: "GOAL-INV-004"
+    used_by_goal_ids: ["GOAL-EXE-10", "GOAL-EXE-20", "GOAL-EXE-70"]
+    blocks_goal_ids: ["GOAL-EXE-10", "GOAL-EXE-20", "GOAL-EXE-70"]
+    human_gate_required: true
+    estimated_cost: null
+    currency: null
+    notes: "Exact reagent list read from the SI at execution (GOAL-INV-004); C3H6/C2H4 gases for breakthrough per the WP-70 gas-composition parameters."

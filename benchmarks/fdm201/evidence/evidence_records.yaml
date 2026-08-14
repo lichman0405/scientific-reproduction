@@ -1,0 +1,1983 @@
+record_kind: benchmark_evidence_records
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+recorded_at: "2026-08-14T00:00:00Z"
+inventory_ref: "benchmarks/fdm201/inventory/INVENTORY.yaml"
+mapping_audit_ref: "benchmarks/fdm201/goals/mapping_audit.yaml"
+evidence_model_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+record_count: 82
+
+# One pre-execution evidence record per formally reported inventory item (82),
+# assessed per the frozen basis->A/R/D mapping of evidence_model.yaml.
+# Field vocabulary follows schemas/evidence.schema.yaml: evidence_id, source_id,
+# claim_id, source_location, finding, limitations, role, assessment (authority,
+# reliability, directness, reliability_checklist_ref), used_by.
+evidence_records:
+  - evidence_id: "EV-INV-0001"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0001"
+    claim_title: "Primary paper identity (title, journal, year, volume, pages, DOI)"
+    category: "00"
+    status: INVENTORIED
+    value_status: NOT-APPLICABLE
+    evidence_basis: CROSSREF-METADATA
+    source_location: "Crossref record (REST API, queried 2026-08-14), recorded in benchmarks/fdm201/sources/records/01_primary_paper.yaml and ACQUISITION_LOG.yaml item 1"
+    finding: "Pre-execution evidence establishes the identity/locator fact from accessible material: Primary paper identity (title, journal, year, volume, pages, DOI)"
+    limitations: []
+    role: "pre_execution_basis"
+    assessment:
+      authority: 4
+      reliability: 4
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-RES-001"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0002"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0002"
+    claim_title: "Primary paper author list"
+    category: "00"
+    status: INVENTORIED
+    value_status: NOT-APPLICABLE
+    evidence_basis: CROSSREF-METADATA
+    source_location: "Crossref record, recorded in benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 1"
+    finding: "Pre-execution evidence establishes the identity/locator fact from accessible material: Primary paper author list"
+    limitations: []
+    role: "pre_execution_basis"
+    assessment:
+      authority: 4
+      reliability: 4
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-RES-001"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0003"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0003"
+    claim_title: "Electronic supplementary information (ESI) locator"
+    category: "00"
+    status: INVENTORIED
+    value_status: ESTABLISHED
+    evidence_basis: ACQUISITION-LOG
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 2 (locator from public search on publisher domain)"
+    finding: "Pre-execution evidence establishes the identity/locator fact from accessible material: Electronic supplementary information (ESI) locator"
+    limitations: []
+    role: "pre_execution_basis"
+    assessment:
+      authority: 3
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-INV-004", "GOAL-RES-002"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0004"
+    source_id: "sr_source_68539272137098c373f56bdea1b106cd"
+    source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+    claim_id: "INV-0004"
+    claim_title: "FDM-201 deposited crystal structure (CIF) / CSD-CCDC deposition"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 3 (CCDC public deposition search by DOI, 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: FDM-201 deposited crystal structure (CIF) / CSD-CCDC deposition"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-INV-004", "GOAL-RES-003"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0005"
+    source_id: "sr_source_9280af72ee87eb99511040e333e4f244"
+    source_ids: ["sr_source_9280af72ee87eb99511040e333e4f244"]
+    claim_id: "INV-0005"
+    claim_title: "Related deposited structure(s) used by the paper"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 4 (public search, 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Related deposited structure(s) used by the paper"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-INV-003", "GOAL-RES-003"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0006"
+    source_id: "sr_source_8cbf12c17f81fbce1a839725e46d5b5f"
+    source_ids: ["sr_source_8cbf12c17f81fbce1a839725e46d5b5f"]
+    claim_id: "INV-0006"
+    claim_title: "Data-availability resources / statement"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 5 (RSC article page bot-protected, HTTP 403, 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Data-availability resources / statement"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-INV-001", "GOAL-RES-004"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0007"
+    source_id: "sr_source_0efcf3f9b1f3ea8dac12a833870a1edd"
+    source_ids: ["sr_source_0efcf3f9b1f3ea8dac12a833870a1edd", "sr_source_3d290ce0c9895b5025964e518d59f9de"]
+    claim_id: "INV-0007"
+    claim_title: "In-paper reference set for [Zn8SiO4] SBU chemistry"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 6 (candidate references, Crossref-verified 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: In-paper reference set for [Zn8SiO4] SBU chemistry"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-INV-003"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0008"
+    source_id: "sr_source_fb13edb5df0d0f7096a69a8e477ceee9"
+    source_ids: ["sr_source_fb13edb5df0d0f7096a69a8e477ceee9", "sr_source_804629f070652078d800d125a6c7d7fb"]
+    claim_id: "INV-0008"
+    claim_title: "In-paper reference set for adsorption / IAST / Qst methods"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 7 (canonical method references, Crossref-verified 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: In-paper reference set for adsorption / IAST / Qst methods"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0009"
+    source_id: "sr_source_699dfcc7d671d18011b21893043b6f52"
+    source_ids: ["sr_source_699dfcc7d671d18011b21893043b6f52", "sr_source_a52c59975078f26cac0e43df7c1c30ba"]
+    claim_id: "INV-0009"
+    claim_title: "In-paper reference set for computational methods / force fields"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 8 (canonical computational references, Crossref-verified 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: In-paper reference set for computational methods / force fields"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-EXE-82", "GOAL-INV-002"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0010"
+    source_id: "sr_source_1eb6b648eb2eddecf250a7976d48b305"
+    source_ids: ["sr_source_1eb6b648eb2eddecf250a7976d48b305", "sr_source_2fb00aadfa95bfe62e7481958926c9b1"]
+    claim_id: "INV-0010"
+    claim_title: "Same-author and analogous MOF work set"
+    category: "00"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 9 (same-author candidates, Crossref-verified 2026-08-14)"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Same-author and analogous MOF work set"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-INV-003"]
+    expected_artifacts: ["primary-source revalidation or verification record (ANL-001)", "acquisition/verification record of the mapped goal"]
+  - evidence_id: "EV-INV-0101"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0101"
+    claim_title: "Reported framework description: stretched [Zn8SiO4] node, PyBC-type linker, 12-connected fcu"
+    category: "a"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"stretched [Zn8SiO4] inorganic unit; PyBC-type mixed coordination linker motif; 12-connected fcu framework\" (REPORTED-NON-FINAL; revalidation against the primary source required): Reported framework description: stretched [Zn8SiO4] node, PyBC-type linker, 12-connected fcu"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0102"
+    source_id: "sr_source_68539272137098c373f56bdea1b106cd"
+    source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+    claim_id: "INV-0102"
+    claim_title: "Reported crystal system and unit cell (cubic Fm-3m, a = 23.76 A)"
+    category: "a"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: ACQUISITION-LOG
+    source_location: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 3 (established; per the paper's published abstract)"
+    finding: "Pre-execution evidence registers the reported value \"cubic Fm-3m; a = 23.76 A (abstract-level, per G01 acquisition log item 3)\" (REPORTED-NON-FINAL; revalidation against the primary source required): Reported crystal system and unit cell (cubic Fm-3m, a = 23.76 A)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 3
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-EXE-80", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0103"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0103"
+    claim_title: "SCXRD structure determination"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: SCXRD structure determination"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0104"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0104"
+    claim_title: "PXRD measurement (per independent batch)"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: PXRD measurement (per independent batch)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0105"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0105"
+    claim_title: "PXRD phase analysis"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: PXRD phase analysis"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0106"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0106"
+    claim_title: "TGA (thermogravimetric analysis)"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: TGA (thermogravimetric analysis)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0107"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0107"
+    claim_title: "Spectroscopy / compositional characterization (any formally reported)"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Spectroscopy / compositional characterization (any formally reported)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0108"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0108"
+    claim_title: "Stability PXRD tests under formally reported conditions"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Stability PXRD tests under formally reported conditions"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0109"
+    source_id: "sr_source_68539272137098c373f56bdea1b106cd"
+    source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+    claim_id: "INV-0109"
+    claim_title: "Structure / model comparison"
+    category: "a"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); depends on the CIF, which is unavailable at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Structure / model comparison"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-30", "GOAL-INV-001", "GOAL-RES-003"]
+    expected_artifacts: ["raw characterization data (PXRD / TGA / SCXRD)", "analysis record per ANL-020", "comparison verdict"]
+  - evidence_id: "EV-INV-0201"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0201"
+    claim_title: "BET surface area"
+    category: "b"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~1965 m2 g-1 (BET, N2)\" (REPORTED-NON-FINAL; revalidation against the primary source required): BET surface area"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0202"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0202"
+    claim_title: "Reported pore sizes"
+    category: "b"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~7.9 A and ~13.0 A\" (REPORTED-NON-FINAL; revalidation against the primary source required): Reported pore sizes"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0203"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0203"
+    claim_title: "N2 isotherm acquisition"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: N2 isotherm acquisition"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0204"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0204"
+    claim_title: "BET analysis protocol"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: BET analysis protocol"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0205"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0205"
+    claim_title: "Pore-size analysis method"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Pore-size analysis method"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0206"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0206"
+    claim_title: "Activation QC before adsorption"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Activation QC before adsorption"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0207"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0207"
+    claim_title: "Independent batch porosity statistics"
+    category: "b"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Independent batch porosity statistics"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-40", "GOAL-INV-001"]
+    expected_artifacts: ["N2 isotherm dataset", "analysis record per ANL-030", "BET / pore-size comparison verdict"]
+  - evidence_id: "EV-INV-0301"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0301"
+    claim_title: "C3H6 single-component uptake at 298 K, 1 bar"
+    category: "c"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"180.5 cm3 g-1 at 298 K, 1 bar\" (REPORTED-NON-FINAL; revalidation against the primary source required): C3H6 single-component uptake at 298 K, 1 bar"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0302"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0302"
+    claim_title: "C2H4 single-component uptake at 298 K, 1 bar"
+    category: "c"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"68.2 cm3 g-1 at 298 K, 1 bar\" (REPORTED-NON-FINAL; revalidation against the primary source required): C2H4 single-component uptake at 298 K, 1 bar"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0303"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0303"
+    claim_title: "C3H6 full adsorption isotherm (point grid, pressure range)"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: C3H6 full adsorption isotherm (point grid, pressure range)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0304"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0304"
+    claim_title: "C2H4 full adsorption isotherm (point grid, pressure range)"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: C2H4 full adsorption isotherm (point grid, pressure range)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0305"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0305"
+    claim_title: "Single-component isotherms at temperatures other than 298 K"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Single-component isotherms at temperatures other than 298 K"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0306"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0306"
+    claim_title: "Desorption branch (if formally reported)"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Desorption branch (if formally reported)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0307"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0307"
+    claim_title: "Isotherm repeat / batch plan"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Isotherm repeat / batch plan"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0308"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0308"
+    claim_title: "Uptake comparison statistics"
+    category: "c"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Uptake comparison statistics"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-50", "GOAL-INV-001"]
+    expected_artifacts: ["C3H6 / C2H4 isotherm datasets", "analysis record per ANL-030", "uptake comparison verdict"]
+  - evidence_id: "EV-INV-0401"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0401"
+    claim_title: "IAST selectivity, 50/50 C3H6/C2H4 at 298 K / 100 kPa"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~8.6 (50/50 C3H6/C2H4, 298 K, 100 kPa)\" (REPORTED-NON-FINAL; revalidation against the primary source required): IAST selectivity, 50/50 C3H6/C2H4 at 298 K / 100 kPa"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0402"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0402"
+    claim_title: "Zero-coverage isosteric heat of adsorption Qst, C3H6"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~27.1 kJ mol-1 (zero coverage)\" (REPORTED-NON-FINAL; revalidation against the primary source required): Zero-coverage isosteric heat of adsorption Qst, C3H6"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0403"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0403"
+    claim_title: "Zero-coverage isosteric heat of adsorption Qst, C2H4"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~19.1 kJ mol-1 (zero coverage)\" (REPORTED-NON-FINAL; revalidation against the primary source required): Zero-coverage isosteric heat of adsorption Qst, C2H4"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0404"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0404"
+    claim_title: "Qst calculation procedure"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Qst calculation procedure"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0405"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0405"
+    claim_title: "IAST implementation details"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: IAST implementation details"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0406"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0406"
+    claim_title: "IAST selectivity at other compositions / conditions"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: IAST selectivity at other compositions / conditions"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-60", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0407"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0407"
+    claim_title: "Static binding energy, C3H6"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~48.72 kJ mol-1\" (REPORTED-NON-FINAL; revalidation against the primary source required): Static binding energy, C3H6"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-81", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0408"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0408"
+    claim_title: "Static binding energy, C2H4"
+    category: "d"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"~38.61 kJ mol-1\" (REPORTED-NON-FINAL; revalidation against the primary source required): Static binding energy, C2H4"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-81", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0409"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0409"
+    claim_title: "Binding-energy calculation method"
+    category: "d"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Binding-energy calculation method"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-81", "GOAL-INV-002"]
+    expected_artifacts: ["derived thermodynamic results", "analysis record per ANL-040 or ANL-061", "comparison verdict"]
+  - evidence_id: "EV-INV-0501"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0501"
+    claim_title: "Breakthrough experiment, 50/50 C3H6/C2H4 at 298 K"
+    category: "e"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+    finding: "Pre-execution evidence registers the reported value \"C2H4 retention ~23.5 min; C3H6 ~64.8 min; separation window ~41.3 min (50/50 C3H6/C2H4, 298 K)\" (REPORTED-NON-FINAL; revalidation against the primary source required): Breakthrough experiment, 50/50 C3H6/C2H4 at 298 K"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0502"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0502"
+    claim_title: "Breakthrough experiment, 328 K diluted-mixture conditions"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (existence); details require the paper/SI, not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Breakthrough experiment, 328 K diluted-mixture conditions"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0503"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0503"
+    claim_title: "Breakthrough cycle / repeat runs"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Breakthrough cycle / repeat runs"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0511"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0511"
+    claim_title: "WP-70 parameter: column geometry"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: column geometry"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0512"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0512"
+    claim_title: "WP-70 parameter: adsorbent mass"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: adsorbent mass"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0513"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0513"
+    claim_title: "WP-70 parameter: packing density"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: packing density"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0514"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0514"
+    claim_title: "WP-70 parameter: flow rate"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: flow rate"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0515"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0515"
+    claim_title: "WP-70 parameter: gas composition / purity"
+    category: "e"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (composition, 298 K run); purity and 328 K run composition require the paper/SI"
+    finding: "Pre-execution evidence registers the reported value \"50/50 C3H6/C2H4 (298 K run, seed fact); purity not in accessible material; 328 K diluted-run composition not in accessible material\" (REPORTED-NON-FINAL; revalidation against the primary source required): WP-70 parameter: gas composition / purity"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0516"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0516"
+    claim_title: "WP-70 parameter: gas purity (separate record)"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: gas purity (separate record)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0517"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0517"
+    claim_title: "WP-70 parameter: temperature / pressure"
+    category: "e"
+    status: INVENTORIED-DEFERRED
+    value_status: REPORTED-NON-FINAL
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 2 seed facts (temperatures); pressure requires the paper/SI"
+    finding: "Pre-execution evidence registers the reported value \"298 K (50/50 run, seed fact); 328 K reported for diluted run (details per spec section 2, unreadable); operating pressure not in accessible material\" (REPORTED-NON-FINAL; revalidation against the primary source required): WP-70 parameter: temperature / pressure"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "value NOT final; revalidation against the primary source required (ANL-001)"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0518"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0518"
+    claim_title: "WP-70 parameter: detector calibration"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: detector calibration"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0519"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0519"
+    claim_title: "WP-70 parameter: dead-volume correction"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: dead-volume correction"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0520"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0520"
+    claim_title: "WP-70 parameter: regeneration protocol"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: regeneration protocol"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0521"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0521"
+    claim_title: "WP-70 parameter: cycling protocol"
+    category: "e"
+    status: DEFERRED-TO-EXECUTION
+    value_status: MISSING
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: WP-70 parameter: cycling protocol"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "no value in accessible material; reason recorded in the inventory (missing_reason)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-70", "GOAL-INV-001"]
+    expected_artifacts: ["breakthrough curve data", "analysis record per ANL-050", "time / window comparison verdict"]
+  - evidence_id: "EV-INV-0601"
+    source_id: "sr_source_68539272137098c373f56bdea1b106cd"
+    source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+    claim_id: "INV-0601"
+    claim_title: "Published CIF acquisition (model construction input)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); CIF availability per ACQUISITION_LOG.yaml item 3"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Published CIF acquisition (model construction input)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-INV-004", "GOAL-RES-003"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0602"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0602"
+    claim_title: "Simulation model construction (disorder, cell, atom types)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Simulation model construction (disorder, cell, atom types)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-INV-002", "GOAL-RES-003"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0603"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0603"
+    claim_title: "Geometry and pore-access verification"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Geometry and pore-access verification"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-INV-002", "GOAL-RES-003"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0604"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0604"
+    claim_title: "Linker rotation / dynamic pore argument (if computationally reported)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Linker rotation / dynamic pore argument (if computationally reported)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0605"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d", "sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0605"
+    claim_title: "Force-field / charges / software settings"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); settings reported in the SI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Force-field / charges / software settings"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-80", "GOAL-EXE-82", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0606"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0606"
+    claim_title: "GCMC adsorption simulation, C3H6"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-82 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: GCMC adsorption simulation, C3H6"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-82", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0607"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0607"
+    claim_title: "GCMC adsorption simulation, C2H4"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-82 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: GCMC adsorption simulation, C2H4"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-82", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0608"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0608"
+    claim_title: "Simulated vs experimental comparison (as formally reported)"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-82 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Simulated vs experimental comparison (as formally reported)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-82", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0609"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0609"
+    claim_title: "C3H6 binding-site calculation"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: C3H6 binding-site calculation"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-81", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0610"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    claim_id: "INV-0610"
+    claim_title: "C2H4 binding-site calculation"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: C2H4 binding-site calculation"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-81", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0611"
+    source_id: "sr_source_118eed96c3e6f03106c432a03542be7d"
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d", "sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0611"
+    claim_title: "Electronic-structure settings for binding energies"
+    category: "f"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); settings reported in the SI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Electronic-structure settings for binding energies"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-81", "GOAL-INV-002"]
+    expected_artifacts: ["simulation outputs (cell, binding energies, uptakes)", "analysis record per ANL-060/061/062", "convergence and comparison records"]
+  - evidence_id: "EV-INV-0701"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0701"
+    claim_title: "Ligand precursor synthesis step 1"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Ligand precursor synthesis step 1"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-10", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0702"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0702"
+    claim_title: "Ligand precursor purification / identity check"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Ligand precursor purification / identity check"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-10", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0703"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0703"
+    claim_title: "PyBC ligand synthesis"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: PyBC ligand synthesis"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-10", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0704"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0704"
+    claim_title: "PyBC purification"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: PyBC purification"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-10", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0705"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0705"
+    claim_title: "PyBC identity / purity characterization"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: PyBC identity / purity characterization"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-10", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0706"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0706"
+    claim_title: "Any reported precursor / control synthesis"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Any reported precursor / control synthesis"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-10", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0707"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0707"
+    claim_title: "Reaction mixture preparation (per SI)"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Reaction mixture preparation (per SI)"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0708"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0708"
+    claim_title: "Solvothermal synthesis of FDM-201"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Solvothermal synthesis of FDM-201"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0709"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0709"
+    claim_title: "Isolation / wash"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Isolation / wash"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0710"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0710"
+    claim_title: "Solvent exchange"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Solvent exchange"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0711"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0711"
+    claim_title: "Activation protocol"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Activation protocol"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0712"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0712"
+    claim_title: "Sample storage / handling"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Sample storage / handling"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0713"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0713"
+    claim_title: "Independent batch synthesis runs"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Independent batch synthesis runs"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]
+  - evidence_id: "EV-INV-0714"
+    source_id: "sr_source_86450d48aa337786cad25c306944daae"
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    claim_id: "INV-0714"
+    claim_title: "Process-level batch reproducibility analysis"
+    category: "g"
+    status: DEFERRED-TO-EXECUTION
+    value_status: EXISTENCE-ONLY
+    evidence_basis: REFERENCE-CASE-SPEC
+    source_location: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); primary text not downloaded at registration"
+    finding: "Pre-execution evidence establishes existence per the reference-case spec; value/existence is populated from the primary source by the resolution goals during execution: Process-level batch reproducibility analysis"
+    limitations: ["primary source text not downloaded at registration (registration-only policy)", "existence implied by the spec, not confirmed by the primary text yet"]
+    role: "pre_execution_basis"
+    assessment:
+      authority: 2
+      reliability: 3
+      directness: 4
+      reliability_checklist_ref: "benchmarks/fdm201/evidence/evidence_model.yaml"
+      ranking_score: null
+      basis_note: "frozen basis->A/R/D mapping of evidence_model.yaml; the
+        pre-execution assessment upgrades to the execution evidence artifacts at
+        benchmark execution (expected_artifacts)"
+    used_by: ["GOAL-EXE-20", "GOAL-INV-004"]
+    expected_artifacts: ["synthesis / batch records", "analysis record per ANL-010", "reproducibility verdict"]

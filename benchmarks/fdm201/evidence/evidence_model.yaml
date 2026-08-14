@@ -1,0 +1,92 @@
+# FDM-201 Plan v1 evidence model (DEV-M12-G03)
+#
+# Frozen evidence conventions for the FDM-201 benchmark (Plan v1,
+# 2026-08-14T00:00:00Z). Records follow schemas/evidence.schema.yaml
+# (ClaimSpecificEvidence: evidence_id, source_id, claim_id, finding,
+# assessment with authority/reliability/directness on 0-4 axes and a
+# reliability_checklist_ref), grounded in 06-EVIDENCE-SYSTEM.md (Evidence as
+# Source x Claim; the four evidence axes).
+#
+# Policy: the paper text, SI and CIF are NOT downloaded into the repository
+# (registration-only policy). Pre-execution evidence is therefore assessed
+# deterministically from the inventory's evidence_basis_enum
+# (CROSSREF-METADATA / REFERENCE-CASE-SPEC / ACQUISITION-LOG / PUBLIC-SEARCH)
+# via the frozen basis->A/R/D mapping below. During execution each mapped
+# goal produces the expected evidence artifacts (expected_artifacts per
+# record), which upgrade the pre-execution assessment.
+#
+# Determinism: fixed timestamp, no wall clock, no randomness, no network at
+# runtime; no placeholder text.
+
+record_kind: benchmark_evidence_model
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+frozen_at: "2026-08-14T00:00:00Z"
+system_ref: "06-EVIDENCE-SYSTEM.md"
+schema_ref: "schemas/evidence.schema.yaml"
+
+axes:
+  authority:
+    meaning: "trustworthiness of the source for the claim"
+    range: "0 (untrusted) .. 4 (primary, publisher-verified)"
+  reliability:
+    meaning: "soundness of the extraction/registration process behind the claim"
+    range: "0 (unsound) .. 4 (deterministic, checked)"
+  directness:
+    meaning: "how directly the source supports the claim (no inference chains)"
+    range: "0 (derived) .. 4 (verbatim/first-hand)"
+
+# ---------------------------------------------------------------------------
+# Frozen basis -> A/R/D mapping
+# ---------------------------------------------------------------------------
+basis_to_ar_d:
+  CROSSREF-METADATA:
+    authority: 4
+    reliability: 4
+    directness: 4
+    rationale: "Publisher-verified bibliographic metadata fetched from Crossref (G01 records); registration process is deterministic and checked (inventory self_check.py)."
+  ACQUISITION-LOG:
+    authority: 3
+    reliability: 3
+    directness: 4
+    rationale: "G01 acquisition-log entries record availability statuses and abstract-level facts from the publisher domain; the log itself is the source of record (ACQUISITION_LOG.yaml), checked by the G02 self-check."
+  REFERENCE-CASE-SPEC:
+    authority: 2
+    reliability: 3
+    directness: 4
+    rationale: "The benchmark reference-case spec (17-FDM201-REFERENCE-CASE.md) quotes seed facts from the published abstract/publisher page and lists candidate unit processes; it is a curated secondary record (authority 2), recorded deterministically (reliability 3), and the quoted items are first-hand copies of the accessible material (directness 4)."
+  PUBLIC-SEARCH:
+    authority: 2
+    reliability: 2
+    directness: 3
+    rationale: "Public search results (search logs recorded by G01) locate sources or their absence; searches are recorded but results were not cross-verified against the primary text at registration."
+
+# ---------------------------------------------------------------------------
+# What counts as evidence (per item class)
+# ---------------------------------------------------------------------------
+what_counts_as_evidence:
+  identity_items:
+    - "the registered source record under benchmarks/fdm201/sources/records/"
+    - "the acquisition-log entry in benchmarks/fdm201/sources/ACQUISITION_LOG.yaml"
+  reported_values:
+    - "primary-source quote with location (paper section/figure/table or SI page) recorded by the ANL-001 revalidation during execution"
+    - "the inventory record itself (REPORTED-NON-FINAL, seed_fact_sourced tag) as the pre-execution placeholder"
+  deferred_items:
+    - "the population record produced by the resolving goal (GOAL-INV-001..004 / GOAL-RES-003/004) with the primary-source location and quoted value or a formal 'not reported' finding"
+  missing_parameters:
+    - "the resolution record of GOAL-INV-001 or the re-registered A2 entry with reason (assumptions.yaml)"
+  computational_items:
+    - "the frozen model record (ANL-060 checklist), convergence evidence (ANL-061/062), and the simulated datasets with comparison records"
+  experimental_items:
+    - "raw measurement data (isotherms, PXRD, TGA, breakthrough curves) plus the analysis records per ANL-010..050"
+
+# ---------------------------------------------------------------------------
+# Recording conventions
+# ---------------------------------------------------------------------------
+conventions:
+  per_item_record: "one pre-execution evidence record EV-<item_id> per inventory item (82 records in evidence_records.yaml); claim_id equals the inventory item_id (claims are inventory claims, evidence is source x claim)."
+  assessment_update: "execution evidence artifacts replace the pre-execution basis when produced; the upgrade is recorded on the same record (assessment fields updated, basis_note documenting the change)."
+  recovery_eligibility: "recovery eligibility (06-EVIDENCE-SYSTEM.md section 4) is evaluated from the assessed evidence: R >= 3, D >= 2, and a scientifically actionable hypothesis."
+  role_vocabulary: "pre_execution_basis for the Plan v1 records; execution_basis / comparison_evidence / verdict_evidence during execution."
+  no_new_numbers: "evidence records carry no invented numbers; quoted reported values come verbatim from the inventory (itself sourced from the spec seed facts or the G01 log)."
+  source_trace: "every record references the exact sr_source_ id(s) of the G01 record(s) and the source_location (inventory provenance.part)."

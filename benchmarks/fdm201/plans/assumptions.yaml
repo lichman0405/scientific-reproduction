@@ -1,0 +1,414 @@
+# FDM-201 Plan v1 assumption objects (DEV-M12-G03)
+#
+# Every explicit assumption made at Plan v1 (frozen 2026-08-14T00:00:00Z).
+# Policy: every assumption is stated, none is silent. The set is the union
+# of:
+#   - the 12 inventory assumption_class A2 registrations
+#     (INV-0511..0521 WP-70 parameters, INV-0605 computational settings),
+#     each carried verbatim with strict_status_effect
+#     DISQUALIFIES_PURE_STRICT (spec WP-70: a missing scientifically
+#     consequential parameter is registered as A2 and prevents pure strict
+#     classification);
+#   - the 18 ambiguity-coverage references (the inventory self_check.py
+#     warnings: items affected by an ambiguity that carry no ambiguity_ref;
+#     the audit mapping treats the ambiguity as covering the item -- a
+#     methodological, audit-interpretation default, classification A1);
+#   - the 15 Plan v1 methodological defaults (fit models, BET criteria,
+#     pore kernel, Qst protocol, force-field/charges candidates,
+#     convergence criteria, minimum-n replication policy, and the frozen
+#     acceptance tolerance bands), classification A1. They are planning
+#     defaults, replaceable only through the change-control process once
+#     the primary source reports the actual method (GOAL-INV-001/002).
+#
+# Field vocabulary follows schemas/assumption.schema.yaml (DEV-M0-G02):
+# assumption_id, parameter, value, classification, rationale, source_refs,
+# affected_goal_ids, strict_status_effect. Determinism: fixed timestamp,
+# no wall clock, no randomness, no network at runtime; no placeholder text.
+
+record_kind: benchmark_assumption_register
+goal_id: "DEV-M12-G03"
+benchmark_id: "fdm201"
+frozen_at: "2026-08-14T00:00:00Z"
+counts:
+  total: 45
+  a2_inventory_registrations: 12
+  ambiguity_coverage_references: 18
+  plan_v1_methodological_defaults: 15
+
+assumptions:
+  # =========================================================================
+  # 1. Inventory assumption_class A2 registrations (12) -- WP-70 parameters
+  # =========================================================================
+  - assumption_id: "ASM-FDM-0511"
+    parameter: "Breakthrough column geometry (diameter, length)"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0511 is registered MISSING with assumption_class A2: column geometry is not reported in any accessible material; the value is read from the paper/SI during benchmark execution (GOAL-INV-001). Until then the parameter is an A2 assumption."
+    source_refs: ["INV-0511", "17-FDM201-REFERENCE-CASE.md section 4 WP-70", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0512"
+    parameter: "Breakthrough adsorbent mass in the column"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0512 is registered MISSING with assumption_class A2: adsorbent mass is not reported in any accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0512", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0513"
+    parameter: "Breakthrough packing density"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0513 is registered MISSING with assumption_class A2: packing density is not reported in any accessible material (the paper may not report it at all); verified during execution (GOAL-INV-001)."
+    source_refs: ["INV-0513", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0514"
+    parameter: "Breakthrough gas flow rate (total and/or per component)"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0514 is registered MISSING with assumption_class A2: flow rate is not reported in any accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0514", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0515"
+    parameter: "Breakthrough gas composition and purity"
+    value: "50/50 C3H6/C2H4 for the 298 K run (REPORTED-NON-FINAL seed fact); gas purity and the 328 K diluted-run composition not in accessible material"
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0515 carries assumption_class A2: composition is known for the 298 K run from the spec section 2 seed fact; purity and the 328 K diluted-run composition require the paper/SI (AMB-0002, AMB-0008); resolved by GOAL-INV-001."
+    source_refs: ["INV-0515", "17-FDM201-REFERENCE-CASE.md section 2 seed fact", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0516"
+    parameter: "Breakthrough gas purity (standalone parameter)"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0516 is registered MISSING with assumption_class A2: gas purity (grade, % purity) is not reported in any accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0516", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0517"
+    parameter: "Breakthrough operating temperature and pressure"
+    value: "298 K (50/50 run) and 328 K (diluted run) from the spec section 2 seed facts (REPORTED-NON-FINAL); operating pressure not in accessible material"
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0517 carries assumption_class A2: temperatures are seed facts for both reported runs; operating pressure requires the paper/SI (AMB-0002); resolved by GOAL-INV-001."
+    source_refs: ["INV-0517", "17-FDM201-REFERENCE-CASE.md section 2 seed fact", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0518"
+    parameter: "Breakthrough detector calibration"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0518 is registered MISSING with assumption_class A2: detector type and calibration procedure are not reported in any accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0518", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0519"
+    parameter: "Breakthrough dead-volume correction"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0519 is registered MISSING with assumption_class A2: dead-volume correction (existence and method) is not reported in any accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0519", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0520"
+    parameter: "Breakthrough regeneration protocol"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0520 is registered MISSING with assumption_class A2: regeneration protocol (temperature, purge gas, duration) is not reported in any accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0520", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0521"
+    parameter: "Breakthrough cycling protocol"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0521 is registered MISSING with assumption_class A2: cycling protocol (whether cycles are reported, how many, and their conditions) is not in accessible material; resolved by GOAL-INV-001 during execution."
+    source_refs: ["INV-0521", "17-FDM201-REFERENCE-CASE.md section 4 WP-70"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+  - assumption_id: "ASM-FDM-0605"
+    parameter: "GCMC force field, partial charges, mixing rules, ensemble and software"
+    value: null
+    classification: "A2_SCIENTIFIC_ASSUMPTION"
+    rationale: "INV-0605 is registered with assumption_class A2: the force field (UFF candidate only), partial charges, mixing rules, ensemble details and software are reported in the SI per the G01 log, which is not downloaded at registration (AMB-0006); resolved by GOAL-INV-002 during execution. Any setting that remains unknown after extraction is a registered A2 assumption."
+    source_refs: ["INV-0605", "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 8", "17-FDM201-REFERENCE-CASE.md section 4 WP-80/WP-82"]
+    affected_goal_ids: ["GOAL-EXE-80", "GOAL-EXE-82"]
+    strict_status_effect: "DISQUALIFIES_PURE_STRICT"
+
+  # =========================================================================
+  # 2. Ambiguity-coverage references (18) -- inventory self_check.py warnings
+  # =========================================================================
+  # Each entry declares that the named ambiguity (AMB-xxxx) covers the named
+  # inventory item even though the item carries no ambiguity_ref; the audit
+  # mapping treats the ambiguity's resolution goals as resolving the item's
+  # unresolved parameters. Classification A1 (methodological /
+  # audit-interpretation default); strict-status effect NONE.
+  - assumption_id: "ASM-CVR-AMB-0001-INV-0004"
+    parameter: "Ambiguity coverage: AMB-0001 (FDM-201 CIF deposition location) covers INV-0004"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0004 is affected by AMB-0001 but carries no ambiguity_ref (inventory self_check.py warning); the audit mapping treats the CIF-location ambiguity as covering the item, resolved by GOAL-RES-003 / GOAL-INV-004."
+    source_refs: ["INV-0004", "AMB-0001", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-RES-003", "GOAL-INV-004", "GOAL-EXE-80"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0001-INV-0601"
+    parameter: "Ambiguity coverage: AMB-0001 (FDM-201 CIF deposition location) covers INV-0601"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0601 is affected by AMB-0001 but carries no ambiguity_ref (inventory self_check.py warning); the CIF-source ambiguity covers the published-CIF acquisition item, resolved by GOAL-RES-003 / GOAL-INV-004."
+    source_refs: ["INV-0601", "AMB-0001", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-RES-003", "GOAL-INV-004", "GOAL-EXE-80"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0002-INV-0502"
+    parameter: "Ambiguity coverage: AMB-0002 (328 K diluted-mixture breakthrough conditions) covers INV-0502"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0502 is affected by AMB-0002 but carries no ambiguity_ref (inventory self_check.py warning); the 328 K diluted-run conditions ambiguity covers the item, resolved by GOAL-INV-001 / GOAL-EXE-70."
+    source_refs: ["INV-0502", "AMB-0002", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-70"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0003-INV-0305"
+    parameter: "Ambiguity coverage: AMB-0003 (single-component isotherm temperatures beyond 298 K) covers INV-0305"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0305 is affected by AMB-0003 but carries no ambiguity_ref (inventory self_check.py warning); the non-298 K isotherm existence/temperature ambiguity covers the item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0305", "AMB-0003", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-50"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0004-INV-0404"
+    parameter: "Ambiguity coverage: AMB-0004 (exact Qst calculation procedure) covers INV-0404"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0404 is affected by AMB-0004 but carries no ambiguity_ref (inventory self_check.py warning); the Qst procedure ambiguity covers the item, resolved by GOAL-INV-002 / GOAL-EXE-60."
+    source_refs: ["INV-0404", "AMB-0004", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-002", "GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0005-INV-0405"
+    parameter: "Ambiguity coverage: AMB-0005 (IAST implementation details) covers INV-0405"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0405 is affected by AMB-0005 but carries no ambiguity_ref (inventory self_check.py warning); the IAST-implementation ambiguity covers the item, resolved by GOAL-INV-002 / GOAL-EXE-60."
+    source_refs: ["INV-0405", "AMB-0005", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-002", "GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0005-INV-0406"
+    parameter: "Ambiguity coverage: AMB-0005 (IAST covered conditions) covers INV-0406"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0406 is affected by AMB-0005 but carries no ambiguity_ref (inventory self_check.py warning); the IAST covered-compositions ambiguity covers the item, resolved by GOAL-INV-002 / GOAL-EXE-60."
+    source_refs: ["INV-0406", "AMB-0005", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-002", "GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0007-INV-0409"
+    parameter: "Ambiguity coverage: AMB-0007 (binding-energy electronic-structure settings) covers INV-0409"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0409 is affected by AMB-0007 but carries no ambiguity_ref (inventory self_check.py warning); the electronic-structure settings ambiguity covers the item, resolved by GOAL-INV-002 / GOAL-EXE-81."
+    source_refs: ["INV-0409", "AMB-0007", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-002", "GOAL-EXE-81"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0010-INV-0103"
+    parameter: "Ambiguity coverage: AMB-0010 (whether SCXRD is formally reported) covers INV-0103"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0103 is affected by AMB-0010 but carries no ambiguity_ref (inventory self_check.py warning); the formally-reported-existence ambiguity covers the SCXRD item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0103", "AMB-0010", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-30"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0010-INV-0106"
+    parameter: "Ambiguity coverage: AMB-0010 (whether TGA is formally reported) covers INV-0106"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0106 is affected by AMB-0010 but carries no ambiguity_ref (inventory self_check.py warning); the formally-reported-existence ambiguity covers the TGA item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0106", "AMB-0010", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-30"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0010-INV-0108"
+    parameter: "Ambiguity coverage: AMB-0010 (whether stability PXRD is formally reported) covers INV-0108"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0108 is affected by AMB-0010 but carries no ambiguity_ref (inventory self_check.py warning); the formally-reported-existence ambiguity covers the stability-PXRD item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0108", "AMB-0010", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-30"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0011-INV-0207"
+    parameter: "Ambiguity coverage: AMB-0011 (number of independent batches / replicates) covers INV-0207"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0207 is affected by AMB-0011 but carries no ambiguity_ref (inventory self_check.py warning); the batch/replicate-count ambiguity covers the porosity statistics item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0207", "AMB-0011", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0011-INV-0307"
+    parameter: "Ambiguity coverage: AMB-0011 (number of independent batches / replicates) covers INV-0307"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0307 is affected by AMB-0011 but carries no ambiguity_ref (inventory self_check.py warning); the batch/replicate-count ambiguity covers the isotherm repeat/batch plan item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0307", "AMB-0011", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-50"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0011-INV-0503"
+    parameter: "Ambiguity coverage: AMB-0011 (number of independent batches / replicates) covers INV-0503"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0503 is affected by AMB-0011 but carries no ambiguity_ref (inventory self_check.py warning); the batch/replicate-count ambiguity covers the breakthrough cycle/repeat item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0503", "AMB-0011", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-70"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0011-INV-0713"
+    parameter: "Ambiguity coverage: AMB-0011 (number of independent batches / replicates) covers INV-0713"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0713 is affected by AMB-0011 but carries no ambiguity_ref (inventory self_check.py warning); the batch/replicate-count ambiguity covers the independent-batch synthesis item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0713", "AMB-0011", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-20"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0012-INV-0203"
+    parameter: "Ambiguity coverage: AMB-0012 (N2 isotherm measurement conditions) covers INV-0203"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0203 is affected by AMB-0012 but carries no ambiguity_ref (inventory self_check.py warning); the N2 conditions ambiguity covers the item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0203", "AMB-0012", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0013-INV-0204"
+    parameter: "Ambiguity coverage: AMB-0013 (BET protocol criteria) covers INV-0204"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0204 is affected by AMB-0013 but carries no ambiguity_ref (inventory self_check.py warning); the BET-criteria ambiguity covers the item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0204", "AMB-0013", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-CVR-AMB-0014-INV-0205"
+    parameter: "Ambiguity coverage: AMB-0014 (pore-size analysis method) covers INV-0205"
+    value: null
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "INV-0205 is affected by AMB-0014 but carries no ambiguity_ref (inventory self_check.py warning); the pore-size-method ambiguity covers the item, resolved by GOAL-INV-001."
+    source_refs: ["INV-0205", "AMB-0014", "benchmarks/fdm201/inventory/INVENTORY.yaml"]
+    affected_goal_ids: ["GOAL-INV-001", "GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+
+  # =========================================================================
+  # 3. Plan v1 methodological defaults (15)
+  # =========================================================================
+  - assumption_id: "ASM-A1-FIT-01"
+    parameter: "Isotherm fit model (single-component)"
+    value: "dual-site Langmuir fit (candidate)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "The paper's actual fit model is not in accessible material; a dual-site Langmuir candidate is the Plan v1 default for isotherm fitting (GOAL-EXE-50/60). Replaced by the paper's reported model once inventoried (GOAL-INV-001/002) via the change-control process."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 4 WP-50/WP-60", "INV-0303", "INV-0304"]
+    affected_goal_ids: ["GOAL-EXE-50", "GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-FIT-02"
+    parameter: "BET analysis consistency criteria"
+    value: "IUPAC/Rouquerol consistency criteria (positive C constant, linear range, n_max within bounds); relative-pressure range per the paper once inventoried (AMB-0013)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen selection rules are required by spec WP-40 ('BET analysis using frozen selection rules'); the paper's own criteria are resolved by GOAL-INV-001 (AMB-0013)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 4 WP-40", "INV-0204", "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 7 (Brunauer, Emmett & Teller 1938)"]
+    affected_goal_ids: ["GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-FIT-03"
+    parameter: "Pore-size analysis model/kernel"
+    value: "NLDFT/QSDFT kernel (candidate); replaced by the model and kernel actually reported (AMB-0014)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Spec WP-40 requires 'pore-size analysis using the method actually reported'; the actual method is not in accessible material at Plan v1 (AMB-0014, INV-0205)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 4 WP-40", "INV-0205"]
+    affected_goal_ids: ["GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-FIT-04"
+    parameter: "Qst calculation protocol"
+    value: "zero-coverage Qst from isosteres or virial fit (candidate); replaced by the same reported method (AMB-0004)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Spec WP-60 requires 'calculate Qst using the same reported method'; the exact procedure is not in accessible material at Plan v1 (AMB-0004, INV-0404)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 4 WP-60", "INV-0404"]
+    affected_goal_ids: ["GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-FF-01"
+    parameter: "GCMC force field and charges (candidate)"
+    value: "UFF force field (Rappe et al. 1992, registered G01 candidate); partial charges per the SI once inventoried"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "The G01 acquisition log registers UFF (10.1021/ja00051a040) and the GCMC methodology reference (Dubbeldam, Torres-Knoop & Walton 2013) as canonical candidates; the paper's actual force field/charges are resolved by GOAL-INV-002 (AMB-0006, INV-0605)."
+    source_refs: ["benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 8", "INV-0605", "17-FDM201-REFERENCE-CASE.md section 4 WP-80/WP-82"]
+    affected_goal_ids: ["GOAL-EXE-80", "GOAL-EXE-82"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-FF-02"
+    parameter: "GCMC sampling and convergence criteria"
+    value: "equilibration/statistics split with convergence check on running uptake average (candidate); reported settings used when inventoried"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Spec WP-82 requires sampling/convergence analysis; exact reported settings are not in accessible material at Plan v1 (INV-0605, AMB-0006)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 4 WP-82", "INV-0605"]
+    affected_goal_ids: ["GOAL-EXE-82"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-N-01"
+    parameter: "Minimum number of independent experimental batches"
+    value: "2 (minimum_n = 2 for synthesis and each experimental measurement goal)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "05-GOAL-RUN-SCHEMA.md section 6: independent replication is mandatory for experimental goals unless a domain-specific rule provides a justified exception. The Plan v1 default is 2 independent batches per experimental goal; the exact reported replicate count is resolved by GOAL-INV-001 (AMB-0011) and may raise minimum_n via the change-control process."
+    source_refs: ["05-GOAL-RUN-SCHEMA.md section 6", "17-FDM201-REFERENCE-CASE.md section 4 WP-20", "AMB-0011"]
+    affected_goal_ids: ["GOAL-EXE-10", "GOAL-EXE-20", "GOAL-EXE-30", "GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-70"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-01"
+    parameter: "Acceptance tolerance band: single-component uptake comparison"
+    value: "relative deviation <= 0.10 (10%) at each compared state point"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-50 (INV-0301: C3H6 180.5 cm3 g-1, INV-0302: C2H4 68.2 cm3 g-1 at 298 K / 1 bar, REPORTED-NON-FINAL). Band is a Plan v1 default; replaced by the paper's reported uncertainty once inventoried (GOAL-INV-001)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "INV-0301", "INV-0302"]
+    affected_goal_ids: ["GOAL-EXE-50"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-02"
+    parameter: "Acceptance tolerance band: BET surface area comparison"
+    value: "relative deviation <= 0.10 (10%) against 1965 m2 g-1 (INV-0201, REPORTED-NON-FINAL)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-40 (spec WP-40). Band is a Plan v1 default; replaced by the paper's reported uncertainty once inventoried (GOAL-INV-001)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "INV-0201"]
+    affected_goal_ids: ["GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-03"
+    parameter: "Acceptance tolerance band: pore-size comparison"
+    value: "absolute deviation <= 0.5 A against 7.9 A and 13.0 A (INV-0202, REPORTED-NON-FINAL)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-40 (spec WP-40). Band is a Plan v1 default; replaced by the paper's reported uncertainty once inventoried (GOAL-INV-001)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "INV-0202"]
+    affected_goal_ids: ["GOAL-EXE-40"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-04"
+    parameter: "Acceptance tolerance band: IAST selectivity comparison"
+    value: "relative deviation <= 0.15 (15%) against 8.6 (50/50 C3H6/C2H4 at 298 K / 100 kPa, INV-0401, REPORTED-NON-FINAL)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-60 (spec WP-60). Band is a Plan v1 default; replaced by the paper's reported uncertainty once inventoried (GOAL-INV-002)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "INV-0401"]
+    affected_goal_ids: ["GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-05"
+    parameter: "Acceptance tolerance band: zero-coverage Qst comparison"
+    value: "relative deviation <= 0.10 (10%) against 27.1 kJ mol-1 (C3H6) and 19.1 kJ mol-1 (C2H4) (INV-0402/0403, REPORTED-NON-FINAL)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-60 (spec WP-60). Band is a Plan v1 default; replaced by the paper's reported uncertainty once inventoried (GOAL-INV-002)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "INV-0402", "INV-0403"]
+    affected_goal_ids: ["GOAL-EXE-60"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-06"
+    parameter: "Acceptance tolerance band: breakthrough time comparison"
+    value: "relative deviation <= 0.20 (20%) against C2H4 ~23.5 min, C3H6 ~64.8 min, separation window ~41.3 min (INV-0501, REPORTED-NON-FINAL)"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-70 (spec WP-70). Band is a Plan v1 default; replaced by the paper's reported uncertainty once inventoried (GOAL-INV-001)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "INV-0501"]
+    affected_goal_ids: ["GOAL-EXE-70"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-07"
+    parameter: "Acceptance tolerance band: static binding-energy comparison"
+    value: "relative deviation <= 0.15 (15%) against 48.72 kJ mol-1 (C3H6) and 38.61 kJ mol-1 (C2H4) (INV-0407/0408, REPORTED-NON-FINAL); energy difference compared under the same band"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Frozen acceptance design for GOAL-EXE-81 (spec WP-81: 'compare recovered energy difference to paper under frozen equivalence criteria'). Band is a Plan v1 default; replaced by the paper's reported settings/uncertainty once inventoried (GOAL-INV-002)."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 2 seed fact", "17-FDM201-REFERENCE-CASE.md section 4 WP-81", "INV-0407", "INV-0408"]
+    affected_goal_ids: ["GOAL-EXE-81"]
+    strict_status_effect: "NONE"
+  - assumption_id: "ASM-A1-TOL-08"
+    parameter: "Acceptance criterion: simulated vs experimental comparison (GCMC)"
+    value: "trend agreement as formally reported (INV-0608); where the paper reports quantitative simulated values, relative deviation <= 0.25 (25%) per point"
+    classification: "A1_METHODOLOGICAL_DEFAULT"
+    rationale: "Spec WP-82 requires comparison 'as formally reported'; the paper's own comparison figure/table is resolved by GOAL-INV-002. The trend criterion and the 25% point band are Plan v1 defaults."
+    source_refs: ["17-FDM201-REFERENCE-CASE.md section 4 WP-82", "INV-0608"]
+    affected_goal_ids: ["GOAL-EXE-82"]
+    strict_status_effect: "NONE"
