@@ -234,3 +234,54 @@ The final release review will contain the gate table (§2) with each gate's comm
 ## 11. Phase-2 execution order summary
 
 P0 (environment) → gates 1–8 in order → AC-03 battery V1–V5 → AC-01 audit (A1–A5) → AC-02 audit (B1–B5) → AC-04 scan (C1–C6) → §5 checklist → write the three deliverables → append the execution log → report results to the Supervisor. Deliverables and the appended execution log are committed as a second commit (message with `[DEV-M13-G05]`); the Supervisor reviews and decides PASS/REJECT. Any failure stops the run at the failing step and is reported immediately.
+
+---
+
+## Appendix — Phase-2 execution log (2026-08-14, plan approved @ c75a746)
+
+Plan approval recorded at `.development/plans/DEV-M13-G05-a1-plan-approval.yaml` (decision APPROVED, approved_by Development Supervisor, plan_commit `431db1a`). All commands ran with the shared venv interpreter from the worktree root. **No gate failed; no stop condition triggered.**
+
+### P0 environment
+- P0.1: branch `feat/dev-m13-g05-release`, HEAD `431db1a`, clean tree.
+- P0.2/P0.3: Python 3.13.9; pytest 9.1.1; ruff 0.16.3; mypy 2.3.0; yaml+jsonschema ok; src resolves to repository `src/`.
+- P0.4: `git diff HEAD origin/main -- src tests` empty (before fetch; origin/main advanced to `c75a746` mid-run — state records only, no rebase).
+
+### Gates 1–8 (all PASS, exit 0)
+- G1.1 `pytest -q tests/core/test_schema_validation.py tests/core/test_models.py` -> 204 passed (10.03s)
+- G1.2 `validate_packages.py` -> Checks run 20, failures 0; "All packages validate: AC-01 schema conformance, AC-02 traceability, AC-03 context isolation"
+- G2.1 `goals/audit_check.py` -> exit 0 (counts: dag acyclic 20, assumptions 46, evidence 82, resources 17, analysis protocols 10, closure contracts 4)
+- G2.2 `inventory/self_check.py` -> RESULT: PASS, exit 0
+- G2.3 `pytest -q tests/benchmarks` -> 50 passed (119.16s)
+- G3.1 `pytest -q tests/scenarios` -> 115 passed (46.85s)
+- G3.2 `pytest -q tests/benchmarks tests/scenarios` -> 165 passed (158.76s)
+- G4.1 `pytest -q tests/workers/test_permissions_matrix.py tests/workers/test_permissions_runtime.py` -> 95 passed (0.17s)
+- G5.1 `pytest -q tests/monitoring/test_recovery_monitor.py` -> 22 passed (1.68s)
+- G6.1 `pytest -q tests/platform/test_claude_adapter.py tests/platform/test_claude_resume.py` -> 33 passed (0.29s); G6.2 fallback: CLAUDE-CODE-HANDOFF.md L273 ("subagent/process fallback"), L345 ("documented fallback workers")
+- G7.1 `pytest -q tests/platform/test_codex_adapter.py tests/platform/test_codex_resume.py` -> 33 passed, 1 skipped (0.25s)
+- G8.1 `pytest -q tests/reporting -k "audit or trace"` -> 34 passed, 34 deselected (11.40s)
+
+### Battery V1–V6 (all PASS)
+- V1 `pytest -q` -> **3181 passed, 7 skipped, 1 deselected in 318.79s, exit 0** (exact merged-main baseline; no DEV-DEFECT-002 flake)
+- V2 `ruff check .` -> All checks passed
+- V3 `mypy src/` -> Success, no issues in 115 source files
+- V4 `scripts/validate_development_contracts.py` -> PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed
+- V5 validator rerun -> 20/20, failures 0
+- V6 `pip show scientific-reproduction` -> 0.1.0, editable location = repository root
+
+### AC-01 (A1–A5)
+- A1: 83 review files. A2: 70 `decision: PASS` + 9 `verdict: PASS` + 4 REJECT. A3: all 4 REJECT a1 files superseded by PASS r2 (DEV-M7-G04, DEV-M8-G05, DEV-M9-G01, DEV-M11-G03). A4: per-milestone final-PASS 79/79 completed goals (M0 5, M1 6, M2 8, M3 3, M4 6, M5 6, M6 5, M7 5, M8 6, M9 6, M10 6, M11 6, M12 7, M13 4) + DEV-M11-G06 PASS recorded in event EVT-20260814-0076 (no standalone file — observation OBS-G05-01). A5: `docs/release/M0-M13-STATUS.md` written.
+
+### AC-02 (B1–B5)
+- B1: 79 MERGED + 1 READY. B2: 80 = 80 = 80 (`.development/goals/`, `development/goals/`, ledger keys). B3: DAG total 80, merged 79, ready [DEV-M13-G05], all other lists empty. B4: `state_summary.py` -> `ready=1 waiting=0 passed=0 merged=79 blocked_human=0`; regenerated file byte-identical to committed (git diff empty); restored via `git checkout --` (Supervisor-owned state untouched). B5: DEV-M10-G04/G06 MERGED with PASS reviews, `outcome: null` — known ledger gap (observation OBS-G05-02).
+
+### AC-04 (C1–C6)
+- C1: `.development/human-gates/` absent. C2: 0 BLOCKED_HUMAN ledger statuses; DAG blocked_human `[]`. C3: 86 events; 4 keyword matches (EVT-20260813-0020, EVT-20260814-0055, EVT-20260814-0076, EVT-20260814-0081) all `GOAL_MERGED`. C4: no open findings (4 REJECT chains CLOSED FIXED via r2; DEV-M12-G03 FND-M12-G03-01/02 RESOLVED within PASS review). C5: SPEC-DEFECT-001 FIXED, DEV-DEFECT-001 ACCEPTED-RISK, DEV-DEFECT-002 ACCEPTED. C6: consolidated — no unresolved blocking item.
+
+### §5 checklist
+8/8 verified: 14 milestone files with unlocks; worker_mode distribution 78 agent_team_task / 1 either / 1 detached_native_goal; 83 supervisor-authored reviews with independent batteries; 4 REJECT→r2 repair chains; DAG recompute + events for auto-unlock; zero human-gate events; `.development/` SSOT (goal files + ledger + events; dag-state derived and recompute-verified); RECOVERY-NOTE.md continuation path.
+
+### Deliverables
+- `docs/release/KNOWN-LIMITATIONS.md` — 7 sections, all dispositions non-blocking, every item grounded in code/state/docs.
+- `docs/release/RELEASE-REVIEW-v0.1.md` — gate table 8/8 PASS, battery V1–V6, AC-01…AC-05 verdicts, §5 checklist, observations OBS-G05-01/02, worker recommendation.
+- `docs/release/M0-M13-STATUS.md` — per-milestone goal/status/review/merge table, corpus statistics, non-blocking observations.
+- This log. Worker disposition: all gates and acceptance criteria observed PASS; final verdict is the Supervisor's.
