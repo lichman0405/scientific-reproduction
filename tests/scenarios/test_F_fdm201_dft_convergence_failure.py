@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import json
 from dataclasses import FrozenInstanceError, dataclass, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,6 +60,9 @@ import pytest
 import scientific_reproduction.analysis.computational as computational_module
 import scientific_reproduction.analysis.results as results_module
 import scientific_reproduction.workers.results as workers_results_module
+from scientific_reproduction.adapters.platform.contracts.base import (
+    get_role_contract,
+)
 from scientific_reproduction.analysis.computational import (
     ConvergenceAssessment,
     ConvergenceStatus,
@@ -80,6 +84,7 @@ from scientific_reproduction.analysis.results import (
 )
 from scientific_reproduction.artifacts.registry import ArtifactRegistry
 from scientific_reproduction.audit.git import AuditIdentity
+from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
@@ -93,6 +98,12 @@ from scientific_reproduction.core.models import (
     SupervisorDecision,
     WorkerRole,
 )
+from scientific_reproduction.core.permissions import (
+    Action,
+    Role,
+    is_action_allowed,
+)
+from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.init import (
     INITIAL_PLAN_VERSION,
     initialize_project,
@@ -702,6 +713,90 @@ def test_F_supervisor_decision_vocabulary_is_diagnosis_research_recovery():
     assert DecisionType.RESEARCH_REQUEST.value == "RESEARCH_REQUEST"
     # The frozen record shape pins the supervisor actor.
     assert "actor" in SupervisorDecision.__dataclass_fields__
+
+
+# ---------------------------------------------------------------------------
+# AC-01 (DEV-M12-G06): the Supervisor scientific review is the REQUIRED
+# next step -- real machinery, never auto-performed
+# ---------------------------------------------------------------------------
+
+
+def test_F_ac01_supervisor_scientific_review_is_the_required_next_step(tmp_path):
+    # AC-01: "F requires Supervisor scientific review." After the worker
+    # reports the convergence facts, the scientific review is the required
+    # next step: the scenario leaves the decisions registry empty (nothing
+    # is auto-performed), the diagnosis/research/recovery actions are
+    # Supervisor-only in the real permission matrix and in the frozen role
+    # contracts, and the review happens through the real SupervisorDecision
+    # record -- schema-validated and persisted to the decisions registry --
+    # which the worker/analysis layers never fabricate (see
+    # test_F_supervisor_decision_surface_not_fabricated_by_worker).
+    root = build_scenario_workspace(tmp_path)
+    execute_scenario_f(root)
+    # The review has not happened yet: no decision record exists after the
+    # scenario (the review is required, not automatic).
+    decisions_dir = root / "decisions"
+    assert decisions_dir.is_dir()
+    assert list(decisions_dir.glob("*.json")) == []
+    # Diagnosis/research/recovery decisions are Supervisor-only.
+    for action in (
+        Action.RESEARCH_REQUEST,
+        Action.RECOVERY_ENTRY,
+        Action.METHOD_REDESIGN_ENTRY,
+    ):
+        assert is_action_allowed(Role.SUPERVISOR, action) is True, action
+        for role in (
+            Role.RESEARCH,
+            Role.MONITOR,
+            Role.EXPERIMENT_WORKER,
+            Role.COMPUTATION_WORKER,
+            Role.ANALYSIS_WORKER,
+            Role.DIAGNOSIS_WORKER,
+        ):
+            assert is_action_allowed(role, action) is False, (role, action)
+    research = get_role_contract("research")
+    assert Action.RESEARCH_REQUEST in research.forbidden_actions
+    assert Action.RECOVERY_ENTRY in research.forbidden_actions
+    supervisor = get_role_contract("supervisor")
+    for action in (
+        Action.RESEARCH_REQUEST,
+        Action.RECOVERY_ENTRY,
+        Action.METHOD_REDESIGN_ENTRY,
+    ):
+        assert action in supervisor.allowed_actions, action
+    # The required review is carried by the real SupervisorDecision record
+    # (actor "supervisor"), which enters the decisions registry through the
+    # real schema gate and canonical atomic persistence.
+    review = SupervisorDecision(
+        decision_id=generate_id(
+            "decision", "F", RUN_REF, DecisionType.RECOVERY_ENTRY.value
+        ),
+        decision_type=DecisionType.RECOVERY_ENTRY,
+        actor="supervisor",
+        timestamp="2026-06-02T00:00:00Z",
+        affected_refs=[RUN_REF],
+        evidence_refs=[WORKER_RESULT_ID, ANALYSIS_RESULT_ID],
+        rationale=(
+            "SCF convergence failure (R-CONV-N1) reported by the worker:"
+            " recovery entry opening the Supervisor scientific review of the"
+            " convergence facts before any method change is considered"
+        ),
+    )
+    validate_and_reject("decision", review.to_dict())
+    atomic_write(
+        decisions_dir / f"{review.decision_id}.json",
+        json.dumps(review.to_dict(), indent=2, sort_keys=True) + "\n",
+    )
+    stored = SupervisorDecision.from_dict(
+        json.loads(
+            (decisions_dir / f"{review.decision_id}.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    )
+    assert stored == review
+    assert stored.actor == "supervisor"
+    assert stored.decision_type is DecisionType.RECOVERY_ENTRY
 
 
 # ---------------------------------------------------------------------------
