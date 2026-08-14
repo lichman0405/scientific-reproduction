@@ -292,12 +292,14 @@ goals:
     merged_at: '2026-08-14'
     outcome: PASS
   DEV-M13-G05:
-    status: READY
-    attempts: []
-    reviews: []
-    merged_sha: null
-    merged_at: null
-    outcome: null
+    status: MERGED
+    attempts:
+    - DEV-M13-G05-a1
+    reviews:
+    - DEV-M13-G05-a1
+    merged_sha: ea2335c
+    merged_at: '2026-08-14'
+    outcome: PASS
   DEV-M2-G01:
     status: MERGED
     attempts:

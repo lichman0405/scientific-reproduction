@@ -1,0 +1,48 @@
+event_id: EVT-20260814-0088
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M13-G05
+milestone: M13
+attempt_id: DEV-M13-G05-a1
+pr_number: 81
+merge_commit_sha: ea2335c46b272df76c95a5ddd8b11deba10dc45b
+merge_method: squash
+head_sha: 6bb8155367a0fed43acdaeeca41500e52d36c4f7
+base_sha: 6fef5335d4bc4bbac5cb32f43e58e340ceb07db4
+review_id: DEV-M13-G05-a1
+review_decision: PASS
+findings: []
+summary: >-
+  DEV-M13-G05 (v0.1 release gate and final development audit) merged via PR
+  #81 with a single PASS review (DEV-M13-G05-a1, zero findings, three
+  non-blocking observations). Plan-approval protocol completed: runbook
+  431db1a approved at .development/plans/DEV-M13-G05-a1-plan-approval.yaml
+  (c75a746). Worker phase-2 audit: all eight 18-TEST section-4 release gates
+  PASS with observed evidence (schemas 204 + execution packages 20/20; FDM-201
+  inventory audit 82/82 mapped + self_check PASS + 50 benchmark tests; scenarios
+  A-J 115 + combined 165; worker permissions matrix/runtime 95; recovery
+  monitor 22; Claude adapter/resume 33 + documented fallback
+  CLAUDE-CODE-HANDOFF.md L273/L345; Codex adapter/resume 33 + 1 skipped
+  real-platform; reporting audit/trace 34 over real registries with the
+  plan-state FDM-201 register basis honestly noted); full suite 3181 passed in
+  318.79s; ruff/mypy/contracts clean; state recompute byte-identical; AC-01
+  (83 review files, 70 PASS + 9 verdict PASS + 4 REJECT closed by r2), AC-02
+  (79 MERGED + this goal, 80=80=80), AC-03 (V1-V6), AC-04 (no blocking gates,
+  two documented observations) all PASS; dev-orchestration checklist 8/8.
+  Supervisor independent re-verification: full suite 3181 passed in 298.96s
+  (no DEV-DEFECT-002 flake), ruff clean, mypy 115 files clean, audit_check/
+  self_check/validate_packages 20/20, contracts validator PASS (14 milestones,
+  80 goals, both DAGs acyclic), state_summary recompute byte-identical, review
+  corpus recount 83 = 70+9+4, events 86, plans 1, gate-6 fallback citation
+  verified verbatim, CI both jobs PASS (Test/lint 4m17s + Validate 9s).
+  OBS-G05-01 (DEV-M11-G06 review carried by event EVT-20260814-0076, no
+  standalone review file) and OBS-G05-02 (DEV-M10-G04/G06 ledger outcome null)
+  confirmed by direct state inspection and dispositioned non-blocking in
+  docs/release/KNOWN-LIMITATIONS.md section 7; no backfill authored (post-hoc
+  evidence avoided; the event record is the evidence carrier). Merged count:
+  80/80. MILESTONE M13 COMPLETE: all five goals (DEV-M13-G01..G05) merged,
+  release-gate evidence packaged under docs/release/ (RELEASE-REVIEW-v0.1.md,
+  M0-M13-STATUS.md, KNOWN-LIMITATIONS.md, runbook with execution log). All
+  fourteen milestones M0-M13 PASS. The Development Supervisor now executes the
+  final release closeout on origin/main ea2335c: immutable tag v0.1.0,
+  CHANGELOG, and the final Development Acceptance Report.

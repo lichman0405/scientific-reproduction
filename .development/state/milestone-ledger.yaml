@@ -80,9 +80,25 @@ milestones:
         20/20. Milestone acceptance met; unlocks M13.
     accepted_at: '2026-08-14'
   M13:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - v0.1.0 release
+      evidence: >-
+        All five M13 goals (DEV-M13-G01..G05) merged with PASS reviews:
+        G01 reporting audit/traceability, G02 strict recovery closure, G03
+        worker permission/context enforcement, G04 user/ops documentation
+        set, G05 v0.1 release gate and final development audit. Release-gate
+        evidence packaged under docs/release/: RELEASE-REVIEW-v0.1.md (8/8
+        section-4 gates PASS with observed commands), M0-M13-STATUS.md
+        (per-milestone final-PASS mapping, corpus 83 files, 80 goals), and
+        KNOWN-LIMITATIONS.md (all dispositions non-blocking, OBS-G05-01/02
+        documented). Full suite 3181 passed on the merged baseline; ruff/
+        mypy/contracts validator clean; DAG recompute byte-identical.
+        M13-G05 plan-approval protocol completed (runbook 431db1a approved
+        @ c75a746). Milestone acceptance met; unlocks the v0.1.0 release
+        closeout (tag, CHANGELOG, final Development Acceptance Report).
+    accepted_at: '2026-08-14'
   M2:
     status: PASS
     gate:

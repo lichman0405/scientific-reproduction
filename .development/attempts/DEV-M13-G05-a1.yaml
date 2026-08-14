@@ -1,0 +1,49 @@
+goal_id: DEV-M13-G05
+attempt_id: DEV-M13-G05-a1
+change_type: DOCS
+base_branch: main
+base_sha: 6fef5335d4bc4bbac5cb32f43e58e340ceb07db4
+branch: feat/dev-m13-g05-release
+worktree: .worktrees/dev-m13-g05
+status: MERGED
+pr:
+  number: 81
+  url: https://github.com/lichman0405/scientific-reproduction/pull/81
+  head_sha: 6bb8155367a0fed43acdaeeca41500e52d36c4f7
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M13-G05-a1
+merge_commit_sha: ea2335c46b272df76c95a5ddd8b11deba10dc45b
+merged_at: '2026-08-14'
+commit_shas:
+- 431db1a9b253389c6df12067c12b197bc274017b
+- 6bb8155367a0fed43acdaeeca41500e52d36c4f7
+review_notes: >-
+  Final goal: v0.1 release gate and development audit. Plan-approval flow
+  followed 21-DEVELOPMENT-SUPERVISOR-SPEC plan_approval_required: runbook
+  (236 lines) committed 431db1a -> supervisor approval record
+  .development/plans/DEV-M13-G05-a1-plan-approval.yaml @ c75a746 -> worker
+  phase 2 delivered the three release deliverables plus the appended
+  execution log (4 files, +494, all docs/release/**). Worker phase-2 audit:
+  8/8 release gates PASS (schemas 204 + packages 20/20; FDM-201 inventory
+  82/82 + 50 benchmarks; scenarios A-J 115 + combined 165; permissions 95;
+  recovery monitor 22; claude adapter/resume 33 + documented fallback
+  CLAUDE-CODE-HANDOFF.md L273/L345; codex 33 + 1 skipped real-platform; audit/
+  trace 34 over real registries), full suite 3181 passed in 318.79s, ruff
+  clean, mypy 115 files, contracts validator PASS, state recompute
+  byte-identical; AC-01/02/04 PASS; two observations (OBS-G05-01 M11-G06
+  review in event EVT-20260814-0076 no standalone file; OBS-G05-02 M10-G04/
+  G06 ledger outcome null). Supervisor independent battery on head 6bb8155:
+  full suite 3181 passed / 7 skipped / 1 deselected in 298.96s (no flake),
+  ruff clean, mypy 115 files clean, audit_check/self_check/validate_packages
+  20/20, contracts validator PASS (14/80/DAG), state_summary recompute
+  byte-identical, corpus recount 83 = 70 decision:PASS + 9 verdict:PASS + 4
+  REJECT (each closed by PASS -r2), events 86, gate-6 fallback citation
+  verified verbatim, CI both jobs PASS (Test/lint 4m17s + Validate 9s).
+  Review DEV-M13-G05-a1 PASS, zero findings, three observations
+  (OBS-M13-G05-01 M11-G06 gap confirmed + dispositioned non-blocking,
+  OBS-M13-G05-02 M10 outcome-null confirmed, OBS-M13-G05-03 runbook
+  expectation deltas non-defect). Merged count: 80/80. M13 milestone
+  completed; final release gate (tag v0.1.0, CHANGELOG, final Development
+  Acceptance Report) is the Supervisor's closeout record.

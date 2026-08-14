@@ -1,0 +1,230 @@
+review_id: DEV-M13-G05-a1
+goal_id: DEV-M13-G05
+attempt_id: DEV-M13-G05-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+pr:
+  number: 81
+  base: main
+  base_oid: 6fef5335d4bc4bbac5cb32f43e58e340ceb07db4
+  head_ref: feat/dev-m13-g05-release
+  head_oid: 6bb8155367a0fed43acdaeeca41500e52d36c4f7
+  commits: 2
+  files: 4 (+494/-0): docs/release/DEV-M13-G05-runbook.md (287, plan + appended
+    execution log), docs/release/RELEASE-REVIEW-v0.1.md (99), docs/release/M0-M13-STATUS.md
+    (41), docs/release/KNOWN-LIMITATIONS.md (66) -- all under docs/release/** (the
+    goal's allowed_scope plus the plan-approval path); git diff HEAD origin/main
+    -- src tests is empty (docs-only goal); no .development changes in the PR, no
+    AC changes, no --no-verify.
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - >-
+      All M0-M13 milestone reviews PASS. Independently re-scanned the review
+      corpus: 83 files = 70 decision: PASS + 9 older-format verdict: PASS + 4
+      decision: REJECT (DEV-M7-G04-a1, DEV-M8-G05-a1, DEV-M9-G01-a1,
+      DEV-M11-G03-a1), each REJECT superseded by a PASS -r2 with frozen ACs
+      unchanged (r2 files document prior_decision and the in-scope fix). The
+      per-milestone final-decision mapping (M0 5/5, M1 6/6, M2 8/8, M3 3/3, M4
+      6/6, M5 6/6, M6 5/5, M7 5/5, M8 6/6, M9 6/6, M10 6/6, M11 6/6, M12 7/7,
+      M13 4/5) is consistent with the goal set and the ledger. The one goal
+      without a standalone review file -- DEV-M11-G06 -- has its PASS recorded
+      in the contemporaneous event EVT-20260814-0076 (review_id
+      DEV-M11-G06-a1, review_decision PASS, findings [], plus the full review
+      summary); the ledger reference resolves through the event record
+      (OBS-M13-G05-01).
+    notes: >-
+      AC-01 evidenced by an independent corpus recount (file-by-file), the
+      REJECT->r2 closure chains, and the event-carried PASS record for
+      DEV-M11-G06. Milestone ledger M0-M12 PASS with gate evidence;
+      M13 ledger transition is the Supervisor's record at closeout.
+  AC-02:
+    status: PASS
+    evidence:
+    - >-
+      All 80 frozen goals PASS. Ledger: 79 MERGED + DEV-M13-G05 READY, zero
+      BLOCKED_HUMAN, zero WORKING leftovers. Goal-set parity 80 = 80 = 80
+      (.development/goals/ == development/goals/ frozen SSOT == ledger keys).
+      DAG (dag-state.yaml): total 80, merged 79, ready [DEV-M13-G05], all other
+      lists empty. Independent state-truth recompute via
+      .development/scripts/state_summary.py -> ready=1 waiting=0 passed=0
+      merged=79 blocked_human=0, exit 0, regenerated dag-state.yaml byte-identical
+      to the committed file (git status clean, no restore needed).
+    notes: >-
+      AC-02 evidenced by ledger/DAG parity plus my own recompute run. G05
+      ledger transition (READY -> MERGED) is the Supervisor's record at
+      closeout.
+  AC-03:
+    status: PASS
+    evidence:
+    - >-
+      Supervisor-independent battery on the head: full suite 3181 passed, 7
+      skipped, 1 deselected in 298.96s, exit 0 (exact merged-main baseline; no
+      DEV-DEFECT-002 flake occurrence); ruff check . clean; mypy src 115 files
+      no issues; benchmarks/fdm201/goals/audit_check.py exit 0 (82 evidence
+      records, 20 dag acyclic, 46 assumptions); inventory/self_check.py RESULT
+      PASS; execution_packages/validate_packages.py 20/20 failures 0;
+      scripts/validate_development_contracts.py PASS 14 milestones, 80 goals,
+      both DAGs acyclic, all contracts well-formed. Install verification:
+      editable install scientific-reproduction 0.1.0 in the shared venv
+      resolving to the repository src (src byte-identical to the worktree).
+    notes: >-
+      AC-03 evidenced by my independent full-suite run (298.96s) plus the
+      complete validator/lint/static battery, all exit 0, matching the worker's
+      recorded V1-V6 numbers within run-to-run timing variance.
+  AC-04:
+    status: PASS
+    evidence:
+    - >-
+      No unresolved blocking Human Gate or audit discrepancy. Independently
+      confirmed: .development/human-gates/ absent; ledger has zero BLOCKED_HUMAN
+      statuses; DAG blocked_human []; events ledger 86 files, all GOAL_MERGED
+      records with no blocking-gate event; no open review findings (4 REJECT
+      chains closed by PASS r2; DEV-M12-G03 findings resolved within its PASS
+      review). Known defects all dispositioned: SPEC-DEFECT-001 FIXED,
+      DEV-DEFECT-001 ACCEPTED-RISK, DEV-DEFECT-002 ACCEPTED. Two non-blocking
+      observations (OBS-M13-G05-01/02) with dispositions in
+      docs/release/KNOWN-LIMITATIONS.md section 7.
+    notes: >-
+      AC-04 evidenced by the state scan plus the dispositioned observations.
+      The DEV-M11-G06 review-file gap is documented, not silently dropped; the
+      PASS decision itself is contemporaneous event evidence (see
+      OBS-M13-G05-01).
+  AC-05:
+    status: PASS
+    evidence:
+    - >-
+      All eight 18-TEST-AND-ACCEPTANCE-PLAN.md section-4 release gates PASS with
+      observed evidence. Gate numbers independently re-verified against the
+      recorded commands (full-suite run covers the gate test surfaces; the
+      non-suite gates re-run by me: audit_check, self_check, validate_packages,
+      contracts validator, state recompute): gate 1 schemas 204 + packages 20/20;
+      gate 2 FDM-201 inventory audit 82/82 mapped + 50 benchmark tests; gate 3
+      scenarios A-J 115 + combined 165; gate 4 permissions matrix/runtime 95;
+      gate 5 recovery monitor 22; gate 6 claude adapter/resume 33 + documented
+      fallback (CLAUDE-CODE-HANDOFF.md L273 'subagent/process fallback', L345
+      'documented fallback workers' -- citation verified verbatim); gate 7 codex
+      adapter/resume 33 + 1 skipped (real-platform attempt, per gate wording);
+      gate 8 reporting audit/trace 34 (real registries, nothing mocked).
+      Gate-8 basis note (frozen FDM-201 register is plan-state) is honest and
+      correctly framed.
+    notes: >-
+      AC-05 evidenced by the gate table in docs/release/RELEASE-REVIEW-v0.1.md
+      (recorded command outputs) cross-checked against my independent runs; the
+      gate-6 fallback citation and gate-8 basis note were both verified
+      verbatim. Final verdict is the Supervisor's, rendered here as PASS.
+
+findings: []
+
+observations:
+  - id: OBS-M13-G05-01
+    detail: >-
+      DEV-M11-G06 has no standalone review file under .development/reviews/,
+      while the goal ledger records reviews: [DEV-M11-G06-a1] and the goal is
+      MERGED (66f9e342, PR #69). The PASS decision is machine-recorded in the
+      contemporaneous event EVT-20260814-0076 (review_id DEV-M11-G06-a1,
+      review_decision PASS, findings [], full review summary). CONFIRMED by
+      supervisor: corpus count 83 is exactly 80 goals + 4 REJECT-chain extras -
+      1 missing goal file, i.e. M11-G06 is the single goal without a review
+      file. Disposition: DOCUMENTED, non-blocking. No backfill file is authored
+      (a post-hoc review yaml would be anachronistic evidence); the event record
+      is the evidence carrier and the ledger reference resolves through it.
+      Recorded in docs/release/KNOWN-LIMITATIONS.md section 7 and
+      docs/release/M0-M13-STATUS.md.
+  - id: OBS-M13-G05-02
+    detail: >-
+      DEV-M10-G04 and DEV-M10-G06 carry outcome: null in the goal ledger despite
+      status MERGED and PASS reviews (DEV-M10-G04-a1, DEV-M10-G06-a1 exist and
+      are PASS). CONFIRMED by supervisor read of the ledger; the M10 milestone
+      ledger evidence documents the gap with events EVT-20260814-0071..0074 as
+      sources. Disposition: DOCUMENTED, non-blocking; status + reviews + events
+      establish the PASS. No post-hoc ledger mutation (would rewrite history
+      outside a change request).
+  - id: OBS-M13-G05-03
+    detail: >-
+      Runbook phase-1 expectations vs phase-2 observed numbers for the gate
+      surfaces: benchmarks 32 -> 50, permissions 63 -> 95, reporting audit/trace
+      33 -> 34, codex 34 -> 33+1 skipped. The expectations were conservative
+      scoping estimates; the observed numbers are the authoritative gate
+      evidence and are self-consistent with the full-suite baseline (3181).
+      Disposition: DOCUMENTED, non-defect; the runbook's structure and execution
+      order were unaffected.
+
+verification:
+  head: 6bb8155367a0fed43acdaeeca41500e52d36c4f7 (PR #81)
+  commands:
+  - "pytest -q (supervisor independent background run on head, .post-merge-venv; src/tests byte-identical to main -- git diff HEAD origin/main -- src tests empty) -> 3181 passed, 7 skipped, 1 deselected in 298.96s, exit 0. No DEV-DEFECT-002 flake occurrence."
+  - "ruff check . (head worktree) -> All checks passed, exit 0"
+  - "mypy src (head worktree) -> 115 source files, no issues, exit 0"
+  - "benchmarks/fdm201/goals/audit_check.py -> exit 0 (dag acyclic 20, assumptions 46, evidence records 82, resources 17, analysis protocols 10, closure contracts 4)"
+  - "benchmarks/fdm201/inventory/self_check.py -> RESULT: PASS, exit 0"
+  - "benchmarks/fdm201/execution_packages/validate_packages.py -> Checks run 20, failures 0, all packages validate, exit 0"
+  - "scripts/validate_development_contracts.py -> PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone DAG acyclic, all contracts well-formed, exit 0"
+  - ".development/scripts/state_summary.py -> ready=1 waiting=0 passed=0 merged=79 blocked_human=0, exit 0; regenerated dag-state.yaml byte-identical to committed (git status clean, no restore required)"
+  - "Review corpus recount: 83 files = 70 decision: PASS + 9 verdict: PASS + 4 decision: REJECT; events 86; plans 1; goals 80 (file-by-file count)"
+  - "Gate 6 fallback citation: CLAUDE-CODE-HANDOFF.md (repo root) L273 'subagent/process fallback', L345 'documented fallback workers' -- verified verbatim"
+  - "CI on head 6bb8155: Test, lint, and type check PASS (4m17s) + Validate development contracts PASS (9s); CodeRabbit skipped on draft"
+  post_merge: >-
+    PENDING - filled after squash merge.
+
+design_review:
+  decomposition: >-
+    The final goal decomposed into: a 236-line runbook plan (gates 1-8
+    command table, battery V1-V7, AC-01/02/04 audit steps A1-A5/B1-B5/C1-C6,
+    section-5 checklist, deliverable outlines, explicit not-do list), then
+    phase 2 producing the three release deliverables plus an appended
+    execution log (287-line runbook file with the log). Plan-approval flow
+    followed the 21-DEVELOPMENT-SUPERVISOR-SPEC plan_approval_required
+    protocol: runbook committed (431db1a) -> supervisor approval record in
+    .development/plans/ (c75a746) -> worker resumed.
+  real_machinery: >-
+    Every gate and battery command was executed against the real repository
+    (shared venv, head worktree); the worker recorded observed outputs and the
+    supervisor re-ran the non-suite gates plus the full suite independently.
+    Gate 8 is honestly framed: the frozen FDM-201 register is plan-state, so
+    the package-level evidence is the audit/traceability battery over real
+    registries plus reload/audit determinism tests - no invented run artifacts.
+    Gate 6 uses the documented fallback citation (verified verbatim), no fake
+    real-platform claim; gate 7's single skip is the real-platform attempt,
+    consistent with the gate wording.
+  grounding: >-
+    Every deliverable claim traces to .development/ state files, benchmark
+    scripts, spec sections, or code lines: corpus counts re-verified by count;
+    ledger/DAG parity re-verified by recompute (byte-identical); defect
+    dispositions consistent with .development/KNOWN-DEFECTS.md and the goal
+    reviews; KNOWN-LIMITATIONS.md items each state what, why not blocking, and
+    disposition. 18-TEST section-4 gate mapping matches the established release
+    gate set (schemas/validator, FDM-201 inventory, scenarios A-J, worker
+    permissions, monitor recovery, claude adapter, codex adapter, audit/trace).
+  determinism: >-
+    The audit itself is deterministic in its evidence: state_summary.py
+    recompute is byte-identical to the committed DAG; the full-suite count is
+    invariant across the worker run (318.79s) and the supervisor run (298.96s);
+    the review-corpus and event counts are stable file enumerations.
+  scope: >-
+    git status on the head is clean; exactly 4 files added, all under
+    docs/release/** (allowed_scope + runbook path); src/ and tests/
+    byte-identical to main (diff empty); no .development changes in the PR, no
+    AC changes, no --no-verify, no benchmark/plan data changes. Two commits on
+    the dispatch-time base 6fef533 (runbook, then deliverables + log); PR
+    mergeable against current main c75a746 (4 files, +494).
+
+decision_notes: >-
+  PASS on head 6bb8155367a0fed43acdaeeca41500e52d36c4f7 with zero findings.
+  Independent battery: full suite 3181 passed in 298.96s (exact baseline), ruff
+  clean, mypy 115 files clean, audit_check/self_check/validate_packages 20/20,
+  contracts validator PASS (14/80/DAG), state recompute byte-identical, corpus
+  83 = 70+9+4, gate-6 fallback citation verified verbatim, CI both jobs PASS.
+  The worker's three deliverables and the appended execution log are accurate
+  and mutually consistent; OBS-G05-01/02 confirmed by direct state inspection
+  (M11-G06 review carried by event EVT-20260814-0076; M10-G04/G06 outcome null)
+  and dispositioned non-blocking in KNOWN-LIMITATIONS.md section 7. One
+  supervisor observation added (OBS-M13-G05-03: runbook expectation deltas,
+  non-defect). With this PASS all 80/80 goals complete; proceed to squash merge
+  with --match-head-commit 6bb8155367a0fed43acdaeeca41500e52d36c4f7, then the
+  Supervisor executes the final release gate on origin/main (tag v0.1.0,
+  CHANGELOG, final Development Acceptance Report).

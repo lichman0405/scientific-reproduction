@@ -1,7 +1,6 @@
 dag_version: 1
 total_frozen_goals: 80
-ready_to_dispatch:
-- DEV-M13-G05
+ready_to_dispatch: []
 waiting_on_dependencies: []
 passed_not_merged: []
 merged:
@@ -39,6 +38,7 @@ merged:
 - DEV-M13-G02
 - DEV-M13-G03
 - DEV-M13-G04
+- DEV-M13-G05
 - DEV-M2-G01
 - DEV-M2-G02
 - DEV-M2-G03
