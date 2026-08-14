@@ -1,0 +1,44 @@
+event_id: EVT-20260814-0078
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M12-G02
+milestone: M12
+attempt_id: DEV-M12-G02-a1
+pr_number: 71
+merge_commit_sha: ece9c3534604617bca1b23407dbf76e05759c0dc
+merge_method: squash
+head_sha: 8929f7215917fbca4b61e07e235b4d05e6726192
+base_sha: cbf810c11e5ebd000ffea62a8a12cf8f91ca1330
+review_id: DEV-M12-G02-a1
+review_decision: PASS
+findings: []
+summary: >-
+  DEV-M12-G02 (FDM-201 reproduction inventory) merged via PR #71 with a
+  single PASS review (DEV-M12-G02-a1, zero open findings). The review
+  covered two commits: the feature (3 files, +2136/-0 under
+  benchmarks/fdm201/inventory/: 82-item INVENTORY.yaml across 8
+  categories with 14 explicit ambiguities, G01 cross-reference and
+  summary block; 856-check deterministic offline self_check.py; README)
+  and the fix commit 8929f72 resolving supervisor finding FND-M12-G02-01
+  (AMB-0008 affected_item_ids omitted INV-0515 -- one data line fixed,
+  checker hardened with bidirectional ambiguity integrity, CI F541
+  f-string fix). Supervisor independently verified on head 8929f72:
+  worker self_check 856 checks/0 failures/18 documented warnings;
+  independent battery 597 checks/0 failed; whole-repo ruff clean (the
+  CI invocation, from the worktree root); ruff src tests clean; mypy
+  111 clean; full suite 3016 passed exactly (no regression vs base
+  cbf810c); both CI jobs PASS (run 31764572340). AC-01 every reported
+  experiment/control/computation inventoried (82 items anchored in the
+  16 spec section 2 seed facts, the 9 G01 acquisition-log items and
+  spec section 4 work packages); AC-02 provenance on every item with
+  source_ids resolving to the 13 G01 records (zero unknown);
+  AC-03 ambiguities explicit with bidirectional integrity enforced in
+  code. The frozen verification (pytest -q tests/benchmarks -k
+  inventory) is VACUOUS (tests/benchmarks owned by DEV-M12-G07, exit 4,
+  no tests ran) and recorded honestly; regression evidence = full suite
+  3016 + CI. Registration-only policy held: no paper/SI/CIF content.
+  Observations OBS-M12-G01-01 (lease-test flake) and OBS-M12-G02-01
+  (ruff toolchain drift: unpinned ruff>=0.6 enforces F541 in CI while
+  local 0.16.3 does not; goal gate lints src tests only, CI lints the
+  whole repo) tracked for M13. Merged count: 70/80. M12-G03..G07
+  unblocked per DAG.
