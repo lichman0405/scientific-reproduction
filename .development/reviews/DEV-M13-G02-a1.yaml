@@ -142,6 +142,11 @@ verification:
   - "mypy src -> 114 files, no issues, exit 0"
   - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, exit 0"
   - "CI on head ae63f51: Test, lint, and type check PASS + Validate development contracts PASS"
+  post_merge: >-
+    Post-merge suite on origin/main 0cea8f0 (after squash merge of PR #78):
+    3164 passed, 7 skipped, 1 deselected in 317.33s, exit 0 (3063 baseline +
+    50 benchmark-acceptance + 33 audit/trace + 18 report). No DEV-DEFECT-002
+    flake occurrence in the post-merge run.
 
 design_review:
   decomposition: >-
