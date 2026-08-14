@@ -153,6 +153,11 @@ verification:
   - "python benchmarks/fdm201/execution_packages/validate_packages.py -> 20/20 PASS, exit 0 (unchanged benchmark data)"
   - "CI on head 3a084ac: Test/lint/typecheck PASS + Validate development contracts PASS"
   - "frozen-data grounding spot-checked in main tree: ASM-A1-TOL-01 10% band with INV-0301 180.5 cm3/g, ASM-A1-N-01 minimum_n=2 -- confirmed verbatim"
+  post_merge: >-
+    Post-merge suite on origin/main 48183af (after squash merge of PR #75):
+    3063 passed, 7 skipped, 1 deselected, 0 failed in 234.05s, exit 0
+    (3016 baseline + 24 new scenario tests - 1 flake accounting; no
+    DEV-DEFECT-002 occurrence in the post-merge run).
 
 design_review:
   decomposition: >-
