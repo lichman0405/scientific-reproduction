@@ -178,7 +178,11 @@ verification:
   - "CI on head 45e0811: Test, lint, and type check PASS (3m51s) + Validate development contracts PASS (11s); CodeRabbit skipped on draft"
   - "~40 API/citation claims in the four guides spot-checked against src via grep (planning init/plan/audit/freeze/dag; workers context; monitoring registry/recovery/reconcile/retry; adapters lab filesystem/manifest + compute ssh/slurm_ssh + platform contracts; analysis protocols/results; core models/events/audit git; cli reproduce flags) -- all hit; two spec quotes verified in 15-ADAPTER-SPEC.md and 01-PRODUCT-REQUIREMENTS.md"
   post_merge: >-
-    (filled after squash merge)
+    Post-merge suite on origin/main 6fef533 (after squash merge of PR #80,
+    docs merged): 3181 passed, 7 skipped, 1 deselected in 321.64s, exit 0
+    (3063 baseline + 50 benchmark-acceptance + 33 audit/trace + 18 report +
+    17 summary -- the full merged baseline). No DEV-DEFECT-002 flake
+    occurrence in the post-merge run.
 
 design_review:
   decomposition: >-
