@@ -1,0 +1,43 @@
+# FDM-201 worker-context package: GOAL-EXE-20 (FDM-201 synthesis and
+# activation, WP-20).
+#
+# Context a worker needs to execute GOAL-EXE-20 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_20"
+worker_role: experiment_worker
+goal_id: "GOAL-EXE-20"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_exp02_synthesis_activation"]
+source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+evidence_refs: ["EV-INV-0707", "EV-INV-0708", "EV-INV-0709", "EV-INV-0710", "EV-INV-0711", "EV-INV-0712", "EV-INV-0713", "EV-INV-0714"]
+upstream_result_refs: ["GOAL-EXE-10"]
+protocol_refs: ["ANL-010"]
+resource_refs: ["RES-013", "RES-017"]
+assumption_refs: ["ASM-A1-N-01"]
+ambiguity_refs: ["AMB-0009", "AMB-0011"]
+environment:
+  runtime: "lab filesystem protocol runner"
+  workspace_root: "fdm201-lab/exp02-synthesis-activation/"
+  records: "run-records/ raw-records/ batch-records/ sample-archive/ handoff/"
+required_outputs:
+  - "handoff/sample-manifest.yaml"
+  - "handoff/exp02-handoff-manifest.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+allowed_actions:
+  - "execute the steps of the linked execution package in order"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change procedure parameters without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"

@@ -1,0 +1,43 @@
+# FDM-201 worker-context package: GOAL-EXE-70 (breakthrough, WP-70).
+#
+# Context a worker needs to execute GOAL-EXE-70 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_70"
+worker_role: experiment_worker
+goal_id: "GOAL-EXE-70"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_exp07_breakthrough"]
+source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+evidence_refs: ["EV-INV-0501", "EV-INV-0502", "EV-INV-0503", "EV-INV-0511", "EV-INV-0512", "EV-INV-0513", "EV-INV-0514", "EV-INV-0515", "EV-INV-0516", "EV-INV-0517", "EV-INV-0518", "EV-INV-0519", "EV-INV-0520", "EV-INV-0521"]
+upstream_result_refs: ["GOAL-EXE-20", "GOAL-EXE-30"]
+protocol_refs: ["ANL-050", "ANL-090"]
+resource_refs: ["RES-016", "RES-017"]
+assumption_refs: ["ASM-A1-N-01", "ASM-A1-TOL-06", "ASM-FDM-0511", "ASM-FDM-0512", "ASM-FDM-0513", "ASM-FDM-0514", "ASM-FDM-0515", "ASM-FDM-0516", "ASM-FDM-0517", "ASM-FDM-0518", "ASM-FDM-0519", "ASM-FDM-0520", "ASM-FDM-0521"]
+ambiguity_refs: ["AMB-0002", "AMB-0008", "AMB-0011"]
+environment:
+  runtime: "lab filesystem protocol runner"
+  workspace_root: "fdm201-lab/exp07-breakthrough/"
+  records: "run-records/ raw-records/ batch-records/ breakthrough-data/ analysis/ handoff/"
+required_outputs:
+  - "handoff/breakthrough-evidence-manifest.yaml"
+  - "handoff/exp07-handoff-manifest.yaml"
+  - "analysis/comparison.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+allowed_actions:
+  - "execute the steps of the linked execution package in order"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change procedure parameters without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"

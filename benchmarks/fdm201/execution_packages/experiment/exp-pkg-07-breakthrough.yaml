@@ -1,0 +1,222 @@
+# FDM-201 experiment execution package EXP-07: breakthrough
+# (Plan v1 phase "breakthrough", WP-70, GOAL-EXE-70).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp07_breakthrough"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-70"
+goal_version: "v1"
+wp_id: "WP-70"
+run_id: "sr_run_fdm201_exp07_breakthrough"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the reported breakthrough separation behavior of FDM-201: separate unit processes for every formally reported gas composition/temperature/cycle condition with the reported flow parameters, regeneration/cycle behavior if reported, and batch statistics; deliver the breakthrough time comparison vs ~23.5 / ~64.8 min and separation window ~41.3 min for a 50/50 mixture at 298 K (INV-0501, ANL-050), plus the 328 K run record (INV-0502), to the closure process."
+
+procedure:
+  - step: 1
+    id: "EXP07-S01"
+    title: "Read the breakthrough protocol"
+    action: "Read the reported breakthrough conditions (INV-0501..0503, WP-70 parameter set via GOAL-INV-001) and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0501", "INV-0502", "INV-0503"]
+  - step: 2
+    id: "EXP07-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (raw-records/, batch-records/, breakthrough-data/, analysis/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["raw-records/", "batch-records/", "breakthrough-data/", "analysis/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP07-S03"
+    title: "Column packing and preconditioning"
+    action: "Pack the breakthrough column with an activated FDM-201 sample and precondition it with the inert carrier gas per the reported procedure; record packing mass and preconditioning conditions."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["raw-records/column-preparation.yaml"]
+    trace_refs: ["INV-0503"]
+  - step: 4
+    id: "EXP07-S04"
+    title: "50/50 breakthrough at 298 K"
+    action: "Run the breakthrough experiment for the 50/50 C3H6/C2H4 mixture at 298 K with the reported flow parameters (INV-0501); store the raw detector traces under breakthrough-data/."
+    inputs: ["raw-records/column-preparation.yaml"]
+    outputs: ["breakthrough-data/298k-50-50/", "raw-records/breakthrough-298k.yaml"]
+    trace_refs: ["INV-0501", "AMB-0002"]
+  - step: 5
+    id: "EXP07-S05"
+    title: "328 K run record"
+    action: "Run the additional 328 K / diluted-mixture breakthrough condition per INV-0502; the exact composition is inventoried from the paper/SI at execution (AMB-0008) and any still-missing parameter is registered as A2 per ASM-FDM-0511..0521 as applicable."
+    inputs: ["breakthrough-data/298k-50-50/"]
+    outputs: ["breakthrough-data/328k/", "raw-records/breakthrough-328k.yaml"]
+    trace_refs: ["INV-0502", "AMB-0008", "ASM-FDM-0511", "ASM-FDM-0512", "ASM-FDM-0513", "ASM-FDM-0514", "ASM-FDM-0515", "ASM-FDM-0516", "ASM-FDM-0517", "ASM-FDM-0518", "ASM-FDM-0519", "ASM-FDM-0520", "ASM-FDM-0521"]
+  - step: 6
+    id: "EXP07-S06"
+    title: "Additional conditions / cycles (iff reported)"
+    action: "Run separate unit processes for every other formally reported gas composition/temperature/cycle condition (INV-0503); if none is reported, record the negative finding."
+    inputs: ["breakthrough-data/"]
+    outputs: ["breakthrough-data/additional-conditions/"]
+    trace_refs: ["INV-0503"]
+  - step: 7
+    id: "EXP07-S07"
+    title: "Regeneration / cycle behavior (iff reported)"
+    action: "Record regeneration and cycle behavior per the formally reported procedure (INV-0503); if not reported, record the negative finding."
+    inputs: ["breakthrough-data/additional-conditions/"]
+    outputs: ["raw-records/regeneration.yaml"]
+    trace_refs: ["INV-0503"]
+  - step: 8
+    id: "EXP07-S08"
+    title: "Independent batch breakthrough runs"
+    action: "Repeat steps 3-7 for the remaining independent batches (minimum n per ASM-A1-N-01, INV-0503; reported count resolved by GOAL-INV-001 per AMB-0011); store every run under batch-records/."
+    inputs: ["breakthrough-data/"]
+    outputs: ["batch-records/"]
+    trace_refs: ["INV-0503", "ASM-A1-N-01", "AMB-0011"]
+  - step: 9
+    id: "EXP07-S09"
+    title: "Breakthrough comparison and statistics"
+    action: "Write the breakthrough time comparison vs ~23.5 / ~64.8 min and the separation window vs ~41.3 min for the 50/50 mixture at 298 K (INV-0501, tolerance ASM-A1-TOL-06) per ANL-050, with the batch statistics per ANL-090."
+    inputs: ["analysis/", "batch-records/"]
+    outputs: ["analysis/comparison.yaml", "batch-records/batch-statistics.yaml"]
+    trace_refs: ["INV-0501", "ASM-A1-TOL-06", "ANL-050", "ANL-090"]
+  - step: 10
+    id: "EXP07-S10"
+    title: "Handoff of breakthrough evidence"
+    action: "Write the breakthrough records, raw traces and deviation register into the handoff directory for the closure process."
+    inputs: ["breakthrough-data/", "analysis/"]
+    outputs: ["handoff/exp07-handoff-manifest.yaml", "handoff/breakthrough-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-90"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp07-breakthrough/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "breakthrough-data/298k-50-50/"
+    - "breakthrough-data/328k/"
+    - "breakthrough-data/additional-conditions/"
+    - "analysis/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "raw-records/column-preparation.yaml"
+    - "raw-records/breakthrough-298k.yaml"
+    - "raw-records/breakthrough-328k.yaml"
+    - "raw-records/regeneration.yaml"
+    - "analysis/comparison.yaml"
+    - "batch-records/batch-statistics.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp07-handoff-manifest.yaml"
+    - "handoff/breakthrough-evidence-manifest.yaml"
+
+instruments:
+  - name: "Breakthrough apparatus"
+    description: "Breakthrough column, flow controllers, detector(s) and thermostat per the reported conditions"
+    resource_refs: ["RES-016"]
+  - name: "Gases"
+    description: "C3H6, C2H4 and inert carrier gas with the reported purity/grades"
+    resource_refs: ["RES-017"]
+
+critical_control_variables:
+  - name: "Column parameters"
+    value: "packing mass, column geometry, flow rates per the reported procedure (INV-0501/0503)"
+    trace_refs: ["INV-0501", "INV-0503"]
+  - name: "50/50 mixture conditions"
+    value: "50/50 C3H6/C2H4 at 298 K per INV-0501"
+    trace_refs: ["INV-0501", "AMB-0002"]
+  - name: "328 K conditions"
+    value: "composition inventoried from the paper/SI at execution (INV-0502, AMB-0008); missing parameters registered A2 per ASM-FDM-0511..0521"
+    trace_refs: ["INV-0502", "AMB-0008", "ASM-FDM-0511", "ASM-FDM-0512", "ASM-FDM-0513", "ASM-FDM-0514", "ASM-FDM-0515", "ASM-FDM-0516", "ASM-FDM-0517", "ASM-FDM-0518", "ASM-FDM-0519", "ASM-FDM-0520", "ASM-FDM-0521"]
+  - name: "Cycle count and repeats"
+    value: "per the reported plan (INV-0503); minimum n per ASM-A1-N-01"
+    trace_refs: ["INV-0503", "ASM-A1-N-01"]
+  - name: "Breakthrough time definition"
+    value: "the reported definition (e.g. 5% threshold); tolerance ASM-A1-TOL-06"
+    trace_refs: ["ASM-A1-TOL-06"]
+
+prohibited_changes:
+  - "Changing the gas composition, temperature, flow rates or column packing from the reported conditions"
+  - "Substituting the breakthrough time definition without a registered deviation"
+  - "Treating a single run as independent replication"
+  - "Silently substituting parameters not reported in the SI (A2 registration required per ASM-FDM-0511..0521)"
+  - "Deleting or cherry-picking failed breakthrough runs from the run records"
+
+required_operator_records:
+  - "Packing mass, column geometry and preconditioning"
+  - "Flow rates, pressures and temperatures per run"
+  - "Gas compositions and purities"
+  - "Detector calibration and raw traces"
+  - "Cycle counts and repeats"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/breakthrough-evidence-manifest.yaml"
+  - "handoff/exp07-handoff-manifest.yaml"
+  - "analysis/comparison.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "Follow the laboratory safety rules and the breakthrough apparatus manual (RES-016 notes: breakthrough apparatus procurement and safety review at execution)"
+  - "Handle pressurized gas cylinders and flammable gases per the laboratory rules (RES-017)"
+
+parameters:
+  - name: "reported breakthrough times (comparison target)"
+    value: "~23.5 / ~64.8 min, separation window ~41.3 min (50/50, 298 K)"
+    unit: "min"
+    kind: "inventory"
+    note: "comparison target for the reproduced breakthrough experiment"
+    source_refs: ["INV-0501"]
+  - name: "328 K / diluted-mixture condition"
+    value: "composition inventoried from the paper/SI at execution"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0502", "AMB-0008"]
+  - name: "breakthrough unit processes"
+    value: "one per formally reported composition/temperature/cycle condition (INV-0503)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0503"]
+  - name: "A2 breakthrough parameters"
+    value: "registered per ASM-FDM-0511..0521 as applicable"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-FDM-0511", "ASM-FDM-0512", "ASM-FDM-0513", "ASM-FDM-0514", "ASM-FDM-0515", "ASM-FDM-0516", "ASM-FDM-0517", "ASM-FDM-0518", "ASM-FDM-0519", "ASM-FDM-0520", "ASM-FDM-0521"]
+  - name: "breakthrough tolerance band"
+    value: "ASM-A1-TOL-06"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-06"]
+  - name: "minimum independent batches"
+    value: "2"
+    unit: null
+    kind: "assumption"
+    note: "minimum n per ASM-A1-N-01; reported count resolved by GOAL-INV-001 (AMB-0011)"
+    source_refs: ["ASM-A1-N-01", "AMB-0011"]
+  - name: "breakthrough comparison protocol"
+    value: "ANL-050 breakthrough time and separation-window comparison"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-050"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-70"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0501", "INV-0502", "INV-0503", "INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0517", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+  evidence_refs: ["EV-INV-0501", "EV-INV-0502", "EV-INV-0503", "EV-INV-0511", "EV-INV-0512", "EV-INV-0513", "EV-INV-0514", "EV-INV-0515", "EV-INV-0516", "EV-INV-0517", "EV-INV-0518", "EV-INV-0519", "EV-INV-0520", "EV-INV-0521"]
+  assumption_refs: ["ASM-A1-N-01", "ASM-A1-TOL-06", "ASM-FDM-0511", "ASM-FDM-0512", "ASM-FDM-0513", "ASM-FDM-0514", "ASM-FDM-0515", "ASM-FDM-0516", "ASM-FDM-0517", "ASM-FDM-0518", "ASM-FDM-0519", "ASM-FDM-0520", "ASM-FDM-0521"]
+  resource_refs: ["RES-016", "RES-017"]
+  protocol_refs: ["ANL-050", "ANL-090"]
+  ambiguity_refs: ["AMB-0002", "AMB-0008", "AMB-0011"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-EXE-20", "GOAL-EXE-30"]
+  handoff_refs: ["GOAL-EXE-90"]

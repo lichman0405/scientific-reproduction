@@ -1,0 +1,253 @@
+# FDM-201 experiment execution package EXP-02: FDM-201 synthesis and
+# activation (Plan v1 phase "synthesis-and-activation", WP-20,
+# GOAL-EXE-20).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp02_synthesis_activation"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-20"
+goal_version: "v1"
+wp_id: "WP-20"
+run_id: "sr_run_fdm201_exp02_synthesis_activation"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the FDM-201 solvothermal synthesis and activation per the SI protocol (INV-0707..0714): reaction mixture preparation, solvothermal synthesis, isolation/wash, solvent exchange, activation, sample storage/handling, independent batch runs and process-level batch reproducibility analysis; deliver activated FDM-201 samples (independent batches) with batch records to GOAL-EXE-30/40/50/70."
+
+procedure:
+  - step: 1
+    id: "EXP02-S01"
+    title: "Read the SI synthesis/activation protocol"
+    action: "Read the SI synthesis and activation protocol (INV-0707..0714) from the GOAL-INV-004 protocol handoff and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+  - step: 2
+    id: "EXP02-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (raw-records/, batch-records/, sample-archive/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["raw-records/", "batch-records/", "sample-archive/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP02-S03"
+    title: "Check PyBC ligand lot input"
+    action: "Receive the PyBC ligand lots from GOAL-EXE-10 (EXP-01 handoff) and record lot ids and purity evidence in the run record."
+    inputs: ["../exp01-pybc-ligand/handoff/lot-records.yaml"]
+    outputs: ["run-records/ligand-lot-inputs.yaml"]
+    trace_refs: ["GOAL-EXE-10", "INV-0703"]
+  - step: 4
+    id: "EXP02-S04"
+    title: "Reaction mixture preparation"
+    action: "Prepare the reaction mixture exactly per the SI protocol (INV-0707): record reagent amounts, solvents and ratios."
+    inputs: ["run-records/ligand-lot-inputs.yaml"]
+    outputs: ["raw-records/reaction-mixture.yaml"]
+    trace_refs: ["INV-0707"]
+  - step: 5
+    id: "EXP02-S05"
+    title: "Solvothermal synthesis of FDM-201"
+    action: "Run the solvothermal synthesis per the SI protocol (INV-0708): vessel, temperature, duration; record the temperature log."
+    inputs: ["raw-records/reaction-mixture.yaml"]
+    outputs: ["raw-records/solvothermal-run.yaml"]
+    trace_refs: ["INV-0708"]
+  - step: 6
+    id: "EXP02-S06"
+    title: "Isolation / wash"
+    action: "Isolate and wash the material per the SI protocol (INV-0709); record yield and wash conditions."
+    inputs: ["raw-records/solvothermal-run.yaml"]
+    outputs: ["raw-records/isolation-wash.yaml"]
+    trace_refs: ["INV-0709"]
+  - step: 7
+    id: "EXP02-S07"
+    title: "Solvent exchange"
+    action: "Perform the solvent exchange per the SI protocol (INV-0710); record solvent sequence and exchange times."
+    inputs: ["raw-records/isolation-wash.yaml"]
+    outputs: ["raw-records/solvent-exchange.yaml"]
+    trace_refs: ["INV-0710"]
+  - step: 8
+    id: "EXP02-S08"
+    title: "Activation"
+    action: "Activate the material per the SI protocol (INV-0711): temperature, vacuum and duration are the SI values (AMB-0009); if the SI is silent, register the parameter as A2 in the assumption ledger (prevents pure strict classification)."
+    inputs: ["raw-records/solvent-exchange.yaml"]
+    outputs: ["raw-records/activation.yaml", "sample-archive/activated-batch-01/"]
+    trace_refs: ["INV-0711", "AMB-0009"]
+  - step: 9
+    id: "EXP02-S09"
+    title: "Sample storage / handling"
+    action: "Store and handle the activated samples per the SI protocol (INV-0712); record storage conditions (e.g. air/moisture sensitivity)."
+    inputs: ["sample-archive/activated-batch-01/"]
+    outputs: ["sample-archive/storage-record.yaml"]
+    trace_refs: ["INV-0712"]
+  - step: 10
+    id: "EXP02-S10"
+    title: "Independent batch synthesis runs"
+    action: "Repeat steps 4-9 for the second independent batch (minimum n = 2 per ASM-A1-N-01, INV-0713); store every batch's records under batch-records/."
+    inputs: ["raw-records/"]
+    outputs: ["batch-records/batch-02/", "sample-archive/activated-batch-02/"]
+    trace_refs: ["INV-0713", "ASM-A1-N-01"]
+  - step: 11
+    id: "EXP02-S11"
+    title: "Process-level batch reproducibility analysis"
+    action: "Write the per-lot records (yield, identity evidence, activation mass loss where reported) and the between-batch statistics per ANL-010: mean, standard deviation, range across n >= 2 batches."
+    inputs: ["batch-records/"]
+    outputs: ["batch-records/batch-statistics.yaml", "run-records/reproducibility.yaml"]
+    trace_refs: ["INV-0714", "ANL-010"]
+  - step: 12
+    id: "EXP02-S12"
+    title: "Handoff of activated samples"
+    action: "Write the sample archive manifest, batch records and deviation register into the handoff directory for GOAL-EXE-30/40/50/70."
+    inputs: ["sample-archive/", "batch-records/"]
+    outputs: ["handoff/exp02-handoff-manifest.yaml", "handoff/sample-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-30", "GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-70"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp02-synthesis-activation/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "sample-archive/activated-batch-01/"
+    - "sample-archive/activated-batch-02/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "run-records/ligand-lot-inputs.yaml"
+    - "run-records/reproducibility.yaml"
+    - "raw-records/reaction-mixture.yaml"
+    - "raw-records/solvothermal-run.yaml"
+    - "raw-records/isolation-wash.yaml"
+    - "raw-records/solvent-exchange.yaml"
+    - "raw-records/activation.yaml"
+    - "batch-records/batch-02/"
+    - "batch-records/batch-statistics.yaml"
+    - "sample-archive/storage-record.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp02-handoff-manifest.yaml"
+    - "handoff/sample-manifest.yaml"
+
+reagents:
+  - name: "Reagents and solvents for the FDM-201 synthesis"
+    specification: "Exact reagent list, amounts and ratios per the SI protocol (INV-0707, populated by GOAL-INV-004)"
+    trace_refs: ["INV-0707"]
+  - name: "PyBC ligand lots"
+    specification: "PyBC ligand lots from GOAL-EXE-10 with identity/purity evidence"
+    trace_refs: ["INV-0703", "GOAL-EXE-10"]
+
+instruments:
+  - name: "Synthesis and activation equipment"
+    description: "Solvothermal vessels, heating ovens, filtration/wash hardware, vacuum/activation line per the SI protocol"
+    resource_refs: ["RES-013"]
+
+critical_control_variables:
+  - name: "Reaction mixture composition"
+    value: "exactly per the SI protocol"
+    trace_refs: ["INV-0707"]
+  - name: "Solvothermal conditions"
+    value: "exactly per the SI protocol (temperature, duration, vessel)"
+    trace_refs: ["INV-0708"]
+  - name: "Activation parameters"
+    value: "SI values (temperature, vacuum, duration); if SI-silent, registered A2 per AMB-0009"
+    trace_refs: ["INV-0711", "AMB-0009"]
+  - name: "Independent batch identity"
+    value: "two independent batches (minimum n per ASM-A1-N-01); re-measuring one batch does not count as replication"
+    trace_refs: ["ASM-A1-N-01", "INV-0713"]
+  - name: "Sample storage conditions"
+    value: "per the SI protocol (INV-0712)"
+    trace_refs: ["INV-0712"]
+
+prohibited_changes:
+  - "Substituting reagents, solvents or PyBC ligand lots without a registered deviation"
+  - "Changing the reaction mixture ratios or solvothermal conditions from the SI protocol"
+  - "Skipping isolation/wash, solvent exchange or activation steps"
+  - "Treating a single batch as independent replication"
+  - "Silently substituting activation parameters not reported in the SI (A2 registration required)"
+  - "Deleting or cherry-picking failed runs from the run records"
+
+required_operator_records:
+  - "Actual quantities and conditions per step"
+  - "Reagent lot and grade"
+  - "Time/temperature logs (solvothermal and activation)"
+  - "Instrument ids and configurations"
+  - "Sample ids and labeling"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/sample-manifest.yaml"
+  - "handoff/exp02-handoff-manifest.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "Follow the laboratory safety rules and the safety data sheets of every reagent and solvent used"
+  - "Handle pressurized/vacuum glassware and heating equipment per the laboratory rules (RES-013 notes: equipment procurement and safety review at execution)"
+
+parameters:
+  - name: "minimum independent batches"
+    value: "2"
+    unit: null
+    kind: "assumption"
+    note: "independent batch synthesis runs per spec WP-20 (GOAL-EXE-20 AC-02); minimum n per ASM-A1-N-01"
+    source_refs: ["ASM-A1-N-01"]
+  - name: "reaction mixture preparation"
+    value: "exactly per the SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0707"]
+  - name: "solvothermal synthesis conditions"
+    value: "per the SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0708"]
+  - name: "isolation / wash protocol"
+    value: "per the SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0709"]
+  - name: "solvent exchange protocol"
+    value: "per the SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0710"]
+  - name: "activation parameters"
+    value: "SI values; A2 registration if SI-silent (AMB-0009)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0711", "AMB-0009"]
+  - name: "sample storage / handling"
+    value: "per the SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0712"]
+  - name: "independent batch count"
+    value: "minimum 2; reported count resolved by GOAL-INV-001 (AMB-0011)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0713", "AMB-0011"]
+  - name: "process reproducibility analysis"
+    value: "ANL-010 batch statistics"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0714", "ANL-010"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-20"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0707", "INV-0708", "INV-0709", "INV-0710", "INV-0711", "INV-0712", "INV-0713", "INV-0714"]
+  evidence_refs: ["EV-INV-0707", "EV-INV-0708", "EV-INV-0709", "EV-INV-0710", "EV-INV-0711", "EV-INV-0712", "EV-INV-0713", "EV-INV-0714"]
+  assumption_refs: ["ASM-A1-N-01"]
+  resource_refs: ["RES-013", "RES-017"]
+  protocol_refs: ["ANL-010"]
+  ambiguity_refs: ["AMB-0009", "AMB-0011"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-EXE-10"]
+  handoff_refs: ["GOAL-EXE-30", "GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-70"]

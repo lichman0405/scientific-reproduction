@@ -1,0 +1,301 @@
+# FDM-201 computation execution package CMP-03: GCMC adsorption
+# reproduction (Plan v1 computation branch phase "gcmc", WP-82,
+# GOAL-EXE-82).
+#
+# Slurm-oriented computation execution package per
+# schemas/lab-execution-package.schema.yaml (compute variant). Every
+# procedure step is an sbatch-shaped script with #SBATCH directives and
+# engineering planning defaults (A0, precedent ANL-060); cluster
+# partition, module names and the scientific tool invocation are
+# registered at execution by the Slurm-over-SSH adapter from the
+# inventoried software (RES-010) and compute access (RES-011) settings,
+# through the run-command.sh contract. Every scientific parameter
+# traces to the frozen FDM-201 data (INV-*, EV-*, ASM-*, RES-*, ANL-*,
+# AMB-*, sr_source_*).
+
+record_kind: benchmark_compute_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_cmp03_gcmc"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-82"
+goal_version: "v1"
+wp_id: "WP-82"
+run_id: "sr_run_fdm201_cmp03_gcmc"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the reported C3H6 and C2H4 GCMC adsorption simulations over all reported temperatures/pressures with the frozen model and the registered simulation settings: reproduce the C3H6 (INV-0606) and C2H4 (INV-0607) adsorption simulations, run the sampling/convergence analysis, and compare the simulated and experimental trends/data as formally reported (INV-0608, ANL-062); deliver GCMC uptake datasets with block uncertainties and the simulated-vs-experimental comparison to the closure process."
+
+compute:
+  scheduler: "slurm"
+  partition: "default"
+  partition_note: "A0 engineering planning default; the cluster-specific partition is selected by the Slurm-over-SSH adapter at submission from the compute access settings (RES-011)."
+  resource_requests:
+    nodes: 1
+    cpus_per_task: 16
+    mem_gb: 64
+    time: "48:00:00"
+    request_note: "A0 engineering planning defaults per ANL-060 precedent; the adapter may adjust sizes from the inventoried compute access (RES-011)."
+  modules:
+    - "simulation-code"
+    - "analysis-python"
+  modules_note: "logical module groups; the adapter maps each group to the concrete environment-module loads registered from the inventoried software (RES-010) at submission."
+  environment_contract: "At submission the adapter writes run-command.sh in the run workspace; every sbatch step executes './run-command.sh <step-id>'. run-command.sh performs the registered module loads and invokes the scientific tool command inventoried from RES-010 / INV-0605, so the package never invents software commands."
+  output_artifacts:
+    - "gcmc-datasets/"
+    - "block-uncertainties/"
+    - "comparison/"
+
+procedure:
+  - step: 1
+    id: "CMP03-S01"
+    title: "Read the GCMC protocol"
+    action: "Read the reported simulation settings (INV-0605..0608, via GOAL-INV-002; canonical GCMC method reference per INV-0009) and write the protocol reference into the run record."
+    inputs: ["run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0605", "INV-0606", "INV-0607", "INV-0608", "INV-0009"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-proto
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp03-01-%j.out
+      #SBATCH --error=logs/cmp03-01-%j.err
+
+      # A0 engineering planning defaults (ANL-060 precedent); partition
+      # and module specifics are supplied by the adapter at submission
+      # from the inventoried settings (RES-010, RES-011).
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s01
+  - step: 2
+    id: "CMP03-S02"
+    title: "Receive the frozen model"
+    action: "Receive the frozen simulation model from GOAL-EXE-80 (CMP-01 handoff) and record its manifest id in the run record."
+    inputs: ["../cmp01-model-construction/handoff/frozen-model-manifest.yaml"]
+    outputs: ["run-records/model-input.yaml"]
+    trace_refs: ["GOAL-EXE-80"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-model
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp03-02-%j.out
+      #SBATCH --error=logs/cmp03-02-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s02
+  - step: 3
+    id: "CMP03-S03"
+    title: "Register GCMC simulation settings"
+    action: "Register the GCMC settings (ensemble moves, cutoffs, tail corrections, temperature/pressure grid, atom types/charges/force-field settings per INV-0605) and the force-field choice (UFF per ASM-A1-FF-01; alternative per ASM-A1-FF-02); unresolved settings are registered as A2 per ASM-FDM-0605."
+    inputs: ["run-records/model-input.yaml"]
+    outputs: ["run-records/settings-registry.yaml"]
+    trace_refs: ["INV-0605", "ASM-A1-FF-01", "ASM-A1-FF-02", "ASM-FDM-0605", "AMB-0006"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-settings
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=02:00:00
+      #SBATCH --output=logs/cmp03-03-%j.out
+      #SBATCH --error=logs/cmp03-03-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s03
+  - step: 4
+    id: "CMP03-S04"
+    title: "C3H6 GCMC adsorption simulation"
+    action: "Run the C3H6 GCMC adsorption simulation over all reported temperatures/pressures (INV-0606); store the raw uptake trajectories under gcmc-datasets/."
+    inputs: ["run-records/settings-registry.yaml"]
+    outputs: ["gcmc-datasets/c3h6/"]
+    trace_refs: ["INV-0606", "INV-0301"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-c3h6
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=16
+      #SBATCH --mem=64G
+      #SBATCH --time=48:00:00
+      #SBATCH --output=logs/cmp03-04-%j.out
+      #SBATCH --error=logs/cmp03-04-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s04
+  - step: 5
+    id: "CMP03-S05"
+    title: "C2H4 GCMC adsorption simulation"
+    action: "Run the C2H4 GCMC adsorption simulation over all reported temperatures/pressures (INV-0607); store the raw uptake trajectories under gcmc-datasets/."
+    inputs: ["run-records/settings-registry.yaml"]
+    outputs: ["gcmc-datasets/c2h4/"]
+    trace_refs: ["INV-0607", "INV-0302"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-c2h4
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=16
+      #SBATCH --mem=64G
+      #SBATCH --time=48:00:00
+      #SBATCH --output=logs/cmp03-05-%j.out
+      #SBATCH --error=logs/cmp03-05-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s05
+  - step: 6
+    id: "CMP03-S06"
+    title: "Sampling / convergence analysis"
+    action: "Run the sampling/convergence analysis (block uncertainties, equilibration evidence) per ANL-062; store the block uncertainties and convergence records."
+    inputs: ["gcmc-datasets/"]
+    outputs: ["block-uncertainties/"]
+    trace_refs: ["ANL-062", "ASM-A1-TOL-08"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-conv
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=8
+      #SBATCH --mem=32G
+      #SBATCH --time=08:00:00
+      #SBATCH --output=logs/cmp03-06-%j.out
+      #SBATCH --error=logs/cmp03-06-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s06
+  - step: 7
+    id: "CMP03-S07"
+    title: "Simulated-vs-experimental comparison"
+    action: "Compare the simulated and experimental trends/data as formally reported (INV-0608, tolerance ASM-A1-TOL-08); the experimental single-component isotherms from GOAL-EXE-50 (INV-0301/0302) are informational inputs."
+    inputs: ["gcmc-datasets/", "block-uncertainties/", "../exp05-single-component-isotherms/handoff/isotherm-evidence-manifest.yaml"]
+    outputs: ["comparison/"]
+    trace_refs: ["INV-0608", "INV-0301", "INV-0302", "ASM-A1-TOL-08", "GOAL-EXE-50"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-compare
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=02:00:00
+      #SBATCH --output=logs/cmp03-07-%j.out
+      #SBATCH --error=logs/cmp03-07-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s07
+  - step: 8
+    id: "CMP03-S08"
+    title: "Handoff of GCMC evidence"
+    action: "Write the GCMC datasets, block uncertainties, comparison records and deviation register into the handoff directory for the closure process."
+    inputs: ["gcmc-datasets/", "block-uncertainties/", "comparison/"]
+    outputs: ["handoff/cmp03-handoff-manifest.yaml", "handoff/gcmc-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-90"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp03-handoff
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp03-08-%j.out
+      #SBATCH --error=logs/cmp03-08-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp03-s08
+
+required_return:
+  - "handoff/gcmc-evidence-manifest.yaml"
+  - "handoff/cmp03-handoff-manifest.yaml"
+  - "block-uncertainties/"
+  - "comparison/"
+
+filesystem:
+  workspace_root: "fdm201-lab/cmp03-gcmc/"
+  directories:
+    - "run-records/"
+    - "gcmc-datasets/c3h6/"
+    - "gcmc-datasets/c2h4/"
+    - "block-uncertainties/"
+    - "comparison/"
+    - "handoff/"
+    - "logs/"
+  files:
+    - "run-command.sh"
+    - "run-records/protocol-reference.yaml"
+    - "run-records/model-input.yaml"
+    - "run-records/settings-registry.yaml"
+    - "handoff/cmp03-handoff-manifest.yaml"
+    - "handoff/gcmc-evidence-manifest.yaml"
+
+parameters:
+  - name: "force field"
+    value: "UFF per ASM-A1-FF-01; alternative per ASM-A1-FF-02"
+    unit: null
+    kind: "assumption"
+    note: "canonical reference: Rappe et al. 1992 (INV-0009)"
+    source_refs: ["ASM-A1-FF-01", "ASM-A1-FF-02", "INV-0009"]
+  - name: "GCMC settings"
+    value: "registered per the inventoried settings (INV-0605); unresolved settings registered A2 per ASM-FDM-0605"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0605", "ASM-FDM-0605"]
+  - name: "C3H6 adsorption simulation"
+    value: "over all reported temperatures/pressures (INV-0606)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0606"]
+  - name: "C2H4 adsorption simulation"
+    value: "over all reported temperatures/pressures (INV-0607)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0607"]
+  - name: "simulated-vs-experimental comparison"
+    value: "as formally reported (INV-0608)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0608"]
+  - name: "experimental isotherm reference (informational)"
+    value: "180.5 cm3/g (C3H6) / 68.2 cm3/g (C2H4) at 298 K / 1 bar"
+    unit: "cm3/g"
+    kind: "inventory"
+    note: "informational experimental reference from GOAL-EXE-50"
+    source_refs: ["INV-0301", "INV-0302"]
+  - name: "GCMC tolerance band"
+    value: "ASM-A1-TOL-08"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-08"]
+  - name: "GCMC protocol"
+    value: "ANL-062 sampling/convergence and simulated-vs-experimental comparison"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-062"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-82"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0009", "INV-0301", "INV-0302", "INV-0605", "INV-0606", "INV-0607", "INV-0608"]
+  evidence_refs: ["EV-INV-0009", "EV-INV-0301", "EV-INV-0302", "EV-INV-0605", "EV-INV-0606", "EV-INV-0607", "EV-INV-0608"]
+  assumption_refs: ["ASM-A1-FF-01", "ASM-A1-FF-02", "ASM-A1-TOL-08", "ASM-FDM-0605"]
+  resource_refs: ["RES-010", "RES-011"]
+  protocol_refs: ["ANL-062"]
+  ambiguity_refs: ["AMB-0006"]
+  source_refs: ["sr_source_a52c59975078f26cac0e43df7c1c30ba", "sr_source_699dfcc7d671d18011b21893043b6f52", "sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-EXE-80"]
+  handoff_refs: ["GOAL-EXE-90"]

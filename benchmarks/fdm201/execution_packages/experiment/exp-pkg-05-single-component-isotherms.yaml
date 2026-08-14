@@ -1,0 +1,234 @@
+# FDM-201 experiment execution package EXP-05: single-component
+# isotherms (Plan v1 phase "single-component-isotherms", WP-50,
+# GOAL-EXE-50).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp05_single_component_isotherms"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-50"
+goal_version: "v1"
+wp_id: "WP-50"
+run_id: "sr_run_fdm201_exp05_single_component_isotherms"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the reported single-component adsorption isotherms of FDM-201: C3H6 and C2H4 isotherms at each reported temperature with the reported point grid and pressure range, desorption branch if formally reported, repeat/batch plan, and uptake comparison statistics; deliver the uptake comparison vs 180.5 cm3/g (C3H6, INV-0301) and 68.2 cm3/g (C2H4, INV-0302) at 298 K / 1 bar to GOAL-EXE-60/70 and the computation comparison (GOAL-EXE-82, informational)."
+
+procedure:
+  - step: 1
+    id: "EXP05-S01"
+    title: "Read the isotherm protocol"
+    action: "Read the reported isotherm conditions (INV-0301..0308, via GOAL-INV-001) and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0301", "INV-0302", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308"]
+  - step: 2
+    id: "EXP05-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (raw-records/, batch-records/, isotherm-data/, analysis/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["raw-records/", "batch-records/", "isotherm-data/", "analysis/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP05-S03"
+    title: "Activation QC before adsorption"
+    action: "Outgas/activate the sample before the run with conditions consistent with the activation protocol (INV-0206); record outgassing conditions."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["raw-records/activation-qc.yaml"]
+    trace_refs: ["INV-0206"]
+  - step: 4
+    id: "EXP05-S04"
+    title: "C3H6 isotherm at each reported temperature"
+    action: "Acquire the C3H6 adsorption isotherm at each reported temperature with the reported point grid and pressure range (INV-0303); store raw data under isotherm-data/."
+    inputs: ["raw-records/activation-qc.yaml"]
+    outputs: ["isotherm-data/c3h6/", "raw-records/c3h6-isotherms.yaml"]
+    trace_refs: ["INV-0303", "AMB-0003"]
+  - step: 5
+    id: "EXP05-S05"
+    title: "C2H4 isotherm at each reported temperature"
+    action: "Acquire the C2H4 adsorption isotherm at each reported temperature (INV-0304); store raw data under isotherm-data/."
+    inputs: ["raw-records/activation-qc.yaml"]
+    outputs: ["isotherm-data/c2h4/", "raw-records/c2h4-isotherms.yaml"]
+    trace_refs: ["INV-0304", "AMB-0003"]
+  - step: 6
+    id: "EXP05-S06"
+    title: "Additional reported temperatures (iff reported)"
+    action: "Acquire C3H6/C2H4 isotherms at every additional formally reported temperature (INV-0305); if none is reported, record the negative finding with the searched locations."
+    inputs: ["isotherm-data/c3h6/", "isotherm-data/c2h4/"]
+    outputs: ["isotherm-data/additional-temperatures/"]
+    trace_refs: ["INV-0305"]
+  - step: 7
+    id: "EXP05-S07"
+    title: "Desorption branch (iff formally reported)"
+    action: "Measure the desorption branch per the formally reported procedure (INV-0306); if not reported, record the negative finding."
+    inputs: ["isotherm-data/c3h6/", "isotherm-data/c2h4/"]
+    outputs: ["isotherm-data/desorption/"]
+    trace_refs: ["INV-0306"]
+  - step: 8
+    id: "EXP05-S08"
+    title: "Repeat / batch plan"
+    action: "Run the repeats and independent batches behind each isotherm per the repeat/batch plan (INV-0307, minimum n per ASM-A1-N-01); store every run's records under batch-records/."
+    inputs: ["isotherm-data/"]
+    outputs: ["batch-records/"]
+    trace_refs: ["INV-0307", "ASM-A1-N-01"]
+  - step: 9
+    id: "EXP05-S09"
+    title: "Uptake comparison statistics"
+    action: "Write the uptake comparison vs 180.5 cm3/g (C3H6, INV-0301, tolerance ASM-A1-TOL-01) and 68.2 cm3/g (C2H4, INV-0302, tolerance ASM-A1-TOL-01) at 298 K / 1 bar, with the batch-to-batch statistics per ANL-030 and the frozen-model fit per ASM-A1-FIT-01."
+    inputs: ["analysis/", "batch-records/"]
+    outputs: ["analysis/comparison.yaml", "batch-records/batch-statistics.yaml"]
+    trace_refs: ["INV-0301", "INV-0302", "INV-0308", "ASM-A1-TOL-01", "ASM-A1-FIT-01", "ANL-030"]
+  - step: 10
+    id: "EXP05-S10"
+    title: "Handoff of isotherm evidence"
+    action: "Write the isotherm records, raw data and deviation register into the handoff directory for GOAL-EXE-60/70 and the informational comparison with GOAL-EXE-82."
+    inputs: ["isotherm-data/", "analysis/"]
+    outputs: ["handoff/exp05-handoff-manifest.yaml", "handoff/isotherm-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-60", "GOAL-EXE-70", "GOAL-EXE-82"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp05-single-component-isotherms/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "isotherm-data/c3h6/"
+    - "isotherm-data/c2h4/"
+    - "isotherm-data/additional-temperatures/"
+    - "isotherm-data/desorption/"
+    - "analysis/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "raw-records/activation-qc.yaml"
+    - "raw-records/c3h6-isotherms.yaml"
+    - "raw-records/c2h4-isotherms.yaml"
+    - "analysis/comparison.yaml"
+    - "batch-records/batch-statistics.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp05-handoff-manifest.yaml"
+    - "handoff/isotherm-evidence-manifest.yaml"
+
+instruments:
+  - name: "Sorption analyzer"
+    description: "Gas sorption analyzer for single-component isotherm acquisition (INV-0303/0304)"
+    resource_refs: ["RES-015"]
+
+critical_control_variables:
+  - name: "Isotherm temperature and pressure grid"
+    value: "reported temperature(s), point grid and pressure range (INV-0303/0304)"
+    trace_refs: ["INV-0303", "INV-0304", "AMB-0003"]
+  - name: "Gas purity"
+    value: "reported gas purity/grades (RES-017)"
+    trace_refs: ["RES-017"]
+  - name: "Activation QC"
+    value: "outgassing consistent with the activation protocol (INV-0206)"
+    trace_refs: ["INV-0206"]
+  - name: "Repeat / batch plan"
+    value: "replicates and independent batches per the reported plan (INV-0307, ASM-A1-N-01)"
+    trace_refs: ["INV-0307", "ASM-A1-N-01"]
+  - name: "Uptake comparison conditions"
+    value: "298 K / 1 bar against 180.5 (C3H6) and 68.2 (C2H4) cm3/g"
+    trace_refs: ["INV-0301", "INV-0302"]
+
+prohibited_changes:
+  - "Changing the isotherm temperature, point grid or pressure range from the reported conditions"
+  - "Using a different uptake comparison point than 298 K / 1 bar without justification"
+  - "Treating a single run as independent replication"
+  - "Deleting or cherry-picking failed isotherms from the run records"
+  - "Substituting the gas purity/grade without a registered deviation"
+
+required_operator_records:
+  - "Outgassing conditions and times"
+  - "Sample masses before/after outgassing"
+  - "Instrument id and configuration"
+  - "Raw isotherm files per gas and temperature"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/isotherm-evidence-manifest.yaml"
+  - "handoff/exp05-handoff-manifest.yaml"
+  - "analysis/comparison.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "Follow the laboratory safety rules and the sorption instrument manual (RES-015 notes: sorption analyzer procurement and safety review at execution)"
+  - "Handle pressurized gas cylinders per the laboratory rules (RES-017)"
+
+parameters:
+  - name: "reported C3H6 uptake (comparison target)"
+    value: "180.5 cm3/g at 298 K / 1 bar"
+    unit: "cm3/g"
+    kind: "inventory"
+    note: "comparison target for the reproduced C3H6 uptake"
+    source_refs: ["INV-0301"]
+  - name: "reported C2H4 uptake (comparison target)"
+    value: "68.2 cm3/g at 298 K / 1 bar"
+    unit: "cm3/g"
+    kind: "inventory"
+    note: "comparison target for the reproduced C2H4 uptake"
+    source_refs: ["INV-0302"]
+  - name: "C3H6 isotherm protocol"
+    value: "reported temperature(s), point grid and pressure range"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0303"]
+  - name: "C2H4 isotherm protocol"
+    value: "reported temperature(s)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0304"]
+  - name: "additional reported temperatures"
+    value: "iff formally reported (INV-0305)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0305"]
+  - name: "desorption branch"
+    value: "iff formally reported (INV-0306)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0306"]
+  - name: "repeat / batch plan"
+    value: "per the reported plan (INV-0307); minimum n per ASM-A1-N-01"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0307", "ASM-A1-N-01"]
+  - name: "uptake tolerance band"
+    value: "ASM-A1-TOL-01"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-01"]
+  - name: "isotherm fit model"
+    value: "ASM-A1-FIT-01 frozen-model fit"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-FIT-01"]
+  - name: "uptake comparison protocol"
+    value: "ANL-030 acquisition and comparison statistics"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-030"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-50"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0301", "INV-0302", "INV-0303", "INV-0304", "INV-0305", "INV-0306", "INV-0307", "INV-0308"]
+  evidence_refs: ["EV-INV-0301", "EV-INV-0302", "EV-INV-0303", "EV-INV-0304", "EV-INV-0305", "EV-INV-0306", "EV-INV-0307", "EV-INV-0308"]
+  assumption_refs: ["ASM-A1-N-01", "ASM-A1-FIT-01", "ASM-A1-TOL-01"]
+  resource_refs: ["RES-015", "RES-017"]
+  protocol_refs: ["ANL-030"]
+  ambiguity_refs: ["AMB-0003"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-EXE-20", "GOAL-EXE-30"]
+  handoff_refs: ["GOAL-EXE-60", "GOAL-EXE-70", "GOAL-EXE-82"]

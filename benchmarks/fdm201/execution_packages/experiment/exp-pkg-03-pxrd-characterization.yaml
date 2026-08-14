@@ -1,0 +1,248 @@
+# FDM-201 experiment execution package EXP-03: structure and identity
+# verification (Plan v1 phase "structure-and-identity-verification",
+# WP-30, GOAL-EXE-30).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp03_pxrd_characterization"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-30"
+goal_version: "v1"
+wp_id: "WP-30"
+run_id: "sr_run_fdm201_exp03_pxrd_characterization"
+track: STRICT_REPRODUCTION
+objective: "Verify the structure and identity of every activated FDM-201 batch against the reported identity (cubic Fm-3m, a = 23.76 A, fcu topology, [Zn8SiO4] node, INV-0102) and the reference CIF: PXRD measurement per batch, phase analysis against the calculated pattern, TGA, any formally reported compositional/spectroscopic checks, stability PXRD under the formally reported conditions, and the structure/model comparison (INV-0109, ANL-020); deliver per-batch identity verdicts to GOAL-EXE-40/50/70."
+
+procedure:
+  - step: 1
+    id: "EXP03-S01"
+    title: "Read the identity/verification protocol"
+    action: "Read the reported structure/identity material (INV-0101..0109, reference CIF from GOAL-RES-003) and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0101", "INV-0102", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109"]
+  - step: 2
+    id: "EXP03-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (raw-records/, batch-records/, pxrd-data/, identity-evidence/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["raw-records/", "batch-records/", "pxrd-data/", "identity-evidence/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP03-S03"
+    title: "Sample selection for SCXRD (iff formally reported)"
+    action: "If single-crystal selection is formally reported and practically reproducible, follow INV-0103; otherwise record the negative finding (A1 default per ASM-CVR-AMB-0010-INV-0103)."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["raw-records/scxrd-selection.yaml"]
+    trace_refs: ["INV-0103", "ASM-CVR-AMB-0010-INV-0103", "AMB-0010"]
+  - step: 4
+    id: "EXP03-S04"
+    title: "PXRD measurement per independent batch"
+    action: "Measure PXRD for each independent batch (INV-0104) using the reported instrument settings; store raw scans under pxrd-data/."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["pxrd-data/", "raw-records/pxrd-measurements.yaml"]
+    trace_refs: ["INV-0104"]
+  - step: 5
+    id: "EXP03-S05"
+    title: "PXRD phase analysis"
+    action: "Analyze each PXRD pattern against the calculated pattern from the reference CIF (INV-0105); record peak positions and phase verdicts."
+    inputs: ["pxrd-data/"]
+    outputs: ["raw-records/pxrd-phase-analysis.yaml"]
+    trace_refs: ["INV-0105"]
+  - step: 6
+    id: "EXP03-S06"
+    title: "TGA"
+    action: "Run TGA per INV-0106 under the reported conditions (A1 default where the run condition is not reported, per ASM-CVR-AMB-0010-INV-0106); record mass-loss profiles."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["raw-records/tga.yaml"]
+    trace_refs: ["INV-0106", "ASM-CVR-AMB-0010-INV-0106", "AMB-0010"]
+  - step: 7
+    id: "EXP03-S07"
+    title: "Compositional / spectroscopic checks (iff formally reported)"
+    action: "Execute any formally reported spectroscopy or compositional characterization (INV-0107, e.g. elemental analysis, IR, NMR on the framework); if none is reported, record the negative finding."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["raw-records/compositional-checks.yaml"]
+    trace_refs: ["INV-0107"]
+  - step: 8
+    id: "EXP03-S08"
+    title: "Stability PXRD tests"
+    action: "Run the stability PXRD tests under every formally reported condition (INV-0108, e.g. solvent/water/thermal stability; A1 default per ASM-CVR-AMB-0010-INV-0108); store scans under pxrd-data/."
+    inputs: ["pxrd-data/"]
+    outputs: ["pxrd-data/stability/", "raw-records/stability-pxrd.yaml"]
+    trace_refs: ["INV-0108", "ASM-CVR-AMB-0010-INV-0108", "AMB-0010"]
+  - step: 9
+    id: "EXP03-S09"
+    title: "Structure / model comparison"
+    action: "Compare the measured pattern with the simulated or SCXRD-derived pattern (INV-0109) and write the comparison record (cell parameters vs a = 23.76 A, Fm-3m, fcu, [Zn8SiO4] node, INV-0102)."
+    inputs: ["pxrd-data/", "raw-records/pxrd-phase-analysis.yaml"]
+    outputs: ["raw-records/structure-comparison.yaml"]
+    trace_refs: ["INV-0109", "INV-0102", "ANL-020"]
+  - step: 10
+    id: "EXP03-S10"
+    title: "Per-batch identity verdicts"
+    action: "Write the per-batch identity verdicts per ANL-020 and the batch statistics across the independent batches (minimum n per ASM-A1-N-01); unresolved items are registered as A2 per AMB-0010."
+    inputs: ["raw-records/"]
+    outputs: ["batch-records/identity-verdicts.yaml", "batch-records/batch-statistics.yaml"]
+    trace_refs: ["ANL-020", "ASM-A1-N-01", "AMB-0010"]
+  - step: 11
+    id: "EXP03-S11"
+    title: "Handoff of identity acceptance evidence"
+    action: "Write the identity evidence, verdicts and deviation register into the handoff directory for GOAL-EXE-40/50/70."
+    inputs: ["identity-evidence/", "batch-records/"]
+    outputs: ["handoff/exp03-handoff-manifest.yaml", "handoff/identity-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-70"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp03-pxrd-characterization/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "pxrd-data/stability/"
+    - "identity-evidence/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "raw-records/scxrd-selection.yaml"
+    - "raw-records/pxrd-measurements.yaml"
+    - "raw-records/pxrd-phase-analysis.yaml"
+    - "raw-records/tga.yaml"
+    - "raw-records/compositional-checks.yaml"
+    - "raw-records/stability-pxrd.yaml"
+    - "raw-records/structure-comparison.yaml"
+    - "batch-records/identity-verdicts.yaml"
+    - "batch-records/batch-statistics.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp03-handoff-manifest.yaml"
+    - "handoff/identity-evidence-manifest.yaml"
+
+instruments:
+  - name: "Characterization instruments"
+    description: "PXRD diffractometer, TGA instrument and any compositional/spectroscopic instruments (INV-0104..0108)"
+    resource_refs: ["RES-014"]
+  - name: "Structure comparison software"
+    description: "Software for calculated-pattern generation and structure/model comparison (INV-0109)"
+    trace_refs: ["INV-0109"]
+
+critical_control_variables:
+  - name: "Identity target"
+    value: "cubic Fm-3m, a = 23.76 A, fcu topology, [Zn8SiO4] node (INV-0102); comparison against the reference CIF"
+    trace_refs: ["INV-0102"]
+  - name: "PXRD per independent batch"
+    value: "every independent batch measured (INV-0104); batch identity preserved"
+    trace_refs: ["INV-0104"]
+  - name: "PXRD instrument settings"
+    value: "reported settings; if not reported, A1 default per ASM-CVR-AMB-0010-INV-0103"
+    trace_refs: ["INV-0104", "AMB-0010"]
+  - name: "Phase analysis reference"
+    value: "calculated pattern from the reference CIF (INV-0105)"
+    trace_refs: ["INV-0105"]
+  - name: "Independent batch identity"
+    value: "identity verified per batch (minimum n per ASM-A1-N-01)"
+    trace_refs: ["ASM-A1-N-01"]
+  - name: "Stability test conditions"
+    value: "every formally reported condition (INV-0108)"
+    trace_refs: ["INV-0108"]
+
+prohibited_changes:
+  - "Replacing the measured PXRD pattern with a calculated or simulated one as if measured"
+  - "Changing the identity target (Fm-3m, a = 23.76 A) or comparison reference CIF"
+  - "Skipping the per-batch PXRD measurement or phase analysis"
+  - "Treating a single batch as independent replication"
+  - "Silently substituting stability test conditions not reported in the SI (A2 registration required)"
+  - "Deleting or cherry-picking failed runs from the run records"
+
+required_operator_records:
+  - "Instrument ids, settings and configurations"
+  - "Sample ids and batch labels"
+  - "Raw scan and TGA files with acquisition times"
+  - "Phase-analysis results per batch"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/identity-evidence-manifest.yaml"
+  - "handoff/exp03-handoff-manifest.yaml"
+  - "batch-records/identity-verdicts.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "Follow the laboratory safety rules and the instrument operating manuals (RES-014 notes: characterization equipment procurement and safety review at execution)"
+
+parameters:
+  - name: "identity target (cell, symmetry, topology, node)"
+    value: "cubic Fm-3m, a = 23.76 A, fcu topology, [Zn8SiO4] node"
+    unit: "A"
+    kind: "inventory"
+    note: "per the published abstract as recorded in the acquisition log"
+    source_refs: ["INV-0102"]
+  - name: "minimum independent batches"
+    value: "2"
+    unit: null
+    kind: "assumption"
+    note: "per-batch identity verification; minimum n per ASM-A1-N-01"
+    source_refs: ["ASM-A1-N-01"]
+  - name: "SCXRD selection (iff reported)"
+    value: "per INV-0103; A1 default otherwise"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0103", "ASM-CVR-AMB-0010-INV-0103", "AMB-0010"]
+  - name: "PXRD measurement per batch"
+    value: "per INV-0104 with reported settings"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0104"]
+  - name: "PXRD phase analysis"
+    value: "against the calculated pattern (INV-0105)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0105"]
+  - name: "TGA conditions"
+    value: "reported conditions; A1 default per ASM-CVR-AMB-0010-INV-0106"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0106", "ASM-CVR-AMB-0010-INV-0106"]
+  - name: "compositional / spectroscopic checks"
+    value: "every formally reported method (INV-0107)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0107"]
+  - name: "stability PXRD conditions"
+    value: "every formally reported condition (INV-0108); A1 default per ASM-CVR-AMB-0010-INV-0108"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0108", "ASM-CVR-AMB-0010-INV-0108"]
+  - name: "structure / model comparison"
+    value: "measured vs simulated or SCXRD-derived pattern (INV-0109, ANL-020)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0109", "ANL-020"]
+  - name: "identity acceptance protocol"
+    value: "ANL-020 per-batch verdicts and structure/model comparison"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-020"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-30"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0101", "INV-0102", "INV-0103", "INV-0104", "INV-0105", "INV-0106", "INV-0107", "INV-0108", "INV-0109"]
+  evidence_refs: ["EV-INV-0101", "EV-INV-0102", "EV-INV-0103", "EV-INV-0104", "EV-INV-0105", "EV-INV-0106", "EV-INV-0107", "EV-INV-0108", "EV-INV-0109"]
+  assumption_refs: ["ASM-A1-N-01", "ASM-CVR-AMB-0010-INV-0103", "ASM-CVR-AMB-0010-INV-0106", "ASM-CVR-AMB-0010-INV-0108"]
+  resource_refs: ["RES-014"]
+  protocol_refs: ["ANL-020"]
+  ambiguity_refs: ["AMB-0010"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae", "sr_source_68539272137098c373f56bdea1b106cd"]
+  upstream_refs: ["GOAL-EXE-20"]
+  handoff_refs: ["GOAL-EXE-40", "GOAL-EXE-50", "GOAL-EXE-70"]

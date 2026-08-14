@@ -1,0 +1,262 @@
+# FDM-201 computation execution package CMP-01: simulation model
+# construction (Plan v1 computation branch phase "model-construction",
+# WP-80, GOAL-EXE-80).
+#
+# Slurm-oriented computation execution package per
+# schemas/lab-execution-package.schema.yaml (compute variant). Every
+# procedure step is an sbatch-shaped script with #SBATCH directives and
+# engineering planning defaults (A0, precedent ANL-060); cluster
+# partition, module names and the scientific tool invocation are
+# registered at execution by the Slurm-over-SSH adapter from the
+# inventoried software (RES-010) and compute access (RES-011) settings,
+# through the run-command.sh contract. Every scientific parameter
+# traces to the frozen FDM-201 data (INV-*, EV-*, ASM-*, RES-*, ANL-*,
+# AMB-*, sr_source_*).
+
+record_kind: benchmark_compute_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_cmp01_model_construction"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-80"
+goal_version: "v1"
+wp_id: "WP-80"
+run_id: "sr_run_fdm201_cmp01_model_construction"
+track: STRICT_REPRODUCTION
+objective: "Construct and freeze the FDM-201 simulation model from the published CIF (GOAL-RES-003): acquire the CIF, resolve disorder/model choices, construct the simulation cell, verify geometry and pore access, reproduce any reported linker-rotation argument, and register all assumed atom types/charges/force-field settings (ASM-A1-FF-01, ASM-FDM-0605); deliver the frozen simulation model per the ANL-060 checklist to GOAL-EXE-81/82."
+
+compute:
+  scheduler: "slurm"
+  partition: "default"
+  partition_note: "A0 engineering planning default; the cluster-specific partition is selected by the Slurm-over-SSH adapter at submission from the compute access settings (RES-011)."
+  resource_requests:
+    nodes: 1
+    cpus_per_task: 4
+    mem_gb: 16
+    time: "04:00:00"
+    request_note: "A0 engineering planning defaults per ANL-060 precedent; the adapter may adjust sizes from the inventoried compute access (RES-011)."
+  modules:
+    - "cif-handling"
+    - "structure-toolkit"
+    - "simulation-code"
+  modules_note: "logical module groups; the adapter maps each group to the concrete environment-module loads registered from the inventoried software (RES-010) at submission."
+  environment_contract: "At submission the adapter writes run-command.sh in the run workspace; every sbatch step executes './run-command.sh <step-id>'. run-command.sh performs the registered module loads and invokes the scientific tool command inventoried from RES-010 / INV-0605, so the package never invents software commands."
+  output_artifacts:
+    - "frozen-model/"
+    - "checklist/"
+
+procedure:
+  - step: 1
+    id: "CMP01-S01"
+    title: "Acquire the published CIF"
+    action: "Acquire the published FDM-201 CIF (INV-0601) from the CIF source registered by GOAL-RES-003 and stage it in the run workspace."
+    inputs: ["cif-input/"]
+    outputs: ["frozen-model/fdm201.cif", "run-records/cif-acquisition.yaml"]
+    trace_refs: ["INV-0601", "ASM-CVR-AMB-0001-INV-0601"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp01-cif
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp01-01-%j.out
+      #SBATCH --error=logs/cmp01-01-%j.err
+
+      # A0 engineering planning defaults (ANL-060 precedent); partition
+      # and module specifics are supplied by the adapter at submission
+      # from the inventoried settings (RES-010, RES-011).
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp01-s01
+  - step: 2
+    id: "CMP01-S02"
+    title: "Resolve disorder / model choices"
+    action: "Resolve the disorder and model choices per the reported structure (cubic Fm-3m, a = 23.76 A, fcu topology, [Zn8SiO4] node, INV-0102/INV-0004); unresolved choices are registered as A2 per ASM-FDM-0605."
+    inputs: ["frozen-model/fdm201.cif"]
+    outputs: ["frozen-model/model-decisions.yaml", "run-records/disorder-resolution.yaml"]
+    trace_refs: ["INV-0102", "INV-0004", "AMB-0001"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp01-decisions
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp01-02-%j.out
+      #SBATCH --error=logs/cmp01-02-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp01-s02
+  - step: 3
+    id: "CMP01-S03"
+    title: "Construct the simulation cell"
+    action: "Construct the simulation cell (supercell, atom types, charges) per the resolved model and the registered force-field settings (ASM-A1-FF-01); register every assumed atom type/charge/force-field setting per INV-0605."
+    inputs: ["frozen-model/model-decisions.yaml"]
+    outputs: ["frozen-model/simulation-cell.cif", "frozen-model/force-field-registry.yaml"]
+    trace_refs: ["INV-0605", "ASM-A1-FF-01", "ASM-FDM-0605"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp01-cell
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=02:00:00
+      #SBATCH --output=logs/cmp01-03-%j.out
+      #SBATCH --error=logs/cmp01-03-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp01-s03
+  - step: 4
+    id: "CMP01-S04"
+    title: "Verify geometry and pore access"
+    action: "Verify the geometry and pore access of the constructed model (INV-0603); record the verification report and any adjustments."
+    inputs: ["frozen-model/simulation-cell.cif"]
+    outputs: ["frozen-model/geometry-report.yaml", "frozen-model/pore-access-report.yaml"]
+    trace_refs: ["INV-0603"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp01-verify
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=02:00:00
+      #SBATCH --output=logs/cmp01-04-%j.out
+      #SBATCH --error=logs/cmp01-04-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp01-s04
+  - step: 5
+    id: "CMP01-S05"
+    title: "Linker rotation argument (iff computationally reported)"
+    action: "Reproduce any reported linker rotation / dynamic pore argument (INV-0604); if none is reported, record the negative finding with the searched locations."
+    inputs: ["frozen-model/simulation-cell.cif"]
+    outputs: ["frozen-model/linker-rotation.yaml"]
+    trace_refs: ["INV-0604"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp01-linker
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=4
+      #SBATCH --mem=16G
+      #SBATCH --time=04:00:00
+      #SBATCH --output=logs/cmp01-05-%j.out
+      #SBATCH --error=logs/cmp01-05-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp01-s05
+  - step: 6
+    id: "CMP01-S06"
+    title: "Freeze the model per the ANL-060 checklist"
+    action: "Complete the ANL-060 simulation model construction checklist, freeze the model and write the checklist record; hand the frozen model to GOAL-EXE-81/82."
+    inputs: ["frozen-model/"]
+    outputs: ["checklist/anl-060-checklist.yaml", "frozen-model/frozen-model-manifest.yaml"]
+    trace_refs: ["ANL-060", "GOAL-EXE-81", "GOAL-EXE-82"]
+    sbatch_script: |
+      #!/bin/bash
+      #SBATCH --job-name=fdm201-cmp01-freeze
+      #SBATCH --nodes=1
+      #SBATCH --ntasks=1
+      #SBATCH --cpus-per-task=2
+      #SBATCH --mem=8G
+      #SBATCH --time=01:00:00
+      #SBATCH --output=logs/cmp01-06-%j.out
+      #SBATCH --error=logs/cmp01-06-%j.err
+
+      set -euo pipefail
+      cd "${SLURM_SUBMIT_DIR:-.}"
+      ./run-command.sh cmp01-s06
+
+required_return:
+  - "frozen-model/frozen-model-manifest.yaml"
+  - "checklist/anl-060-checklist.yaml"
+  - "frozen-model/force-field-registry.yaml"
+  - "run-records/disorder-resolution.yaml"
+
+filesystem:
+  workspace_root: "fdm201-lab/cmp01-model-construction/"
+  directories:
+    - "run-records/"
+    - "cif-input/"
+    - "frozen-model/"
+    - "checklist/"
+    - "logs/"
+  files:
+    - "run-command.sh"
+    - "run-records/cif-acquisition.yaml"
+    - "run-records/disorder-resolution.yaml"
+    - "frozen-model/fdm201.cif"
+    - "frozen-model/model-decisions.yaml"
+    - "frozen-model/simulation-cell.cif"
+    - "frozen-model/force-field-registry.yaml"
+    - "frozen-model/geometry-report.yaml"
+    - "frozen-model/pore-access-report.yaml"
+    - "frozen-model/linker-rotation.yaml"
+    - "frozen-model/frozen-model-manifest.yaml"
+    - "checklist/anl-060-checklist.yaml"
+
+parameters:
+  - name: "reference structure"
+    value: "cubic Fm-3m, a = 23.76 A, fcu topology, [Zn8SiO4] node"
+    unit: "A"
+    kind: "inventory"
+    note: "model target per the published abstract (INV-0102)"
+    source_refs: ["INV-0102"]
+  - name: "CIF source"
+    value: "published CIF via GOAL-RES-003; source location inventoried at execution (INV-0601, AMB-0001)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0601", "AMB-0001"]
+  - name: "force field"
+    value: "UFF per ASM-A1-FF-01 (canonical reference: Rappe et al. 1992, INV-0009)"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-FF-01", "INV-0009"]
+  - name: "atom types / charges / force-field settings"
+    value: "registered per the inventoried settings (INV-0605); unresolved choices registered A2 per ASM-FDM-0605"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0605", "ASM-FDM-0605"]
+  - name: "disorder resolution"
+    value: "A1 default per ASM-CVR-AMB-0001-INV-0004 where the report is silent"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-CVR-AMB-0001-INV-0004"]
+  - name: "geometry and pore access verification"
+    value: "per INV-0603"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0603"]
+  - name: "linker rotation argument"
+    value: "iff computationally reported (INV-0604)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0604"]
+  - name: "model construction protocol"
+    value: "ANL-060 checklist"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-060"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-80"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0004", "INV-0009", "INV-0102", "INV-0601", "INV-0602", "INV-0603", "INV-0604", "INV-0605"]
+  evidence_refs: ["EV-INV-0004", "EV-INV-0009", "EV-INV-0102", "EV-INV-0601", "EV-INV-0602", "EV-INV-0603", "EV-INV-0604", "EV-INV-0605"]
+  assumption_refs: ["ASM-A1-FF-01", "ASM-FDM-0605", "ASM-CVR-AMB-0001-INV-0004", "ASM-CVR-AMB-0001-INV-0601"]
+  resource_refs: ["RES-003", "RES-010", "RES-011"]
+  protocol_refs: ["ANL-060"]
+  ambiguity_refs: ["AMB-0001", "AMB-0006"]
+  source_refs: ["sr_source_68539272137098c373f56bdea1b106cd", "sr_source_699dfcc7d671d18011b21893043b6f52", "sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-RES-003", "GOAL-INV-002"]
+  handoff_refs: ["GOAL-EXE-81", "GOAL-EXE-82"]

@@ -1,0 +1,236 @@
+# FDM-201 experiment execution package EXP-04: porosity / N2 BET
+# (Plan v1 phase "porosity", WP-40, GOAL-EXE-40).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp04_porosity_n2_bet"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-40"
+goal_version: "v1"
+wp_id: "WP-40"
+run_id: "sr_run_fdm201_exp04_porosity_n2_bet"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the reported porosity of FDM-201: activation QC, N2 isotherm at the reported temperature, BET surface area with the paper's frozen selection rules, pore-size analysis with the reported method (NLDFT/QSDFT where reported), and independent-batch porosity statistics; deliver the BET comparison vs 1965 m2/g (INV-0201) and pore-size comparison vs 7.9 A / 13.0 A (INV-0202) to GOAL-EXE-60 and the closure process."
+
+procedure:
+  - step: 1
+    id: "EXP04-S01"
+    title: "Read the porosity protocol"
+    action: "Read the reported porosity conditions (INV-0201..0207, via GOAL-INV-001) and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0201", "INV-0202", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207"]
+  - step: 2
+    id: "EXP04-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (raw-records/, batch-records/, isotherm-data/, analysis/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["raw-records/", "batch-records/", "isotherm-data/", "analysis/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP04-S03"
+    title: "Activation QC before adsorption"
+    action: "Outgas/activate the sample before the run with conditions consistent with the activation protocol (INV-0206); record outgassing conditions in the raw record."
+    inputs: ["../exp02-synthesis-activation/handoff/sample-manifest.yaml"]
+    outputs: ["raw-records/activation-qc.yaml"]
+    trace_refs: ["INV-0206"]
+  - step: 4
+    id: "EXP04-S04"
+    title: "N2 isotherm acquisition"
+    action: "Acquire the N2 isotherm at the reported measurement temperature with the reported pressure range (INV-0203); store the raw isotherm under isotherm-data/."
+    inputs: ["raw-records/activation-qc.yaml"]
+    outputs: ["isotherm-data/n2-isotherms/", "raw-records/n2-isotherm.yaml"]
+    trace_refs: ["INV-0203", "AMB-0012"]
+  - step: 5
+    id: "EXP04-S05"
+    title: "BET analysis with frozen selection rules"
+    action: "Compute the BET surface area with the paper's frozen selection rules (relative-pressure range, correlation criteria, consistency checks, INV-0204; selection per ASM-A1-FIT-02); record the selection-rule trace and result."
+    inputs: ["isotherm-data/n2-isotherms/"]
+    outputs: ["analysis/bet.yaml"]
+    trace_refs: ["INV-0204", "ASM-A1-FIT-02", "ASM-A1-TOL-02", "AMB-0013"]
+  - step: 6
+    id: "EXP04-S06"
+    title: "Pore-size analysis"
+    action: "Analyze the pore-size distribution with the method actually reported (NLDFT/QSDFT model and kernel where reported, INV-0205; method per ASM-A1-FIT-03); record the kernel and model trace."
+    outputs: ["analysis/pore-size.yaml"]
+    trace_refs: ["INV-0205", "ASM-A1-FIT-03", "ASM-A1-TOL-03", "AMB-0014"]
+  - step: 7
+    id: "EXP04-S07"
+    title: "Independent batch porosity runs"
+    action: "Repeat steps 3-6 for the remaining independent batches (minimum n per ASM-A1-N-01, INV-0207); store every batch's records under batch-records/."
+    inputs: ["isotherm-data/n2-isotherms/"]
+    outputs: ["batch-records/"]
+    trace_refs: ["INV-0207", "ASM-A1-N-01"]
+  - step: 8
+    id: "EXP04-S08"
+    title: "Porosity comparison and statistics"
+    action: "Write the BET comparison vs 1965 m2/g (INV-0201, tolerance ASM-A1-TOL-02) and the pore-size comparison vs 7.9 A / 13.0 A (INV-0202, tolerance ASM-A1-TOL-03), with the batch statistics per ANL-090."
+    inputs: ["analysis/", "batch-records/"]
+    outputs: ["analysis/comparison.yaml", "batch-records/batch-statistics.yaml"]
+    trace_refs: ["INV-0201", "INV-0202", "ASM-A1-TOL-02", "ASM-A1-TOL-03", "ANL-090"]
+  - step: 9
+    id: "EXP04-S09"
+    title: "Handoff of porosity evidence"
+    action: "Write the porosity records, isotherms and deviation register into the handoff directory for GOAL-EXE-60 and the closure process."
+    inputs: ["analysis/", "isotherm-data/"]
+    outputs: ["handoff/exp04-handoff-manifest.yaml", "handoff/porosity-evidence-manifest.yaml"]
+    trace_refs: ["GOAL-EXE-60", "GOAL-EXE-90"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp04-porosity-n2-bet/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "isotherm-data/n2-isotherms/"
+    - "analysis/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "raw-records/activation-qc.yaml"
+    - "raw-records/n2-isotherm.yaml"
+    - "analysis/bet.yaml"
+    - "analysis/pore-size.yaml"
+    - "analysis/comparison.yaml"
+    - "batch-records/batch-statistics.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp04-handoff-manifest.yaml"
+    - "handoff/porosity-evidence-manifest.yaml"
+
+instruments:
+  - name: "Sorption analyzer"
+    description: "Gas sorption analyzer for N2 isotherm acquisition (INV-0203)"
+    resource_refs: ["RES-015"]
+  - name: "Analysis software"
+    description: "BET and pore-size analysis software (selection rules per INV-0204/0205)"
+    trace_refs: ["INV-0204", "INV-0205"]
+
+critical_control_variables:
+  - name: "Activation QC conditions"
+    value: "outgassing conditions consistent with the activation protocol (INV-0206)"
+    trace_refs: ["INV-0206"]
+  - name: "N2 measurement conditions"
+    value: "reported temperature and pressure range (INV-0203)"
+    trace_refs: ["INV-0203", "AMB-0012"]
+  - name: "BET selection rules"
+    value: "the paper's frozen selection rules (INV-0204, ASM-A1-FIT-02); no ad-hoc relative-pressure window"
+    trace_refs: ["INV-0204", "ASM-A1-FIT-02"]
+  - name: "Pore-size method"
+    value: "the method actually reported (INV-0205, ASM-A1-FIT-03)"
+    trace_refs: ["INV-0205", "ASM-A1-FIT-03"]
+  - name: "Independent batch identity"
+    value: "porosity measured per independent batch (minimum n per ASM-A1-N-01, INV-0207)"
+    trace_refs: ["ASM-A1-N-01", "INV-0207"]
+
+prohibited_changes:
+  - "Choosing the BET relative-pressure window ad hoc instead of the frozen selection rules"
+  - "Swapping the pore-size model/kernel without a registered deviation"
+  - "Changing the N2 measurement temperature or pressure range from the reported conditions"
+  - "Treating a single batch as independent replication"
+  - "Deleting or cherry-picking failed isotherms from the run records"
+
+required_operator_records:
+  - "Outgassing conditions and times"
+  - "Sample masses before/after outgassing"
+  - "Instrument id and configuration"
+  - "Raw isotherm files"
+  - "BET selection-rule trace"
+  - "Pore-size model/kernel"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/porosity-evidence-manifest.yaml"
+  - "handoff/exp04-handoff-manifest.yaml"
+  - "analysis/bet.yaml"
+  - "analysis/pore-size.yaml"
+  - "analysis/comparison.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "Follow the laboratory safety rules and the sorption instrument manual (RES-015 notes: sorption analyzer procurement and safety review at execution)"
+  - "Handle cryogenic coolant per the laboratory rules"
+
+parameters:
+  - name: "reported BET surface area (comparison target)"
+    value: "1965 m2/g"
+    unit: "m2/g"
+    kind: "inventory"
+    note: "comparison target for the reproduced BET surface area"
+    source_refs: ["INV-0201"]
+  - name: "reported pore sizes (comparison target)"
+    value: "7.9 A and 13.0 A"
+    unit: "A"
+    kind: "inventory"
+    note: "comparison target for the reproduced pore-size distribution"
+    source_refs: ["INV-0202"]
+  - name: "N2 isotherm conditions"
+    value: "reported temperature and pressure range"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0203", "AMB-0012"]
+  - name: "BET selection rules"
+    value: "the paper's frozen selection rules"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0204"]
+  - name: "BET fit model"
+    value: "ASM-A1-FIT-02 default"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-FIT-02"]
+  - name: "BET tolerance band"
+    value: "ASM-A1-TOL-02"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-02"]
+  - name: "pore-size analysis method"
+    value: "the method actually reported (NLDFT/QSDFT model and kernel)"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0205"]
+  - name: "pore-size model"
+    value: "ASM-A1-FIT-03 default"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-FIT-03"]
+  - name: "pore-size tolerance band"
+    value: "ASM-A1-TOL-03"
+    unit: null
+    kind: "assumption"
+    source_refs: ["ASM-A1-TOL-03"]
+  - name: "minimum independent batches"
+    value: "2"
+    unit: null
+    kind: "assumption"
+    note: "independent-batch porosity statistics; minimum n per ASM-A1-N-01; reported count resolved by GOAL-INV-001 (AMB-0011)"
+    source_refs: ["ASM-A1-N-01", "INV-0207", "AMB-0011"]
+  - name: "porosity statistics protocol"
+    value: "ANL-090 batch statistics"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-090"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-40"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0201", "INV-0202", "INV-0203", "INV-0204", "INV-0205", "INV-0206", "INV-0207"]
+  evidence_refs: ["EV-INV-0201", "EV-INV-0202", "EV-INV-0203", "EV-INV-0204", "EV-INV-0205", "EV-INV-0206", "EV-INV-0207"]
+  assumption_refs: ["ASM-A1-N-01", "ASM-A1-FIT-02", "ASM-A1-FIT-03", "ASM-A1-TOL-02", "ASM-A1-TOL-03"]
+  resource_refs: ["RES-015", "RES-012"]
+  protocol_refs: ["ANL-090"]
+  ambiguity_refs: ["AMB-0011", "AMB-0012", "AMB-0013", "AMB-0014"]
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+  upstream_refs: ["GOAL-EXE-20"]
+  handoff_refs: ["GOAL-EXE-60", "GOAL-EXE-90"]

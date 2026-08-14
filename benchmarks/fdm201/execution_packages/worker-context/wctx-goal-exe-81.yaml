@@ -1,0 +1,44 @@
+# FDM-201 worker-context package: GOAL-EXE-81 (binding-site and static
+# binding-energy reproduction, WP-81).
+#
+# Context a worker needs to execute GOAL-EXE-81 without unrelated
+# project context, per schemas/worker-context.schema.yaml. The
+# referenced goal/assumption/parameter/protocol ids resolve to the
+# frozen FDM-201 benchmark data.
+
+record_kind: benchmark_worker_context_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+context_id: "sr_wctx_fdm201_goal_exe_81"
+worker_role: computation_worker
+goal_id: "GOAL-EXE-81"
+goal_version: "v1"
+run_id: null
+context_hash: null
+execution_package_refs: ["sr_package_fdm201_cmp02_binding_energy"]
+source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+evidence_refs: ["EV-INV-0407", "EV-INV-0408", "EV-INV-0409", "EV-INV-0609", "EV-INV-0610", "EV-INV-0611"]
+upstream_result_refs: ["GOAL-EXE-80"]
+protocol_refs: ["ANL-061"]
+resource_refs: ["RES-010", "RES-011"]
+assumption_refs: ["ASM-A1-TOL-07", "ASM-CVR-AMB-0007-INV-0409", "ASM-CVR-AMB-0007-INV-0611"]
+ambiguity_refs: ["AMB-0007"]
+environment:
+  runtime: "Slurm-over-SSH computation runner"
+  workspace_root: "fdm201-lab/cmp02-binding-energy/"
+  records: "run-records/ binding-energies/ convergence-evidence/ comparison-verdicts/ logs/"
+  job_contract: "run-command.sh executed by every sbatch step; module loads and tool command registered by the adapter from RES-010/INV-0605"
+required_outputs:
+  - "handoff/binding-energy-evidence-manifest.yaml"
+  - "handoff/cmp02-handoff-manifest.yaml"
+  - "run-records/comparison.yaml"
+  - "convergence-evidence/"
+allowed_actions:
+  - "submit the sbatch steps of the linked execution package"
+  - "read the inputs listed in the linked execution package"
+  - "write records only under the package workspace"
+  - "register every deviation in the deviation register"
+forbidden_actions:
+  - "modify frozen benchmark data outside the package workspace"
+  - "change electronic-structure settings without a registered deviation"
+  - "access resources outside the linked execution package"
+  - "delete or cherry-pick run records"

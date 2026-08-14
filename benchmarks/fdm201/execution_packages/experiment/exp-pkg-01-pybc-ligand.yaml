@@ -1,0 +1,238 @@
+# FDM-201 experiment execution package EXP-01: PyBC ligand / precursor
+# reproduction (Plan v1 phase "synthesis-and-activation", WP-10,
+# GOAL-EXE-10).
+#
+# Lab-filesystem oriented execution package per
+# schemas/lab-execution-package.schema.yaml. The procedure is a plan of
+# steps a lab filesystem protocol runner can execute; the filesystem
+# block declares the workspace directories and files the steps create.
+# Every scientific parameter traces to the frozen FDM-201 data
+# (inventory items INV-*, evidence records EV-*, assumptions ASM-*,
+# resources RES-*, protocols ANL-*, ambiguities AMB-*) in the
+# "parameters" and "traceability" sections.
+
+record_kind: benchmark_lab_execution_package
+$schema: "https://json-schema.org/draft/2020-12/schema"
+package_id: "sr_package_fdm201_exp01_pybc_ligand"
+project_id: "sr_project_fdm201"
+benchmark_id: "fdm201"
+plan_id: "sr_plan_fdm201_v1"
+goal_id: "GOAL-EXE-10"
+goal_version: "v1"
+wp_id: "WP-10"
+run_id: "sr_run_fdm201_exp01_pybc_ligand"
+track: STRICT_REPRODUCTION
+objective: "Reproduce the ligand/precursor chemistry per the SI protocol (INV-0701..0706): ligand precursor synthesis and purification, PyBC synthesis, PyBC purification, PyBC identity/purity characterization, and any reported precursor/control synthesis; deliver PyBC ligand lots with identity/purity evidence as an independent input to GOAL-EXE-20."
+
+procedure:
+  - step: 1
+    id: "EXP01-S01"
+    title: "Read the SI synthesis protocol"
+    action: "Read the SI synthesis protocol for the ligand/precursor unit processes (INV-0701..0706) from the GOAL-INV-004 protocol handoff and write the protocol reference into the run record."
+    inputs: ["protocol-handoff/", "run-records/"]
+    outputs: ["run-records/protocol-reference.yaml"]
+    trace_refs: ["INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706"]
+  - step: 2
+    id: "EXP01-S02"
+    title: "Create the run workspace"
+    action: "Create the run workspace directories (raw-records/, batch-records/, identity-evidence/, handoff/) and initialize the deviation register."
+    inputs: []
+    outputs: ["raw-records/", "batch-records/", "identity-evidence/", "handoff/", "deviation-register.yaml"]
+  - step: 3
+    id: "EXP01-S03"
+    title: "Ligand precursor synthesis step 1"
+    action: "Execute the ligand precursor synthesis step 1 exactly per the SI protocol (INV-0701): record reagent quantities, lot numbers, temperature and duration in the raw record."
+    inputs: ["run-records/protocol-reference.yaml"]
+    outputs: ["raw-records/precursor-step1.yaml"]
+    trace_refs: ["INV-0701"]
+  - step: 4
+    id: "EXP01-S04"
+    title: "Ligand precursor purification / identity check"
+    action: "Purify the ligand precursor and run the identity check per the SI protocol (INV-0702); record yield and identity-check result."
+    inputs: ["raw-records/precursor-step1.yaml"]
+    outputs: ["raw-records/precursor-purification.yaml"]
+    trace_refs: ["INV-0702"]
+  - step: 5
+    id: "EXP01-S05"
+    title: "PyBC ligand synthesis"
+    action: "Synthesize the PyBC ligand per the SI protocol (INV-0703); record quantities, conditions and any deviation in the deviation register."
+    inputs: ["raw-records/precursor-purification.yaml"]
+    outputs: ["raw-records/pybc-synthesis.yaml"]
+    trace_refs: ["INV-0703"]
+  - step: 6
+    id: "EXP01-S06"
+    title: "PyBC purification"
+    action: "Purify the PyBC ligand per the SI protocol (INV-0704); record yield and purification conditions."
+    inputs: ["raw-records/pybc-synthesis.yaml"]
+    outputs: ["raw-records/pybc-purification.yaml"]
+    trace_refs: ["INV-0704"]
+  - step: 7
+    id: "EXP01-S07"
+    title: "PyBC identity / purity characterization"
+    action: "Characterize the PyBC ligand identity and purity with the method reported in the SI (INV-0705); store the raw instrument files under identity-evidence/."
+    inputs: ["raw-records/pybc-purification.yaml"]
+    outputs: ["identity-evidence/pybc-characterization/", "raw-records/pybc-identity.yaml"]
+    trace_refs: ["INV-0705"]
+  - step: 8
+    id: "EXP01-S08"
+    title: "Precursor / control synthesis (iff reported)"
+    action: "Execute any formally reported precursor/control synthesis (INV-0706) per the SI protocol; if none is reported, record the negative finding with the searched locations."
+    inputs: ["run-records/protocol-reference.yaml"]
+    outputs: ["raw-records/precursor-control.yaml"]
+    trace_refs: ["INV-0706"]
+  - step: 9
+    id: "EXP01-S09"
+    title: "Independent batch records"
+    action: "Repeat steps 3-8 for the second independent batch (minimum n = 2 per ASM-A1-N-01); store every batch's records under batch-records/."
+    inputs: ["raw-records/"]
+    outputs: ["batch-records/batch-02/"]
+    trace_refs: ["ASM-A1-N-01"]
+  - step: 10
+    id: "EXP01-S10"
+    title: "Process-level reproducibility record"
+    action: "Assemble per-lot yield and identity evidence and write the batch statistics record per ANL-010 (mean, standard deviation, range across n >= 2 batches)."
+    inputs: ["batch-records/"]
+    outputs: ["batch-records/batch-statistics.yaml", "run-records/reproducibility.yaml"]
+    trace_refs: ["ANL-010"]
+  - step: 11
+    id: "EXP01-S11"
+    title: "Handoff to GOAL-EXE-20"
+    action: "Write the lot records with purity and the deviation register into the handoff directory for GOAL-EXE-20 (FDM-201 synthesis and activation)."
+    inputs: ["batch-records/", "identity-evidence/"]
+    outputs: ["handoff/exp01-handoff-manifest.yaml", "handoff/lot-records.yaml"]
+    trace_refs: ["GOAL-EXE-20"]
+
+filesystem:
+  workspace_root: "fdm201-lab/exp01-pybc-ligand/"
+  directories:
+    - "run-records/"
+    - "raw-records/"
+    - "batch-records/"
+    - "identity-evidence/pybc-characterization/"
+    - "handoff/"
+  files:
+    - "run-records/protocol-reference.yaml"
+    - "run-records/reproducibility.yaml"
+    - "raw-records/precursor-step1.yaml"
+    - "raw-records/precursor-purification.yaml"
+    - "raw-records/pybc-synthesis.yaml"
+    - "raw-records/pybc-purification.yaml"
+    - "raw-records/pybc-identity.yaml"
+    - "raw-records/precursor-control.yaml"
+    - "batch-records/batch-02/"
+    - "batch-records/batch-statistics.yaml"
+    - "deviation-register.yaml"
+    - "handoff/exp01-handoff-manifest.yaml"
+    - "handoff/lot-records.yaml"
+
+reagents:
+  - name: "Reagents and solvents for the ligand/precursor chemistry"
+    specification: "Exact reagent list, amounts and grades per the SI synthesis protocol (INV-0701..0706, populated by GOAL-INV-004)"
+    trace_refs: ["INV-0701", "INV-0702", "INV-0703", "INV-0704"]
+
+instruments:
+  - name: "Synthesis and activation equipment"
+    description: "Schlenk/glovebox hardware, glassware, heating and stirring apparatus per the SI protocol"
+    resource_refs: ["RES-013"]
+  - name: "Characterization instruments for identity/purity"
+    description: "Instruments for the reported identity/purity characterization method of the PyBC ligand (INV-0705), e.g. NMR/MS or elemental analysis per the SI"
+    trace_refs: ["INV-0705"]
+
+critical_control_variables:
+  - name: "Reaction stoichiometry"
+    value: "exactly per the SI protocol"
+    trace_refs: ["INV-0701", "INV-0703"]
+  - name: "Reaction temperature and duration"
+    value: "exactly per the SI protocol"
+    trace_refs: ["INV-0701", "INV-0703"]
+  - name: "Atmosphere / moisture control"
+    value: "per the SI protocol (inert atmosphere where specified)"
+    trace_refs: ["INV-0701"]
+  - name: "Independent batch identity"
+    value: "two independent batches (minimum n per ASM-A1-N-01); re-measuring one batch does not count as replication"
+    trace_refs: ["ASM-A1-N-01"]
+  - name: "Identity/purity acceptance"
+    value: "PyBC identity/purity evidence matches the reported characterization method (INV-0705) or a deviation is registered"
+    trace_refs: ["INV-0705"]
+
+prohibited_changes:
+  - "Substituting reagents or solvents with different grades or suppliers without a registered deviation"
+  - "Changing stoichiometry, temperature or duration from the SI protocol"
+  - "Skipping the purification or identity-check steps"
+  - "Treating a single batch as independent replication"
+  - "Deleting or cherry-picking failed runs from the run records"
+
+required_operator_records:
+  - "Actual quantities and conditions per step"
+  - "Reagent lot and grade"
+  - "Time/temperature logs"
+  - "Instrument id and configuration"
+  - "Sample ids and labeling"
+  - "All deviations from the protocol"
+  - "Failures/interruptions"
+
+required_return:
+  - "handoff/lot-records.yaml"
+  - "handoff/exp01-handoff-manifest.yaml"
+  - "batch-records/batch-statistics.yaml"
+  - "deviation-register.yaml"
+
+safety_notes:
+  - "Follow the laboratory safety rules and the safety data sheets of every reagent used"
+  - "Use the ventilation/safety equipment required by the protocol (RES-013 notes: synthesis equipment procurement and safety review at execution)"
+
+parameters:
+  - name: "minimum independent batches"
+    value: "2"
+    unit: null
+    kind: "assumption"
+    note: "independent batch logic per spec WP-10 (GOAL-EXE-10 AC-02); minimum n per ASM-A1-N-01"
+    source_refs: ["ASM-A1-N-01"]
+  - name: "ligand precursor synthesis step 1 protocol"
+    value: "per SI protocol"
+    unit: null
+    kind: "inventory"
+    note: "exact steps in the ESI; populated by GOAL-INV-004"
+    source_refs: ["INV-0701"]
+  - name: "ligand precursor purification / identity check protocol"
+    value: "per SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0702"]
+  - name: "PyBC synthesis protocol"
+    value: "per SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0703"]
+  - name: "PyBC purification protocol"
+    value: "per SI protocol"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0704"]
+  - name: "PyBC identity / purity characterization method"
+    value: "the method reported in the SI"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0705"]
+  - name: "precursor / control synthesis existence"
+    value: "iff formally reported"
+    unit: null
+    kind: "inventory"
+    source_refs: ["INV-0706"]
+  - name: "process reproducibility protocol"
+    value: "ANL-010 batch statistics across n >= 2"
+    unit: null
+    kind: "protocol"
+    source_refs: ["ANL-010"]
+
+traceability:
+  goal_refs: ["GOAL-EXE-10"]
+  plan_ref: "sr_plan_fdm201_v1"
+  inventory_refs: ["INV-0701", "INV-0702", "INV-0703", "INV-0704", "INV-0705", "INV-0706"]
+  evidence_refs: ["EV-INV-0701", "EV-INV-0702", "EV-INV-0703", "EV-INV-0704", "EV-INV-0705", "EV-INV-0706"]
+  assumption_refs: ["ASM-A1-N-01"]
+  resource_refs: ["RES-013", "RES-017"]
+  protocol_refs: ["ANL-010"]
+  ambiguity_refs: []
+  source_refs: ["sr_source_86450d48aa337786cad25c306944daae"]
+  handoff_refs: ["GOAL-EXE-20"]
