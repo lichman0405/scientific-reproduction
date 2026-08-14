@@ -8,9 +8,21 @@ milestones:
         spec index, ADR template verified.
     accepted_at: '2026-08-13'
   M1:
-    status: IN_PROGRESS
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M2
+      - M3
+      evidence: >-
+        All 6 M1 goals MERGED with PASS reviews and CI green (PRs 6, 7, 9,
+        10, 11, 12); normative core object models validate and serialize
+        (core/models, core/schema_validation against the frozen schemas),
+        Filesystem StateBackend passes atomic-write, failure-injection
+        recovery, lease and event-journal tests (core/state_backend,
+        core/atomic, core/leases, core/events), no SQLite/PostgreSQL
+        dependency introduced (stdlib-only runtime). Regression: full
+        suite green + ruff/mypy clean at closure.
+    accepted_at: '2026-08-13'
   M10:
     status: PASS
     gate:
@@ -44,42 +56,146 @@ milestones:
         ruff/mypy/contracts clean.
     accepted_at: '2026-08-14'
   M12:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M13
+      evidence: >-
+        All 7 M12 goals MERGED with PASS reviews and CI green (PRs 70-76);
+        the FDM-201 one-paper benchmark is fully materialized: 82-item
+        inventory with the 82/82 mapping audit (coverage 1.0 PASS,
+        AUD-FDM201-PLAN-V1, 14 ambiguity resolutions), Plan v1 FROZEN at
+        2026-08-14T00:00:00Z (20 goals, 82 requirements, 17 resources, 46
+        assumptions, 10 analysis protocols, 4 closure contracts, 82
+        evidence records), 20 execution packages (7 experiment + 3
+        computation + 10 worker-context) all validating 20/20, scenarios
+        A-J as 115 deterministic scenario tests (strict success,
+        recovery success, not-reproduced closure, inconclusive, engineering
+        slurm failure, DFT convergence/supervisor review, monitor crash,
+        delayed lab result, missing parameter, plan-freeze blocked), and
+        the benchmark acceptance suite (50 tests: planning benchmark 100%
+        with real gates, scenario-suite fixture pinning, reload/audit
+        determinism). Regression: full suite 3113 passed at M12 closure
+        (3063 baseline + 50 new), ruff/mypy clean, package validator
+        20/20. Milestone acceptance met; unlocks M13.
+    accepted_at: '2026-08-14'
   M13:
     status: NOT_STARTED
     gate: null
     accepted_at: null
   M2:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M4
+      - M5
+      - M7
+      - M9
+      evidence: >-
+        All 8 M2 goals MERGED with PASS reviews and CI green (PRs 13, 14,
+        16, 17, 19, 20, 21, 22); lifecycle/transition engine rejects
+        illegal scientific shortcut transitions (core/transitions,
+        core/rules/lifecycle), closure contract evaluator (R-CLOSE-*),
+        outcome aggregation (R-REQOUT-*, R-PRJ-*), dependency, evidence,
+        criticality and assumption rules auditable with rule ids
+        (core/rules/*); all deterministic tests.
+    accepted_at: '2026-08-13'
   M3:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M4
+      - M12
+      evidence: >-
+        All 3 M3 goals MERGED with PASS reviews and CI green (PRs 8, 15,
+        18; G02 includes the CI toolchain fix that restored the lint gate);
+        research request/evidence machinery (research/requests,
+        research/evidence, adapters/research) with rule-gated evidence
+        admission and registries.
+    accepted_at: '2026-08-13'
   M4:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M6
+      - M9
+      - M11
+      - M12
+      evidence: >-
+        All 6 M4 goals MERGED with PASS reviews and CI green (PRs 24, 27,
+        30, 32, 34, 35); worker roles/contexts (workers/context), role
+        permissions matrix (workers/permissions, core/permissions),
+        retry dispatcher with recording backoff (workers/retry), run
+        results registry (workers/results), credential non-persistence
+        contract per AC.
+    accepted_at: '2026-08-13'
   M5:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M6
+      - M11
+      - M12
+      evidence: >-
+        All 6 M5 goals MERGED with PASS reviews and CI green (PRs 23, 25,
+        26, 28, 29, 31); FilesystemLabAdapter with manifest handling and
+        the external handoff boundary (adapters/lab: base, filesystem,
+        manifest), scripted external boundary tests in the house style.
+    accepted_at: '2026-08-13'
   M6:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M7
+      - M8
+      - M10
+      - M12
+      evidence: >-
+        All 5 M6 goals MERGED with PASS reviews and CI green (PRs 37, 41,
+        43, 45, 47); compute adapter contracts (adapters/compute: base,
+        local, ssh, slurm_ssh) with Slurm-over-SSH configuration and
+        limitation tests, scripted external boundary doubles.
+    accepted_at: '2026-08-14'
   M7:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M8
+      - M12
+      evidence: >-
+        All 5 M7 goals MERGED with PASS reviews and CI green (PRs 50, 51,
+        53, 54, 55); monitoring registry, checkpointing, reconciliation
+        (external completion moves Run to RESULT_AVAILABLE exactly once;
+        unknown/temporary adapter state does not fabricate completion;
+        idempotent across restart -- frozen AC contracts), crash recovery
+        and retry triggers (monitoring/*).
+    accepted_at: '2026-08-14'
   M8:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M10
+      - M12
+      evidence: >-
+        All 6 M8 goals MERGED with PASS reviews and CI green (PRs 56, 57,
+        58, 59, 60, 61); analysis protocols (analysis/protocols), result
+        records, the statistics stack (decide_equivalence,
+        evaluate_replicate_sufficiency, effect metrics), replication and
+        independent-n policy (analysis/replication), computational
+        analysis templates (analysis/computational).
+    accepted_at: '2026-08-14'
   M9:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M11
+      - M12
+      evidence: >-
+        All 6 M9 goals MERGED with PASS reviews and CI green (PRs 33, 36,
+        38, 39, 40, 42, 44; G02 completed in two attempts with the
+        FND-M9-G02-01 finding resolved in PR 38); platform-neutral
+        orchestration contracts (adapters/platform/contracts), Claude
+        Code adapter with spawn/resume/fallback and task-bundle/team-store
+        (adapters/platform/claude_code), Codex adapter passing the shared
+        mock battery without scientific-core fork.
+    accepted_at: '2026-08-14'
