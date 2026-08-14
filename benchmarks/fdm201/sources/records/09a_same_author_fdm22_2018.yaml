@@ -1,0 +1,13 @@
+# Same-author work: FDM-22, a zinc pillared-layer MOF from the Qiaowei Li
+# group (required bootstrap item 9a, same-author and analogous MOF work set).
+# Qiaowei Li is a co-author of the FDM-201 paper (verified via Crossref,
+# 2026-08-14). Registered as same-author/analogous zinc-framework context;
+# the full same-author/analogous set is completed during benchmark execution.
+source_id: sr_source_1eb6b648eb2eddecf250a7976d48b305
+source_type: peer_reviewed_paper
+title: "Structure Transformation of a Luminescent Pillared-Layer Metal–Organic Framework Caused by Point Defects Accumulation"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1021/acs.chemmater.8b02511"
+publication_year: 2018
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

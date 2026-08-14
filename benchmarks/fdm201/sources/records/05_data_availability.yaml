@@ -1,0 +1,13 @@
+# Data-availability resource(s) for the FDM-201 paper (required bootstrap
+# item 5). UNAVAILABLE at registration (2026-08-14): no external repository
+# (Zenodo/Figshare/GitHub or similar) was located in public search, and the
+# RSC article page (pubs.rsc.org) is bot-protected (HTTP 403 to automated
+# fetch), so the article's data-availability statement could not be
+# machine-read at registration. To be inventoried during benchmark execution
+# (GOAL-RES-004 / GOAL-INV-001).
+source_id: sr_source_8cbf12c17f81fbce1a839725e46d5b5f
+source_type: dataset
+title: "FDM-201 data-availability resource: none located at registration (2026-08-14)"
+provenance: "acquisition:fdm201-bootstrap"
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: UNKNOWN

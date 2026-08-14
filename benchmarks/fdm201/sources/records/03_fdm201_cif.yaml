@@ -1,0 +1,14 @@
+# FDM-201 deposited crystal structure / CIF (required bootstrap item 3).
+# UNAVAILABLE at registration (2026-08-14): the CCDC public search by DOI
+# 10.1039/D5TA00771B returned no deposited structures, and no deposition
+# number was found in public search. The paper reports the structure (Fm-3m,
+# a = 23.76 A, fcu topology, [Zn8SiO4] node per the published abstract); the
+# CIF may exist embedded in the ESI only. Re-verification (CSD search, ESI
+# inspection) happens during benchmark execution (GOAL-RES-003 / WP-80).
+# Explicit unavailability is recorded here and in ACQUISITION_LOG.yaml item 3.
+source_id: sr_source_68539272137098c373f56bdea1b106cd
+source_type: structure_deposition
+title: "FDM-201 crystal structure (CIF): CSD/CCDC deposition not located at registration (2026-08-14)"
+provenance: "acquisition:fdm201-bootstrap"
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: UNKNOWN

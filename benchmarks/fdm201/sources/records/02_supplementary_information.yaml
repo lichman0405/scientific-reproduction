@@ -1,0 +1,15 @@
+# FDM-201 supplementary information / electronic supplementary information
+# (ESI) (required bootstrap item 2). Locator is the RSC ESI URL on the
+# publisher's own domain, found via public search on 2026-08-14. The ESI
+# content is NOT downloaded or redistributed; its figure/table inventory is
+# performed during benchmark execution (GOAL-INV-004 per 17-FDM201 spec 4).
+# Record-scoped source type: identity is record:<source_id>, never the
+# parent paper's DOI (see sources.py RECORD_SCOPED_TYPES).
+source_id: sr_source_86450d48aa337786cad25c306944daae
+source_type: supplementary_information
+title: "Electronic supplementary information (ESI) for: A highly connected metal–organic framework with stretched inorganic units for propylene/ethylene separation (J. Mater. Chem. A 2025, 10.1039/D5TA00771B)"
+provenance: "acquisition:fdm201-bootstrap"
+url_or_locator: "https://www.rsc.org/suppdata/d5/ta/d5ta00771b/d5ta00771b1.pdf"
+publication_year: 2025
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

@@ -1,0 +1,96 @@
+# FDM-201 source acquisition log (DEV-M12-G01)
+#
+# Deterministic registration log for the 9 required bootstrap source items of
+# 17-FDM201-REFERENCE-CASE.md section 3. Policy: registration only -- no
+# content downloads into the repository, no redistribution of publisher
+# content; every record identity is established through the real research
+# subsystem APIs (ResearchSource / normalize_doi / normalize_url /
+# canonical_identity / core.ids.generate_id) and stored under
+# benchmarks/fdm201/sources/records/.
+#
+# Status semantics:
+#   REGISTERED   - identity established and recorded (DOI/URL verified or
+#                  publisher-domain locator found via public search).
+#   PARTIAL      - representative set registered; completeness/verification
+#                  against the paper text is deferred to benchmark execution.
+#   UNAVAILABLE  - not accessible to this benchmark at registration; explicit
+#                  reason recorded below; re-verification during execution.
+record_kind: benchmark_source_acquisition_log
+goal_id: "DEV-M12-G01"
+benchmark_id: "fdm201"
+acquired_at: "2026-08-14T00:00:00Z"
+method:
+  policy: "registration only; no content downloads into the repository; no redistribution of publisher content"
+  identity_sources:
+    - "Crossref REST API (api.crossref.org), queried 2026-08-14"
+    - "public web search, 2026-08-14"
+    - "CCDC/CSD public deposition search by DOI, 2026-08-14"
+  no_download_note: "Paper text, SI and CIF are NOT downloaded into the repository; identities and availability statuses are registered only."
+items:
+  - item: 1
+    required_item: "main paper"
+    status: REGISTERED
+    source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+    established: "DOI 10.1039/D5TA00771B resolves; Crossref record retrieved 2026-08-14: 'A highly connected metal–organic framework with stretched inorganic units for propylene/ethylene separation', Journal of Materials Chemistry A 2025, 13(16), 11382-11388, Royal Society of Chemistry; authors Yin Rao, Xinhao Li, Haozhi Xi, Zhongwen Jiang, Wangzhi Li, Han Zhou, Yanping Zhang, Chuixiong Wu, Yue-Biao Zhang, Qiaowei Li. Journal/year match reference-case spec 17. DOI normalizes to 10.1039/d5ta00771b."
+    unavailability_reason: null
+  - item: 2
+    required_item: "SI"
+    status: REGISTERED
+    source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+    established: "RSC ESI locator found via public search on the publisher domain: https://www.rsc.org/suppdata/d5/ta/d5ta00771b/d5ta00771b1.pdf. Content not downloaded (no-download policy); ESI figure/table inventory (GOAL-INV-004) and any SI-only data (e.g. CIF if present) are established during benchmark execution."
+    unavailability_reason: null
+  - item: 3
+    required_item: "FDM-201 deposited crystal structure/CIF"
+    status: UNAVAILABLE
+    source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+    established: "Paper reports a cubic Fm-3m structure (a = 23.76 A, fcu topology, [Zn8SiO4] node) per the published abstract; no CIF registered."
+    unavailability_reason: "No CSD/CCDC deposition located at registration: CCDC public deposition search by DOI 10.1039/D5TA00771B returned no deposited structures (2026-08-14); no CCDC deposition number found in public search. The CIF may exist only inside the SI. Re-verified during benchmark execution (GOAL-RES-003 / WP-80)."
+  - item: 4
+    required_item: "any related deposited structure(s) used by the paper"
+    status: UNAVAILABLE
+    source_ids: ["sr_source_9280af72ee87eb99511040e333e4f244"]
+    established: "No related depositions discoverable through public search on 2026-08-14."
+    unavailability_reason: "The paper's deposition list cannot be read without the paper text (no-download policy); no related structures found in public search. Inventoried during benchmark execution (GOAL-RES-003 / GOAL-INV-003)."
+  - item: 5
+    required_item: "data-availability resources"
+    status: UNAVAILABLE
+    source_ids: ["sr_source_8cbf12c17f81fbce1a839725e46d5b5f"]
+    established: "No external repository (Zenodo/Figshare/GitHub or similar) located in public search on 2026-08-14."
+    unavailability_reason: "RSC article page (pubs.rsc.org) is bot-protected (HTTP 403 to automated fetch on 2026-08-14), so the article's data-availability statement could not be machine-read at registration. Statement is read and inventoried during benchmark execution (GOAL-RES-004 / GOAL-INV-001)."
+  - item: 6
+    required_item: "key references for [Zn8SiO4] SBU chemistry"
+    status: PARTIAL
+    source_ids:
+      - "sr_source_0efcf3f9b1f3ea8dac12a833870a1edd"
+      - "sr_source_3d290ce0c9895b5025964e518d59f9de"
+    established: "Two verified candidate background references registered (Crossref-verified 2026-08-14): Cavka et al. 2008, 12-connected fcu inorganic building brick archetype, 10.1021/ja8057953; Yaghi et al. 2003, reticular synthesis, 10.1038/nature01650."
+    unavailability_reason: "The paper's actual citation list cannot be read at registration (no-download policy); the in-paper SBU-chemistry reference set is verified during benchmark execution."
+  - item: 7
+    required_item: "key references for adsorption/IAST/Qst methods used"
+    status: PARTIAL
+    source_ids:
+      - "sr_source_fb13edb5df0d0f7096a69a8e477ceee9"
+      - "sr_source_804629f070652078d800d125a6c7d7fb"
+    established: "Verified canonical method references registered (Crossref-verified 2026-08-14): Myers & Prausnitz 1965, IAST, 10.1002/aic.690110125; Brunauer, Emmett & Teller 1938, BET, 10.1021/ja01269a023."
+    unavailability_reason: "The paper's actual method citations and its Qst (isosteric heat) procedure are confirmed during benchmark execution (GOAL-INV-002 / WP-60); registration asserts canonical method references only."
+  - item: 8
+    required_item: "computational method/force-field references"
+    status: PARTIAL
+    source_ids:
+      - "sr_source_699dfcc7d671d18011b21893043b6f52"
+      - "sr_source_a52c59975078f26cac0e43df7c1c30ba"
+    established: "Verified canonical computational references registered (Crossref-verified 2026-08-14): Rappe et al. 1992, UFF force field, 10.1021/ja00051a040; Dubbeldam, Torres-Knoop & Walton 2013, GCMC methodology, 10.1080/08927022.2013.819102."
+    unavailability_reason: "The paper's actual force-field, charges, software and simulation settings (reported in SI) are unreadable at registration (no-download policy); inventoried during benchmark execution (GOAL-INV-002 / WP-80 / WP-82)."
+  - item: 9
+    required_item: "relevant same-author and analogous MOF work"
+    status: PARTIAL
+    source_ids:
+      - "sr_source_1eb6b648eb2eddecf250a7976d48b305"
+      - "sr_source_2fb00aadfa95bfe62e7481958926c9b1"
+    established: "Same-author works verified via Crossref and registered (2026-08-14): FDM-22, 'Structure Transformation of a Luminescent Pillared-Layer Metal–Organic Framework Caused by Point Defects Accumulation', Chem. Mater. 2018, 10.1021/acs.chemmater.8b02511 (Qiaowei Li co-author); FDM-6, 'Generation of Site-Selective Structural Vacancies in a Multinary Metal–Organic Framework for Enhanced Catalysis', ACS Appl. Mater. Interfaces 2023, 10.1021/acsami.3c02550 (Qiaowei Li and Yin Rao co-authors)."
+    unavailability_reason: "The full same-author/analogous-MOF set (including works cited by the paper) is not exhaustively established at registration; completed during benchmark execution."
+inventory:
+  total_items: 9
+  REGISTERED: 2
+  PARTIAL: 4
+  UNAVAILABLE: 3

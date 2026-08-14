@@ -1,0 +1,14 @@
+# Candidate background reference for high-connectivity (12-connected fcu)
+# SBU chemistry (required bootstrap item 6a, [Zn8SiO4] SBU chemistry set).
+# Identity verified against the Crossref record on 2026-08-14. The paper's
+# actual citation list could not be read at registration (no-download
+# policy), so this is a registered candidate background reference; the
+# in-paper SBU reference set is verified during benchmark execution.
+source_id: sr_source_0efcf3f9b1f3ea8dac12a833870a1edd
+source_type: peer_reviewed_paper
+title: "A New Zirconium Inorganic Building Brick Forming Metal Organic Frameworks with Exceptional Stability"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1021/ja8057953"
+publication_year: 2008
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

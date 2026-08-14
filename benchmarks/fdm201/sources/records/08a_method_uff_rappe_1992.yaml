@@ -1,0 +1,14 @@
+# Canonical computational reference: UFF, a full-periodic-table force field
+# commonly used in MOF GCMC simulations (required bootstrap item 8a,
+# computational method/force-field references set). Identity verified against
+# the Crossref record on 2026-08-14. The paper's actual force-field, charges,
+# software and settings (reported in SI) are inventoried during benchmark
+# execution (GOAL-INV-002 / WP-80).
+source_id: sr_source_699dfcc7d671d18011b21893043b6f52
+source_type: peer_reviewed_paper
+title: "UFF, a full periodic table force field for molecular mechanics and molecular dynamics simulations"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1021/ja00051a040"
+publication_year: 1992
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC
