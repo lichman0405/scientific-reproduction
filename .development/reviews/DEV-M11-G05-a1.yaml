@@ -1,0 +1,288 @@
+review_id: DEV-M11-G05-a1
+goal_id: DEV-M11-G05
+attempt_id: DEV-M11-G05-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - test_statistic_package_contains_no_universal_percentage_tolerance
+    - test_statistic_rule_tables_contain_no_percentage_tokens
+    - test_statistic_module_defines_no_numeric_constant_defaults
+    - test_statistic_default_acceptance_capture_has_no_numeric_tolerance
+    - test_statistic_default_acceptance_has_no_numeric_tolerance
+    - test_statistic_tolerance_requires_explicit_evidence_arguments
+    - test_statistic_tolerance_is_grounded_by_evidence_arguments
+    - test_statistic_default_acceptance_can_be_frozen_without_tolerance
+    notes: >-
+      AC-01 (no universal fixed percent margin) is pinned structurally
+      AND behaviorally, with no dependence on the reviewer reading the
+      module by eye. Structurally: the purity suite proves the whole
+      statistics package source contains no percent literal (no "%" in
+      any form, no percent-candidate numeric token -- 0.1 / 0.10 / 10.0 /
+      ±10 / +10 / -10 -- no \d+(\.\d+)?\s*[%‰] pattern, in both
+      templates.py and __init__.py), the freeze-eligibility rule-table
+      source segments (recovered deterministically via ast
+      .get_source_segment from the AnnAssign for FREEZE_ELIGIBILITY_RULES)
+      carry no percentage tokens, and no module-level numeric constant
+      exists anywhere (AST scan of Assign/AnnAssign + Constant: the
+      proposed replicate floor is a NAMED reference to the frozen core
+      constant DEFAULT_MIN_INDEPENDENT, never a literal; the ruleset
+      version is a string). Behaviorally: the default acceptance records
+      no numeric tolerance at all (equivalence_margin is None, evidence
+      refs empty, as_dict() capture contains no percent token and no
+      numeric value besides the proposed floor 3 and decision_mode
+      "equivalence"), and a numeric tolerance can only enter through
+      explicit evidence-grounded arguments -- construct_acceptance_proposal
+      with equivalence_margin=5.0 and NO EQUIVALENCE_MARGIN evidence
+      reference is refused with InvalidAcceptanceProposalError whose
+      message names both "evidence" and "equivalence_margin". The frozen
+      core is untouched: no change to analysis.replication or any other
+      core module.
+  AC-02:
+    status: PASS
+    evidence:
+    - test_statistic_default_replicate_floor_is_proposed_as_n_ge_three
+    - test_statistic_default_replicate_floor_is_overridable_by_supervisor
+    - test_statistic_replicate_override_cannot_weaken_floor_below_one
+    - test_statistic_replicate_proposal_rejects_invalid_shape
+    - test_statistic_effective_floor_requires_a_replicate_proposal
+    notes: >-
+      AC-02 (the default n >= 3 independent-replicate floor is PROPOSED,
+      not a rule) is delivered as a proposal record, never a hard rule:
+      default_replicate_design_proposal(GOAL_ID) returns a
+      ReplicateDesignProposal carrying minimum_n == 3 ==
+      DEFAULT_REPLICATE_FLOOR -- which is defined as
+      DEFAULT_MIN_INDEPENDENT by reference (line 154 of templates.py),
+      reusing the frozen analysis.replication constant rather than
+      redefining it -- with is_default=True, override_n=None and an
+      auditable non-empty rationale explicitly stating "n >= 3". The
+      proposal shape is honest about its own status: the override field
+      is a declared dataclass field, set_replicate_override produces a
+      new record with override_n set and is_default=False while the
+      default floor stays recorded for the audit trail (minimum_n remains
+      3), effective_replicate_floor honors the override, and the input
+      proposal is never mutated (pure function). The floor can never be
+      weakened below 1, invalid shapes (default-with-override, non-default
+      under the default flag, whitespace rationale, unsafe goal/proposal
+      ids) are stable value errors, and calls are deterministic
+      (same goal id -> identical proposal and proposal id). The proposal
+      record is what the Supervisor acts on -- including not acting on it.
+  AC-03:
+    status: PASS
+    evidence:
+    - test_statistic_evidence_is_attached_before_freezing
+    - test_statistic_evidence_cannot_be_attached_after_freezing
+    - test_statistic_freeze_refuses_margin_without_required_evidence
+    - test_statistic_freeze_carries_exactly_the_justifying_evidence
+    - test_statistic_freeze_is_supervisor_only
+    - test_statistic_freeze_eligibility_assessment_records_decisions
+    - test_statistic_default_acceptance_can_be_frozen_without_tolerance
+    - test_statistic_freezing_is_pure_and_immutable
+    - test_statistic_freeze_flag_records_in_capture_dict
+    - test_statistic_rulesets_validate
+    notes: >-
+      AC-03 (literature/method evidence is incorporated BEFORE freezing;
+      freezing is Supervisor-only) is enforced as a pipeline with audit:
+      attach_evidence accumulates EvidenceReferences (evidence_id /
+      source_id / claim / claim_text) on the UNFROZEN proposal, is pure
+      (the input keeps its original refs) and is refused on a frozen
+      acceptance with FrozenAcceptanceError carrying the eligibility
+      assessment. The freeze gate is role-gated through the frozen
+      core.permissions role-action matrix (Action.PLAN_FREEZE): Role.
+      RESEARCH is denied with PermissionDeniedError and the full
+      assessment record, Role.SUPERVISOR proceeds. The flow refuses
+      freezing an acceptance whose recorded tolerance lacks the evidence
+      that grounds it: the strongest test constructs AcceptanceProposal
+      DIRECTLY (bypassing the constructor) with equivalence_margin=5.0
+      and no evidence -- the freeze is still refused by rule R-STAT-F1,
+      the refusal names the missing claim (EQUIVALENCE_MARGIN) and
+      matched_rule_id, and records BOTH rule decisions (R-STAT-F1
+      matched, R-STAT-F0 total default matched) in the auditable
+      FreezeEligibilityAssessment. A frozen acceptance carries exactly
+      the evidence that justified it (nothing added, nothing dropped).
+      Freezing is pure, idempotent, records the frozen flag in the
+      deterministic capture dict, and the frozen record rejects mutation
+      on every field (FrozenInstanceError). validate_statistics_rulesets
+      returns the exact ordered rule ids ("R-STAT-F1", "R-STAT-F0").
+
+verification:
+  environment: >-
+    .worktrees/.sup-review-venv-dev-m11-g05 (fresh venv, editable install
+    with [dev] extras from the worktree)
+  head_sha: 636c0bd6b97e2635b4e2c70bbb55592201342531
+  commands:
+  - cmd: pytest -q tests/domain/materials_chemistry -k statistic
+    result: '42 passed, 391 deselected in 0.19s (the goal verification
+      battery, matches the worker claim exactly: 41 new -- 31
+      test_statistics_proposals + 10 test_statistics_purity -- plus 1
+      pre-existing parametrized test test_comput_value_rules_reject_
+      invalid_parameter_values[statistical_uncertainty_metric-] of
+      test_computation_templates.py, confirmed by --collect-only)'
+  - cmd: pytest -q tests/domain
+    result: '433 passed in 0.54s (the frozen domain baseline 391 +
+      the 42 statistics tests; no regression)'
+  - cmd: ruff check src tests
+    result: All checks passed
+  - cmd: mypy src
+    result: 'Success: no issues found in 111 source files (109 baseline
+      at M10-G06 + 2 new statistics modules -- templates.py and
+      __init__.py; no existing file regression)'
+  - cmd: python scripts/validate_development_contracts.py
+    result: 'PASS: 14 milestones, 80 goals, goal DAG acyclic, milestone
+      DAG acyclic, all contracts well-formed'
+  - cmd: pytest -q tests (worktree at 636c0bd)
+    result: '2999 passed, 7 skipped, 1 deselected in 142.57s --
+      exactly the expected count (2958 baseline at f97d5d0 + 41 new),
+      zero failures, no lease flake in this run'
+  - cmd: gh pr checks 68
+    result: 'Test, lint, and type check: pass; Validate development
+      contracts: pass (both jobs, verified on head 636c0bd)'
+
+design_review:
+  proposed_not_rule: >-
+    AC-02's "proposed, never a rule" is honored structurally: the floor
+    is a PROPOSAL record -- is_default flag, documented rationale,
+    declared override field -- and the constant that feeds it
+    (DEFAULT_REPLICATE_FLOOR) is a by-reference reuse of the frozen
+    DEFAULT_MIN_INDEPENDENT (templates.py line 154), so there is exactly
+    one definition of the n >= 3 floor in the system and this module
+    never redefines it. The override path is honest bookkeeping:
+    set_replicate_override returns a NEW record (is_default=False,
+    override_n set) while minimum_n keeps the default floor for the
+    audit trail, and effective_replicate_floor derives the active value.
+    The discipline extends to the acceptance side: AcceptanceProposal
+    derives its replicate_floor from the replicate design through
+    effective_replicate_floor in __post_init__, so a frozen acceptance
+    always records what the design actually was.
+  no_universal_percentage: >-
+    AC-01 is enforced as a closed structural proof plus a behavioral
+    proof, so it does not depend on reviewer reading: (1) no percent
+    literal and no percentage-candidate numeric token in either package
+    source file; (2) the rule-table source segments (AST-recovered, so
+    the scan covers the real table) carry no percentage tokens; (3) no
+    module-level numeric constant exists -- the floor is a named
+    reference, the version a string; (4) the default acceptance capture
+    carries no numeric tolerance of any kind and decision_mode
+    "equivalence"; (5) a numeric tolerance can only enter through
+    explicit evidence-grounded arguments, enforced by the constructor
+    (refusal message names "evidence" and "equivalence_margin"). The
+    margin, when legitimately supplied, is instance data on a specific
+    acceptance (evidence refs attached), never a universal default.
+  evidence_before_freeze: >-
+    AC-03 is a real pipeline with an audit trail, not a flag: evidence
+    attaches to the unfrozen proposal (pure, accumulating, ordered);
+    freezing is gated by the frozen role-action matrix (Action.
+    PLAN_FREEZE) so Role.RESEARCH is denied with the full permission
+    assessment; the freeze-eligibility evaluation is a full decision
+    record (per-rule decisions with rule_id/eligible/matched, the
+    matched_rule_id, and the missing evidence claims); the flow refuses
+    the freeze of an acceptance whose recorded tolerance lacks the
+    evidence that grounds it, naming the missing claims and the deciding
+    rule; and the frozen record carries exactly the evidence that
+    justified it. The matched_rule_id is never None by construction
+    (assert in templates.py line 1201 backed by the trailing total
+    default rule R-STAT-F0), and validate_statistics_rulesets proves
+    the table's integrity (unique ids, non-empty, total default) with
+    three sample proposals at import/validation time.
+  defense_in_depth: >-
+    The strongest test is test_statistic_freeze_refuses_margin_without_
+    required_evidence: it builds AcceptanceProposal DIRECTLY
+    (proposal_id="proposal-acc-no-evidence", equivalence_margin=5.0, no
+    evidence refs), bypassing construct_acceptance_proposal entirely, and
+    the freeze is still refused by R-STAT-F1 with the missing claim
+    named. The evidence-grounded-margin discipline is therefore enforced
+    at TWO independent layers -- the constructor AND the freeze
+    eligibility gate -- so a record assembled outside the constructor
+    cannot reach the frozen state with an ungrounded tolerance. The
+    refusal leaves the proposal unfrozen (recoverable: evidence can then
+    be attached and the freeze retried), and the assessment is carried
+    on the exception itself for the audit trail.
+  determinism_and_purity: >-
+    The module is pure by construction and the tests PROVE it rather than
+    assert it: import roots read off the AST and whitelisted to
+    {__future__, scientific_reproduction, math, dataclasses, enum,
+    typing}; no randomness/clock/network/IO surface anywhere in the
+    source (random/time/datetime/os/pathlib/secrets/uuid/requests/
+    urllib/socket/open(/read_text/write_text/input(/print( all absent);
+    byte-identical captures across repeated calls and across unfrozen/
+    frozen (determinism via json.dumps with sort_keys over the capture
+    dicts); proposal ids deterministic pure functions of the goal id and
+    safe under ID_PATTERN (FND-M9-G02-01 lesson applied to goal ids,
+    proposal ids and evidence ids); every record a frozen dataclass
+    refusing mutation on every field. No network, no sleeps, no wall
+    clock, no randomness anywhere in the suite.
+  house_style: >-
+    The files follow house style: module docstrings mapping the goal and
+    ACs to the test sections; one test per behavior with an explanatory
+    docstring; comment-per-assertion density; the frozen core vocabulary
+    used directly (DecisionMode from core.models, Role and
+    PermissionDeniedError from core.permissions, ID_PATTERN/is_valid_id
+    from core.ids, DEFAULT_MIN_INDEPENDENT from analysis.replication by
+    reference); the naming rule (every test name contains "statistic")
+    honored in all 41 new tests; the package __init__ re-exports the
+    module surface without adding behavior (proven by an AST scan that
+    the init defines no functions or classes and that its __all__ is a
+    subset of the templates module's). No core module is modified.
+  observations: >-
+    Three notes, none of them findings: (1) The AST-based structural
+    proofs (import-roots whitelist, rule-table segment recovery via
+    ast.get_source_segment, module-level constant scan) verify the REAL
+    source deterministically rather than scanning a hardcoded string, so
+    a future edit that sneaks a percent literal or a numeric default into
+    the package fails the suite loudly. (2) The percentage-candidate
+    token list is intentionally broader than a single "10.0" (it includes
+    "0.1", "±10", "+10", "-10", "10.0", "0.10") -- conservative, and
+    harmless here since the package legitimately contains none of them;
+    the only numeric data in the module are the evidence-driven margin
+    values that flow in as arguments, not defaults. (3) The pyright marks
+    seen during development are all known noise classes (reportMissingImports
+    from scanning without the venv context, multiline-import scan
+    artifacts, and "not accessed" hints on module re-exports); ruff,
+    mypy and pytest -- the authoritative gates -- are clean, and pytest
+    collected and passed all 42 tests, so the files parse and type-check.
+
+findings: []
+
+scope_check: PASS
+notes: >-
+  Full review of all four new files completed line by line
+  (src/scientific_reproduction/domain_packs/materials_chemistry/statistics/
+  templates.py 1390 lines, statistics/__init__.py 95 lines,
+  tests/domain/materials_chemistry/test_statistics_purity.py 249 lines,
+  test_statistics_proposals.py 707 lines; 41 tests total, +2441/-0).
+  Three-dot diff f97d5d0...636c0bd = exactly these 4 files, all within
+  the frozen allowed_scope (scientific_reproduction/domain_packs/
+  materials_chemistry/statistics/** + tests/domain/materials_chemistry/
+  test_statistics*). No core module touched, no existing test modified,
+  no src change outside the statistics package. The branch parent
+  636c0bd~1 = f97d5d0 == origin/main at dispatch time and at review
+  time (no merge landed since -- M11-G05 is the only goal in flight) --
+  exact chain, no stale base. No deviations from the frozen contract:
+  allowed_scope respected, no --no-verify, Draft PR (no reviewers), a
+  conventional subject-only commit message with [DEV-M11-G05], and the
+  PR was opened via the gh CLI. The plan_approval_required goal contract
+  was satisfied (false): the implementation plan (proposal records for
+  the n >= 3 floor, uncertainty metadata and acceptance construction,
+  the evidence-before-freeze pipeline, the structural + behavioral AC-01
+  proofs, the test plan) was delivered in the PR description. All
+  worker-reported gates independently confirmed (42 / 433 / ruff /
+  mypy 111 / contracts / full suite expected 2999 in flight / CI both
+  jobs PASS on head 636c0bd). Zero findings. Decision: PASS; merge
+  authorized as squash.
+
+git_review:
+  pr_number: 68
+  pr_title: 'feat(domain): materials statistics/acceptance proposal rules [DEV-M11-G05]'
+  branch: feat/dev-m11-g05-statistics
+  base_sha: f97d5d0c50a4fcac46ea6141a701cdcf48d051cc
+  reviewed_head_sha: 636c0bd6b97e2635b4e2c70bbb55592201342531
+  changed_files: 4 (statistics/templates.py, statistics/__init__.py,
+    test_statistics_purity.py, test_statistics_proposals.py)
+  ci_status: PASS
+  scope_check: PASS
+  merge_authorized: true
+  merge_method: squash
