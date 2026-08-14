@@ -48,6 +48,19 @@ dev extras, runs the pytest suite, and reports `[verify] PASS` / `[verify] FAIL`
 python -m pytest -q
 ```
 
+### Using the runtime
+
+- [**Installation and verification**](docs/user/installation.md) — requirements,
+  editable install, manual gates, troubleshooting.
+- [**`/reproduce` and `/goals`**](docs/user/reproduce-and-goals.md) — initialize
+  a one-paper project from a PDF/DOI/URL, and the planning surfaces behind the
+  `/goals` views.
+- [**Monitor recovery and Lab handoff**](docs/user/monitor-and-handoff.md) —
+  how the Execution Monitor recovers, and how wet-lab work is handed off through
+  the filesystem LabAdapter.
+- [**Slurm-over-SSH adapter**](docs/operations/adapters-slurm.md) — compute
+  backend configuration, operations, and documented limitations.
+
 ## Development governance
 
 This repository is developed autonomously by a Development Supervisor and
