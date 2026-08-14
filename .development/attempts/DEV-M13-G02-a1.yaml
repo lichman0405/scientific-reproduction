@@ -1,0 +1,52 @@
+goal_id: DEV-M13-G02
+attempt_id: DEV-M13-G02-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 8c7c171c9f6a3ffa1718b7f28fc94525b068e583
+branch: feat/dev-m13-g02-report
+worktree: .worktrees/dev-m13-g02
+status: MERGED
+pr:
+  number: 78
+  url: https://github.com/lichman0405/scientific-reproduction/pull/78
+  head_sha: ae63f51b655bf4558ba6aa946f8cf1d721f169a0
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M13-G02-a1
+merge_commit_sha: e7af590bfde9f1ea776f33b4c9d04a405de7ee69
+merged_at: '2026-08-14'
+commit_shas:
+- ae63f51b655bf4558ba6aa946f8cf1d721f169a0
+review_notes: >-
+  Single-attempt PASS review (DEV-M13-G02-a1, zero findings, three
+  non-blocking observations OBS-M13-G02-01 worker verbal test count (16)
+  understated the actual 18 report tests (3164 = 3146 + 18 self-consistent,
+  no impact), OBS-M13-G02-02 pytest -k matches the nodeid path so
+  `-k report` selects all 51 tests (33 audit/trace + 18 report; stable
+  selection), OBS-M13-G02-03 double-pytest-process phenomenon recurrence
+  (harness-level duplicate launch, identical results), all tracked for the
+  M13 Release Gate). Delivered 2 new files (+1370):
+  src/scientific_reproduction/reporting/report.py (human-readable report
+  generator: build_report over the real registered state through the real
+  read APIs -- the audit package consumed as a read surface for run
+  statuses/claim traces, project/goals/inventory/closure records and
+  protocol lineages read directly -- rendering 9 fixed-order markdown
+  sections: Scope, Methods, Statistics, Strict/recovery history, Failures
+  and deviations (AC-02: every run with its derived RunStatus, failed runs
+  explicitly summarized with reason/deviations/retries, never hidden),
+  Outcomes (AC-01: RequirementOutcome + ScientificReview), Method
+  reproducibility (AC-01: MethodReproducibility + protocol adherence +
+  lifecycle coverage; vocabularies kept strictly separate, asserted both
+  directions), Key claims and traceability (AC-03: auditable object ids
+  from the claim traces via the structured ClaimReport surface with
+  gap_count/gap_ref_ids), Limitations; Report/ReportSection/ClaimReport
+  dataclasses, canonical JSON, error hierarchy mirroring audit.py),
+  tests/reporting/test_report.py (18 tests: ac01 x4, ac02 x4, ac03 x7,
+  boundaries x3; deterministic installers, no mocks). Worker pyright
+  concerns verified non-defects (gap_ref_ids is a declared field; the
+  "unreachable" lines are the TypeError boundaries). Supervisor independent
+  battery: goal command 51 passed (22.37s), full suite 3164 passed / 7
+  skipped / 1 deselected (292.20s, no DEV-DEFECT-002 flake), ruff clean,
+  mypy 114 clean, validator 20/20, CI both jobs PASS. Merged count: 77/80.
+  M13-G04 unblocked per DAG.
