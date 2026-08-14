@@ -169,7 +169,11 @@ verification:
   - "Gate 6 fallback citation: CLAUDE-CODE-HANDOFF.md (repo root) L273 'subagent/process fallback', L345 'documented fallback workers' -- verified verbatim"
   - "CI on head 6bb8155: Test, lint, and type check PASS (4m17s) + Validate development contracts PASS (9s); CodeRabbit skipped on draft"
   post_merge: >-
-    PENDING - filled after squash merge.
+    Post-merge suite on origin/main after squash merge of PR #81 (state
+    commit 36127de, pre-CHANGELOG): 3181 passed, 7 skipped, 1 deselected in
+    354.06s, exit 0 -- the full merged baseline. No DEV-DEFECT-002 flake
+    occurrence. The v0.1.0 Release Acceptance Suite on the tagged SHA is
+    recorded in docs/release/DEVELOPMENT-ACCEPTANCE-REPORT-v0.1.md.
 
 design_review:
   decomposition: >-
