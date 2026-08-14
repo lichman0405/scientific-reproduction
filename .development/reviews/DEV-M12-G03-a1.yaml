@@ -1,0 +1,179 @@
+review_id: DEV-M12-G03-a1
+goal_id: DEV-M12-G03
+attempt_id: DEV-M12-G03-a1
+reviewer: Development Supervisor (independent review on PR head)
+reviewed_at: '2026-08-14'
+decision: PASS
+
+# History: REJECT on head 5b3cd4a (FND-M12-G03-01 analysis_protocol_ref
+# misattribution x6 battery failures; FND-M12-G03-02 missing assumption entry
+# x2). Worker fix round DEV-M12-G03-a2 pushed be61016; re-review on the fixed
+# head passes every check. This record reflects the final PASS.
+
+pr:
+  number: 72
+  base: main
+  base_oid: 7b23ef7fe5b511e80f942b0a76b0d915947480e1
+  head_ref: feat/dev-m12-g03-fdm201-plan
+  head_oid: be610167b5899f0f9776fc77d3f71af09b1e2fb1
+  commits: 2
+  files: 14 (9 original + 6 fix files, +64/-33 fix round)
+
+fix_round:
+  commit: be610167b5899f0f9776fc77d3f71af09b1e2fb1 (fix commit on PR #72
+    branch, same attempt DEV-M12-G03-a1; resolves FND-M12-G03-01/-02)
+  changes:
+  - goals.yaml: EXE-10/20 analysis_protocol_ref ANL-090->ANL-010; EXE-20 AC-02
+    "per ANL-090"->"per ANL-010"; EXE-40 ANL-020->ANL-090
+  - plan_v1.yaml: porosity phase "(ANL-030)"->"(ANL-090)"; assumption_ids
+    +ASM-CVR-AMB-0007-INV-0611; assumptions_summary 46/19
+  - assumptions.yaml: +ASM-CVR-AMB-0007-INV-0611 (A1_METHODOLOGICAL_DEFAULT,
+    strict_status_effect NONE, affected GOAL-INV-002/GOAL-EXE-81); counts 46/19
+  - audit_check.py: 1161->1206 checks (per-goal analysis_protocol_ref in ANL
+    ids; per-goal assumption_ids subset; every ANL referenced by >=1 goal;
+    plan assumption_ids == full set; CVR set = recomputed 18 warnings subset
+    with extras exactly {ASM-CVR-AMB-0007-INV-0611})
+  - mapping_audit.yaml: assumptions_coverage 19/46 + policy text
+  - plans/README.md: count literals 45->46, 18->19
+
+acceptance_criteria:
+  AC-01:
+    status: PASS
+    evidence:
+    - benchmarks/fdm201/goals/goals.yaml (20-goal DAG, GOAL-AUD-001 + 4 RES + 4 INV + 11 EXE)
+    - benchmarks/fdm201/goals/mapping_audit.yaml (82 item_mappings, 14 ambiguity_resolutions, coverage 82/82/1.0/PASS)
+    - benchmarks/fdm201/goals/audit_check.py (1206 deterministic offline checks, 0 failures)
+    - benchmarks/fdm201/plans/plan_v1.yaml (FROZEN, work packages WP-00..90, branches, change control)
+    - benchmarks/fdm201/plans/assumptions.yaml (46 assumption objects: 12 A2 / 19 CVR / 15 A1 defaults)
+    - benchmarks/fdm201/plans/analysis_plan.yaml (10 frozen protocols ANL-001..062,090)
+    - benchmarks/fdm201/plans/closure.yaml (4 closure contracts CC-BOOTSTRAP/EXPERIMENT/COMPUTATION/INTEGRATION)
+    - benchmarks/fdm201/resources/resources.yaml (17 RES-*, 8 enums)
+    - benchmarks/fdm201/evidence/evidence_model.yaml + evidence_records.yaml (82 EV-*)
+    notes: >-
+      Plan v1 freeze structurally complete and internally consistent on every
+      dimension checked: 20-goal DAG acyclic and fully reachable (independent
+      Kahn recompute 20/20), wp_alias/wp_realization cover all goals exactly
+      once, 82/82 items mapped with bidirectional claim integrity, 14/14
+      ambiguities resolved bidirectionally, evidence records 1:1 with
+      inventory (verbatim titles, frozen basis->A/R/D), A2 semantics
+      DISQUALIFIES_PURE_STRICT, resources/log cross-links exact, closure
+      contracts bidirectional, plan object sections match target files, single
+      frozen timestamp, frozen_commit null, change-control policies present.
+      audit_check.py 1206/0 on the fixed head.
+  AC-02:
+    status: PASS
+    evidence:
+    - benchmarks/fdm201/goals/goals.yaml analysis_protocol_ref fields after fix round
+    - benchmarks/fdm201/plans/analysis_plan.yaml protocol header declarations
+    - benchmarks/fdm201/plans/plan_v1.yaml branch phase output annotations
+    - independent review battery (1293 checks, 0 failures) on head be61016
+    notes: >-
+      FND-M12-G03-01 resolved exactly as prescribed: GOAL-EXE-10/20 now
+      reference ANL-010 (the process-reproducibility protocol whose header
+      declares (GOAL-EXE-10/20)); GOAL-EXE-20 AC-02 says "per ANL-010";
+      GOAL-EXE-40 references ANL-090 (its own AC-04 wording); the plan
+      porosity phase annotates (ANL-090). Post-fix every ANL protocol is
+      referenced by at least one goal (no dangling protocols): ANL-010 by
+      EXE-10/20, ANL-020 by EXE-30 only, ANL-090 by EXE-40/EXE-90/AUD-001.
+      audit_check.py now enforces per-goal analysis_protocol_ref existence,
+      assumption_ids subset, and every-ANL-referenced (1161->1206 checks).
+  AC-03:
+    status: PASS
+    evidence:
+    - benchmarks/fdm201/plans/assumptions.yaml ASM-CVR-AMB-0007-INV-0611 entry
+    - benchmarks/fdm201/plans/plan_v1.yaml assumption_ids (46) + assumptions_summary (46/19)
+    - benchmarks/fdm201/goals/audit_check.py CVR set check (18 warnings subset + exact extras)
+    notes: >-
+      FND-M12-G03-02 resolved with an honest rationale: INV-0611 carries
+      ambiguity_ref AMB-0007 in the inventory (line 1379), so it is not one of
+      the 18 self_check.py warnings; the new ASM-CVR-AMB-0007-INV-0611 entry
+      is a documented coverage extension required by the goals' assumption_ids
+      and GOAL-EXE-81 AC-02. Counts propagated consistently: assumptions.yaml
+      and plan_v1.yaml 46 total / 19 ambiguity-coverage, mapping_audit.yaml
+      assumptions_coverage 19/46, plans/README.md literals updated.
+      audit_check.py's CVR check now asserts the recomputed 18 warnings are a
+      subset of the declared set and the extras are exactly the documented
+      extension (no silent/unexplained entries).
+
+findings:
+  - id: FND-M12-G03-01
+    status: RESOLVED
+    resolution: commit be61016 (goals.yaml EXE-10/20/40 refs + EXE-20 AC-02 text; plan_v1 porosity annotation)
+    verified_by: battery S2 x4 + S4 x2 all PASS on head be61016; audit_check.py 1206/0 (new per-goal and every-ANL checks)
+  - id: FND-M12-G03-02
+    status: RESOLVED
+    resolution: commit be61016 (assumptions.yaml +ASM-CVR-AMB-0007-INV-0611; counts 46/19 propagated through plan_v1, mapping_audit, README, audit_check)
+    verified_by: battery S1 x2 PASS + S9 109/109 on head be61016; audit_check.py CVR subset+extras check
+
+observations:
+  - id: OBS-M12-G03-01
+    detail: >-
+      audit_check.py now covers the cross-file semantic dimensions that
+      originally escaped the deterministic gate (per-goal analysis_protocol_ref
+      existence, assumption reference existence, every-ANL-referenced, plan
+      assumption_ids completeness). The FND-M12-G03-01 class (semantic
+      misattribution between a goal and a wrong-but-existing protocol) is still
+      not fully caught by audit_check (it checks existence, not attribution);
+      the supervisor battery's EXPECTED mapping remains the attribution check.
+      Tracked at the M13 Release Gate; consider a header-declared mapping
+      assertion inside audit_check.py for future plan freezes.
+
+verification:
+  head: be610167b5899f0f9776fc77d3f71af09b1e2fb1 (PR #72, after fix round)
+  commands:
+  - "python benchmarks/fdm201/goals/audit_check.py -> 1206 checks, 0 failures, exit 0"
+  - "review battery review-m12-g03-verify.py -> 1293 checks, 1293 PASS, 0 FAIL, exit 0"
+  - "ruff check . (worktree root, benchmarks/ included) -> clean, exit 0"
+  - "ruff check src tests -> clean, exit 0"
+  - "mypy src -> 111 files, no issues, exit 0"
+  - "pytest -q full suite -> 3016 passed, 7 skipped, 1 deselected (worker + supervisor runs agree)"
+  - "CI on head be61016: both jobs PASS"
+  - "vacuous goal gate 'pytest -q tests/benchmarks -k fdm201 and plan': exit 4, no test files (tests/benchmarks owned by DEV-M12-G07) - recorded; regression evidence is the full suite + CI"
+  pre_fix_baseline:
+    head: 5b3cd4a64448bf7b831ae5e315296120ab3755ea
+    battery: 1291 checks, 8 failures (FND-M12-G03-01 x6, FND-M12-G03-02 x2)
+    audit_check: 1161/0
+    suite: 3016 passed, 7 skipped, 1 deselected
+    ci: both jobs PASS
+
+design_review:
+  dag: >-
+    Independent recompute confirms the 20-goal DAG is acyclic (Kahn order
+    20/20) and every goal reachable from the roots. Dependency types within
+    {hard_gate, soft_dependency, informational}. Design (RES -> INV -> AUD,
+    experiment branch EXE-10..70, computation branch EXE-80..82, EXE-90
+    hard-gating on all + AUD-001) matches spec sections 4-5.
+  mapping: >-
+    mapping_audit.yaml is the Plan-v1 anticipation of GOAL-AUD-001: 82/82
+    mapped, bidirectionally claimed, by_status/by_category sum to 82 with 0
+    unmapped, 14/14 ambiguities assigned with zero unresolved at freeze.
+  plan_objects: >-
+    plan_v1.yaml object sections match their target files exactly (goal_ids
+    20, requirement_ids 82, assumption_ids 46, resource_ids 17, protocols 10,
+    closure contracts 4); work packages WP-00..90 cover all 20 goals.
+  evidence: >-
+    evidence_model.yaml basis->A/R/D mapping applied uniformly; 82 records
+    one per item with verbatim titles, exact source ids/parts, non-empty
+    expected_artifacts and used_by goals. Registration-only policy respected.
+  resources: >-
+    resources.yaml mirrors the G01 log exactly (items 1-9) plus 8 execution
+    resources; blocks/resolution/human-gate semantics coherent with the DAG.
+  closure: >-
+    closure.yaml's four contracts bidirectionally consistent with the goals'
+    closure_contract_ref; CC-INTEGRATION carries the 5 whole-benchmark
+    criteria plus search-family and zero-novelty-cycle gates.
+  fix_quality: >-
+    The fix round touched only the frozen data files and their deterministic
+    gate: no AC changes, no scope changes, no test deletions, no new numbers.
+    Count propagation (46/19) is consistent across assumptions.yaml, plan_v1
+    (assumption_ids + summary + note), mapping_audit (assumptions_coverage +
+    policy text), plans/README.md, and audit_check.py assertions. The CVR
+    check was restructured with documented-extension semantics rather than
+    weakened: the recomputed 18 warnings must be covered and the extras must
+    be exactly the one documented entry. audit_check.py grew 1161 -> 1206
+    checks, all passing.
+
+decision_notes: >-
+  PASS on head be610167b5899f0f9776fc77d3f71af09b1e2fb1. REJECT round
+  (FND-M12-G03-01/-02) fully resolved with matching battery evidence. Proceed
+  to squash merge with --match-head-commit be610167b5899f0f9776fc77d3f71af09b1e2fb1.

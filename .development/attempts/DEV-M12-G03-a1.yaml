@@ -1,0 +1,38 @@
+goal_id: DEV-M12-G03
+attempt_id: DEV-M12-G03-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 7b23ef7fe5b511e80f942b0a76b0d915947480e1
+branch: feat/dev-m12-g03-fdm201-plan
+worktree: .worktrees/dev-m12-g03
+status: MERGED
+pr:
+  number: 72
+  url: https://github.com/lichman0405/scientific-reproduction/pull/72
+  head_sha: be610167b5899f0f9776fc77d3f71af09b1e2fb1
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M12-G03-a1
+merge_commit_sha: 44b6a5cb649d3cf88c7f593e363719a40a55b765
+merged_at: '2026-08-14'
+commit_shas:
+- 5b3cd4a64448bf7b831ae5e315296120ab3755ea
+- be610167b5899f0f9776fc77d3f71af09b1e2fb1
+review_notes: >-
+  Attempt a1 was REJECTED at first review with findings FND-M12-G03-01
+  (analysis_protocol_ref misattribution: EXE-10/20 pointed at ANL-090
+  instead of ANL-010 per analysis_plan.yaml header declaration and EXE-20
+  AC-02 self-wording; EXE-40 pointed at ANL-020 instead of ANL-090 per its
+  own AC-04; plan porosity phase annotated (ANL-030) instead of (ANL-090);
+  ANL-010 dangling) and FND-M12-G03-02 (ASM-CVR-AMB-0007-INV-0611 missing
+  from assumptions.yaml despite GOAL-INV-002/GOAL-EXE-81 assumption_ids
+  referencing it; inventory line 1379 documents the ambiguity_ref, so it is
+  a documented coverage extension, not one of the 18 self_check warnings).
+  The worker produced fix commit be61016 on the same branch (goals.yaml
+  three protocol ref corrections + EXE-20 AC-02 text; plan_v1 porosity
+  annotation + assumption_ids +1 + summary 46/19; assumptions.yaml new
+  A1_METHODOLOGICAL_DEFAULT entry with honest rationale; audit_check.py
+  1161 -> 1206 hardening including every-ANL-referenced and CVR
+  subset+exact-extras semantics). The final PASS review DEV-M12-G03-a1
+  covers both commits with zero open findings.

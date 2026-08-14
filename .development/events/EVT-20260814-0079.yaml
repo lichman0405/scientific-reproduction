@@ -1,0 +1,58 @@
+event_id: EVT-20260814-0079
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M12-G03
+milestone: M12
+attempt_id: DEV-M12-G03-a1
+pr_number: 72
+merge_commit_sha: 44b6a5cb649d3cf88c7f593e363719a40a55b765
+merge_method: squash
+head_sha: be610167b5899f0f9776fc77d3f71af09b1e2fb1
+base_sha: 7b23ef7fe5b511e80f942b0a76b0d915947480e1
+review_id: DEV-M12-G03-a1
+review_decision: PASS
+findings:
+- FND-M12-G03-01 (RESOLVED)
+- FND-M12-G03-02 (RESOLVED)
+summary: >-
+  DEV-M12-G03 (FDM-201 Plan v1 freeze: goals/plans/assumptions/resources/
+  evidence) merged via PR #72 after a REJECT -> fix -> PASS cycle. First
+  review on head 5b3cd4a found FND-M12-G03-01 (analysis_protocol_ref
+  misattribution, 6 battery failures: EXE-10/20 -> ANL-090 should be
+  ANL-010, EXE-40 -> ANL-020 should be ANL-090, porosity phase
+  annotation (ANL-030) should be (ANL-090), ANL-010 dangling) and
+  FND-M12-G03-02 (ASM-CVR-AMB-0007-INV-0611 missing from assumptions.yaml
+  despite being referenced; 2 battery failures). Worker fix commit be61016
+  resolved both exactly as prescribed: protocol refs corrected in
+  goals.yaml (EXE-10/20 ANL-010, EXE-40 ANL-090, EXE-20 AC-02 text),
+  plan_v1 porosity (ANL-090), new honest A1_METHODOLOGICAL_DEFAULT
+  assumption entry with counts propagated 46 total / 19 ambiguity coverage
+  through assumptions.yaml, plan_v1 (assumption_ids + summary + note),
+  mapping_audit (assumptions_coverage 19/46 + policy text) and
+  plans/README.md; audit_check.py hardened 1161 -> 1206 checks (per-goal
+  analysis_protocol_ref existence, per-goal assumption_ids subset,
+  every-ANL-referenced, plan assumption_ids completeness, CVR check
+  restructured to recomputed-18-subset + extras exactly
+  {ASM-CVR-AMB-0007-INV-0611} documented-extension semantics, not
+  weakened). Supervisor re-review on head be61016: independent battery
+  1293 checks / 0 failures; audit_check.py 1206/0; whole-repo ruff clean
+  (CI invocation from worktree root); ruff src tests clean; mypy 111
+  clean; full suite 3016 passed / 7 skipped / 1 deselected (supervisor
+  independent run); both CI jobs PASS on the fix head. Delivered: 20-goal
+  DAG (wp_alias WP-10..90, wp_realization WP-00 bootstrap set, dependency
+  types hard_gate/soft_dependency/informational), mapping_audit.yaml
+  (82/82 items, 14/14 ambiguities, coverage 1.0), plan_v1.yaml (FROZEN,
+  6 experiment + 3 computation phases, 46 assumption_ids, 17 resources,
+  10 protocols, 4 closure contracts, change control, frozen_commit null),
+  assumptions.yaml (46: 12 A2 DISQUALIFIES_PURE_STRICT + 19 CVR + 15 A1),
+  analysis_plan.yaml (10 ANL protocols with header mapping declarations),
+  closure.yaml (4 CC, CC-INTEGRATION whole-benchmark criteria),
+  resources.yaml (17 RES-*, 8 enums), evidence_model.yaml +
+  evidence_records.yaml (82 EV-*). Vacuous goal gate (pytest -q
+  tests/benchmarks -k "fdm201 and plan", exit 4, tests/benchmarks owned by
+  DEV-M12-G07) recorded honestly; regression evidence = full suite 3016 +
+  CI. Frozen ACs untouched; scope contained to benchmarks/fdm201/.
+  Observation OBS-M12-G03-01 (semantic attribution still outside
+  audit_check.py; supervisor battery EXPECTED mapping remains the
+  attribution gate) tracked for M13 Release Gate. Merged count: 71/80.
+  M12-G04 unblocked per DAG.
