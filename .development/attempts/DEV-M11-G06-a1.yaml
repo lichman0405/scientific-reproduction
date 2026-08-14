@@ -1,0 +1,20 @@
+goal_id: DEV-M11-G06
+attempt_id: DEV-M11-G06-a1
+change_type: FEATURE
+base_branch: main
+base_sha: b49b475526de8a2d06b8ec4472d2e3e2253f901d
+branch: feat/dev-m11-g06-fdm201-expressiveness
+worktree: .worktrees/dev-m11-g06
+status: MERGED
+pr:
+  number: 69
+  url: https://github.com/lichman0405/scientific-reproduction/pull/69
+  head_sha: 16bd00db65d5bdc67fa2bf707c5d9164b374b73d
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M11-G06-a1
+merge_commit_sha: 66f9e342bb8f0eeca8211831a23975b2cde8cb25
+merged_at: '2026-08-14'
+commit_shas:
+- 16bd00db65d5bdc67fa2bf707c5d9164b374b73d

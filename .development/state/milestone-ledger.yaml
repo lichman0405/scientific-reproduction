@@ -12,13 +12,37 @@ milestones:
     gate: null
     accepted_at: null
   M10:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M12
+      - M13
+      evidence: >-
+        All 6 M10 goals MERGED with PASS reviews and CI green;
+        platform-neutral orchestration contract (M10-G01/G02), Claude
+        Code spawn/resume/fallback path (M10-G03/G04), Codex adapter
+        passing the shared mock/contract battery without scientific-core
+        fork (M10-G05/G06). Regression: full suite 2958 passed at M10
+        completion + ruff/mypy/contracts clean. Recorded at M11-G06
+        closure (ledger gap from M10-G06 completion, evidence from
+        events EVT-20260814-0071..0074).
+    accepted_at: '2026-08-14'
   M11:
-    status: NOT_STARTED
-    gate: null
-    accepted_at: null
+    status: PASS
+    gate:
+      unlocks:
+      - M12
+      evidence: >-
+        All 6 M11 goals MERGED with PASS reviews (G05/G06 zero findings)
+        and CI green; Materials Chemistry pack represents synthesis,
+        characterization, adsorption/separation and computational
+        workflows (M11-G01..G05), and FDM-201 categories are expressible
+        without ad hoc schema fork, proven structurally by the M11-G06
+        fixture (closed allowlist over the walked ~70-record chain, zero
+        local classes, core records schema-validated and round-trip
+        exact). Regression: full suite 3016 passed at M11 completion +
+        ruff/mypy/contracts clean.
+    accepted_at: '2026-08-14'
   M12:
     status: NOT_STARTED
     gate: null

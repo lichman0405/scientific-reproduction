@@ -1,0 +1,47 @@
+event_id: EVT-20260814-0076
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M11-G06
+milestone: M11
+attempt_id: DEV-M11-G06-a1
+pr_number: 69
+merge_commit_sha: 66f9e342bb8f0eeca8211831a23975b2cde8cb25
+merge_method: squash
+head_sha: 16bd00db65d5bdc67fa2bf707c5d9164b374b73d
+base_sha: b49b475526de8a2d06b8ec4472d2e3e2253f901d
+review_id: DEV-M11-G06-a1
+review_decision: PASS
+findings: []
+summary: >-
+  DEV-M11-G06 (FDM-201 expressiveness of the domain pack) merged via PR
+  #69 with a single PASS review (DEV-M11-G06-a1, zero findings).
+  Supervisor independently confirmed on head 16bd00d: goal verification
+  450 passed (433 baseline + 17 new), ruff clean, mypy 111 files
+  (tests-only goal), contracts PASS, full suite 3016 passed exactly
+  (2999 base + 17 new, no flake in this run), CI both jobs PASS. Full
+  line-by-line review of the single file (+1483/-0, within the frozen
+  allowed_scope): AC-01 one test per category (13 tests incl. acceptance
+  flow + composition) driving the REAL pack machinery with rule ids
+  asserted verbatim (R-TPL-P3, R-BF-1, R-CHA-A1..A6, R-CHA-O3,
+  R-ADS-P5, R-COM-P1/P2/P3) -- synthesis (MOF + activation + solvent
+  exchange, plan_independent_batches n=3, Supervisor freeze), structure
+  (SCXRD R-CHA-A5), pxrd (all four identity checks PASS), tga
+  (R-CHA-A6), bet (execution/analysis separate), adsorption (C3H6/C2H4
+  pair), iast, qst, breakthrough (results -> Figure 4a via
+  paper_mapping), stability (cycling), computation (prep/DFT/GCMC with
+  SchedulerOptions), acceptance (statistics proposals, evidence before
+  freeze) -- FDM-201 chemistry strictly instance data ("never a rule
+  threshold"); AC-02 proven structurally: closed allowlist over the
+  walked ~70-record chain, zero local classes, core records
+  schema-validated (validate_object clean) and from_dict/to_dict
+  round-trip exact, single reference through the chain
+  (acceptance proposal_id); fixture explicitly NON-FINAL pre-M12 with a
+  guard test. MILESTONE M11 COMPLETE: all six goals (DEV-M11-G01..G06)
+  merged, milestone acceptance criteria satisfied (pack represents
+  synthesis/characterization/adsorption/computation workflows; FDM-201
+  categories expressible without ad hoc schema fork), regression scope
+  green (3016 full suite + ruff/mypy/contracts), zero blocking review
+  items. Merged count: 68/80. M11 unlocks M12 (FDM-201 reference
+  benchmark, G01..G07) and M13. Milestone ledger updated for M10 and
+  M11 (M10 completed this session at M10-G06; M1-M9 ledger backfill
+  deferred to the M13 Release Gate with events as sources).
