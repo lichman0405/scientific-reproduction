@@ -58,7 +58,7 @@ def main() -> int:
             failures.append(label)
 
     # ------------------------------------------------------------------
-    print(f"FDM-201 inventory self-check")
+    print("FDM-201 inventory self-check")
     print(f"repo root: {REPO_ROOT}")
     print(f"inventory: {INVENTORY_PATH}")
     print()
@@ -155,6 +155,38 @@ def main() -> int:
         check(bool(amb.get("resolves_in")), f"{amb.get('ambiguity_id')}: resolves_in non-empty")
         check(bool(amb.get("ambiguity_note")), f"{amb.get('ambiguity_id')}: ambiguity_note present")
 
+    # --- 6b. Bidirectional ambiguity integrity ---------------------------
+    # Forward (hard): every item.ambiguity_ref must name an existing ambiguity
+    # that lists the item in its affected_item_ids.
+    # Backward, closed (hard): an item that carries ANY ambiguity_ref must
+    # reference back every ambiguity that lists it.
+    # Backward, open (warning only): an item with NO ambiguity_ref that is
+    # listed in an ambiguity's affected_item_ids gets a non-fatal warning
+    # (the ambiguity documents the item, the item does not document the
+    # ambiguity; this is tolerated for coverage-style references).
+    amb_by_id = {a.get("ambiguity_id"): a for a in ambiguities}
+    warnings: list[str] = []
+    for item in items:
+        item_id = item.get("item_id")
+        refs = item.get("ambiguity_ref") or []
+        for ref in refs:
+            amb = amb_by_id.get(ref)
+            if amb is None:
+                check(False, f"{item_id}: ambiguity_ref '{ref}' names a nonexistent ambiguity")
+            else:
+                check(item_id in amb.get("affected_item_ids", []),
+                      f"{item_id}: ambiguity_ref '{ref}' must list {item_id} in affected_item_ids")
+        if refs:
+            for amb_id, amb in amb_by_id.items():
+                if item_id in amb.get("affected_item_ids", []) and amb_id not in refs:
+                    check(False, f"{item_id}: ambiguity '{amb_id}' lists {item_id} but is not referenced back")
+        else:
+            for amb_id, amb in amb_by_id.items():
+                if item_id in amb.get("affected_item_ids", []):
+                    warnings.append(f"{item_id} is affected by ambiguity '{amb_id}' but carries no ambiguity_ref")
+    for warning in warnings:
+        print(f"[WARN] {warning}")
+
     # --- 7. Summary block vs computed counts ----------------------------
     def count_items(pred):
         return sum(1 for item in items if pred(item))
@@ -214,7 +246,7 @@ def main() -> int:
 
     # ----------------------------------------------------------------------
     print()
-    print(f"Checks run: {checks_run}, failures: {len(failures)}")
+    print(f"Checks run: {checks_run}, failures: {len(failures)}, warnings: {len(warnings)}")
     print()
     print("Inventory summary (computed):")
     print(f"  total_items            = {len(items)}")

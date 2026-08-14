@@ -1664,7 +1664,7 @@ ambiguities:
   - ambiguity_id: "AMB-0008"
     title: "Breakthrough apparatus and protocol parameters"
     ambiguity_note: "Column geometry, adsorbent mass, packing density, flow rate, gas purity, detector calibration, dead-volume correction, regeneration protocol and cycling protocol are not in accessible material; each is registered MISSING with assumption class A2 per spec WP-70."
-    affected_item_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0516", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    affected_item_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
     resolves_in: ["GOAL-INV-001", "WP-70"]
   - ambiguity_id: "AMB-0009"
     title: "Activation protocol parameters"
