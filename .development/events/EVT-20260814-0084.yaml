@@ -1,0 +1,40 @@
+event_id: EVT-20260814-0084
+event_type: GOAL_MERGED
+timestamp: '2026-08-14'
+goal_id: DEV-M13-G01
+milestone: M13
+attempt_id: DEV-M13-G01-a1
+pr_number: 77
+merge_commit_sha: 19c5bda3701b1193333dc84438ed86f25d225894
+merge_method: squash
+head_sha: 59c599773bbfeec7193d6ed3d76ce8757167584a
+base_sha: 0785974c0ca0bd8e36ac87bb00463e96982feb55
+review_id: DEV-M13-G01-a1
+review_decision: PASS
+findings: []
+summary: >-
+  DEV-M13-G01 (reporting audit validator + traceability checker for the
+  v0.1 report-traceability chain) merged via PR #77 with a single PASS
+  review (DEV-M13-G01-a1, zero findings). Delivered 5 new files (+1016):
+  src/scientific_reproduction/reporting/audit.py (machine-auditable audit
+  package: total assembly from the real registries -- every run of the run
+  store incl. failed runs (AC-03, RunStatus derived from lifecycle/
+  scientific_review), analysis results, artifact manifests, evidence,
+  acceptances, requirements -- and the AC-01/02/03 machine rules
+  CLAIM_NOT_FOUND / TRACE_GAP / TRACE_INCOMPLETE / UNRESOLVED_RUN_ARTIFACT
+  with deterministic sorted errors and canonical JSON), reporting/
+  traceability.py (the 9-hop SS7 chain resolver claim -> evidence ->
+  acceptance/requirement outcome -> analysis result -> run -> raw artifact
+  manifest with exact via field names, total gap semantics, typed records
+  through the real read APIs), tests/reporting/ (test_audit.py 17 tests +
+  test_traceability.py 16 tests + reporting_helpers.py deterministic
+  installers, all house style). Worker findings all documented v0.1
+  vocabulary/storage limitations (no failed-run state, in-memory
+  EvidenceRegistry as explicit input, unpersisted Supervisor decisions,
+  output_artifact_ids untraced, helper naming), no source change.
+  Supervisor independent battery on head 59c5997: goal command 33 passed
+  (11.53s), full suite 3146 passed / 7 skipped / 1 deselected (397.29s, no
+  DEV-DEFECT-002 flake occurrence), ruff clean, mypy 113 files clean,
+  validator 20/20, CI both jobs PASS. Observations OBS-M13-G01-01/02/03
+  tracked for the M13 Release Gate. Merged count: 76/80. M13-G02/G03
+  unblocked per DAG.

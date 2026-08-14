@@ -1,0 +1,50 @@
+goal_id: DEV-M13-G01
+attempt_id: DEV-M13-G01-a1
+change_type: FEATURE
+base_branch: main
+base_sha: 0785974c0ca0bd8e36ac87bb00463e96982feb55
+branch: feat/dev-m13-g01-reporting-audit
+worktree: .worktrees/dev-m13-g01
+status: MERGED
+pr:
+  number: 77
+  url: https://github.com/lichman0405/scientific-reproduction/pull/77
+  head_sha: 59c599773bbfeec7193d6ed3d76ce8757167584a
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M13-G01-a1
+merge_commit_sha: 19c5bda3701b1193333dc84438ed86f25d225894
+merged_at: '2026-08-14'
+commit_shas:
+- 59c599773bbfeec7193d6ed3d76ce8757167584a
+review_notes: >-
+  Single-attempt PASS review (DEV-M13-G01-a1, zero findings, three
+  non-blocking observations OBS-M13-G01-01 double-pytest-process phenomenon
+  (third occurrence, harness-level duplicate launch, identical results),
+  OBS-M13-G01-02 pyright non-authoritative confirmation (tuple-key
+  arity/used_by/run_ref/unreachable diagnostics all dismissed; mypy +
+  runtime authoritative), OBS-M13-G01-03 v0.1 vocabulary/storage
+  limitations as API-completeness candidates (no failed-run state -> derived
+  RunStatus; in-memory EvidenceRegistry -> explicit input; unpersisted
+  Supervisor decisions -> requirement records carry the SS7
+  Requirement-outcome hop; output_artifact_ids untraced; helper named
+  reporting_helpers.py), all tracked for the M13 Release Gate). Delivered
+  5 new files (+1016): src/scientific_reproduction/reporting/audit.py
+  (audit package builder + validator: total assembly from every real
+  registry -- run store all runs incl. failed (AC-03), analyses, artifacts,
+  evidence, acceptances, requirements -- and the AC-01/02/03 machine rules
+  CLAIM_NOT_FOUND/TRACE_GAP/TRACE_INCOMPLETE/UNRESOLVED_RUN_ARTIFACT with
+  deterministic sorted errors, canonical JSON, RunStatus classification as
+  a pure function of the frozen Run fields), reporting/traceability.py (the
+  9-hop SS7 chain resolver claim -> evidence -> acceptance/requirement
+  outcome -> analysis -> run -> artifact with exact via field names, total
+  gap semantics, typed records through the real read APIs), tests/reporting/
+  (test_audit.py 17 tests, test_traceability.py 16 tests,
+  reporting_helpers.py deterministic installers through the real
+  registration APIs; all house style: fixed identities/timestamps, no wall
+  clock, no mocks). Worker findings all documented v0.1 limitations, no
+  source change. Supervisor independent battery: goal command 33 passed
+  (11.53s), full suite 3146 passed / 7 skipped / 1 deselected (397.29s, no
+  DEV-DEFECT-002 flake), ruff clean, mypy 113 clean, validator 20/20, CI
+  both jobs PASS. Merged count: 76/80. M13-G02/G03 unblocked per DAG.
