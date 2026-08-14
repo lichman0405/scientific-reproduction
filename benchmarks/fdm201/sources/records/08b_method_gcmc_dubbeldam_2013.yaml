@@ -1,0 +1,14 @@
+# Canonical computational reference: grand-canonical Monte Carlo (GCMC)
+# simulation methodology for adsorption in nanoporous materials (required
+# bootstrap item 8b, computational method/force-field references set).
+# Identity verified against the Crossref record on 2026-08-14. The paper's
+# actual GCMC workflow and settings are inventoried during benchmark
+# execution (GOAL-INV-002 / WP-82).
+source_id: sr_source_a52c59975078f26cac0e43df7c1c30ba
+source_type: peer_reviewed_paper
+title: "On the inner workings of Monte Carlo codes"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1080/08927022.2013.819102"
+publication_year: 2013
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

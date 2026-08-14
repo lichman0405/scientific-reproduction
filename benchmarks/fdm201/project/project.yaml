@@ -1,0 +1,37 @@
+# FDM-201 benchmark project record (DEV-M12-G01)
+#
+# The benchmark project record for the FDM-201 reference reproduction
+# benchmark. The `core` fields (project_id, primary_target, project_phase,
+# reproduction_outcome, current_plan_version, title, domain_pack,
+# state_backend, created_at, updated_at) serialize the frozen core model
+# `scientific_reproduction.core.models.Project` and validate against
+# `schemas/project.schema.yaml`. The benchmark-specific extensions below
+# (benchmark_id, goal_id, reference_case_spec, source_set, status_note) are
+# permitted by the schema's `additionalProperties: true`.
+project_id: sr_project_c0e2b9a52c011ab5acd33a4feb732b4d
+title: "FDM-201 Reference Reproduction Benchmark (v0.1)"
+primary_target:
+  source_type: doi
+  identifier: "10.1039/D5TA00771B"
+  doi: "10.1039/D5TA00771B"
+  title: "A highly connected metal–organic framework with stretched inorganic units for propylene/ethylene separation"
+project_phase: SOURCE_ACQUISITION
+reproduction_outcome: UNDETERMINED
+current_plan_version: "0.1"
+domain_pack: materials-chemistry
+state_backend: filesystem
+created_at: "2026-08-14T00:00:00Z"
+updated_at: "2026-08-14T00:00:00Z"
+benchmark_id: "fdm201"
+goal_id: "DEV-M12-G01"
+reference_case_spec: "17-FDM201-REFERENCE-CASE.md"
+source_set:
+  records_dir: "benchmarks/fdm201/sources/records"
+  acquisition_log: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml"
+  record_count: 13
+  item_inventory:
+    total_items: 9
+    REGISTERED: 2
+    PARTIAL: 4
+    UNAVAILABLE: 3
+status_note: "NON-FINAL: source registration asserts identities and availability statuses only. Every reported number of the reference case (uptake, selectivity, Qst, binding energies, BET, pore sizes, breakthrough times, and all SI-inventoried items) is revalidated against the primary source during benchmark execution (DEV-M12-G02+), never at registration time."

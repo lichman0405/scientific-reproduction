@@ -1,0 +1,13 @@
+# Canonical method reference: BET (Brunauer-Emmett-Teller) multilayer
+# adsorption theory, the basis of the paper's reported surface area
+# (required bootstrap item 7b, adsorption/IAST/Qst method references set).
+# Identity verified against the Crossref record on 2026-08-14. The paper's
+# actual BET analysis protocol is inventoried during benchmark execution.
+source_id: sr_source_804629f070652078d800d125a6c7d7fb
+source_type: peer_reviewed_paper
+title: "Adsorption of Gases in Multimolecular Layers"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1021/ja01269a023"
+publication_year: 1938
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

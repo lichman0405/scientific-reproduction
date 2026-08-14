@@ -1,0 +1,14 @@
+# Same-author work: FDM-6, a multinary Zn/Cu MOF from the Qiaowei Li group
+# (required bootstrap item 9b, same-author and analogous MOF work set).
+# Qiaowei Li and Yin Rao (first author of the FDM-201 paper) are co-authors
+# (verified via Crossref, 2026-08-14). Registered as same-author zinc-MOF
+# context; the full same-author/analogous set is completed during benchmark
+# execution.
+source_id: sr_source_2fb00aadfa95bfe62e7481958926c9b1
+source_type: peer_reviewed_paper
+title: "Generation of Site-Selective Structural Vacancies in a Multinary Metal–Organic Framework for Enhanced Catalysis"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1021/acsami.3c02550"
+publication_year: 2023
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

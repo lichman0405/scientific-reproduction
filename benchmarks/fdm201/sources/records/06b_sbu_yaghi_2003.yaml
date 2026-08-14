@@ -1,0 +1,14 @@
+# Candidate background reference for reticular design of high-connectivity
+# framework chemistry (required bootstrap item 6b, [Zn8SiO4] SBU chemistry
+# set). Identity verified against the Crossref record on 2026-08-14. The
+# paper's actual citation list could not be read at registration (no-download
+# policy), so this is a registered candidate background reference; the
+# in-paper SBU reference set is verified during benchmark execution.
+source_id: sr_source_3d290ce0c9895b5025964e518d59f9de
+source_type: peer_reviewed_paper
+title: "Reticular synthesis and the design of new materials"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1038/nature01650"
+publication_year: 2003
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC

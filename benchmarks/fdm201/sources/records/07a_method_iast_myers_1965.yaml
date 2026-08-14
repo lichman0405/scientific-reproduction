@@ -1,0 +1,13 @@
+# Canonical method reference: IAST (ideal adsorbed solution theory) for
+# mixed-gas adsorption (required bootstrap item 7a, adsorption/IAST/Qst
+# method references set). Identity verified against the Crossref record on
+# 2026-08-14. The paper's actual method citations (IAST implementation, Qst
+# procedure) are confirmed during benchmark execution (GOAL-INV-002).
+source_id: sr_source_fb13edb5df0d0f7096a69a8e477ceee9
+source_type: peer_reviewed_paper
+title: "Thermodynamics of mixed-gas adsorption"
+provenance: "acquisition:fdm201-bootstrap"
+doi: "10.1002/aic.690110125"
+publication_year: 1965
+acquired_at: "2026-08-14T00:00:00Z"
+access_class: PUBLIC
