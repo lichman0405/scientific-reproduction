@@ -1,0 +1,20 @@
+goal_id: DEV-M10-G04
+attempt_id: DEV-M10-G04-a1
+change_type: FEATURE
+base_branch: main
+base_sha: b261e33fcb8267e40fb42572caa233c8f238fff7
+branch: feat/dev-m10-g04-claude-hooks
+worktree: .worktrees/dev-m10-g04
+status: MERGED
+pr:
+  number: 66
+  url: https://github.com/lichman0405/scientific-reproduction/pull/66
+  head_sha: 23ab960df138b72ae54ca7610c34fb94ba3aeccd
+  state: merged
+  ci_status: PASS
+  merge_method: squash
+  review: DEV-M10-G04-a1
+merge_commit_sha: 6137d893adbbed271bcb03228fc6d31d62117dca
+merged_at: '2026-08-14'
+commit_shas:
+- 23ab960df138b72ae54ca7610c34fb94ba3aeccd
