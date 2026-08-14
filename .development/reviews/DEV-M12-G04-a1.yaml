@@ -115,6 +115,13 @@ verification:
   - "pytest -q tests (supervisor run on head) -> 3016 passed, 7 skipped, 1 deselected, exit 0"
   - "CI on head 7efa826: Test/lint/typecheck PASS + Validate development contracts PASS (run 31768456364)"
   - "vacuous goal gate 'pytest -q tests/benchmarks -k package': file-or-directory not found, exit 4 (tests/benchmarks owned by DEV-M12-G07) - recorded; regression evidence is the full suite 3016 + CI"
+  post_merge: >-
+    Post-merge suite on origin/main 306cd85: 3015 passed, 7 skipped, 1
+    deselected, 1 failed (183.63s). The single failure is the known
+    accepted flake DEV-DEFECT-002 (test_leases.py::
+    test_concurrent_takeover_of_expired_lease_single_winner, lease
+    takeover race). Isolated rerun on main: 1 passed in 7.30s. Not a
+    regression; occurrence recorded per flake policy.
 
 design_review:
   decomposition: >-
