@@ -1,0 +1,1743 @@
+# FDM-201 reported-item inventory (DEV-M12-G02)
+#
+# Formal inventory of every reported experiment / control / computation of the
+# FDM-201 reference benchmark that is discoverable from the accessible source
+# material registered by DEV-M12-G01. Policy (mirrors benchmarks/fdm201/sources):
+# the paper text, SI and CIF are NOT downloaded into the repository (copyright;
+# the benchmark must not redistribute publisher content). This inventory is
+# therefore built from what IS accessible at registration:
+#   (a) the source records and acquisition log (identities, availability
+#       statuses, ESI locator) under benchmarks/fdm201/sources/;
+#   (b) the Crossref-verified publication metadata recorded there;
+#   (c) the seed facts of 17-FDM201-REFERENCE-CASE.md section 2 and the
+#       example work packages of section 4, which the spec itself marks as
+#       "seed facts to verify, not a substitute for source acquisition".
+#
+# Every item is truthful about its evidence basis:
+#   - INVENTORIED:             existence/identity established from accessible
+#                              material (Crossref metadata, acquisition log).
+#   - INVENTORIED-DEFERRED:    existence and reported value known from
+#                              accessible material (section 2 seed facts or the
+#                              G01 acquisition log); the primary source text is
+#                              not in the repository; revalidated against the
+#                              primary source during benchmark execution.
+#   - DEFERRED-TO-EXECUTION:   existence implied by the reference-case spec
+#                              (section 3 required items / section 4 candidate
+#                              unit processes / required parameter sets), but
+#                              values or existence require reading the paper/SI,
+#                              which is not in the repository; explicit reason
+#                              recorded in missing_reason; resolved by the
+#                              execution-phase goal in resolves_in.
+# Ambiguities (AC-03) are listed explicitly in the `ambiguities` section with
+# the execution-phase goal that resolves them. No item is silently omitted.
+#
+# Determinism: fixed timestamp 2026-08-14T00:00:00Z; no wall clock, no
+# randomness, no network at runtime; no unresolved marker values -- genuinely
+# unknown fields carry missing_reason. Every reported number is tagged
+# seed_fact_sourced: true and value_status: REPORTED-NON-FINAL (NON-FINAL until
+# revalidated against the primary source during benchmark execution).
+
+record_kind: benchmark_reported_item_inventory
+goal_id: "DEV-M12-G02"
+benchmark_id: "fdm201"
+reference_case_spec: "17-FDM201-REFERENCE-CASE.md"
+inventoried_at: "2026-08-14T00:00:00Z"
+
+determinism:
+  fixed_timestamp: "2026-08-14T00:00:00Z"
+  wall_clock: "none"
+  randomness: "none"
+  network: "none"
+  note: "Data files only. The companion self_check.py is deterministic, offline, and uses no wall clock, randomness or network."
+
+source_set:
+  records_dir: "benchmarks/fdm201/sources/records"
+  acquisition_log: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml"
+  acquisition_log_totals:
+    total_items: 9
+    REGISTERED: 2
+    PARTIAL: 4
+    UNAVAILABLE: 3
+
+# ---------------------------------------------------------------------------
+# Declared enums
+# ---------------------------------------------------------------------------
+status_enum:
+  - INVENTORIED
+  - INVENTORIED-DEFERRED
+  - DEFERRED-TO-EXECUTION
+
+value_status_enum:
+  - ESTABLISHED
+  - REPORTED-NON-FINAL
+  - EXISTENCE-ONLY
+  - MISSING
+  - NOT-APPLICABLE
+
+existence_basis_enum:
+  - CROSSREF-METADATA
+  - ACQUISITION-LOG
+  - REFERENCE-CASE-SPEC-SEED
+  - REFERENCE-CASE-SPEC
+  - PUBLIC-SEARCH
+
+evidence_basis_enum:
+  - CROSSREF-METADATA
+  - REFERENCE-CASE-SPEC
+  - ACQUISITION-LOG
+  - PUBLIC-SEARCH
+
+# ---------------------------------------------------------------------------
+# Policies
+# ---------------------------------------------------------------------------
+policies:
+  seed_fact_policy: "Items whose existence and reported values are known only from 17-FDM201-REFERENCE-CASE.md section 2 seed facts (from the paper's published abstract/publisher page) are registered with status INVENTORIED-DEFERRED or DEFERRED-TO-EXECUTION, tagged seed_fact_sourced: true, value_status REPORTED-NON-FINAL, and provenance part '17-FDM201-REFERENCE-CASE.md section 2 seed fact'. They are revalidated against the primary source during benchmark execution (GOAL-INV-001/GOAL-INV-002); none is treated as final."
+  no_unresolved_marker_policy: "No unresolved marker values are permitted in any field of this inventory. A genuinely unknown field carries missing_reason describing exactly what is unknown and why (primary source text not downloaded at registration under the no-download policy, bot-protected publisher page, or a search that returned nothing)."
+  number_tagging_policy: "Every reported number in reported_value is tagged seed_fact_sourced: true (section 2 seed facts) or derives from the G01 acquisition log (abstract-level, seed_fact_sourced: false), and always value_status REPORTED-NON-FINAL. No reported number is marked final in this pre-execution inventory."
+  ambiguity_policy: "AC-03: any item whose parameter values, conditions, or very existence require primary-source reading that is unavailable at registration is listed either as a DEFERRED-TO-EXECUTION item with explicit missing_reason or as an entry in the `ambiguities` section (or both, cross-referenced via ambiguity_ref). Nothing is silently omitted."
+  wp70_parameter_policy: "Per 17-FDM201-REFERENCE-CASE.md section 4 WP-70, the mandatory pre-execution breakthrough parameter set (column geometry, adsorbent mass, packing density, flow rate, gas composition/purity, temperature/pressure, detector calibration, dead-volume correction, regeneration protocol, cycling protocol) is inventoried item by item; every parameter whose value is not in accessible material is registered with value_status MISSING, assumption_class A2 ('any missing scientifically consequential parameter is registered as A2 and prevents pure strict classification'), and a reason."
+  requirement_mapping_policy: "Every item maps to its candidate work-package / goal identifiers from 17-FDM201-REFERENCE-CASE.md section 4 (GOAL-RES-001..004, GOAL-INV-001..004, GOAL-AUD-001, WP-10..WP-90) in requirement_mapping. GOAL-AUD-001 (completeness audit; 100% mapped, zero unresolved ambiguity before Plan freeze) applies to the whole inventory."
+  finality_note: "NON-FINAL: this inventory records existence, identity and (where accessible) reported values only. Every quantitative claim is revalidated against the primary source and SI during benchmark execution; the G01 source-registration statuses are re-verified there as well."
+
+# ---------------------------------------------------------------------------
+# G01 acquisition log cross-reference (consistency with DEV-M12-G01)
+# ---------------------------------------------------------------------------
+# The acquisition log status describes SOURCE AVAILABILITY at registration;
+# the inventory status describes the EVIDENCE STATE of the reported item.
+# They are related but not identical: e.g. log item 3 (CIF) is UNAVAILABLE as
+# a source, while the reported structure itself is inventoried via the
+# abstract-level fact (INV-0102) and the deposition is deferred (INV-0004).
+g01_cross_reference:
+  - acquisition_item: 1
+    required_item: "main paper"
+    acquisition_log_status: REGISTERED
+    inventory_items: ["INV-0001", "INV-0002"]
+    note: "Paper identity and author list established from the Crossref record."
+  - acquisition_item: 2
+    required_item: "SI"
+    acquisition_log_status: REGISTERED
+    inventory_items: ["INV-0003"]
+    note: "ESI locator registered on the publisher domain; content not downloaded; SI figure/table inventory (GOAL-INV-004) is deferred."
+  - acquisition_item: 3
+    required_item: "FDM-201 deposited crystal structure/CIF"
+    acquisition_log_status: UNAVAILABLE
+    inventory_items: ["INV-0004", "INV-0102"]
+    note: "Source unavailable at registration (no CSD/CCDC deposition located); the reported structure summary from the published abstract is inventoried at INV-0102; deposition location deferred to GOAL-RES-003."
+  - acquisition_item: 4
+    required_item: "any related deposited structure(s) used by the paper"
+    acquisition_log_status: UNAVAILABLE
+    inventory_items: ["INV-0005"]
+    note: "Paper's deposition list unreadable under no-download policy; none found in public search; deferred to GOAL-RES-003 / GOAL-INV-003."
+  - acquisition_item: 5
+    required_item: "data-availability resources"
+    acquisition_log_status: UNAVAILABLE
+    inventory_items: ["INV-0006"]
+    note: "RSC article page bot-protected (HTTP 403); statement deferred to GOAL-RES-004 / GOAL-INV-001."
+  - acquisition_item: 6
+    required_item: "key references for [Zn8SiO4] SBU chemistry"
+    acquisition_log_status: PARTIAL
+    inventory_items: ["INV-0007"]
+    note: "Candidates registered (Cavka 2008, Yaghi 2003); in-paper set deferred to GOAL-INV-003."
+  - acquisition_item: 7
+    required_item: "key references for adsorption/IAST/Qst methods used"
+    acquisition_log_status: PARTIAL
+    inventory_items: ["INV-0008"]
+    note: "Canonical method references registered (Myers & Prausnitz 1965, Brunauer et al. 1938); in-paper method citations and Qst procedure deferred to GOAL-INV-002."
+  - acquisition_item: 8
+    required_item: "computational method/force-field references"
+    acquisition_log_status: PARTIAL
+    inventory_items: ["INV-0009"]
+    note: "Canonical references registered (Rappe 1992 UFF, Dubbeldam 2013 GCMC); paper's actual settings deferred to GOAL-INV-002."
+  - acquisition_item: 9
+    required_item: "relevant same-author and analogous MOF work"
+    acquisition_log_status: PARTIAL
+    inventory_items: ["INV-0010"]
+    note: "FDM-22 and FDM-6 registered as same-author candidates; set completion deferred to GOAL-INV-003."
+
+# ---------------------------------------------------------------------------
+# Categories (reference-case organization so coverage is checkable)
+# ---------------------------------------------------------------------------
+categories:
+  - id: "00"
+    name: "publication identity and source availability"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 3 (required bootstrap source items)"
+    wp: ["WP-00"]
+  - id: "a"
+    name: "structure and identity characterization"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-30"
+    wp: ["WP-30"]
+  - id: "b"
+    name: "porosity"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-40"
+    wp: ["WP-40"]
+  - id: "c"
+    name: "single-component adsorption isotherms"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-50"
+    wp: ["WP-50"]
+  - id: "d"
+    name: "derived thermodynamic and selectivity items"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 / WP-81"
+    wp: ["WP-60", "WP-81"]
+  - id: "e"
+    name: "breakthrough experiments"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-70"
+    wp: ["WP-70"]
+  - id: "f"
+    name: "computational items"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 / WP-81 / WP-82"
+    wp: ["WP-80", "WP-81", "WP-82"]
+  - id: "g"
+    name: "synthesis and activation"
+    spec_ref: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 / WP-20"
+    wp: ["WP-10", "WP-20"]
+
+# ---------------------------------------------------------------------------
+# Items
+# ---------------------------------------------------------------------------
+items:
+  # ======================= category 00: source acquisition and identity ====
+  - item_id: "INV-0001"
+    category: "00"
+    title: "Primary paper identity (title, journal, year, volume, pages, DOI)"
+    description: "Crossref record for DOI 10.1039/D5TA00771B: 'A highly connected metal-organic framework with stretched inorganic units for propylene/ethylene separation', Journal of Materials Chemistry A, 2025, 13(16), 11382-11388, Royal Society of Chemistry. DOI normalizes to 10.1039/d5ta00771b. Journal/year match the reference-case spec."
+    status: INVENTORIED
+    existence_basis: CROSSREF-METADATA
+    reported_value: null
+    value_status: NOT-APPLICABLE
+    seed_fact_sourced: false
+    revalidation_required: false
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "Crossref record (REST API, queried 2026-08-14), recorded in benchmarks/fdm201/sources/records/01_primary_paper.yaml and ACQUISITION_LOG.yaml item 1"
+      evidence_basis: CROSSREF-METADATA
+    requirement_mapping: ["GOAL-RES-001"]
+  - item_id: "INV-0002"
+    category: "00"
+    title: "Primary paper author list"
+    description: "Crossref-verified author list (2026-08-14): Yin Rao, Xinhao Li, Haozhi Xi, Zhongwen Jiang, Wangzhi Li, Han Zhou, Yanping Zhang, Chuixiong Wu, Yue-Biao Zhang, Qiaowei Li (10 authors). Qiaowei Li and Yin Rao anchor the same-author context (FDM-22, FDM-6)."
+    status: INVENTORIED
+    existence_basis: CROSSREF-METADATA
+    reported_value: null
+    value_status: NOT-APPLICABLE
+    seed_fact_sourced: false
+    revalidation_required: false
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "Crossref record, recorded in benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 1"
+      evidence_basis: CROSSREF-METADATA
+    requirement_mapping: ["GOAL-RES-001"]
+  - item_id: "INV-0003"
+    category: "00"
+    title: "Electronic supplementary information (ESI) locator"
+    description: "RSC ESI locator found via public search on the publisher domain: https://www.rsc.org/suppdata/d5/ta/d5ta00771b/d5ta00771b1.pdf . Locator registered; ESI content NOT downloaded (no-download policy). The ESI figure/table inventory (GOAL-INV-004) and any SI-only data (e.g. an embedded CIF) are established during benchmark execution."
+    status: INVENTORIED
+    existence_basis: ACQUISITION-LOG
+    reported_value: "https://www.rsc.org/suppdata/d5/ta/d5ta00771b/d5ta00771b1.pdf"
+    value_status: ESTABLISHED
+    seed_fact_sourced: false
+    revalidation_required: false
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 2 (locator from public search on publisher domain)"
+      evidence_basis: ACQUISITION-LOG
+    requirement_mapping: ["GOAL-RES-002", "GOAL-INV-004"]
+  - item_id: "INV-0004"
+    category: "00"
+    title: "FDM-201 deposited crystal structure (CIF) / CSD-CCDC deposition"
+    description: "Required bootstrap item 3. The paper reports the structure (cubic Fm-3m, a = 23.76 A, fcu topology, [Zn8SiO4] node) per the published abstract (see INV-0102); the deposition itself is not located at registration."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 3 (CCDC public deposition search by DOI, 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "No CSD/CCDC deposition located at registration: CCDC public deposition search by DOI 10.1039/D5TA00771B returned no deposited structures, and no CCDC deposition number was found in public search. The CIF may exist only embedded inside the ESI. Re-verified during benchmark execution."
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
+    requirement_mapping: ["GOAL-RES-003", "WP-80"]
+  - item_id: "INV-0005"
+    category: "00"
+    title: "Related deposited structure(s) used by the paper"
+    description: "Required bootstrap item 4. The paper's deposition list cannot be read without the paper text (no-download policy); no related depositions were discoverable through public search on 2026-08-14."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_9280af72ee87eb99511040e333e4f244"]
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 4 (public search, 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether any related structure depositions exist and are used by the paper is not determinable at registration: the paper text is not downloaded (no-download policy) and public search found none."
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-003"]
+    requirement_mapping: ["GOAL-RES-003", "GOAL-INV-003"]
+  - item_id: "INV-0006"
+    category: "00"
+    title: "Data-availability resources / statement"
+    description: "Required bootstrap item 5. No external repository (Zenodo/Figshare/GitHub or similar) located in public search on 2026-08-14; the article's data-availability statement could not be machine-read."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_8cbf12c17f81fbce1a839725e46d5b5f"]
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 5 (RSC article page bot-protected, HTTP 403, 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The RSC article page (pubs.rsc.org) is bot-protected (HTTP 403 to automated fetch on 2026-08-14), so the article's data-availability statement could not be machine-read at registration; no external repository was found in public search."
+    resolves_in: ["GOAL-RES-004", "GOAL-INV-001"]
+    requirement_mapping: ["GOAL-RES-004", "GOAL-INV-001"]
+  - item_id: "INV-0007"
+    category: "00"
+    title: "In-paper reference set for [Zn8SiO4] SBU chemistry"
+    description: "Required bootstrap item 6. Two verified candidate background references are registered (Crossref-verified 2026-08-14): Cavka et al. 2008 (12-connected fcu archetype, 10.1021/ja8057953) and Yaghi et al. 2003 (reticular synthesis, 10.1038/nature01650). The paper's actual citation list is not readable at registration."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids:
+        - "sr_source_0efcf3f9b1f3ea8dac12a833870a1edd"
+        - "sr_source_3d290ce0c9895b5025964e518d59f9de"
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 6 (candidate references, Crossref-verified 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The paper's actual SBU-chemistry citation list cannot be read at registration (no-download policy); only candidate references are registered. The in-paper set is verified during benchmark execution."
+    resolves_in: ["GOAL-INV-003"]
+    requirement_mapping: ["GOAL-INV-003"]
+  - item_id: "INV-0008"
+    category: "00"
+    title: "In-paper reference set for adsorption / IAST / Qst methods"
+    description: "Required bootstrap item 7. Canonical method references registered (Crossref-verified 2026-08-14): Myers & Prausnitz 1965, IAST, 10.1002/aic.690110125; Brunauer, Emmett & Teller 1938, BET, 10.1021/ja01269a023. The paper's actual method citations and its Qst procedure are confirmed during execution."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids:
+        - "sr_source_fb13edb5df0d0f7096a69a8e477ceee9"
+        - "sr_source_804629f070652078d800d125a6c7d7fb"
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 7 (canonical method references, Crossref-verified 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The paper's actual method citations and Qst procedure are unreadable at registration (no-download policy); registration asserts canonical method references only."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0009"
+    category: "00"
+    title: "In-paper reference set for computational methods / force fields"
+    description: "Required bootstrap item 8. Canonical computational references registered (Crossref-verified 2026-08-14): Rappe et al. 1992, UFF, 10.1021/ja00051a040; Dubbeldam, Torres-Knoop & Walton 2013, GCMC methodology, 10.1080/08927022.2013.819102. The paper's actual force field, charges, software and simulation settings (reported in SI) are inventoried during execution."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids:
+        - "sr_source_699dfcc7d671d18011b21893043b6f52"
+        - "sr_source_a52c59975078f26cac0e43df7c1c30ba"
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 8 (canonical computational references, Crossref-verified 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The paper's actual force-field, charges, software and simulation settings (reported in SI) are unreadable at registration (no-download policy)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-80", "WP-82"]
+  - item_id: "INV-0010"
+    category: "00"
+    title: "Same-author and analogous MOF work set"
+    description: "Required bootstrap item 9. Same-author candidates registered (Crossref-verified 2026-08-14): FDM-22, Chem. Mater. 2018, 10.1021/acs.chemmater.8b02511 (Qiaowei Li co-author); FDM-6, ACS Appl. Mater. Interfaces 2023, 10.1021/acsami.3c02550 (Qiaowei Li and Yin Rao co-authors)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids:
+        - "sr_source_1eb6b648eb2eddecf250a7976d48b305"
+        - "sr_source_2fb00aadfa95bfe62e7481958926c9b1"
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 9 (same-author candidates, Crossref-verified 2026-08-14)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The full same-author / analogous-MOF set (including works cited by the paper) is not exhaustively established at registration; completed during benchmark execution."
+    resolves_in: ["GOAL-INV-003"]
+    requirement_mapping: ["GOAL-INV-003"]
+
+  # ======================= category a: structure and identity (WP-30) ======
+  - item_id: "INV-0101"
+    category: "a"
+    title: "Reported framework description: stretched [Zn8SiO4] node, PyBC-type linker, 12-connected fcu"
+    description: "FDM-201 uses a stretched [Zn8SiO4] inorganic unit and a PyBC-type mixed coordination linker motif in a 12-connected fcu framework."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "stretched [Zn8SiO4] inorganic unit; PyBC-type mixed coordination linker motif; 12-connected fcu framework"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0102"
+    category: "a"
+    title: "Reported crystal system and unit cell (cubic Fm-3m, a = 23.76 A)"
+    description: "Per the paper's published abstract as recorded in the G01 acquisition log: cubic Fm-3m structure, a = 23.76 A, fcu topology, [Zn8SiO4] node. Abstract-level fact; the full crystallographic detail (atomic coordinates, disorder, thermal parameters) requires the CIF."
+    status: INVENTORIED-DEFERRED
+    existence_basis: ACQUISITION-LOG
+    reported_value: "cubic Fm-3m; a = 23.76 A (abstract-level, per G01 acquisition log item 3)"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+      part: "benchmarks/fdm201/sources/ACQUISITION_LOG.yaml item 3 (established; per the paper's published abstract)"
+      evidence_basis: ACQUISITION-LOG
+    provenance_note: "Abstract-level reported number; NOT a section 2 seed fact. Revalidate against the primary source and CIF during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-30", "WP-80"]
+  - item_id: "INV-0103"
+    category: "a"
+    title: "SCXRD structure determination"
+    description: "Candidate WP-30 unit process: 'SCXRD/sample selection if formally reported and practically reproducible'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether SCXRD is formally reported (and its details: instrument, temperature, R-factors, CCDC deposition) is not determinable without the paper text, which is not downloaded at registration."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0104"
+    category: "a"
+    title: "PXRD measurement (per independent batch)"
+    description: "Candidate WP-30 unit process: PXRD measurement for each independent batch."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "PXRD instrument settings, radiation, scan range and step are not in accessible material; read from paper/SI during execution."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0105"
+    category: "a"
+    title: "PXRD phase analysis"
+    description: "Candidate WP-30 unit process: PXRD phase analysis (comparison against calculated pattern)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The reference pattern and analysis method used by the paper are not in accessible material."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0106"
+    category: "a"
+    title: "TGA (thermogravimetric analysis)"
+    description: "Candidate WP-30 unit process: TGA."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether TGA is formally reported (and its conditions: atmosphere, ramp, temperatures) is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0107"
+    category: "a"
+    title: "Spectroscopy / compositional characterization (any formally reported)"
+    description: "Candidate WP-30 unit process: 'any spectroscopy/compositional characterization formally reported' (e.g. elemental analysis, IR, NMR on the framework)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Which (if any) spectroscopic/compositional characterizations the paper reports is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0108"
+    category: "a"
+    title: "Stability PXRD tests under formally reported conditions"
+    description: "Candidate WP-30 unit process: stability PXRD tests under all formally reported conditions (e.g. solvent/water/thermal stability)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether stability tests are reported, and under which conditions, is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+  - item_id: "INV-0109"
+    category: "a"
+    title: "Structure / model comparison"
+    description: "Candidate WP-30 unit process: structure/model comparison (measured vs simulated or SCXRD-derived pattern)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-30 (candidate unit process); depends on the CIF, which is unavailable at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Requires the published CIF, which is not located at registration (see INV-0004); the reported comparison itself is read from the paper during execution."
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+
+  # ======================= category b: porosity (WP-40) ====================
+  - item_id: "INV-0201"
+    category: "b"
+    title: "BET surface area"
+    description: "Reported BET surface area."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~1965 m2 g-1 (BET, N2)"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+  - item_id: "INV-0202"
+    category: "b"
+    title: "Reported pore sizes"
+    description: "Reported pore sizes."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~7.9 A and ~13.0 A"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+  - item_id: "INV-0203"
+    category: "b"
+    title: "N2 isotherm acquisition"
+    description: "Candidate WP-40 unit process: N2 isotherm acquisition at the reported temperature (measurement temperature, pressure range, activation-before-run conditions)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The N2 isotherm measurement temperature and protocol are not in accessible material (see AMB-0012); read from paper/SI during execution."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+  - item_id: "INV-0204"
+    category: "b"
+    title: "BET analysis protocol"
+    description: "Candidate WP-40 unit process: BET analysis using the paper's frozen selection rules (relative-pressure range, correlation criteria, consistency checks)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The exact BET fitting range and criteria the paper used are not in accessible material (see AMB-0013); read from paper/SI during execution."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+  - item_id: "INV-0205"
+    category: "b"
+    title: "Pore-size analysis method"
+    description: "Candidate WP-40 unit process: pore-size analysis using the method actually reported (e.g. NLDFT/QSDFT model and kernel)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The pore-size method (model, kernel, software) is not in accessible material (see AMB-0014); read from paper/SI during execution."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+  - item_id: "INV-0206"
+    category: "b"
+    title: "Activation QC before adsorption"
+    description: "Candidate WP-40 unit process: activation QC before adsorption (outgassing conditions consistent with the activation protocol)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The paper's outgassing/QC conditions before porosity measurements are not in accessible material."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+  - item_id: "INV-0207"
+    category: "b"
+    title: "Independent batch porosity statistics"
+    description: "Candidate WP-40 unit process: independent batch porosity statistics (number of batches and replicates the paper reports)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-40 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The number of independent batches/replicates behind the reported BET value is not in accessible material (see AMB-0011)."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-40"]
+
+  # ======================= category c: single-component isotherms (WP-50) ==
+  - item_id: "INV-0301"
+    category: "c"
+    title: "C3H6 single-component uptake at 298 K, 1 bar"
+    description: "Reported C3H6 uptake at 298 K and 1 bar."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "180.5 cm3 g-1 at 298 K, 1 bar"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0302"
+    category: "c"
+    title: "C2H4 single-component uptake at 298 K, 1 bar"
+    description: "Reported C2H4 uptake at 298 K and 1 bar."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "68.2 cm3 g-1 at 298 K, 1 bar"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0303"
+    category: "c"
+    title: "C3H6 full adsorption isotherm (point grid, pressure range)"
+    description: "Candidate WP-50 unit process: C3H6 adsorption isotherm at each reported temperature; the isotherm point grid and pressure range are needed for IAST fits and GCMC comparison."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The C3H6 isotherm shape, point grid and pressure range are only in the paper/SI, which are not downloaded at registration."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0304"
+    category: "c"
+    title: "C2H4 full adsorption isotherm (point grid, pressure range)"
+    description: "Candidate WP-50 unit process: C2H4 adsorption isotherm at each reported temperature."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The C2H4 isotherm shape, point grid and pressure range are only in the paper/SI, which are not downloaded at registration."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0305"
+    category: "c"
+    title: "Single-component isotherms at temperatures other than 298 K"
+    description: "Candidate WP-50 unit process: 'C3H6/C2H4 adsorption isotherm at each reported temperature'; whether additional temperatures are reported is unknown at registration."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether single-component isotherms at temperatures other than 298 K are formally reported is not determinable without the primary text (see AMB-0003)."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0306"
+    category: "c"
+    title: "Desorption branch (if formally reported)"
+    description: "Candidate WP-50 unit process: 'desorption branch if formally reported'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether desorption branches / hysteresis are formally reported is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0307"
+    category: "c"
+    title: "Isotherm repeat / batch plan"
+    description: "Candidate WP-50 unit process: repeat/batch plan (replicates behind each isotherm)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The number of replicate isotherms / batches is not in accessible material (see AMB-0011)."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+  - item_id: "INV-0308"
+    category: "c"
+    title: "Uptake comparison statistics"
+    description: "Candidate WP-50 unit process: uptake comparison statistics (experimental vs simulated, and batch-to-batch)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-50 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The statistics the paper reports for uptake (spread, batch comparison) are not in accessible material."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-50"]
+
+  # ==================== category d: derived thermodynamic items (WP-60/81) ==
+  - item_id: "INV-0401"
+    category: "d"
+    title: "IAST selectivity, 50/50 C3H6/C2H4 at 298 K / 100 kPa"
+    description: "Reported IAST selectivity."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~8.6 (50/50 C3H6/C2H4, 298 K, 100 kPa)"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0402"
+    category: "d"
+    title: "Zero-coverage isosteric heat of adsorption Qst, C3H6"
+    description: "Reported zero-coverage Qst for C3H6."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~27.1 kJ mol-1 (zero coverage)"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0403"
+    category: "d"
+    title: "Zero-coverage isosteric heat of adsorption Qst, C2H4"
+    description: "Reported zero-coverage Qst for C2H4."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~19.1 kJ mol-1 (zero coverage)"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0404"
+    category: "d"
+    title: "Qst calculation procedure"
+    description: "Candidate WP-60 unit process: 'calculate Qst using the same reported method' (fit model, temperature set, coverage range)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The paper's exact Qst procedure (fit model, temperature set, coverage range) is not in accessible material (see AMB-0004)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0405"
+    category: "d"
+    title: "IAST implementation details"
+    description: "Candidate WP-60 unit process: 'calculate IAST selectivity for every formally reported composition/condition' (pure-component fit model, e.g. dual-site Langmuir-Freundlich, and software)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The pure-component fit model, fit range and software the paper used for IAST are not in accessible material (see AMB-0005)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0406"
+    category: "d"
+    title: "IAST selectivity at other compositions / conditions"
+    description: "Candidate WP-60 unit process: IAST selectivity for every formally reported composition/condition; only 50/50 at 100 kPa is known at registration."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-60 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether selectivity is reported at other compositions/pressures/temperatures is not determinable without the primary text (see AMB-0005)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-60"]
+  - item_id: "INV-0407"
+    category: "d"
+    title: "Static binding energy, C3H6"
+    description: "Reported static binding energy for C3H6."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~48.72 kJ mol-1"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+  - item_id: "INV-0408"
+    category: "d"
+    title: "Static binding energy, C2H4"
+    description: "Reported static binding energy for C2H4."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "~38.61 kJ mol-1"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+  - item_id: "INV-0409"
+    category: "d"
+    title: "Binding-energy calculation method"
+    description: "Candidate WP-81 unit process: 'reproduce binding-energy calculation method' (electronic-structure level, functional, basis set, dispersion correction, or force-field approach)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The method behind the reported static binding energies (functional/basis/dispersion or force field) is not in accessible material (see AMB-0007)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+
+  # ======================= category e: breakthrough (WP-70) ================
+  - item_id: "INV-0501"
+    category: "e"
+    title: "Breakthrough experiment, 50/50 C3H6/C2H4 at 298 K"
+    description: "Reported breakthrough example for a 50/50 mixture at 298 K."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "C2H4 retention ~23.5 min; C3H6 ~64.8 min; separation window ~41.3 min (50/50 C3H6/C2H4, 298 K)"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (from the paper's published abstract/publisher page)"
+      evidence_basis: REFERENCE-CASE-SPEC
+    provenance_note: "Seed fact to verify: primary source text not downloaded at registration; revalidate against the primary source during benchmark execution."
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0502"
+    category: "e"
+    title: "Breakthrough experiment, 328 K diluted-mixture conditions"
+    description: "The spec states that additional 328 K / diluted-mixture breakthrough conditions are reported and must be inventoried from the paper/SI; the exact composition, dilution, pressure, flow and column conditions are not in accessible material."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "328 K; diluted-mixture (composition, pressure, flow not in accessible material)"
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (existence); details require the paper/SI, not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Existence reported per spec section 2, but the exact 328 K / diluted-mixture conditions (composition, dilution, pressure, flow rate, column) are only in the paper/SI (see AMB-0002)."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0503"
+    category: "e"
+    title: "Breakthrough cycle / repeat runs"
+    description: "Candidate WP-70 unit process: separate unit processes for every formally reported gas composition/temperature/cycle condition; cycle count and repeat runs are reported in the paper."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether cycling experiments are formally reported, and their conditions, is not determinable without the primary text (see AMB-0011)."
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0511"
+    category: "e"
+    title: "WP-70 parameter: column geometry"
+    description: "Required pre-execution breakthrough parameter (17-FDM201-REFERENCE-CASE.md section 4 WP-70): column geometry (diameter, length)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Column geometry is not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0512"
+    category: "e"
+    title: "WP-70 parameter: adsorbent mass"
+    description: "Required pre-execution breakthrough parameter: adsorbent mass in the column."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Adsorbent mass is not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0513"
+    category: "e"
+    title: "WP-70 parameter: packing density"
+    description: "Required pre-execution breakthrough parameter: packing density 'if reported'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Packing density is not reported in any accessible material; the paper may not report it at all, in which case it is registered as A2 per WP-70. Verified during execution."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0514"
+    category: "e"
+    title: "WP-70 parameter: flow rate"
+    description: "Required pre-execution breakthrough parameter: gas flow rate (total and/or per component)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Flow rate is not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0515"
+    category: "e"
+    title: "WP-70 parameter: gas composition / purity"
+    description: "Required pre-execution breakthrough parameter: gas composition and purity. Composition is known for the 298 K run (seed fact); purity and the 328 K diluted-run composition are not in accessible material."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "50/50 C3H6/C2H4 (298 K run, seed fact); purity not in accessible material; 328 K diluted-run composition not in accessible material"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed fact (composition, 298 K run); purity and 328 K run composition require the paper/SI"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Gas purity and the 328 K diluted-mixture composition are not in accessible material (see AMB-0002); gas purity is registered A2 pending execution."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0002", "AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0516"
+    category: "e"
+    title: "WP-70 parameter: gas purity (separate record)"
+    description: "Gas purity as a standalone WP-70 parameter, kept distinct from composition for traceability."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Gas purity (grade, % purity) is not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0517"
+    category: "e"
+    title: "WP-70 parameter: temperature / pressure"
+    description: "Required pre-execution breakthrough parameter: operating temperature and pressure. Temperatures are known for both reported runs (298 K, 328 K); operating pressure is not in accessible material."
+    status: INVENTORIED-DEFERRED
+    existence_basis: REFERENCE-CASE-SPEC-SEED
+    reported_value: "298 K (50/50 run, seed fact); 328 K reported for diluted run (details per spec section 2, unreadable); operating pressure not in accessible material"
+    value_status: REPORTED-NON-FINAL
+    seed_fact_sourced: true
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 2 seed facts (temperatures); pressure requires the paper/SI"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Operating pressure is not in accessible material (see AMB-0002); registered A2 pending execution."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0002"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0518"
+    category: "e"
+    title: "WP-70 parameter: detector calibration"
+    description: "Required pre-execution breakthrough parameter: detector calibration (e.g. GC/FID/MS calibration, response factors)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Detector type and calibration procedure are not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0519"
+    category: "e"
+    title: "WP-70 parameter: dead-volume correction"
+    description: "Required pre-execution breakthrough parameter: dead-volume correction method."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Dead-volume correction (existence and method) is not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0520"
+    category: "e"
+    title: "WP-70 parameter: regeneration protocol"
+    description: "Required pre-execution breakthrough parameter: regeneration protocol between runs."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Regeneration protocol (temperature, purge gas, duration) is not reported in any accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+  - item_id: "INV-0521"
+    category: "e"
+    title: "WP-70 parameter: cycling protocol"
+    description: "Required pre-execution breakthrough parameter: cycling protocol (number of cycles, conditions per cycle)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: MISSING
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-70 (required pre-execution parameter set); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Cycling protocol (whether cycles are reported, how many, and their conditions) is not in accessible material; value is read from the paper/SI during benchmark execution (GOAL-INV-001 / WP-70)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0008"]
+    resolves_in: ["GOAL-INV-001"]
+    requirement_mapping: ["GOAL-INV-001", "WP-70"]
+
+  # ======================= category f: computational items (WP-80/81/82) ===
+  - item_id: "INV-0601"
+    category: "f"
+    title: "Published CIF acquisition (model construction input)"
+    description: "Candidate WP-80 unit process: 'acquire published CIF'; the CIF source (CSD/CCDC deposition or ESI embedding) is not located at registration."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_68539272137098c373f56bdea1b106cd"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); CIF availability per ACQUISITION_LOG.yaml item 3"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "No CSD/CCDC deposition located at registration; the CIF may exist only embedded in the ESI (see AMB-0001)."
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
+    requirement_mapping: ["GOAL-RES-003", "WP-80"]
+  - item_id: "INV-0602"
+    category: "f"
+    title: "Simulation model construction (disorder, cell, atom types)"
+    description: "Candidate WP-80 unit process: resolve disorder/model choices, construct the simulation cell."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Model-construction details depend on the CIF and the SI (atom types, charges, disorder treatment), none of which is in the repository at registration."
+    resolves_in: ["GOAL-INV-002", "GOAL-RES-003"]
+    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+  - item_id: "INV-0603"
+    category: "f"
+    title: "Geometry and pore-access verification"
+    description: "Candidate WP-80 unit process: verify geometry and pore access of the constructed model."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Requires the CIF and the paper's reported geometry facts; both unavailable at registration."
+    resolves_in: ["GOAL-INV-002", "GOAL-RES-003"]
+    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+  - item_id: "INV-0604"
+    category: "f"
+    title: "Linker rotation / dynamic pore argument (if computationally reported)"
+    description: "Candidate WP-80 unit process: 'reproduce any linker rotation/dynamic pore argument if computationally reported'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether the paper computationally reports linker rotation / dynamic pore behavior is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+  - item_id: "INV-0605"
+    category: "f"
+    title: "Force-field / charges / software settings"
+    description: "Candidate WP-80 unit process: 'register all assumed atom types/charges/force-field settings'; the paper's actual settings are reported in the SI per the G01 log."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d", "sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-80 (candidate unit process); settings reported in the SI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The actual force field, charges, software and simulation settings are reported in the SI, which is not downloaded at registration (see AMB-0006)."
+    assumption_class: "A2"
+    ambiguity_ref: ["AMB-0006"]
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-80", "WP-82"]
+  - item_id: "INV-0606"
+    category: "f"
+    title: "GCMC adsorption simulation, C3H6"
+    description: "Candidate WP-82 unit process: 'reproduce C3H6 adsorption simulation'; reported simulated data and the temperature/pressure grid come from the paper."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-82 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether the paper reports GCMC C3H6 simulations, and their conditions, is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-82"]
+  - item_id: "INV-0607"
+    category: "f"
+    title: "GCMC adsorption simulation, C2H4"
+    description: "Candidate WP-82 unit process: 'reproduce C2H4 adsorption simulation'; reported simulated data and conditions come from the paper."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-82 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether the paper reports GCMC C2H4 simulations, and their conditions, is not determinable without the primary text."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-82"]
+  - item_id: "INV-0608"
+    category: "f"
+    title: "Simulated vs experimental comparison (as formally reported)"
+    description: "Candidate WP-82 unit process: 'compare simulated and experimental trends/data as formally reported'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-82 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The reported comparison figures/metrics are only in the paper/SI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-82"]
+  - item_id: "INV-0609"
+    category: "f"
+    title: "C3H6 binding-site calculation"
+    description: "Candidate WP-81 unit process: 'reproduce C3H6 binding-site calculation'; reported static binding energy is inventoried at INV-0407."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The binding-site structure and the calculation protocol are only in the paper/SI (see AMB-0007)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+  - item_id: "INV-0610"
+    category: "f"
+    title: "C2H4 binding-site calculation"
+    description: "Candidate WP-81 unit process: 'reproduce C2H4 binding-site calculation'; reported static binding energy is inventoried at INV-0408."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The binding-site structure and the calculation protocol are only in the paper/SI (see AMB-0007)."
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+  - item_id: "INV-0611"
+    category: "f"
+    title: "Electronic-structure settings for binding energies"
+    description: "Candidate WP-81 unit process: 'verify convergence/model assumptions'; functional, basis set, dispersion correction and convergence criteria."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_118eed96c3e6f03106c432a03542be7d", "sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-81 (candidate unit process); settings reported in the SI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The electronic-structure method (functional/basis/dispersion, software, convergence) is reported in the paper/SI, not downloaded at registration (see AMB-0007)."
+    ambiguity_ref: ["AMB-0007"]
+    resolves_in: ["GOAL-INV-002"]
+    requirement_mapping: ["GOAL-INV-002", "WP-81"]
+
+  # ======================= category g: synthesis/activation (WP-10/20) =====
+  - item_id: "INV-0701"
+    category: "g"
+    title: "Ligand precursor synthesis step 1"
+    description: "Candidate WP-10 unit process: 'ligand precursor synthesis step 1'; exact steps are given in the SI."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The ligand precursor synthesis steps are given in the ESI, which is not downloaded at registration; final exact goals are generated from the SI during execution."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+  - item_id: "INV-0702"
+    category: "g"
+    title: "Ligand precursor purification / identity check"
+    description: "Candidate WP-10 unit process: 'ligand precursor purification/identity check'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Purification/identity-check protocol for the ligand precursor is in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+  - item_id: "INV-0703"
+    category: "g"
+    title: "PyBC ligand synthesis"
+    description: "Candidate WP-10 unit process: 'PyBC synthesis'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The PyBC synthesis protocol is in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+  - item_id: "INV-0704"
+    category: "g"
+    title: "PyBC purification"
+    description: "Candidate WP-10 unit process: 'PyBC purification'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The PyBC purification protocol is in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+  - item_id: "INV-0705"
+    category: "g"
+    title: "PyBC identity / purity characterization"
+    description: "Candidate WP-10 unit process: 'PyBC identity/purity characterization' (e.g. NMR, MS, elemental analysis of the ligand)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The ligand characterization data and methods are in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+  - item_id: "INV-0706"
+    category: "g"
+    title: "Any reported precursor / control synthesis"
+    description: "Candidate WP-10 unit process: 'any reported precursor/control synthesis'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-10 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether the paper reports additional precursor/control syntheses is not determinable without the SI."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-10"]
+  - item_id: "INV-0707"
+    category: "g"
+    title: "Reaction mixture preparation (per SI)"
+    description: "Candidate WP-20 unit process: 'prepare reaction mixture exactly per SI' (reagent amounts, solvents, ratios)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The reaction-mixture preparation is described in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0708"
+    category: "g"
+    title: "Solvothermal synthesis of FDM-201"
+    description: "Candidate WP-20 unit process: 'solvothermal synthesis of FDM-201' (temperature, duration, vessel)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The solvothermal conditions are described in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0709"
+    category: "g"
+    title: "Isolation / wash"
+    description: "Candidate WP-20 unit process: 'isolate/wash material'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The isolation/wash protocol is described in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0710"
+    category: "g"
+    title: "Solvent exchange"
+    description: "Candidate WP-20 unit process: 'solvent exchange'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The solvent-exchange protocol is described in the ESI, not downloaded at registration."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0711"
+    category: "g"
+    title: "Activation protocol"
+    description: "Candidate WP-20 unit process: 'activation' (temperature, vacuum, duration)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The activation conditions (temperature, vacuum, duration) are described in the ESI, not downloaded at registration (see AMB-0009)."
+    ambiguity_ref: ["AMB-0009"]
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0712"
+    category: "g"
+    title: "Sample storage / handling"
+    description: "Candidate WP-20 unit process: 'sample storage/handling' (e.g. air/moisture sensitivity)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether the paper reports storage/handling requirements is not determinable without the SI."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0713"
+    category: "g"
+    title: "Independent batch synthesis runs"
+    description: "Candidate WP-20 unit process: 'independent batch synthesis Runs' (number of batches reported)."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); protocol is in the ESI, which is not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "The number of independent batches the paper reports is not in accessible material (see AMB-0011)."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+  - item_id: "INV-0714"
+    category: "g"
+    title: "Process-level batch reproducibility analysis"
+    description: "Candidate WP-20 unit process: 'process-level batch reproducibility analysis'."
+    status: DEFERRED-TO-EXECUTION
+    existence_basis: REFERENCE-CASE-SPEC
+    reported_value: null
+    value_status: EXISTENCE-ONLY
+    seed_fact_sourced: false
+    revalidation_required: true
+    provenance:
+      source_ids: ["sr_source_86450d48aa337786cad25c306944daae"]
+      part: "17-FDM201-REFERENCE-CASE.md section 4 WP-20 (candidate unit process); primary text not downloaded at registration"
+      evidence_basis: REFERENCE-CASE-SPEC
+    missing_reason: "Whether the paper reports batch-level reproducibility analysis is not determinable without the primary text/SI."
+    resolves_in: ["GOAL-INV-004"]
+    requirement_mapping: ["GOAL-INV-004", "WP-20"]
+
+# ---------------------------------------------------------------------------
+# Ambiguities (AC-03): every ambiguity whose parameter values, conditions, or
+# very existence require primary-source reading unavailable at registration.
+# ---------------------------------------------------------------------------
+ambiguities:
+  - ambiguity_id: "AMB-0001"
+    title: "FDM-201 CIF deposition location"
+    ambiguity_note: "No CSD/CCDC deposition was located at registration (CCDC public deposition search by DOI 10.1039/D5TA00771B returned nothing on 2026-08-14). The CIF may exist only embedded inside the ESI, or may be deposited without the DOI being linked to the deposition record. Location, format and availability of the CIF are unknown at registration."
+    affected_item_ids: ["INV-0004", "INV-0601"]
+    resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
+  - ambiguity_id: "AMB-0002"
+    title: "328 K diluted-mixture breakthrough conditions"
+    ambiguity_note: "Spec section 2 states that additional 328 K / diluted-mixture breakthrough conditions are reported; the exact mixture composition, dilution factor, pressure, flow rate and column parameters are not in accessible material."
+    affected_item_ids: ["INV-0502", "INV-0515", "INV-0517"]
+    resolves_in: ["GOAL-INV-001", "WP-70"]
+  - ambiguity_id: "AMB-0003"
+    title: "Single-component isotherm temperatures beyond 298 K"
+    ambiguity_note: "Only the 298 K uptake values are known at registration; whether isotherms at other temperatures are formally reported (and at which temperatures) is not determinable without the primary text."
+    affected_item_ids: ["INV-0305"]
+    resolves_in: ["GOAL-INV-001"]
+  - ambiguity_id: "AMB-0004"
+    title: "Exact Qst calculation procedure"
+    ambiguity_note: "The zero-coverage Qst values are seed facts, but the calculation procedure (fit model, temperature set, coverage range, software) is reported only in the paper/SI."
+    affected_item_ids: ["INV-0404"]
+    resolves_in: ["GOAL-INV-002", "WP-60"]
+  - ambiguity_id: "AMB-0005"
+    title: "IAST implementation details and covered conditions"
+    ambiguity_note: "The pure-component fit model, fit range, software, and the full set of compositions/pressures for which selectivity is reported are not determinable without the primary text."
+    affected_item_ids: ["INV-0405", "INV-0406"]
+    resolves_in: ["GOAL-INV-002", "WP-60"]
+  - ambiguity_id: "AMB-0006"
+    title: "Simulation force field, charges and software"
+    ambiguity_note: "The force field (UFF candidate only), partial charges, mixing rules, ensemble details and software are reported in the SI per the G01 log, which is not downloaded at registration."
+    affected_item_ids: ["INV-0605"]
+    resolves_in: ["GOAL-INV-002", "WP-80", "WP-82"]
+  - ambiguity_id: "AMB-0007"
+    title: "Binding-energy electronic-structure settings"
+    ambiguity_note: "The method behind the reported static binding energies (functional, basis set, dispersion correction, software, convergence criteria) is reported in the paper/SI only."
+    affected_item_ids: ["INV-0409", "INV-0611"]
+    resolves_in: ["GOAL-INV-002", "WP-81"]
+  - ambiguity_id: "AMB-0008"
+    title: "Breakthrough apparatus and protocol parameters"
+    ambiguity_note: "Column geometry, adsorbent mass, packing density, flow rate, gas purity, detector calibration, dead-volume correction, regeneration protocol and cycling protocol are not in accessible material; each is registered MISSING with assumption class A2 per spec WP-70."
+    affected_item_ids: ["INV-0511", "INV-0512", "INV-0513", "INV-0514", "INV-0515", "INV-0516", "INV-0518", "INV-0519", "INV-0520", "INV-0521"]
+    resolves_in: ["GOAL-INV-001", "WP-70"]
+  - ambiguity_id: "AMB-0009"
+    title: "Activation protocol parameters"
+    ambiguity_note: "Activation temperature, vacuum level and duration for the FDM-201 synthesis route are described in the ESI only."
+    affected_item_ids: ["INV-0711"]
+    resolves_in: ["GOAL-INV-004", "WP-20"]
+  - ambiguity_id: "AMB-0010"
+    title: "Whether TGA / SCXRD / stability PXRD are formally reported"
+    ambiguity_note: "Spec WP-30 lists these as candidate unit processes; whether the paper formally reports each of them is not determinable without the primary text."
+    affected_item_ids: ["INV-0103", "INV-0106", "INV-0108"]
+    resolves_in: ["GOAL-INV-001"]
+  - ambiguity_id: "AMB-0011"
+    title: "Number of independent batches / replicates"
+    ambiguity_note: "The number of independent synthesis batches and measurement replicates behind the reported values is not in accessible material."
+    affected_item_ids: ["INV-0207", "INV-0307", "INV-0503", "INV-0713"]
+    resolves_in: ["GOAL-INV-001"]
+  - ambiguity_id: "AMB-0012"
+    title: "N2 isotherm measurement conditions"
+    ambiguity_note: "The N2 isotherm measurement temperature and protocol are not in accessible material; only the BET value and pore sizes are seed facts."
+    affected_item_ids: ["INV-0203"]
+    resolves_in: ["GOAL-INV-001"]
+  - ambiguity_id: "AMB-0013"
+    title: "BET protocol criteria"
+    ambiguity_note: "The relative-pressure fitting range and consistency criteria the paper used for the reported BET value are not in accessible material."
+    affected_item_ids: ["INV-0204"]
+    resolves_in: ["GOAL-INV-001"]
+  - ambiguity_id: "AMB-0014"
+    title: "Pore-size analysis method"
+    ambiguity_note: "The model and kernel (e.g. NLDFT/QSDFT) and software used for the reported pore sizes are not in accessible material."
+    affected_item_ids: ["INV-0205"]
+    resolves_in: ["GOAL-INV-001"]
+
+# ---------------------------------------------------------------------------
+# Summary (integrity block; self_check.py verifies these numbers)
+# ---------------------------------------------------------------------------
+summary:
+  total_items: 82
+  by_category:
+    "00": 10
+    "a": 9
+    "b": 7
+    "c": 8
+    "d": 9
+    "e": 14
+    "f": 11
+    "g": 14
+  by_status:
+    INVENTORIED: 3
+    INVENTORIED-DEFERRED: 14
+    DEFERRED-TO-EXECUTION: 65
+  by_existence_basis:
+    CROSSREF-METADATA: 2
+    ACQUISITION-LOG: 2
+    REFERENCE-CASE-SPEC-SEED: 14
+    REFERENCE-CASE-SPEC: 64
+    PUBLIC-SEARCH: 0
+  by_evidence_basis:
+    CROSSREF-METADATA: 2
+    ACQUISITION-LOG: 2
+    REFERENCE-CASE-SPEC: 78
+    PUBLIC-SEARCH: 0
+  ambiguities: 14
+  seed_fact_sourced_items: 14
+  reported_non_final_items: 14
+  non_final_items: 79
+  missing_value_parameters: 9
+  acceptance_criteria:
+    AC-01: "Every reported experiment/control/computation discoverable from accessible sources is inventoried (82 items across categories 00, a-g). Items whose existence requires primary-source reading are registered as DEFERRED-TO-EXECUTION with an explicit reason, never omitted (see also the 14 ambiguity entries)."
+    AC-02: "Every item carries provenance: exact sr_source_ id(s), the specific part (Crossref record / acquisition log item / section 2 seed fact / section 4 work package), and the evidence basis."
+    AC-03: "14 explicit ambiguity entries (AMB-0001..0014) cover every parameter/condition/existence question that requires primary-source reading unavailable at registration, each with the execution-phase goal that resolves it; 10 breakthrough parameters are additionally registered MISSING with reason and assumption class A2."
+  g01_consistency:
+    note: "Inventory statuses and G01 acquisition-log statuses are consistent by design (see g01_cross_reference): log status describes source availability; inventory status describes reported-item evidence state. The log totals (9 items: 2 REGISTERED, 4 PARTIAL, 3 UNAVAILABLE) are reproduced in source_set.acquisition_log_totals."
+    log_total_items: 9
+    log_REGISTERED: 2
+    log_PARTIAL: 4
+    log_UNAVAILABLE: 3
