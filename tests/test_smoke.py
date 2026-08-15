@@ -14,4 +14,4 @@ def test_package_imports() -> None:
 def test_package_version_available() -> None:
     assert hasattr(scientific_reproduction, "__version__")
     assert isinstance(scientific_reproduction.__version__, str)
-    assert scientific_reproduction.__version__ == "0.2.0"
+    assert scientific_reproduction.__version__ == "0.2.1"

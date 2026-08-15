@@ -12,7 +12,7 @@ and non-negotiable architecture decisions.
 ## Get the skill
 
 Download the release archive from
-[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.0),
+[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.1),
 or clone the release branch:
 
 ```bash
