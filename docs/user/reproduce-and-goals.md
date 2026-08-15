@@ -148,8 +148,9 @@ review decision stored separately, never a Run lifecycle state.
 (DEV-M4-G04):
 
 - `register_goal(root, goal)`, `read_goal(root, goal_id)`, `list_goals(root)`
-  — the goal-contract registry (drafts at `<root>/goals/<goal_id>.json`,
-  immutable: a goal id registers exactly once);
+  — the goal-contract registry (`<root>/goals/<goal_id>.json`; a goal id
+  registers exactly once, and the freeze/revision flows transition the
+  registered record between its draft and frozen states);
 - `register_acceptance`, `register_analysis_protocol`,
   `register_closure_contract` with the matching read/list helpers — the
   goal-contract family (`<root>/acceptance/`, `<root>/protocols/`,
@@ -171,10 +172,14 @@ fails the audit; 100% mapped passes.
 
 **Freeze and versioned revision** — `src/scientific_reproduction/planning/freeze.py`
 (DEV-M4-G04): `freeze_plan(root, plan)` is prohibited unless the completeness
-audit passes (AC-01), produces the frozen Plan record and the frozen
-Goal/Acceptance/Analysis/Closure contracts in memory (AC-02, drafts on disk
-are never rewritten), and `revise_plan(root, plan)` creates the next draft
-version (`v1 -> v2-draft`) from a registered FROZEN plan (AC-03).
+audit passes (AC-01), and produces the frozen Plan record plus the frozen
+Goal/Acceptance/Analysis/Closure contracts, which are **persisted in place**
+at their registry paths (`goals/`, `acceptance/`, `protocols/`, `closure/`)
+so any state reader sees the frozen contract the freeze returned (AC-02);
+`revise_plan(root, plan)` creates the next draft version (`v1 -> v2-draft`)
+from a registered FROZEN plan and re-opens the goal-contract family as
+drafts of that version — the frozen content as the authoring baseline
+(AC-03).
 
 **DAG and blocker views** — `src/scientific_reproduction/planning/dag.py`
 (DEV-M4-G05): `build_plan_dag(root, version)` builds the ready-first
@@ -230,7 +235,8 @@ root = "path/to/initialized/project"   # from `reproduce init`
 
 audit = audit_inventory_registry(root)   # 100%-coverage gate (planning/audit.py)
 plan = build_plan_v1(root)               # deterministic v1-draft
-frozen = freeze_plan(root, plan)         # FROZEN plan + frozen goal family
+frozen = freeze_plan(root, plan)         # FROZEN plan + frozen goal family,
+                                        # persisted in place at the registries
 for goal in list_goals(root):            # goals/<goal_id>.json, sorted by id
     print(goal.goal_id, goal.title)
 for entry in plan_lineage(root):         # effective status (SUPERSEDED computed)
