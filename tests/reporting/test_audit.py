@@ -138,14 +138,17 @@ def test_audit_report_files_registered_with_checksums(tmp_path: Path) -> None:
     reports = tmp_path / "reports"
     reports.mkdir(exist_ok=True)
     (reports / "reproduction-report.pdf").write_bytes(b"%PDF-1.4 fake")
-    (reports / "reproduction-report.json").write_text('{"a": 1}\n', encoding="utf-8")
+    # write_bytes (not write_text): the platform-independent byte count
+    # matters here — text mode would translate ``\n`` to ``\r\n`` on
+    # Windows and the expected sizes below would differ on CI (POSIX).
+    (reports / "reproduction-report.json").write_bytes(b'{"a": 1}\n')
 
     package = build_audit_package(tmp_path, evidence, [CLAIM_ID])
 
     assert [
         (file.file_name, file.size_bytes) for file in package.report_files
     ] == [
-        ("reproduction-report.json", 10),
+        ("reproduction-report.json", 9),
         ("reproduction-report.pdf", 13),
     ]
     assert package.report_files[0].sha256 == compute_sha256(
