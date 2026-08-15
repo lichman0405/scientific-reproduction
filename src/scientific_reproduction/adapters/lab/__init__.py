@@ -4,6 +4,10 @@ implementation (DEV-M7-G01).
 * ``base.py`` -- the **LabAdapter interface**: the four conceptual
   operations of 15-ADAPTER-SPEC.md SS2 (``dispatch`` / ``status`` /
   ``collect`` / ``request_missing_result``) and the frozen record types;
+* ``linkage.py`` -- the **dispatch-to-Run record linkage** helper: the
+  caller-owned operation that records ``run.external.dispatch_id`` and
+  advances the Run to ``RUNNING_EXTERNAL`` through the real transition
+  machinery (15-ADAPTER-SPEC.md SS2 "Run record linkage");
 * ``manifest.py`` -- the **manifest validation** deliverable: the pure
   decision record that detects missing required result-manifest entries,
   missing declared data files and uncovered required returns, and
@@ -45,6 +49,11 @@ from scientific_reproduction.adapters.lab.filesystem import (
     RESULT_MANIFEST_FILENAME,
     FilesystemLabAdapter,
 )
+from scientific_reproduction.adapters.lab.linkage import (
+    FILESYSTEM_BACKEND_NAME,
+    LinkageClock,
+    link_run_to_dispatch,
+)
 from scientific_reproduction.adapters.lab.manifest import (
     RESULT_MANIFEST_REQUIRED_FIELDS,
     RESULT_MANIFEST_RULESET_VERSION,
@@ -59,6 +68,7 @@ __all__ = [
     "LAB_ADAPTER_CONTRACT_VERSION",
     "DISPATCH_RECORD_FILENAME",
     "EXECUTION_MANIFEST_FILENAME",
+    "FILESYSTEM_BACKEND_NAME",
     "INCOMING_DIR_NAME",
     "MISSING_RESULT_REQUEST_FILENAME",
     "OUTGOING_DIR_NAME",
@@ -79,10 +89,12 @@ __all__ = [
     "LabAdapterError",
     "LabExecutionPackageInput",
     "LabResultManifest",
+    "LinkageClock",
     "MissingResultRequest",
     "ResultManifestAssessment",
     "ResultManifestError",
     "ResultNotAvailableError",
     "evaluate_result_manifest",
     "is_safe_path_segment",
+    "link_run_to_dispatch",
 ]
