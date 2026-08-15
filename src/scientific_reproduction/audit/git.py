@@ -3,7 +3,7 @@
 Implements the Git side of the M3 audit architecture: project state lives
 in a Git repository whose history records meaningful scientific/governance
 checkpoints -- plan freeze, goal contract revision, analysis protocol
-revision, ... -- and never operational noise
+revision, run-level adjudications, ... -- and never operational noise
 (``14-STATE-GIT-ARTIFACTS.md`` SS5).
 
 Public API
@@ -11,7 +11,8 @@ Public API
 * ``init_project_repo`` -- deterministic ``git init`` (fixed branch name,
   optional repository-local identity config).
 * ``commit_checkpoint`` -- the single audit commit helper, parameterized
-  by checkpoint kind (AC-01 plan freeze, AC-02 goal/protocol revision).
+  by checkpoint kind (AC-01 plan freeze, AC-02 goal/protocol revision,
+  execution-phase milestones such as goal review and run closure).
   It stages exactly the given files and commits with an explicitly
   supplied author/committer identity and an injectable commit time; the
   message is rendered from a fixed template (``CHECKPOINTS``) that
@@ -137,8 +138,9 @@ class CheckpointSpec:
 
 #: Declared audit checkpoints: checkpoint kind -> spec. The commit kinds
 #: mirror the governance checkpoint list of 14-STATE-GIT-ARTIFACTS.md
-#: SS5 ("Plan v1 frozen", "Goal contract revision", ...); the message
-#: templates follow the same plain scientific-governance style.
+#: SS5 ("Plan v1 frozen", "Goal contract revision", "Goal reviewed",
+#: ...); the message templates follow the same plain
+#: scientific-governance style.
 CHECKPOINTS: dict[str, CheckpointSpec] = {
     "project.initialized": CheckpointSpec(
         kind="project.initialized",
@@ -180,6 +182,30 @@ CHECKPOINTS: dict[str, CheckpointSpec] = {
         action="commit",
         message_template="project final outcome recorded",
     ),
+    # Execution-phase governance milestones (supervisor adjudication of
+    # run results, run closure, requirement-outcome updates, recovery
+    # track entry): the same deterministic commit helper serves them, so
+    # supervisors never fall back to raw git commits.
+    "goal.reviewed": CheckpointSpec(
+        kind="goal.reviewed",
+        action="commit",
+        message_template="goal contract {object_id} reviewed",
+    ),
+    "run.closed": CheckpointSpec(
+        kind="run.closed",
+        action="commit",
+        message_template="run {object_id} closed",
+    ),
+    "requirement.outcome.updated": CheckpointSpec(
+        kind="requirement.outcome.updated",
+        action="commit",
+        message_template="requirement {object_id} outcome updated",
+    ),
+    "recovery.entry": CheckpointSpec(
+        kind="recovery.entry",
+        action="commit",
+        message_template="goal {object_id} entered recovery",
+    ),
     # AC-03: heartbeats and runtime polling are governance *noise*; the
     # checkpoint exists only so the mapping can resolve them to an
     # explicit, documented record-only outcome -- never a commit.
@@ -208,6 +234,13 @@ EVENT_TYPE_TO_CHECKPOINT: dict[str, str] = {
     "recovery.created": "recovery.created",
     "requirement.closed": "requirement.closed",
     "project.outcome.recorded": "project.outcome",
+    # Execution-phase governance events: supervisor adjudications and
+    # state updates during EXECUTING map to commit checkpoints too, so
+    # the sanctioned commit API covers the whole run lifecycle.
+    "goal.reviewed": "goal.reviewed",
+    "run.closed": "run.closed",
+    "requirement.outcome.updated": "requirement.outcome.updated",
+    "recovery.entry": "recovery.entry",
     # Record-only event types (AC-03): runtime polling / heartbeat noise.
     "heartbeat": "heartbeat",
     "run.heartbeat": "heartbeat",
