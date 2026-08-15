@@ -1158,15 +1158,30 @@ def _acceptance_html(
         "<th>Provenance (07 SS8)</th>"
         "</tr></thead>"
     )
+    decision_table = _kv_table(
+        [
+            ("Decision mode", html.escape(criteria.decision_mode.value)),
+            (
+                "Confidence",
+                _maybe(
+                    criteria.confidence.value
+                    if criteria.confidence is not None
+                    else None
+                ),
+            ),
+            (
+                "Target",
+                html.escape(_format_value(criteria.target))
+                if criteria.target is not None
+                else "—",
+            ),
+            ("Rationale", _maybe(criteria.rationale)),
+            ("Evidence refs", _id_list(criteria.evidence_refs)),
+            ("Statistical design ref", _maybe_ref(criteria.statistical_design_ref)),
+        ]
+    )
     parts: list[str] = [
-        f"{_kv_table([
-            ('Decision mode', html.escape(criteria.decision_mode.value)),
-            ('Confidence', _maybe(criteria.confidence.value if criteria.confidence else None)),
-            ('Target', html.escape(_format_value(criteria.target)) if criteria.target is not None else '—'),
-            ('Rationale', _maybe(criteria.rationale)),
-            ('Evidence refs', _id_list(criteria.evidence_refs)),
-            ('Statistical design ref', _maybe_ref(criteria.statistical_design_ref)),
-        ])}",
+        decision_table,
         f"<table>{header}<tbody>\n"
         + "\n".join(margin_rows)
         + "\n</tbody></table>",
