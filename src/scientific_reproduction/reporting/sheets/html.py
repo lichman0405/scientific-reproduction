@@ -32,6 +32,21 @@ import html
 import json
 from typing import Any, Mapping
 
+from scientific_reproduction.rendering.style import (
+    ACCENT_HEX,
+    ACCENT_SOFT_HEX,
+    BANNER_SUBTEXT_HEX,
+    FAIL_BG_HEX,
+    FAIL_HEX,
+    INCONCLUSIVE_BG_HEX,
+    INCONCLUSIVE_HEX,
+    INK_HEX,
+    MUTED_HEX,
+    PANEL_HEX,
+    PAPER_HEX,
+    RULE_HEX,
+)
+
 __all__ = [
     "SHEET_CSS",
     "html_document",
@@ -39,16 +54,35 @@ __all__ = [
     "value_html",
 ]
 
-#: The shared A4 print stylesheet of the execution sheets (and of any
-#: future renderer that reuses this visual system). Pure CSS, no external
-#: resources: the document renders identically offline and prints through
-#: the browser's print-to-PDF path.
-SHEET_CSS: str = """
+#: The A4 print stylesheet of the execution sheets (and of any future
+#: renderer that reuses this visual system). Color tokens are imported
+#: from ``rendering.style`` -- the single source of the renderer-family
+#: palette, shared with the plan document (``reporting.plan_doc``) and
+#: the PDF report renderer -- while typography and layout stay local.
+#: Pure CSS, no external resources: the document renders identically
+#: offline and prints through the browser's print-to-PDF path.
+SHEET_CSS: str = (
+    f""":root {{
+  --ink: {INK_HEX};
+  --muted: {MUTED_HEX};
+  --rule: {RULE_HEX};
+  --paper: {PAPER_HEX};
+  --panel: {PANEL_HEX};
+  --accent: {ACCENT_HEX};
+  --accent-soft: {ACCENT_SOFT_HEX};
+  --fail: {FAIL_HEX};
+  --fail-soft: {FAIL_BG_HEX};
+  --inconclusive: {INCONCLUSIVE_HEX};
+  --inconclusive-soft: {INCONCLUSIVE_BG_HEX};
+  --banner-subtext: {BANNER_SUBTEXT_HEX};
+}}
+"""
+    + """\
 @page { size: A4; margin: 14mm 13mm 16mm 13mm; }
 * { box-sizing: border-box; }
 body {
   font-family: "Liberation Serif", "Times New Roman", serif;
-  font-size: 10.5pt; line-height: 1.45; color: #1a1a1a; margin: 0;
+  font-size: 10.5pt; line-height: 1.45; color: var(--ink); margin: 0;
 }
 h1, h2, h3, h4 {
   font-family: "Liberation Sans", "Arial", "Helvetica", sans-serif;
@@ -56,7 +90,7 @@ h1, h2, h3, h4 {
 }
 /* ---- header banner -------------------------------------------------- */
 .sheet-banner {
-  background: #1f3b57; color: #ffffff;
+  background: var(--accent); color: var(--paper);
   padding: 10pt 12pt; margin-bottom: 10pt;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
@@ -67,16 +101,16 @@ h1, h2, h3, h4 {
 .sheet-banner h1 { font-size: 15pt; letter-spacing: 0.5pt; margin-top: 2pt; }
 .sheet-banner .banner-ids {
   font-family: "Consolas", "Liberation Mono", "Courier New", monospace;
-  font-size: 8.5pt; margin-top: 4pt; color: #dbe4ee;
+  font-size: 8.5pt; margin-top: 4pt; color: var(--banner-subtext);
 }
 /* ---- section titles -------------------------------------------------- */
 .sheet-section {
   margin-top: 12pt; margin-bottom: 5pt; font-size: 11.5pt;
-  color: #1f3b57; border-bottom: 1pt solid #1f3b57; padding-bottom: 2pt;
+  color: var(--accent); border-bottom: 1pt solid var(--accent); padding-bottom: 2pt;
   page-break-after: avoid;
 }
 .sheet-section .section-index {
-  display: inline-block; min-width: 2em; color: #5a7084; font-size: 9.5pt;
+  display: inline-block; min-width: 2em; color: var(--muted); font-size: 9.5pt;
 }
 /* ---- tables ---------------------------------------------------------- */
 table.data {
@@ -84,11 +118,11 @@ table.data {
   font-size: 9.5pt; page-break-inside: auto;
 }
 table.data th, table.data td {
-  border: 0.5pt solid #7a8794; padding: 3pt 5pt; vertical-align: top;
+  border: 0.5pt solid var(--rule); padding: 3pt 5pt; vertical-align: top;
   text-align: left; word-wrap: break-word;
 }
 table.data th {
-  background: #eef1f6; font-family: "Liberation Sans", "Arial", sans-serif;
+  background: var(--panel); font-family: "Liberation Sans", "Arial", sans-serif;
   font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.4pt;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
@@ -97,65 +131,65 @@ table.meta td { padding: 2.5pt 6pt; font-size: 10pt; vertical-align: top; }
 table.meta td.label {
   width: 21%; font-family: "Liberation Sans", "Arial", sans-serif;
   font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.4pt;
-  color: #3d536b; border-bottom: 0.4pt solid #c3ccd6;
+  color: var(--muted); border-bottom: 0.4pt solid var(--rule);
 }
 table.meta td.value {
   font-family: "Consolas", "Liberation Mono", "Courier New", monospace;
-  font-size: 9.5pt; border-bottom: 0.4pt solid #c3ccd6;
+  font-size: 9.5pt; border-bottom: 0.4pt solid var(--rule);
 }
 /* ---- procedure steps ------------------------------------------------- */
 ol.procedure { list-style: none; margin: 4pt 0 8pt 0; padding: 0; }
 ol.procedure li.step {
-  margin: 6pt 0; padding: 5pt 7pt 5pt 9pt; border-left: 2.5pt solid #2c5f8a;
-  background: #f7f9fb; page-break-inside: avoid;
+  margin: 6pt 0; padding: 5pt 7pt 5pt 9pt; border-left: 2.5pt solid var(--accent);
+  background: var(--accent-soft); page-break-inside: avoid;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 ol.procedure li.step .step-head { font-weight: bold; font-size: 10.5pt; }
 ol.procedure li.step .step-id {
   font-family: "Consolas", "Liberation Mono", "Courier New", monospace;
-  font-size: 8.5pt; color: #5a7084;
+  font-size: 8.5pt; color: var(--muted);
 }
 ol.procedure li.step .step-detail { margin-top: 2pt; font-size: 9.5pt; }
 ol.procedure li.step .step-label {
   font-family: "Liberation Sans", "Arial", sans-serif; font-size: 8pt;
-  text-transform: uppercase; letter-spacing: 0.4pt; color: #3d536b;
+  text-transform: uppercase; letter-spacing: 0.4pt; color: var(--muted);
 }
 /* ---- verbatim command blocks ---------------------------------------- */
 pre.command {
   font-family: "Consolas", "Liberation Mono", "Courier New", monospace;
   font-size: 8.5pt; line-height: 1.35; white-space: pre-wrap;
-  word-wrap: break-word; background: #f0f3f7; border: 0.5pt solid #b9c4d0;
+  word-wrap: break-word; background: var(--panel); border: 0.5pt solid var(--rule);
   padding: 5pt 7pt; margin: 3pt 0 6pt 0; page-break-inside: avoid;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 /* ---- prohibited / safety blocks ------------------------------------- */
 .prohibited {
-  background: #fdecea; border: 1.5pt solid #b3261e; border-left: 5pt solid #b3261e;
+  background: var(--fail-soft); border: 1.5pt solid var(--fail); border-left: 5pt solid var(--fail);
   padding: 6pt 9pt; margin: 5pt 0 8pt 0; page-break-inside: avoid;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.prohibited h3 { color: #b3261e; font-size: 11pt; text-transform: uppercase; letter-spacing: 0.6pt; }
+.prohibited h3 { color: var(--fail); font-size: 11pt; text-transform: uppercase; letter-spacing: 0.6pt; }
 .prohibited ul { margin: 4pt 0 0 14pt; padding: 0; font-size: 10pt; }
 .prohibited ul li { margin: 2pt 0; }
-.prohibited .track-emphasis { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt; color: #b3261e; margin-top: 3pt; }
+.prohibited .track-emphasis { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt; color: var(--fail); margin-top: 3pt; }
 .safety {
-  background: #fff8e1; border: 1.2pt solid #b07d00; border-left: 5pt solid #b07d00;
+  background: var(--inconclusive-soft); border: 1.2pt solid var(--inconclusive); border-left: 5pt solid var(--inconclusive);
   padding: 6pt 9pt; margin: 5pt 0 8pt 0; page-break-inside: avoid;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.safety h3 { color: #7a5500; font-size: 11pt; text-transform: uppercase; letter-spacing: 0.6pt; }
+.safety h3 { color: var(--inconclusive); font-size: 11pt; text-transform: uppercase; letter-spacing: 0.6pt; }
 .safety ul { margin: 4pt 0 0 14pt; padding: 0; font-size: 10pt; }
 .safety ul li { margin: 2pt 0; }
 /* ---- fill-in form fields -------------------------------------------- */
 .field {
-  display: inline-block; min-width: 18em; border-bottom: 0.9pt solid #1a1a1a;
+  display: inline-block; min-width: 18em; border-bottom: 0.9pt solid var(--ink);
   height: 1.25em; vertical-align: baseline;
 }
 .field.short { min-width: 9em; }
 .form-row { margin: 4pt 0; font-size: 10pt; }
 .form-row .form-label { font-weight: bold; }
 .checkbox {
-  display: inline-block; width: 9.5pt; height: 9.5pt; border: 1.2pt solid #1a1a1a;
+  display: inline-block; width: 9.5pt; height: 9.5pt; border: 1.2pt solid var(--ink);
   margin-right: 5pt; vertical-align: middle;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
@@ -165,14 +199,14 @@ pre.command {
   display: inline-block; width: 46%; margin-right: 4%; vertical-align: top;
 }
 .signatures .signature-line {
-  border-top: 0.9pt solid #1a1a1a; margin-top: 26pt; padding-top: 3pt;
-  font-size: 9pt; color: #3d536b;
+  border-top: 0.9pt solid var(--ink); margin-top: 26pt; padding-top: 3pt;
+  font-size: 9pt; color: var(--muted);
 }
 /* ---- fixed print footer --------------------------------------------- */
 .footer {
   position: fixed; bottom: 0; left: 0; right: 0; font-size: 7.5pt;
-  color: #6a7684; text-align: center; border-top: 0.4pt solid #c3ccd6;
-  padding-top: 2pt; background: #ffffff;
+  color: var(--muted); text-align: center; border-top: 0.4pt solid var(--rule);
+  padding-top: 2pt; background: var(--paper);
 }
 @media print {
   .prohibited, .safety, .sheet-banner, table.data th,
@@ -181,6 +215,7 @@ pre.command {
   }
 }
 """
+)
 
 
 def html_escape(value: str) -> str:

@@ -60,6 +60,15 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
     determinism. Benchmark acceptance: every FDM-201 experiment and
     computation package renders 1:1 (PDF-convertible full documents).
 
+### Changed
+
+- **Unified renderer visual system** — the three renderers (plan
+  document, execution sheets, PDF report) now draw their color palette
+  from one source of truth, `rendering.style`: the CSS hex tokens are
+  derived from the same RGB constants the PDF writer uses, and the plan
+  document and execution-sheet stylesheets consume them (`--ink`,
+  `--accent`, `--fail`, …) instead of carrying private hex values.
+
 ### Fixed
 
 - **Primary-target metadata registration** — a PDF target carried only its

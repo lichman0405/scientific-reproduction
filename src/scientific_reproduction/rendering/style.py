@@ -105,6 +105,22 @@ INCONCLUSIVE_BG: Final[tuple[float, float, float]] = (1.0, 0.97, 0.89)
 NEUTRAL_COLOR: Final[tuple[float, float, float]] = (0.36, 0.39, 0.43)
 NEUTRAL_BG: Final[tuple[float, float, float]] = (0.94, 0.95, 0.96)
 
+#: HTML-family tokens (no PDF equivalent). The HTML renderers (plan
+#: document, execution sheets) build their stylesheets from the same
+#: palette, so every artifact -- PDF and HTML alike -- looks like one
+#: product family.
+#: White paper.
+PAPER: Final[tuple[float, float, float]] = (1.0, 1.0, 1.0)
+#: Soft accent tint (callout backgrounds, step panels).
+ACCENT_SOFT: Final[tuple[float, float, float]] = (0.937, 0.965, 1.0)
+#: Tertiary informational text (DAG informational edges, note text).
+INFO: Final[tuple[float, float, float]] = (0.612, 0.639, 0.686)
+#: Subtext on the dark banner (execution-sheet header ids).
+BANNER_SUBTEXT: Final[tuple[float, float, float]] = (0.859, 0.894, 0.933)
+#: Light fill panels (table headers, code blocks) -- the same value as
+#: the PDF table-header fill.
+PANEL: Final[tuple[float, float, float]] = TABLE_HEADER_FILL
+
 #: Verdict string -> (foreground, background) callout colors. Keys are the
 #: uppercase frozen vocabulary values; lookup goes through ``verdict_style``
 #: which normalizes the input.
@@ -126,6 +142,43 @@ def verdict_style(
     verdict never renders as success or failure.
     """
     return VERDICT_STYLES.get(verdict.upper(), (NEUTRAL_COLOR, NEUTRAL_BG))
+
+
+# ---------------------------------------------------------------------------
+# CSS hex forms -- the HTML renderers (plan document, execution sheets)
+# ---------------------------------------------------------------------------
+
+
+def _to_hex(color: tuple[float, float, float]) -> str:
+    """CSS hex form (``#rrggbb``) of an RGB token in 0..1.
+
+    Pure and deterministic: the HTML renderers build their stylesheets
+    from the same tokens as the PDF writer, so the palette has exactly
+    one source of truth (the float constants above).
+    """
+    return "#{:02x}{:02x}{:02x}".format(*(round(c * 255) for c in color))
+
+
+#: CSS forms of every color token, in canonical token order. The HTML
+#: renderers import these instead of redefining hex values.
+INK_HEX: Final[str] = _to_hex(INK)
+MUTED_HEX: Final[str] = _to_hex(MUTED)
+RULE_HEX: Final[str] = _to_hex(RULE)
+ACCENT_HEX: Final[str] = _to_hex(ACCENT)
+PASS_HEX: Final[str] = _to_hex(PASS_COLOR)
+PASS_BG_HEX: Final[str] = _to_hex(PASS_BG)
+FAIL_HEX: Final[str] = _to_hex(FAIL_COLOR)
+FAIL_BG_HEX: Final[str] = _to_hex(FAIL_BG)
+INCONCLUSIVE_HEX: Final[str] = _to_hex(INCONCLUSIVE_COLOR)
+INCONCLUSIVE_BG_HEX: Final[str] = _to_hex(INCONCLUSIVE_BG)
+NEUTRAL_HEX: Final[str] = _to_hex(NEUTRAL_COLOR)
+NEUTRAL_BG_HEX: Final[str] = _to_hex(NEUTRAL_BG)
+TABLE_HEADER_FILL_HEX: Final[str] = _to_hex(TABLE_HEADER_FILL)
+PAPER_HEX: Final[str] = _to_hex(PAPER)
+ACCENT_SOFT_HEX: Final[str] = _to_hex(ACCENT_SOFT)
+INFO_HEX: Final[str] = _to_hex(INFO)
+BANNER_SUBTEXT_HEX: Final[str] = _to_hex(BANNER_SUBTEXT)
+PANEL_HEX: Final[str] = _to_hex(PANEL)
 
 
 # ---------------------------------------------------------------------------
