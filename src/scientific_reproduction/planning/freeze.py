@@ -32,14 +32,21 @@ On success, ``freeze_plan`` produces the frozen ``Plan``
 (``PlanStatus.FROZEN``, ``frozen_at``, ``frozen_commit`` = the pre-freeze
 ``git HEAD`` at ``root`` -- ``None`` when ``root`` is not a Git
 repository, which is documented in the record) **and** the frozen
-Goal/Acceptance/Analysis/Closure contracts as in-memory frozen dataclass
-objects (``PlanFreezeResult``): direct mutation of any frozen object is
-rejected with ``FrozenInstanceError``. The persisted frozen artifact is
-the Plan record (``plans/<version>.json``); goal-family drafts are never
-rewritten (the frozen variants are returned in memory, the drafts stay
-registered drafts). No file is ever clobbered: the draft is written when
-absent, tolerated when byte-equal, and a differing record at the same
-version is rejected.
+Goal/Acceptance/Analysis/Closure contracts (``PlanFreezeResult``):
+direct mutation of any frozen object is rejected with
+``FrozenInstanceError``. Both are **persisted**: the frozen Plan record
+at ``plans/<version>.json`` and the frozen goal-contract family in
+place at its registry paths (``goals/<id>.json``, ``acceptance/``,
+``protocols/``, ``closure/`` -- ``frozen`` True, the formal plan
+version, freeze metadata where the model declares it), so any state
+reader (``read_goal`` / ``read_acceptance`` /
+``read_analysis_protocol`` / ``read_closure_contract``) sees the same
+frozen contract the freeze returned. The public ``register_*`` API
+keeps its exactly-once contract; the freeze -- and the revision that
+re-opens the family as drafts of the next version (AC-03) -- are the
+documented transitions that rewrite the records. No plan record is ever
+clobbered: the draft is written when absent, tolerated when byte-equal,
+and a differing record at the same version is rejected.
 
 AC-03 -- versioned revision
 ---------------------------
@@ -81,9 +88,14 @@ from scientific_reproduction.core.models import (
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.init import PlanningError
 from scientific_reproduction.planning.plan import (
+    ACCEPTANCE_STATE_DIR,
+    CLOSURE_STATE_DIR,
+    GOALS_STATE_DIR,
     PLANS_STATE_DIR,
+    PROTOCOLS_STATE_DIR,
     DuplicatePlanVersionError,
     InvalidPlanVersionError,
+    _persist_goal_family_record,
     build_plan_v1,
     formal_version,
     is_draft_version,
@@ -183,12 +195,13 @@ class PlanFreezeResult:
     ``frozen_plan`` is the persisted frozen ``Plan`` record
     (``plans/<formal-version>.json``). ``goals`` / ``acceptance`` /
     ``analysis_protocols`` / ``closure_contracts`` are the frozen
-    goal-contract family variants produced **in memory** from the
-    registered drafts (version set to the frozen plan version, ``frozen``
-    True, freeze metadata attached where the model declares it) -- the
-    drafts on disk are never rewritten, and every returned object is a
-    frozen dataclass rejecting direct mutation. ``frozen_at`` /
-    ``frozen_commit`` are the freeze stamp shared by all of them.
+    goal-contract family variants produced from the registered drafts
+    (version set to the frozen plan version, ``frozen`` True, freeze
+    metadata attached where the model declares it) **and persisted in
+    place** at their registry paths -- any state reader sees the same
+    frozen contracts. Every returned object is a frozen dataclass
+    rejecting direct mutation. ``frozen_at`` / ``frozen_commit`` are the
+    freeze stamp shared by all of them.
     """
 
     frozen_plan: Plan
@@ -228,11 +241,11 @@ def freeze_plan(
     On success, the frozen ``Plan`` (``PlanStatus.FROZEN``, ``frozen_at``,
     ``frozen_commit`` = pre-freeze ``git HEAD`` or ``None`` outside a Git
     repository) is persisted at ``plans/<formal-version>.json`` and the
-    frozen goal-contract family is returned in memory
-    (:class:`PlanFreezeResult`); the draft is written when absent and
-    never clobbered. No Git commit is created here (the ``plan.freeze``
-    checkpoint is owned by the Supervisor flow, ``14-STATE-GIT-ARTIFACTS.md``
-    SS5).
+    frozen goal-contract family is persisted in place at its registry
+    paths and returned (:class:`PlanFreezeResult`); the draft is written
+    when absent and never clobbered. No Git commit is created here (the
+    ``plan.freeze`` checkpoint is owned by the Supervisor flow,
+    ``14-STATE-GIT-ARTIFACTS.md`` SS5).
 
     Args:
         root: the initialized workspace root.
@@ -354,6 +367,10 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
       work_packages, resource_ids) as the revision baseline;
     * recomputes ``inventory_audit`` from the registered state at revise
       time;
+    * re-opens the registered goal-contract family as drafts of the next
+      version (the frozen content as the authoring baseline, freeze
+      metadata cleared) -- the next freeze re-freezes it (AC-02
+      persistence keeps the on-disk family in step with the plan line);
     * writes the new draft record and leaves the old record **byte
       untouched** -- the old version is reported ``SUPERSEDED`` by
       ``planning.plan.plan_lineage`` (computed lineage status, never a
@@ -370,7 +387,9 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
     Returns:
         The new draft ``Plan`` (version ``v<N+1>-draft``,
         ``PlanStatus.DRAFT``, ``parent_plan_version`` = the frozen
-        version), persisted at ``plans/<new-version>.json``.
+        version), persisted at ``plans/<new-version>.json``; the
+        registered goal family is re-opened as drafts of the same
+        version.
 
     Raises:
         TypeError: ``root`` is not a str/Path, or ``plan`` is not a
@@ -425,7 +444,9 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
         work_packages=[dict(wp) for wp in plan.work_packages],
         resource_ids=list(plan.resource_ids),
     )
-    return register_plan(project_root, new_draft)
+    registered = register_plan(project_root, new_draft)
+    _reopen_goal_family_drafts(project_root, next_draft)
+    return registered
 
 
 # ---------------------------------------------------------------------------
@@ -539,16 +560,21 @@ def _goal_family_kind_and_id(record: Any) -> tuple[str, str]:
 def _frozen_goal_family(
     project_root: Path, frozen_plan: Plan
 ) -> PlanFreezeResult:
-    """Build the in-memory frozen goal-contract family (AC-02).
+    """Build and persist the frozen goal-contract family (AC-02).
 
-    Every registered draft is copied into its frozen variant: the plan's
-    formal version (``protocol_version`` for analysis protocols -- the
-    model's version field), ``frozen`` True, and the freeze stamp where
-    the model declares those fields (``GoalContract.frozen_at`` /
-    ``frozen_commit``; acceptance and analysis models carry no
-    ``frozen_at``/``frozen_commit``, ``ClosureContract`` carries no
-    version fields at all -- see ``core/models.py``). Nothing is
-    persisted here: the drafts on disk stay drafts, byte-identical.
+    Every registered draft is replaced **in place** by its frozen
+    variant: the plan's formal version (``protocol_version`` for
+    analysis protocols -- the model's version field), ``frozen`` True,
+    and the freeze stamp where the model declares those fields
+    (``GoalContract.frozen_at`` / ``frozen_commit``; acceptance and
+    analysis models carry no ``frozen_at``/``frozen_commit``,
+    ``ClosureContract`` carries no version fields at all -- see
+    ``core/models.py``). After the freeze, any state reader
+    (``read_goal`` / ``read_acceptance`` / ``read_analysis_protocol`` /
+    ``read_closure_contract``) sees the frozen contract; the public
+    ``register_*`` API keeps its exactly-once contract (the freeze and
+    the revision that re-opens the family are the documented
+    transitions that rewrite the records).
     """
     version = frozen_plan.version
     frozen_at = frozen_plan.frozen_at or ""
@@ -576,6 +602,7 @@ def _frozen_goal_family(
     closure = tuple(
         replace(c, frozen=True) for c in list_closure_contracts(project_root)
     )
+    _persist_goal_family(project_root, goals, acceptance, analysis, closure)
     return PlanFreezeResult(
         frozen_plan=frozen_plan,
         goals=goals,
@@ -585,6 +612,89 @@ def _frozen_goal_family(
         frozen_at=frozen_at,
         frozen_commit=frozen_commit,
     )
+
+
+def _reopen_goal_family_drafts(project_root: Path, version: str) -> None:
+    """Re-open the registered goal-contract family as drafts (AC-03).
+
+    Revision returns the family to the authoring state of the next
+    version: every registered record is replaced **in place** by its
+    draft variant -- the frozen content as the revision baseline,
+    ``version`` / ``protocol_version`` set to the next draft version,
+    ``frozen`` False, freeze metadata cleared -- mirroring the plan
+    revision, which copies the frozen plan's content into the next
+    draft. The family must be frozen again by the next freeze (AC-01
+    keeps requiring drafts at freeze time, ``GoalFamilyNotDraftError``).
+    """
+    goals = tuple(
+        replace(
+            g,
+            version=version,
+            frozen=False,
+            frozen_at=None,
+            frozen_commit=None,
+            acceptance=replace(g.acceptance, frozen=False),
+        )
+        for g in list_goals(project_root)
+    )
+    acceptance = tuple(
+        replace(a, version=version, frozen=False)
+        for a in list_acceptance(project_root)
+    )
+    analysis = tuple(
+        replace(a, protocol_version=version, frozen=False)
+        for a in list_analysis_protocols(project_root)
+    )
+    closure = tuple(
+        replace(c, frozen=False) for c in list_closure_contracts(project_root)
+    )
+    _persist_goal_family(project_root, goals, acceptance, analysis, closure)
+
+
+def _persist_goal_family(
+    project_root: Path,
+    goals: tuple[GoalContract, ...],
+    acceptance: tuple[AcceptanceCriteria, ...],
+    analysis: tuple[AnalysisProtocolOrResult, ...],
+    closure: tuple[ClosureContract, ...],
+) -> None:
+    """Persist the goal-family records in place at their registry paths."""
+    for goal in goals:
+        _persist_goal_family_record(
+            root=project_root,
+            state_dir=GOALS_STATE_DIR,
+            schema_name="goal",
+            kind_label="goal",
+            record=goal,
+            record_type=GoalContract,
+        )
+    for criterion in acceptance:
+        _persist_goal_family_record(
+            root=project_root,
+            state_dir=ACCEPTANCE_STATE_DIR,
+            schema_name="acceptance-criteria",
+            kind_label="acceptance",
+            record=criterion,
+            record_type=AcceptanceCriteria,
+        )
+    for protocol in analysis:
+        _persist_goal_family_record(
+            root=project_root,
+            state_dir=PROTOCOLS_STATE_DIR,
+            schema_name="analysis",
+            kind_label="analysis protocol",
+            record=protocol,
+            record_type=AnalysisProtocolOrResult,
+        )
+    for contract in closure:
+        _persist_goal_family_record(
+            root=project_root,
+            state_dir=CLOSURE_STATE_DIR,
+            schema_name="closure-contract",
+            kind_label="closure contract",
+            record=contract,
+            record_type=ClosureContract,
+        )
 
 
 def _freeze_expected_draft_version(version: str) -> InvalidPlanVersionError:

@@ -488,8 +488,8 @@ def test_J_ac05_stored_snapshot_never_trusted(tmp_path):
 def test_J_ac05_frozen_plan_and_family_are_frozen(tmp_path):
     # After the repair the freeze yields the frozen v1 plan: FROZEN status,
     # the frozen timestamp, the PASS inventory audit embedded, both goal
-    # mappings, and a fully frozen goal-contract family (never rewritten
-    # drafts).
+    # mappings, and a fully frozen goal-contract family (persisted in
+    # place by the freeze, AC-02).
     scenario = execute_scenario_j(tmp_path, repaired=True)
     result = freeze_plan(scenario.root, build_plan_v1(scenario.root), timestamp=FROZEN_AT)
     frozen = result.frozen_plan

@@ -97,12 +97,19 @@ template enumerates the init-time layout, and the per-object state-file
 convention (``14-STATE-GIT-ARTIFACTS.md`` SS3) applies to every record
 kind that has a schema (``schemas/acceptance-criteria.schema.yaml``,
 ``schemas/closure-contract.schema.yaml``; the FDM-201 example ships
-``examples/fdm-201/acceptance.example.yaml``). The registries are
+``examples/fdm-201/acceptance.example.yaml``). Registration is
 immutable-functional like the M4-G02 registry: a record id can be
-registered exactly once (``DuplicateGoalError`` and siblings), drafts
-carry the draft version (``"v1-draft"``) with ``frozen`` False, and the
-freeze flow (``planning/freeze.py``) consumes them to produce the frozen
-Goal/Acceptance/Analysis/Closure contracts.
+registered exactly once (``DuplicateGoalError`` and siblings), and
+drafts carry the draft version (``"v1-draft"``) with ``frozen`` False.
+The freeze flow (``planning/freeze.py``) consumes the drafts to produce
+the frozen Goal/Acceptance/Analysis/Closure contracts and **persists
+them in place** at the same registry paths -- after the freeze, any
+state reader (``read_goal`` / ``read_acceptance`` /
+``read_analysis_protocol`` / ``read_closure_contract``) sees the frozen
+record, never a stale draft; the revision flow re-opens the frozen
+family as drafts of the next version. Registration stays exactly-once:
+the freeze and revision transitions are the only writers that may
+replace a registered record (``_persist_goal_family_record``).
 
 Pure deterministic functions, no randomness, no wall-clock, no LLM;
 ``TypeError`` at the public boundaries; errors of the registry path
@@ -1107,16 +1114,48 @@ def _register_goal_family_record(
         record_type, value, kind_label, default_version
     )
     record_id = _record_id(record_type, model)
-    _validate_registry_id(kind_label, record_id)
     state_path = project_root / state_dir / f"{record_id}.json"
     if state_path.is_file():
         raise duplicate_error(
             f"{kind_label} {record_id!r} is already registered; records are"
             " immutable and each id is written exactly once"
         )
-    validate_and_reject(schema_name, model.to_dict())
-    atomic_write(state_path, _canonical_json(model.to_dict()))
+    _persist_goal_family_record(
+        root=project_root,
+        state_dir=state_dir,
+        schema_name=schema_name,
+        kind_label=kind_label,
+        record=model,
+        record_type=record_type,
+    )
     return model
+
+
+def _persist_goal_family_record(
+    *,
+    root: Path,
+    state_dir: str,
+    schema_name: str,
+    kind_label: str,
+    record: CoreModel,
+    record_type: type[_R],
+) -> None:
+    """Persist one goal-family record at its registry path, in place.
+
+    Schema-validated and written atomically as canonical JSON. This is
+    the write primitive of the goal-family state transitions
+    (``planning/freeze.py``): the plan freeze replaces each registered
+    draft by its frozen variant, the plan revision re-opens the frozen
+    family as drafts of the next version. The public ``register_*`` API
+    keeps its exactly-once contract -- these transitions are the only
+    writers that may replace an already-registered record.
+    """
+    record_id = _record_id(record_type, record)
+    _validate_registry_id(kind_label, record_id)
+    validate_and_reject(schema_name, record.to_dict())
+    atomic_write(
+        root / state_dir / f"{record_id}.json", _canonical_json(record.to_dict())
+    )
 
 
 def _record_id(record_type: type[_R], record: CoreModel) -> str:

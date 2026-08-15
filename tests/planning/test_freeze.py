@@ -97,6 +97,9 @@ from scientific_reproduction.planning.plan import (
     list_plans,
     next_version,
     plan_lineage,
+    read_acceptance,
+    read_analysis_protocol,
+    read_closure_contract,
     read_goal,
     read_plan,
     register_acceptance,
@@ -480,18 +483,72 @@ def test_freeze_ac02_freeze_rejects_formal_draft_version(tmp_path):
         freeze_plan(root, draft, timestamp=FROZEN_AT)
 
 
-def test_freeze_ac02_frozen_goal_family_is_in_memory_only_drafts_untouched(
-    tmp_path,
-):
+def test_freeze_ac02_frozen_goal_family_persisted_in_state(tmp_path):
     root = build_complete_workspace(tmp_path)
     result = freeze_complete(root)
     assert result.goals[0].frozen is True
-    draft_goal = read_goal(root, "GOAL-1")
-    assert draft_goal.frozen is False
-    assert draft_goal.version == INITIAL_PLAN_VERSION
-    stored = json.loads((root / "goals" / "GOAL-1.json").read_text(encoding="utf-8"))
-    assert stored["frozen"] is False
-    assert stored["version"] == INITIAL_PLAN_VERSION
+    # The registered goal record IS the frozen contract after the freeze:
+    # any state reader sees the same frozen variant the freeze returned
+    # (an unfrozen draft on disk would make the freeze invisible to
+    # workers reading the goal record from state).
+    stored_goal = read_goal(root, "GOAL-1")
+    assert stored_goal.frozen is True
+    assert stored_goal.version == "v1"
+    assert stored_goal.frozen_at == result.frozen_at
+    assert stored_goal.frozen_commit == result.frozen_commit
+    assert stored_goal.acceptance.frozen is True
+    assert stored_goal == result.goals[0]
+    raw = json.loads((root / "goals" / "GOAL-1.json").read_text(encoding="utf-8"))
+    assert raw["frozen"] is True
+    assert raw["version"] == "v1"
+    assert raw["frozen_at"] == result.frozen_at
+
+
+def test_freeze_ac02_freeze_persists_the_whole_frozen_goal_family(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    result = freeze_complete(root)
+    acceptance = read_acceptance(root, "ACC-1")
+    assert acceptance == result.acceptance[0]
+    assert acceptance.frozen is True
+    assert acceptance.version == "v1"
+    analysis = read_analysis_protocol(root, "ANL-1")
+    assert analysis == result.analysis_protocols[0]
+    assert analysis.frozen is True
+    assert analysis.protocol_version == "v1"
+    closure = read_closure_contract(root, "CLS-1")
+    assert closure == result.closure_contracts[0]
+    assert closure.frozen is True
+    raw = json.loads(
+        (root / "acceptance" / "ACC-1.json").read_text(encoding="utf-8")
+    )
+    assert raw["frozen"] is True
+    assert raw["version"] == "v1"
+    raw = json.loads(
+        (root / "protocols" / "ANL-1.json").read_text(encoding="utf-8")
+    )
+    assert raw["frozen"] is True
+    assert raw["protocol_version"] == "v1"
+    raw = json.loads(
+        (root / "closure" / "CLS-1.json").read_text(encoding="utf-8")
+    )
+    assert raw["frozen"] is True
+
+
+def test_freeze_ac02_register_api_stays_exactly_once_after_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    freeze_complete(root)
+    # The freeze transitioned the registered records in place; the public
+    # register API keeps its exactly-once contract (no re-registration).
+    with pytest.raises(DuplicateGoalError):
+        register_goal(
+            root, make_goal("GOAL-1", requirement_ids=("REQ-1", "REQ-2"))
+        )
+    with pytest.raises(DuplicateAcceptanceError):
+        register_acceptance(root, make_acceptance("ACC-1", goal_id="GOAL-1"))
+    with pytest.raises(DuplicateAnalysisProtocolError):
+        register_analysis_protocol(root, make_analysis("ANL-1"))
+    with pytest.raises(DuplicateClosureContractError):
+        register_closure_contract(root, make_closure("CLS-1"))
 
 
 def test_freeze_ac02_plan_registry_no_clobber(tmp_path):
@@ -630,6 +687,55 @@ def test_freeze_ac03_revision_of_revision_extends_lineage(tmp_path):
         PlanStatus.DRAFT,
     ]
     assert read_plan(root, "v1") == v1  # bytes untouched across revisions
+
+
+def test_freeze_ac03_revision_reopens_goal_family_as_drafts(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    result = freeze_complete(root)
+    revised = revise_plan(root, result.frozen_plan)
+    assert revised.version == "v2-draft"
+    # The family is re-opened as drafts of the next version: the frozen
+    # content is the authoring baseline, freeze metadata is cleared.
+    goal = read_goal(root, "GOAL-1")
+    assert goal.frozen is False
+    assert goal.version == "v2-draft"
+    assert goal.frozen_at is None
+    assert goal.frozen_commit is None
+    assert goal.acceptance.frozen is False
+    assert goal.title == result.goals[0].title
+    assert goal.analysis_protocol_ref == result.goals[0].analysis_protocol_ref
+    acceptance = read_acceptance(root, "ACC-1")
+    assert acceptance.frozen is False
+    assert acceptance.version == "v2-draft"
+    assert acceptance.criteria == result.acceptance[0].criteria
+    analysis = read_analysis_protocol(root, "ANL-1")
+    assert analysis.frozen is False
+    assert analysis.protocol_version == "v2-draft"
+    closure = read_closure_contract(root, "CLS-1")
+    assert closure.frozen is False
+
+
+def test_freeze_ac03_each_freeze_persists_its_own_frozen_family(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    v1 = freeze_complete(root).frozen_plan
+    v2_draft = revise_plan(root, v1)
+    v2 = freeze_plan(root, v2_draft, timestamp=FROZEN_AT).frozen_plan
+    assert v2.version == "v2"
+    # The second freeze persists its own frozen family (v2, its stamp).
+    goal = read_goal(root, "GOAL-1")
+    assert goal.frozen is True
+    assert goal.version == "v2"
+    assert goal.frozen_at == v2.frozen_at
+    assert goal.frozen_commit == v2.frozen_commit
+    assert goal.acceptance.frozen is True
+    assert read_acceptance(root, "ACC-1").version == "v2"
+    assert read_analysis_protocol(root, "ANL-1").protocol_version == "v2"
+    # The next revision re-opens the family again for the next version.
+    v3_draft = revise_plan(root, v2)
+    assert v3_draft.version == "v3-draft"
+    goal = read_goal(root, "GOAL-1")
+    assert goal.frozen is False
+    assert goal.version == "v3-draft"
 
 
 def test_freeze_ac03_revision_recomputes_audit_from_state(tmp_path):

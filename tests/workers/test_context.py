@@ -86,7 +86,7 @@ EXPECTED_REFERENCES = (
     ContextReference(ReferenceKind.EVIDENCE, "EVID-1"),
     ContextReference(ReferenceKind.GOAL, "GOAL-1", "v1"),
     ContextReference(ReferenceKind.POLICY, "RETRY-ENGINEERING-DEFAULT"),
-    ContextReference(ReferenceKind.PROTOCOL, "ANP-1", "v1-draft"),
+    ContextReference(ReferenceKind.PROTOCOL, "ANP-1", "v1"),
     ContextReference(ReferenceKind.RESOURCE, "RES-1"),
     ContextReference(ReferenceKind.SOURCE, "SRC-1"),
     ContextReference(ReferenceKind.UPSTREAM_OUTPUT, "GOAL-2#raw_isotherm_data"),
