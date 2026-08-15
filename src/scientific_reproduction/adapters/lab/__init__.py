@@ -56,6 +56,7 @@ from scientific_reproduction.adapters.lab.linkage import (
 )
 from scientific_reproduction.adapters.lab.manifest import (
     RESULT_MANIFEST_REQUIRED_FIELDS,
+    RESULT_MANIFEST_RETURN_MAPPING_KEY,
     RESULT_MANIFEST_RULESET_VERSION,
     RESULT_MANIFEST_VERSION,
     LabResultManifest,
@@ -74,6 +75,7 @@ __all__ = [
     "OUTGOING_DIR_NAME",
     "RESULT_MANIFEST_FILENAME",
     "RESULT_MANIFEST_REQUIRED_FIELDS",
+    "RESULT_MANIFEST_RETURN_MAPPING_KEY",
     "RESULT_MANIFEST_RULESET_VERSION",
     "RESULT_MANIFEST_VERSION",
     "CollectionRejectedError",

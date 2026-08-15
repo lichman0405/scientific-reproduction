@@ -234,6 +234,65 @@ def test_collect_ac03_multiple_missing_items_all_recorded(handoff):
     assert assessment.valid is False
 
 
+def test_collect_ac03_natural_filenames_cover_required_returns_via_mapping(handoff):
+    # AC-03: a required return is a raw-data-export TOKEN, not a file
+    # name. Real-lab file names (extensioned, timestamped) cover the
+    # tokens through the result manifest's explicit required_return_files
+    # mapping -- the operator's declaration, never guessed (v1.1).
+    base, adapter = handoff
+    dispatch_id = _dispatch_default(
+        adapter, required_return=("yield_pct", "product_photo")
+    ).dispatch_id
+    files = ("yield_pct.txt", "2026-08-15_product_photo.jpg")
+    write_result_package(
+        base,
+        RUN_ID,
+        make_result_manifest(
+            files=files,
+            required_return_files={
+                "yield_pct": "yield_pct.txt",
+                "product_photo": "2026-08-15_product_photo.jpg",
+            },
+        ),
+        files={
+            "yield_pct.txt": "0.984\n",
+            "2026-08-15_product_photo.jpg": b"jpeg",
+        },
+    )
+    result = adapter.collect(dispatch_id)
+    assert result.collected_files == tuple(sorted(files))
+    assert result.manifest.required_return_files == (
+        ("product_photo", "2026-08-15_product_photo.jpg"),
+        ("yield_pct", "yield_pct.txt"),
+    )
+
+
+def test_collect_ac03_mapped_return_file_missing_detected(handoff):
+    # AC-03: a required return whose mapped file is declared but absent
+    # from the handoff is refused with BOTH records -- the missing
+    # declared file and the uncovered required return.
+    base, adapter = handoff
+    dispatch_id = _dispatch_default(
+        adapter, required_return=("yield_pct",)
+    ).dispatch_id
+    write_result_package(
+        base,
+        RUN_ID,
+        make_result_manifest(
+            files=("yield_pct.txt",),
+            required_return_files={"yield_pct": "yield_pct.txt"},
+        ),
+        files={},
+    )
+    with pytest.raises(CollectionRejectedError) as exc:
+        adapter.collect(dispatch_id)
+    assessment = exc.value.assessment
+    assert assessment.missing_files == ("yield_pct.txt",)
+    assert assessment.unmet_required_returns == ("yield_pct",)
+    assert assessment.valid is False
+    assert "yield_pct" in str(exc.value)
+
+
 def test_collect_ac03_collect_before_result_raises_not_available(handoff):
     # Collecting a dispatch that has not returned a Result Package yet is
     # a defined "not available" state, not a collection.
