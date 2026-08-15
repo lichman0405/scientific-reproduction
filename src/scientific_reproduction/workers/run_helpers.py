@@ -26,12 +26,14 @@ plumbing. The frozen spec grounds this module:
 
 Workspace layout (normative)
 ----------------------------
-Run records live one file per run at ``runs/run/<run_id>.json`` (the
-same ``FilesystemStateBackend(project_root / "runs")`` layout the
-reporting subsystem reads through ``reporting.audit.py``, and the
-monitoring subsystem writes through its injected run store); events
-live at ``events/event/<event_id>.json`` (a ``ProjectEventLog`` bound
-to the workspace ``events/`` directory).
+Run records live one file per run at ``runs/<run_id>.json``: the run
+store is a ``FilesystemStateBackend`` over the workspace root, whose
+canonical tree resolution (``core.state_backend.SCHEMA_TO_STATE_DIR``)
+puts runs in the same ``runs/`` directory the reporting subsystem
+reads through ``reporting.audit.py`` and the monitoring subsystem
+writes through its injected run store; events live at
+``events/<event_id>.json`` (a ``ProjectEventLog`` bound to the
+workspace root).
 
 Determinism and discipline
 --------------------------
@@ -100,14 +102,15 @@ __all__ = [
 # Frozen constants (workspace layout and event vocabulary)
 # ---------------------------------------------------------------------------
 
-#: State directory of the durable Run registry, relative to the
-#: workspace root (``runs/run/<run_id>.json`` -- the same layout
+#: Canonical tree directory of the durable Run registry, relative to
+#: the workspace root (``runs/<run_id>.json`` -- resolved by
+#: ``SCHEMA_TO_STATE_DIR`` for the ``run`` object type; the same layout
 #: ``reporting.audit.py`` reads).
 RUNS_STATE_DIR: str = "runs"
 
-#: The project event-log directory of a workspace (``planning.init``
-#: ``INIT_DIRECTORIES``); the default event log binds here
-#: (``events/event/<event_id>.json``).
+#: Canonical event-log directory of a workspace (``planning.init``
+#: ``INIT_DIRECTORIES``; ``events/<event_id>.json`` through a
+#: ``ProjectEventLog`` bound to the workspace root).
 EVENTS_STATE_DIR: str = "events"
 
 #: Event type of a run registration (one ``run.recorded`` event per
@@ -172,7 +175,7 @@ RunInput: TypeAlias = Run | Mapping[str, Any]
 class RunRegistration:
     """The outcome of one run registration.
 
-    ``run`` is the frozen record persisted at ``runs/run/<run_id>.json``;
+    ``run`` is the frozen record persisted at ``runs/<run_id>.json``;
     ``event_record`` is the appended ``run.recorded`` event (None when
     no event log was given); ``replayed`` is True when the registration
     converged an earlier interrupted registration (the record already
@@ -218,7 +221,7 @@ def register_run(
     recorded_at: str,
     event_log: ProjectEventLog | None = None,
 ) -> RunRegistration:
-    """Register one Run record at ``runs/run/<run_id>.json``.
+    """Register one Run record at ``runs/<run_id>.json``.
 
     The worker/monitor run authoring entry: the record is
     schema-shaped (``schemas/run.schema.yaml``), canonical-JSON
@@ -516,8 +519,12 @@ def _require_initialized(root: Path) -> None:
 
 
 def _run_store(root: Path) -> FilesystemStateBackend:
-    """The durable Run registry of a workspace (``runs/``)."""
-    return FilesystemStateBackend(root / RUNS_STATE_DIR)
+    """The durable Run registry of a workspace.
+
+    The backend is rooted at the workspace root, so the canonical tree
+    resolution (``SCHEMA_TO_STATE_DIR``) puts runs at ``runs/``.
+    """
+    return FilesystemStateBackend(root)
 
 
 def _coerce_run(run: RunInput) -> Run:

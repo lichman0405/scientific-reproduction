@@ -2,13 +2,13 @@
 
 The helpers (``workers/run_helpers.py``) give the worker and monitor
 roles the official authoring facade over the run primitives: Run record
-writes at ``runs/run/<run_id>.json`` and lifecycle moves through the
+writes at ``runs/<run_id>.json`` and lifecycle moves through the
 normative Run rule table, with deterministic event ids and idempotency
 keys (the monitoring pattern) instead of hand-rolled plumbing. Coverage
 maps to the issue's observed hand-rolled layer:
 
 * run writes -- ``test_register_run_*``: canonical-JSON records at
-  ``runs/run/<id>.json`` (the exact directory the audit package reads),
+  ``runs/<id>.json`` (the exact directory the audit package reads),
   exactly-once with crash-window convergence;
 * run transitions -- ``test_transition_run_*``: the full mainline chain
   plus the ``CANCELLED`` / ``INVALIDATED`` arcs, each move persisted
@@ -35,15 +35,15 @@ from pathlib import Path
 import pytest
 
 from scientific_reproduction.audit.git import AuditIdentity
-from scientific_reproduction.core.events import ProjectEventLog
+from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.models import LifecycleState, Run, RunType
 from scientific_reproduction.core.rules.lifecycle import IllegalTransitionError
 from scientific_reproduction.planning.init import (
+    INIT_EVENT_TYPE,
     ProjectNotInitializedError,
     initialize_project,
 )
 from scientific_reproduction.workers.run_helpers import (
-    EVENTS_STATE_DIR,
     RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
     RUN_PREDECESSOR_STATE,
     RUN_RECORDED_EVENT_TYPE,
@@ -83,7 +83,18 @@ def init_project(root: Path) -> Path:
 
 def event_log(root: Path) -> ProjectEventLog:
     """The workspace event log bound to the ``events/`` directory."""
-    return ProjectEventLog(root / EVENTS_STATE_DIR)
+    return ProjectEventLog(root)
+
+
+def run_flow_events(root: Path) -> list[EventRecord]:
+    """Event records of the run authoring flow, excluding the
+    deterministic ``project.initialized`` event ``initialize_project``
+    appends to the same canonical log (``events/``)."""
+    return [
+        record
+        for record in event_log(root).list_events()
+        if record.event.event_type != INIT_EVENT_TYPE
+    ]
 
 
 def make_run(
@@ -116,7 +127,7 @@ def test_register_run_persists_canonical_record_and_audits(tmp_path):
     assert registration.replayed is False
     assert registration.event_record is None
     stored = json.loads(
-        (root / RUNS_STATE_DIR / "run" / "RUN-1.json").read_text(encoding="utf-8")
+        (root / RUNS_STATE_DIR / "RUN-1.json").read_text(encoding="utf-8")
     )
     assert stored["run_id"] == "RUN-1"
     assert stored["lifecycle_state"] == "CREATED"
@@ -145,7 +156,7 @@ def test_register_run_with_event_log_audits_recorded_event(tmp_path):
 def test_register_run_duplicate_rejected_and_bytes_untouched(tmp_path):
     root = init_project(tmp_path)
     register_run(root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT)
-    path = root / RUNS_STATE_DIR / "run" / "RUN-1.json"
+    path = root / RUNS_STATE_DIR / "RUN-1.json"
     original = path.read_text(encoding="utf-8")
     with pytest.raises(DuplicateRunError, match="already registered"):
         register_run(
@@ -164,10 +175,10 @@ def test_register_run_crash_window_converges_exactly_once(tmp_path):
     # crash between the two steps). Simulated by writing the record
     # through the raw state backend, exactly the hand-rolled layer's
     # interruption point.
-    (root / RUNS_STATE_DIR / "run" / "RUN-1.json").parent.mkdir(
+    (root / RUNS_STATE_DIR / "RUN-1.json").parent.mkdir(
         parents=True, exist_ok=True
     )
-    (root / RUNS_STATE_DIR / "run" / "RUN-1.json").write_text(
+    (root / RUNS_STATE_DIR / "RUN-1.json").write_text(
         json.dumps(make_run().to_dict(), indent=2, sort_keys=True),
         encoding="utf-8",
     )
@@ -190,7 +201,7 @@ def test_register_run_crash_window_converges_exactly_once(tmp_path):
             recorded_at=RECORDED_AT,
             event_log=log,
         )
-    assert len(log.list_events()) == 1
+    assert len(run_flow_events(root)) == 1
 
 
 def test_register_run_requires_initialized_project(tmp_path):
@@ -259,7 +270,7 @@ def test_transition_run_full_mainline_chain(tmp_path):
         assert event.timestamp == at
         previous = to_state
     assert read_run(root, "RUN-1").lifecycle_state is LifecycleState.CLOSED
-    assert len(log.list_events()) == 8  # recorded + seven transitions
+    assert len(run_flow_events(root)) == 8  # recorded + seven transitions
 
 
 def test_transition_run_cancel_and_invalidate_arcs(tmp_path):
@@ -325,7 +336,7 @@ def test_transition_run_rejects_illegal_pairs(tmp_path):
             actor=ACTOR, reason="noop", at="2026-01-03T00:00:00Z",
             event_log=event_log(root),
         )
-    assert event_log(root).list_events() == []
+    assert run_flow_events(root) == []
     assert read_run(root, "RUN-1").lifecycle_state is LifecycleState.CREATED
 
 
@@ -353,7 +364,7 @@ def test_transition_run_steady_state_and_crash_window_converge(tmp_path):
     assert second_record is not None and first_record is not None
     assert second_record.event.event_id == first_record.event.event_id
     assert second_record.sequence == first_record.sequence
-    assert len(log.list_events()) == 2  # recorded + transition, nothing new
+    assert len(run_flow_events(root)) == 2  # recorded + transition, nothing new
     assert read_run(root, "RUN-1").lifecycle_state is LifecycleState.READY
     # Crash-window convergence: the record is already at RESULT_AVAILABLE
     # but the deterministic arc RUNNING_EXTERNAL -> RESULT_AVAILABLE was
@@ -364,7 +375,7 @@ def test_transition_run_steady_state_and_crash_window_converge(tmp_path):
         other, make_run(), actor=ACTOR, recorded_at=RECORDED_AT,
         event_log=event_log(other),
     )
-    path = other / RUNS_STATE_DIR / "run" / "RUN-1.json"
+    path = other / RUNS_STATE_DIR / "RUN-1.json"
     advanced = make_run(lifecycle_state=LifecycleState.RESULT_AVAILABLE)
     path.write_text(
         json.dumps(advanced.to_dict(), indent=2, sort_keys=True), encoding="utf-8"
@@ -379,13 +390,13 @@ def test_transition_run_steady_state_and_crash_window_converge(tmp_path):
     assert converged_record is not None
     assert converged_record.event.from_ == "RUNNING_EXTERNAL"
     assert converged_record.event.to == "RESULT_AVAILABLE"
-    assert len(event_log(other).list_events()) == 2  # recorded + converged arc
+    assert len(run_flow_events(other)) == 2  # recorded + converged arc
 
 
 def test_transition_run_multi_predecessor_no_convergence(tmp_path):
     root = init_project(tmp_path)
     register_run(root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT)
-    path = root / RUNS_STATE_DIR / "run" / "RUN-1.json"
+    path = root / RUNS_STATE_DIR / "RUN-1.json"
     cancelled = make_run(lifecycle_state=LifecycleState.CANCELLED)
     path.write_text(
         json.dumps(cancelled.to_dict(), indent=2, sort_keys=True), encoding="utf-8"
@@ -399,7 +410,7 @@ def test_transition_run_multi_predecessor_no_convergence(tmp_path):
             actor=ACTOR, reason="cancel", at="2026-01-03T00:00:00Z",
             event_log=event_log(root),
         )
-    assert event_log(root).list_events() == []
+    assert run_flow_events(root) == []
 
 
 def test_transition_run_unknown_run_and_type_errors(tmp_path):
@@ -431,7 +442,7 @@ def test_reads_not_found_and_corrupt_state(tmp_path):
     root = init_project(tmp_path)
     with pytest.raises(RunNotFoundError, match="RUN-9"):
         read_run(root, "RUN-9")
-    path = root / RUNS_STATE_DIR / "run" / "RUN-1.json"
+    path = root / RUNS_STATE_DIR / "RUN-1.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(ValueError, match="is corrupt"):

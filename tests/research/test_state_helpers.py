@@ -8,12 +8,12 @@ monitoring pattern) instead of hand-rolled plumbing. Coverage maps to
 the issue's observed hand-rolled layer:
 
 * source writes -- ``test_register_source_*``: canonical-JSON records
-  at ``sources/source/<id>.json``, canonical mirror identity derived at
+  at ``sources/<id>.json``, canonical mirror identity derived at
   authoring time (malformed DOIs surfaced loudly), mirror collisions
   rejected (06-EVIDENCE-SYSTEM.md section 7), exactly-once with
   crash-window convergence;
 * evidence writes -- ``test_register_evidence_*``: records at
-  ``evidence/evidence/<id>.json`` validated against the frozen evidence
+  ``evidence/<id>.json`` validated against the frozen evidence
   shape (the same checks the in-memory ``EvidenceRegistry`` applies),
   exactly-once;
 * request lifecycle -- ``test_register_request_*`` /
@@ -195,7 +195,7 @@ def test_register_source_persists_canonical_record_and_identity(tmp_path):
     assert registration.replayed is False
     assert registration.event_record is None
     stored = json.loads(
-        (root / SOURCE_STATE_DIR / "source" / "SRC-1.json").read_text(
+        (root / SOURCE_STATE_DIR / "SRC-1.json").read_text(
             encoding="utf-8"
         )
     )
@@ -226,7 +226,7 @@ def test_register_source_audits_one_recorded_event(tmp_path):
 def test_register_source_duplicate_rejected_and_bytes_untouched(tmp_path):
     root = init_project(tmp_path)
     register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
-    path = root / SOURCE_STATE_DIR / "source" / "SRC-1.json"
+    path = root / SOURCE_STATE_DIR / "SRC-1.json"
     original = path.read_text(encoding="utf-8")
     with pytest.raises(DuplicateSourceError, match="already registered"):
         register_source(
@@ -300,10 +300,10 @@ def test_register_source_crash_window_converges_exactly_once(tmp_path):
     # crash between the two steps). Simulated by writing the record
     # through the raw state backend, exactly the hand-rolled layer's
     # interruption point.
-    (root / SOURCE_STATE_DIR / "source" / "SRC-1.json").parent.mkdir(
+    (root / SOURCE_STATE_DIR / "SRC-1.json").parent.mkdir(
         parents=True, exist_ok=True
     )
-    (root / SOURCE_STATE_DIR / "source" / "SRC-1.json").write_text(
+    (root / SOURCE_STATE_DIR / "SRC-1.json").write_text(
         json.dumps(make_source().to_dict(), indent=2, sort_keys=True),
         encoding="utf-8",
     )
@@ -350,7 +350,7 @@ def test_register_evidence_persists_and_audits(tmp_path):
     assert registration.event_record is not None
     assert registration.event_record.event.event_type == EVIDENCE_RECORDED_EVENT_TYPE
     stored = json.loads(
-        (root / EVIDENCE_STATE_DIR / "evidence" / "EVID-1.json").read_text(
+        (root / EVIDENCE_STATE_DIR / "EVID-1.json").read_text(
             encoding="utf-8"
         )
     )
@@ -411,10 +411,10 @@ def test_register_evidence_duplicate_and_convergence(tmp_path):
     # Crash-window convergence on a fresh project: record present, event
     # absent -> the missing event is appended, replayed.
     other_root = init_project(tmp_path / "other")
-    (other_root / EVIDENCE_STATE_DIR / "evidence" / "EVID-1.json").parent.mkdir(
+    (other_root / EVIDENCE_STATE_DIR / "EVID-1.json").parent.mkdir(
         parents=True, exist_ok=True
     )
-    (other_root / EVIDENCE_STATE_DIR / "evidence" / "EVID-1.json").write_text(
+    (other_root / EVIDENCE_STATE_DIR / "EVID-1.json").write_text(
         json.dumps(make_evidence().to_dict(), indent=2, sort_keys=True),
         encoding="utf-8",
     )
@@ -451,7 +451,7 @@ def test_register_request_persists_issued_state_and_audits(tmp_path):
     )
     stored = json.loads(
         (
-            root / RESEARCH_REQUEST_STATE_DIR / "research-request" / "REQ-1.json"
+            root / RESEARCH_REQUEST_STATE_DIR / "REQ-1.json"
         ).read_text(encoding="utf-8")
     )
     assert stored["status"] == "OPEN"
@@ -601,7 +601,7 @@ def test_advance_request_steady_state_and_crash_window_converge(tmp_path):
         other, make_request(), actor="supervisor", recorded_at=RECORDED_AT,
         event_log=event_log(other),
     )
-    path = other / RESEARCH_REQUEST_STATE_DIR / "research-request" / "REQ-1.json"
+    path = other / RESEARCH_REQUEST_STATE_DIR / "REQ-1.json"
     advanced = make_request(status=ResearchRequestStatus.SEARCHING)
     path.write_text(
         json.dumps(advanced.to_dict(), indent=2, sort_keys=True), encoding="utf-8"
@@ -757,7 +757,7 @@ def test_reads_not_found_and_corrupt_state(tmp_path):
         read_evidence(root, "EVID-9")
     with pytest.raises(RequestNotFoundError, match="REQ-9"):
         read_research_request(root, "REQ-9")
-    path = root / SOURCE_STATE_DIR / "source" / "SRC-1.json"
+    path = root / SOURCE_STATE_DIR / "SRC-1.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(ValueError, match="is corrupt"):

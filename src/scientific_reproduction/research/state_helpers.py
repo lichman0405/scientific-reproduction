@@ -30,15 +30,17 @@ keys or lifecycle plumbing. The frozen spec grounds this module:
 
 Workspace layout (normative)
 ----------------------------
-Records live one file per object, under the workspace root:
+Records live one file per object, under the workspace root, through
+the canonical tree resolution of the state backend
+(``core.state_backend.SCHEMA_TO_STATE_DIR``):
 
-* sources at ``sources/source/<source_id>.json``;
-* evidence at ``evidence/evidence/<evidence_id>.json``;
-* research requests at ``research-requests/research-request/<id>.json``
-  (the directory is created on demand by the atomic write);
-* events at ``events/event/<event_id>.json`` (a ``ProjectEventLog``
-  bound to the workspace ``events/`` directory; the sequence counter and
-  idempotency claims live under ``events/_event_log/``).
+* sources at ``sources/<source_id>.json``;
+* evidence at ``evidence/<evidence_id>.json``;
+* research requests at ``research-requests/<request_id>.json`` (the
+  directory is created on demand by the atomic write);
+* events at ``events/<event_id>.json`` (a ``ProjectEventLog`` bound to
+  the workspace root; the sequence counter and idempotency claims live
+  under ``_event_log/``).
 
 Everything is deterministic: ids are generated with
 ``core.ids.generate_id`` (event ids are pure functions of the record /
@@ -145,22 +147,25 @@ __all__ = [
 # Frozen constants (workspace layout and event vocabulary)
 # ---------------------------------------------------------------------------
 
-#: State directory of the durable source registry, relative to the
-#: workspace root (``sources/source/<source_id>.json``).
+#: Canonical tree directory of the durable source registry, relative
+#: to the workspace root (``sources/<source_id>.json`` -- resolved by
+#: ``SCHEMA_TO_STATE_DIR`` for the ``source`` object type).
 SOURCE_STATE_DIR: str = "sources"
 
-#: State directory of the durable evidence registry (``evidence/evidence/
-#: <evidence_id>.json``).
+#: Canonical tree directory of the durable evidence registry
+#: (``evidence/<evidence_id>.json`` -- resolved by
+#: ``SCHEMA_TO_STATE_DIR`` for the ``evidence`` object type).
 EVIDENCE_STATE_DIR: str = "evidence"
 
-#: State directory of the durable research-request registry
-#: (``research-requests/research-request/<request_id>.json``; the
-#: directory is created on demand by the atomic write).
+#: Canonical tree directory of the durable research-request registry
+#: (``research-requests/<request_id>.json`` -- resolved by
+#: ``SCHEMA_TO_STATE_DIR`` for the ``research-request`` object type;
+#: the directory is created on demand by the atomic write).
 RESEARCH_REQUEST_STATE_DIR: str = "research-requests"
 
-#: The project event-log directory of a workspace (``planning.init``
-#: ``INIT_DIRECTORIES``); the default event log binds here
-#: (``events/event/<event_id>.json``).
+#: Canonical event-log directory of a workspace (``planning.init``
+#: ``INIT_DIRECTORIES``; ``events/<event_id>.json`` through a
+#: ``ProjectEventLog`` bound to the workspace root).
 EVENTS_STATE_DIR: str = "events"
 
 #: Event type of a source registration (one ``source.recorded`` event
@@ -259,7 +264,7 @@ class SourceRegistration:
     """The outcome of one source registration.
 
     ``source`` is the frozen record persisted at
-    ``sources/source/<source_id>.json``; ``identity`` is the canonical
+    ``sources/<source_id>.json``; ``identity`` is the canonical
     mirror identity derived by ``research.sources.canonical_identity``;
     ``event_record`` is the appended ``source.recorded`` event (None
     when no event log was given); ``replayed`` is True when the
@@ -278,7 +283,7 @@ class EvidenceRegistration:
     """The outcome of one evidence registration.
 
     ``evidence`` is the frozen record persisted at
-    ``evidence/evidence/<evidence_id>.json``; ``event_record`` is the
+    ``evidence/<evidence_id>.json``; ``event_record`` is the
     appended ``evidence.recorded`` event (None without an event log);
     ``replayed`` marks a converged earlier registration.
     """
@@ -353,7 +358,7 @@ def register_source(
     recorded_at: str,
     event_log: ProjectEventLog | None = None,
 ) -> SourceRegistration:
-    """Register one source record at ``sources/source/<source_id>.json``.
+    """Register one source record at ``sources/<source_id>.json``.
 
     The research role's source authoring entry: the record is
     schema-shaped (``schemas/source.schema.yaml``), canonical-JSON
@@ -455,7 +460,7 @@ def register_evidence(
     recorded_at: str,
     event_log: ProjectEventLog | None = None,
 ) -> EvidenceRegistration:
-    """Register one evidence record at ``evidence/evidence/<id>.json``.
+    """Register one evidence record at ``evidence/<id>.json``.
 
     The research role's evidence authoring entry: the record is
     validated against the frozen evidence shape
@@ -1063,18 +1068,31 @@ def _require_initialized(root: Path) -> None:
 
 
 def _source_store(root: Path) -> FilesystemStateBackend:
-    """The durable source registry of a workspace."""
-    return FilesystemStateBackend(root / SOURCE_STATE_DIR)
+    """The durable source registry of a workspace.
+
+    The backend is rooted at the workspace root, so the canonical tree
+    resolution (``SCHEMA_TO_STATE_DIR``) puts sources at ``sources/``.
+    """
+    return FilesystemStateBackend(root)
 
 
 def _evidence_store(root: Path) -> FilesystemStateBackend:
-    """The durable evidence registry of a workspace."""
-    return FilesystemStateBackend(root / EVIDENCE_STATE_DIR)
+    """The durable evidence registry of a workspace.
+
+    The backend is rooted at the workspace root, so the canonical tree
+    resolution (``SCHEMA_TO_STATE_DIR``) puts evidence at ``evidence/``.
+    """
+    return FilesystemStateBackend(root)
 
 
 def _request_store(root: Path) -> FilesystemStateBackend:
-    """The durable research-request registry of a workspace."""
-    return FilesystemStateBackend(root / RESEARCH_REQUEST_STATE_DIR)
+    """The durable research-request registry of a workspace.
+
+    The backend is rooted at the workspace root, so the canonical tree
+    resolution (``SCHEMA_TO_STATE_DIR``) puts research requests at
+    ``research-requests/``.
+    """
+    return FilesystemStateBackend(root)
 
 
 def _coerce_source(source: SourceInput) -> ResearchSource:
