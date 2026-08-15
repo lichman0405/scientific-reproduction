@@ -559,6 +559,19 @@ def test_init_cli_missing_target_is_usage_error(
     capsys.readouterr()
 
 
+def test_init_cli_ships_only_the_init_subcommand(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # SKILL.md: "/goals views ... in v0.2 they are agent-authored from that
+    # layer -- the runtime ships no /goals subcommand". Lock the claim: any
+    # non-"init" subcommand is an argument-parsing error (exit code 2).
+    for args in (["goals"], ["goals", "show", "G-1"]):
+        with pytest.raises(SystemExit) as excinfo:
+            cli_main(args)
+        assert excinfo.value.code == 2
+        capsys.readouterr()
+
+
 # ---------------------------------------------------------------------------
 # Error hierarchy sanity
 # ---------------------------------------------------------------------------
