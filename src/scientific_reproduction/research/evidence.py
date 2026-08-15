@@ -89,6 +89,7 @@ __all__ = [
     "EvidenceRegistrationError",
     "EvidenceDuplicateError",
     "EvidenceRegistry",
+    "validate_evidence_record",
 ]
 
 #: The 0-4 rubric axis range (06-EVIDENCE-SYSTEM.md SS2; the frozen
@@ -161,7 +162,7 @@ class EvidenceRegistry:
         items = tuple(records)
         seen: set[str] = set()
         for item in items:
-            _validate_record(item)
+            validate_evidence_record(item)
             if item.evidence_id in seen:
                 raise EvidenceDuplicateError(
                     f"evidence {item.evidence_id!r} is already registered"
@@ -357,7 +358,7 @@ def _coerce_source_id(source: ResearchSource | str, function: str) -> str:
     )
 
 
-def _validate_record(evidence: ClaimSpecificEvidence) -> None:
+def validate_evidence_record(evidence: ClaimSpecificEvidence) -> None:
     """Validate one record against the frozen evidence shape.
 
     Checks (stable messages, all raising ``EvidenceRegistrationError``):

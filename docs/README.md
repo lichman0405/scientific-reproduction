@@ -18,9 +18,9 @@ Python package sources:
 src/scientific_reproduction/
   core/        core object model and filesystem state backend
   planning/    Supervisor planning primitives
-  research/    research subsystem
+  research/    research subsystem (state_helpers: role-facing authoring)
   monitoring/  execution monitor
-  workers/     worker context and permission enforcement
+  workers/     worker context and permission enforcement (run_helpers: run authoring)
   analysis/    analysis/statistics subsystem
   adapters/    platform and execution adapters
     lab/       lab adapter (filesystem handoff)
