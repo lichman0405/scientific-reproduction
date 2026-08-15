@@ -150,10 +150,16 @@ review decision stored separately, never a Run lifecycle state.
 - `register_goal(root, goal)`, `read_goal(root, goal_id)`, `list_goals(root)`
   — the goal-contract registry (drafts at `<root>/goals/<goal_id>.json`,
   immutable: a goal id registers exactly once);
-- `register_acceptance`, `register_analysis_protocol`,
+- `register_acceptance`, `register_statistical_design`,
+  `register_analysis_protocol`,
   `register_closure_contract` with the matching read/list helpers — the
-  goal-contract family (`<root>/acceptance/`, `<root>/protocols/`,
-  `<root>/closure/`; the last two directories are created on demand);
+  goal-contract family (`<root>/acceptance/`, `<root>/designs/`,
+  `<root>/protocols/`, `<root>/closure/`; the first, second and last
+  directories are created on demand). The statistical design record
+  (`schemas/statistical-design.schema.yaml`) is the first-class record
+  behind `AcceptanceCriteria.statistical_design_ref`: the design is
+  frozen before data generation (`07-STATISTICS-AND-ACCEPTANCE.md` SS9)
+  and the plan freeze resolves every such reference;
 - `build_plan_v1(root)` — the deterministic Plan v1 draft, a pure function
   of the registered state (project + inventory items + requirements);
 - `register_plan`, `read_plan`, `list_plans`, `plan_lineage` — the
@@ -172,8 +178,10 @@ fails the audit; 100% mapped passes.
 **Freeze and versioned revision** — `src/scientific_reproduction/planning/freeze.py`
 (DEV-M4-G04): `freeze_plan(root, plan)` is prohibited unless the completeness
 audit passes (AC-01), produces the frozen Plan record and the frozen
-Goal/Acceptance/Analysis/Closure contracts in memory (AC-02, drafts on disk
-are never rewritten), and `revise_plan(root, plan)` creates the next draft
+Goal/Acceptance/StatisticalDesign/Analysis/Closure contracts in memory
+(AC-02, drafts on disk are never rewritten; every acceptance's
+`statistical_design_ref` must resolve to a registered design), and
+`revise_plan(root, plan)` creates the next draft
 version (`v1 -> v2-draft`) from a registered FROZEN plan (AC-03).
 
 **DAG and blocker views** — `src/scientific_reproduction/planning/dag.py`
@@ -249,8 +257,9 @@ These surfaces implement `01-PRODUCT-REQUIREMENTS.md` SS5 steps 4–8 exactly:
 Research acquires sources, the Supervisor builds the Reproduction Inventory
 (`planning/inventory.py`), the audit proves 100% coverage of formally
 reported items (`planning/audit.py`), the Supervisor authors Work
-Packages/Requirements/Goals/acceptance/analysis/closure records
-(`planning/plan.py`), Plan v1 is frozen (`planning/freeze.py`), and eligible
+Packages/Requirements/Goals/acceptance/statistical-design/analysis/closure
+records (`planning/plan.py`), Plan v1 is frozen (`planning/freeze.py`), and
+eligible
 workers then execute one Goal context at a time
 (`workers/context.py` + `workers/results.py`) while the Execution Monitor
 tracks external Runs (`monitoring/`).

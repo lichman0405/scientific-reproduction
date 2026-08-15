@@ -63,6 +63,7 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 | [`schemas/requirement.schema.yaml`](../../schemas/requirement.schema.yaml) | ReproductionRequirement | Requirement with checklist-derived criticality. |
 | [`schemas/inventory-item.schema.yaml`](../../schemas/inventory-item.schema.yaml) | ReproductionInventoryItem | Reproduction inventory item. |
 | [`schemas/acceptance-criteria.schema.yaml`](../../schemas/acceptance-criteria.schema.yaml) | AcceptanceCriteria | Frozen acceptance criteria. |
+| [`schemas/statistical-design.schema.yaml`](../../schemas/statistical-design.schema.yaml) | StatisticalDesign | Frozen statistical design (07-SS9), referenced by `statistical_design_ref`. |
 | [`schemas/closure-contract.schema.yaml`](../../schemas/closure-contract.schema.yaml) | ClosureContract | Stopping/closure governance. |
 | [`schemas/assumption.schema.yaml`](../../schemas/assumption.schema.yaml) | Assumption | Assumption (incl. A2 Scientific Assumption). |
 | [`schemas/resource.schema.yaml`](../../schemas/resource.schema.yaml) | Resource | Resource/procurement item. |
@@ -107,6 +108,7 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 | [`examples/fdm-201/assumption.example.yaml`](../../examples/fdm-201/assumption.example.yaml) | FDM-201 assumption instance example. |
 | [`examples/fdm-201/evidence.example.yaml`](../../examples/fdm-201/evidence.example.yaml) | FDM-201 evidence instance example. |
 | [`examples/fdm-201/acceptance.example.yaml`](../../examples/fdm-201/acceptance.example.yaml) | FDM-201 acceptance-criteria instance example. |
+| [`examples/fdm-201/statistical-design.example.yaml`](../../examples/fdm-201/statistical-design.example.yaml) | FDM-201 statistical-design instance example. |
 | [`examples/fdm-201/research-request.example.yaml`](../../examples/fdm-201/research-request.example.yaml) | FDM-201 research-request instance example. |
 | [`examples/fdm-201/simulated-scenarios.md`](../../examples/fdm-201/simulated-scenarios.md) | Simulated execution scenarios for v0.1 acceptance. |
 
