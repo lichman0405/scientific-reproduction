@@ -273,7 +273,7 @@ def load_checkpoint(state_dir: Path) -> tuple[MonitorRunCheckpoint, ...] | None:
 def event_records(events_dir: Path) -> list[dict[str, object]]:
     """The raw persisted event records (sorted, read from disk)."""
     records: list[dict[str, object]] = []
-    for path in sorted((events_dir / "event").glob("*.json")):
+    for path in sorted((events_dir / "events").glob("*.json")):
         records.append(json.loads(path.read_text(encoding="utf-8")))
     return records
 
@@ -979,7 +979,7 @@ def test_recovery_default_store_layout_over_state_dir(tmp_path: Path) -> None:
     assert plan.completions[0].run_state is LifecycleState.RUNNING_EXTERNAL
     summary = recovery.resume_engine().reconcile_all()
     assert summary.completed_count == 1
-    assert (state / "run" / f"{run.run_id}.json").is_file()
+    assert (state / "runs" / f"{run.run_id}.json").is_file()
     assert event_records(state)  # events at <state_dir>/event/
 
 

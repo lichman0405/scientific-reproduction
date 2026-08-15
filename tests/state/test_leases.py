@@ -131,7 +131,7 @@ def test_lease_record_identifies_owner_and_expiry(tmp_path) -> None:
     # Metadata survives persistence: read back through get() and as the
     # raw on-disk record.
     assert store.get("run", "RUN-1") == lease
-    raw_path = tmp_path / "state" / "leases" / "run" / "RUN-1.json"
+    raw_path = tmp_path / "state" / "leases" / "runs" / "RUN-1.json"
     raw = json.loads(raw_path.read_text(encoding="utf-8"))
     assert raw["owner"] == "worker-a"
     assert raw["expires_at"] == 1030.0
@@ -216,7 +216,7 @@ def test_interleaved_os_replace_race_has_single_winner(
     winner = _assert_single_winner(results)
     assert store.get("run", "RUN-1") == winner
     raw = json.loads(
-        (tmp_path / "state" / "leases" / "run" / "RUN-1.json").read_text(
+        (tmp_path / "state" / "leases" / "runs" / "RUN-1.json").read_text(
             encoding="utf-8"
         )
     )
@@ -272,7 +272,7 @@ def test_acquire_race_two_backends_two_threads(tmp_path) -> None:
         # The surviving record is exactly the winner's, complete on disk.
         assert store_a.get("run", "RUN-1") == winner
         raw = json.loads(
-            (base / "leases" / "run" / "RUN-1.json").read_text(encoding="utf-8")
+            (base / "leases" / "runs" / "RUN-1.json").read_text(encoding="utf-8")
         )
         assert raw["owner"] == winner.owner
         assert raw["expires_at"] == 1030.0
@@ -359,7 +359,7 @@ def test_concurrent_takeover_of_expired_lease_single_winner(
 def test_corrupt_lease_record_is_recoverable(tmp_path) -> None:
     """A corrupt record is not a valid lease: it can be claimed (AC-02)."""
     store = make_store(tmp_path, FakeClock(1000.0))
-    raw_path = tmp_path / "state" / "leases" / "run" / "RUN-1.json"
+    raw_path = tmp_path / "state" / "leases" / "runs" / "RUN-1.json"
     raw_path.parent.mkdir(parents=True)
     raw_path.write_text('{"object_type": "run", "truncat', encoding="utf-8")
 
@@ -370,7 +370,7 @@ def test_corrupt_lease_record_is_recoverable(tmp_path) -> None:
 
 def test_get_raises_on_corrupt_record(tmp_path) -> None:
     store = make_store(tmp_path, FakeClock())
-    raw_path = tmp_path / "state" / "leases" / "run" / "RUN-1.json"
+    raw_path = tmp_path / "state" / "leases" / "runs" / "RUN-1.json"
     raw_path.parent.mkdir(parents=True)
     raw_path.write_text("not json at all", encoding="utf-8")
 
@@ -496,9 +496,9 @@ def test_leases_are_isolated_per_object(tmp_path) -> None:
     assert store.get("goal", "RUN-1") is None
 
     base = tmp_path / "state" / "leases"
-    assert (base / "run" / "RUN-1.json").is_file()
-    assert (base / "run" / "RUN-2.json").is_file()
-    assert (base / "goal" / "GOAL-1.json").is_file()
+    assert (base / "runs" / "RUN-1.json").is_file()
+    assert (base / "runs" / "RUN-2.json").is_file()
+    assert (base / "goals" / "GOAL-1.json").is_file()
 
 
 def test_lease_store_coexists_with_state_backend(tmp_path) -> None:
@@ -511,10 +511,17 @@ def test_lease_store_coexists_with_state_backend(tmp_path) -> None:
     lease = store.acquire("run", doc["run_id"], "worker-a", 30)
 
     # The lease record lives in leases/ and does not disturb the object
-    # tree of the state backend (and vice versa).
+    # tree of the state backend (and vice versa). Leases mirror the
+    # backend layout: the lease for an object sits under the same tree
+    # directory as the object itself (``SCHEMA_TO_STATE_DIR``).
     assert store.get("run", doc["run_id"]) == lease
     assert backend.list_ids("run") == [doc["run_id"]]
     assert backend.read("run", doc["run_id"]) == doc
+    lease_path = (
+        tmp_path / "state" / "leases" / "runs" / f"{doc['run_id']}.json"
+    )
+    assert lease_path.is_file()
+    assert (tmp_path / "state" / "runs" / f"{doc['run_id']}.json").is_file()
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +594,7 @@ def test_interrupted_acquire_leaves_no_lease_and_no_litter(
     monkeypatch.undo()
 
     assert store.get("run", "RUN-1") is None
-    leases_dir = tmp_path / "state" / "leases" / "run"
+    leases_dir = tmp_path / "state" / "leases" / "runs"
     if leases_dir.exists():
         assert list(leases_dir.iterdir()) == []
 
@@ -601,7 +608,7 @@ def test_stale_claim_tmp_never_mistaken_for_lease(tmp_path) -> None:
     """A leftover staging file from a crashed claimer is invisible."""
     clock = FakeClock(1000.0)
     store = make_store(tmp_path, clock)
-    leases_dir = tmp_path / "state" / "leases" / "run"
+    leases_dir = tmp_path / "state" / "leases" / "runs"
     leases_dir.mkdir(parents=True)
     stale = leases_dir / ".RUN-1.json.claim-0123456789ab.tmp"
     stale.write_text('{"object_type": "run"', encoding="utf-8")  # truncated

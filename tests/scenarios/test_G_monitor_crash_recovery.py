@@ -342,11 +342,11 @@ def tree_bytes(root: Path) -> bytes:
 
 
 def event_files(events_dir: Path) -> list[Path]:
-    return sorted((events_dir / "event").glob("*.json"), key=lambda p: p.name)
+    return sorted(events_dir.glob("*.json"), key=lambda p: p.name)
 
 
 def run_file_bytes(runs_dir: Path, run_id: str) -> bytes:
-    return (runs_dir / "run" / f"{run_id}.json").read_bytes()
+    return (runs_dir / f"{run_id}.json").read_bytes()
 
 
 def completion_event_id(run_id: str) -> str:
@@ -393,8 +393,6 @@ def execute_scenario_g(root: Path) -> ScenarioGResult:
     executor is a pure function of its workspace directory.
     """
     state_dir = root / "monitor"
-    runs_dir = root / "runs"
-    events_dir = root / "events"
     adapter_state = root / "adapter"
 
     clock = FakeClock()
@@ -420,7 +418,7 @@ def execute_scenario_g(root: Path) -> ScenarioGResult:
             job_id=submitted.job_id,
             working_directory=WORK_DIRS[run_id],
         )
-        run_store = FilesystemStateBackend(runs_dir)
+        run_store = FilesystemStateBackend(root)
         write_run(run_store, make_run(run_id, external))
         WatchedRunRegistry(state_dir, now=clock, monitor_id=MONITOR_ID).watch(
             make_watch_record(run_id, external)
@@ -433,8 +431,8 @@ def execute_scenario_g(root: Path) -> ScenarioGResult:
         now=clock,
         monitor_id=MONITOR_ID,
         probe=SlurmAdapterProbe(adapter),
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
     original_summary = original_engine.reconcile_all()
     # the session disappears here: nothing below touches its objects
@@ -464,8 +462,8 @@ def execute_scenario_g(root: Path) -> ScenarioGResult:
         now=clock,
         monitor_id=MONITOR_ID,
         probe=SlurmAdapterProbe(adapter),
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
         dispatch=dispatch,
     )
     plan = recovery.reconstruct()
@@ -496,8 +494,6 @@ def make_replacement(root: Path) -> MonitorRecovery:
     """A fresh replacement Monitor session over the durable state of the
     executed scenario (AC-03: fresh instances everywhere)."""
     state_dir = root / "monitor"
-    runs_dir = root / "runs"
-    events_dir = root / "events"
     adapter_state = root / "adapter"
     clock = FakeClock()
     adapter = SSHComputeAdapter(
@@ -512,8 +508,8 @@ def make_replacement(root: Path) -> MonitorRecovery:
         now=clock,
         monitor_id=MONITOR_ID,
         probe=SlurmAdapterProbe(adapter),
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
         dispatch=CountingDispatch(),
     )
 
@@ -542,8 +538,8 @@ def test_G_crash_leaves_durable_state_for_the_replacement(tmp_path: Path) -> Non
         [f"monitor/watched/{RUN_1}.json", f"monitor/watched/{RUN_2}.json"]
     )
 
-    run_1 = json.loads(crash[f"runs/run/{RUN_1}.json"].decode("utf-8"))
-    run_2 = json.loads(crash[f"runs/run/{RUN_2}.json"].decode("utf-8"))
+    run_1 = json.loads(crash[f"runs/{RUN_1}.json"].decode("utf-8"))
+    run_2 = json.loads(crash[f"runs/{RUN_2}.json"].decode("utf-8"))
     assert run_1["lifecycle_state"] == LifecycleState.RESULT_AVAILABLE.value
     assert run_2["lifecycle_state"] == LifecycleState.RUNNING_EXTERNAL.value
 
@@ -554,7 +550,7 @@ def test_G_crash_leaves_durable_state_for_the_replacement(tmp_path: Path) -> Non
     assert by_run[RUN_2]["observed_state"] == EXTERNAL_STATE_RUNNING
 
     events = sorted(
-        name for name in crash if name.startswith("events/event/") and name.endswith(".json")
+        name for name in crash if name.startswith("events/") and name.endswith(".json")
     )
     assert len(events) == 1
     event = json.loads(crash[events[0]].decode("utf-8"))
@@ -651,7 +647,7 @@ def test_G_ac02_no_duplicate_run_job_or_completion_event(tmp_path: Path) -> None
     root = tmp_path / "scenario-g"
     result = execute_scenario_g(root)
 
-    run_records = sorted(p.name for p in (root / "runs" / "run").glob("*.json"))
+    run_records = sorted(p.name for p in (root / "runs").glob("*.json"))
     assert run_records == sorted([f"{RUN_1}.json", f"{RUN_2}.json"])
     job_records = sorted(p.name for p in (root / "adapter" / JOBS_STATE_DIR).glob("*.json"))
     assert job_records == sorted([f"{JOB_1}.json", f"{JOB_2}.json"])

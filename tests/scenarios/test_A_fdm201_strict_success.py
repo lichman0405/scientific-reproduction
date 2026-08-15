@@ -491,9 +491,9 @@ class BatchExecutor:
         self._goal_id = goal_id
         self._clock = clock
         self._adapter = FilesystemLabAdapter(root / "lab")
-        self._runs = FilesystemStateBackend(root / "runs")
+        self._runs = FilesystemStateBackend(root)
         self._manifests = ArtifactRegistry(root / ARTIFACTS_STATE_DIR)
-        self._log = ProjectEventLog(root / "events")
+        self._log = ProjectEventLog(root)
 
     def execute(
         self,
@@ -719,7 +719,7 @@ def execute_scenario_a(root: Path) -> ScenarioAResult:
     register_goal(root, make_goal())
     register_inventory_item(root, make_inventory_item())
 
-    log = ProjectEventLog(root / "events")
+    log = ProjectEventLog(root)
     log.append(
         ProjectEvent(
             event_id=generate_id("event", PLAN_FROZEN_EVENT_TYPE, GOAL_ID, GOAL_VERSION),
@@ -981,13 +981,13 @@ def tree_bytes(root: Path) -> bytes:
 def event_records(root: Path) -> list[Path]:
     """The persisted scenario event files, in sequence-file name order."""
     return sorted(
-        (root / "events" / "event").glob("*.json"), key=lambda p: p.name
+        (root / "events").glob("*.json"), key=lambda p: p.name
     )
 
 
 def run_files(root: Path) -> list[Path]:
     return sorted(
-        (root / "runs" / "run").glob("*.json"), key=lambda p: p.name
+        (root / "runs").glob("*.json"), key=lambda p: p.name
     )
 
 
@@ -1040,7 +1040,7 @@ def test_A_ac01_three_valid_independent_runs(tmp_path: Path) -> None:
     execute_scenario_a(root)
     assert len(event_records(root)) > 0
     assert len(run_files(root)) == 3
-    store = FilesystemStateBackend(root / "runs")
+    store = FilesystemStateBackend(root)
     for run_id in RUN_IDS:
         run = Run.from_dict(store.read("run", run_id))
         assert run.goal_id == GOAL_ID

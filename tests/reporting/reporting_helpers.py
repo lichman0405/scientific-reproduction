@@ -8,7 +8,7 @@ workspace installers register a fully linked SS7 report-traceability
 chain (``14-STATE-GIT-ARTIFACTS.md`` SS7) through the **real**
 registration APIs -- project, PRIMARY analysis protocol (draft ->
 frozen ``v1``), goal contract, acceptance criteria, inventory item and
-requirement, Run record (``runs/run/<id>.json``), raw artifact manifest
+requirement, Run record (``runs/<id>.json``), raw artifact manifest
 and analysis result package -- plus the in-memory claim-specific
 evidence registry. Nothing here is mocked.
 """
@@ -338,7 +338,7 @@ def install_valid_chain(
     project, the PRIMARY analysis protocol (``v1-draft`` registered, then
     frozen to ``v1`` with the fixed ``FROZEN_AT`` stamp), the goal
     contract, the acceptance criteria, the inventory item and the
-    requirement, the run record (``runs/run/RUN-001.json``), the raw
+    requirement, the run record (``runs/RUN-001.json``), the raw
     artifact manifest (``manifests/ART-001.json``) and the analysis
     result package linking run/artifact/acceptance/requirement. The
     returned evidence registry backs ``claim_id`` with one
@@ -354,7 +354,9 @@ def install_valid_chain(
     register_acceptance(root, acceptance or make_acceptance())
     register_inventory_item(root, make_inventory_item())
     register_requirement(root, make_requirement())
-    FilesystemStateBackend(root / "runs").write(
+    # The run store is a state backend over the workspace root, resolving
+    # the canonical ``runs/`` tree directory (SCHEMA_TO_STATE_DIR).
+    FilesystemStateBackend(root).write(
         "run", RUN_ID, (run or make_run()).to_dict()
     )
     ArtifactRegistry(root / "manifests").register(
@@ -387,7 +389,7 @@ def install_chain_with_failed_run(
         scientific_review=ScientificReview.UNREVIEWED,
         artifacts=[],
     )
-    FilesystemStateBackend(root / "runs").write(
+    FilesystemStateBackend(root).write(
         "run", failed.run_id, failed.to_dict()
     )
     return evidence, failed

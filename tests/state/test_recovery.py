@@ -217,7 +217,7 @@ def test_backend_mid_write_disk_error_keeps_previous_object(
     backend = FilesystemStateBackend(tmp_path / "state")
     doc1 = copy.deepcopy(VALID_DOCS["run"])
     backend.write("run", doc1["run_id"], doc1)
-    path = tmp_path / "state" / "run" / f"{doc1['run_id']}.json"
+    path = tmp_path / "state" / "runs" / f"{doc1['run_id']}.json"
     original = path.read_bytes()
 
     monkeypatch.setattr(
@@ -234,7 +234,7 @@ def test_backend_mid_write_disk_error_keeps_previous_object(
     assert path.read_bytes() == original
     assert backend.read("run", doc1["run_id"]) == doc1
     assert backend.list_ids("run") == [doc1["run_id"]]
-    assert list((tmp_path / "state" / "run").iterdir()) == [path]
+    assert list((tmp_path / "state" / "runs").iterdir()) == [path]
 
 
 def test_backend_first_write_crash_gap_leaves_no_object(tmp_path, monkeypatch) -> None:
@@ -259,7 +259,7 @@ def test_backend_first_write_crash_gap_leaves_no_object(tmp_path, monkeypatch) -
     assert backend.list_ids("run") == []
     # The type directory may exist (atomic_write creates parents on
     # demand) but must be empty -- no target, no temp.
-    assert list((tmp_path / "state" / "run").iterdir()) == []
+    assert list((tmp_path / "state" / "runs").iterdir()) == []
 
     backend.write("run", object_id, doc)
     assert backend.read("run", object_id) == doc
@@ -280,10 +280,10 @@ def test_backend_hard_crash_stale_temp_is_never_read_as_object(tmp_path) -> None
     backend = FilesystemStateBackend(tmp_path / "state")
     doc1 = copy.deepcopy(VALID_DOCS["event"])
     backend.write("event", doc1["event_id"], doc1)
-    path = tmp_path / "state" / "event" / f"{doc1['event_id']}.json"
+    path = tmp_path / "state" / "events" / f"{doc1['event_id']}.json"
     original = path.read_bytes()
 
-    stale = tmp_path / "state" / "event" / f".{doc1['event_id']}.json.abc123.tmp"
+    stale = tmp_path / "state" / "events" / f".{doc1['event_id']}.json.abc123.tmp"
     stale.write_text('{"event_id": "EV-001", "time', encoding="utf-8")
 
     # The stale temp is never read as the object and never listed.
@@ -308,7 +308,7 @@ def test_backend_first_write_hard_crash_leaves_no_object(tmp_path) -> None:
     """
     backend = FilesystemStateBackend(tmp_path / "state")
     object_id = "EV-NEW-001"
-    stale = tmp_path / "state" / "event" / f".{object_id}.json.deadbeef.tmp"
+    stale = tmp_path / "state" / "events" / f".{object_id}.json.deadbeef.tmp"
     stale.parent.mkdir(parents=True)
     stale.write_text('{"event_id": "EV-NEW-001", "ti', encoding="utf-8")
 
