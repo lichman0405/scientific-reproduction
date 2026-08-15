@@ -38,13 +38,16 @@ render path.
 
 Design system
 -------------
-``_PLAN_DOC_CSS`` is the shared visual system of the reporting renderer
-family (issues #105 / #106 / #107): self-contained design tokens, A4
-``@page`` rules, styled tables, chips and the DAG SVG vocabulary. Sibling
-renderers (execution sheet, report) reuse it verbatim so every designed
-document of the skill shares one typography and layout language. The
-document carries the page footer (project id + plan version) and a table
-of contents, and prints on A4 with ``@page`` rules.
+``_PLAN_DOC_CSS`` is the print stylesheet of the reporting renderer
+family (issues #105 / #106 / #107): A4 ``@page`` rules, styled tables,
+chips and the DAG SVG vocabulary. Its color tokens are imported from
+``rendering.style`` -- the single source of the family palette, shared
+with the execution sheets (``reporting.sheets``) and the PDF report
+renderer (``rendering.pdf``) -- so every designed document of the skill
+renders with one color language; typography and layout stay
+per-renderer. The document carries the page footer (project id + plan
+version) and a table of contents, and prints on A4 with ``@page``
+rules.
 
 Output
 ------
@@ -110,6 +113,20 @@ from scientific_reproduction.planning.plan import (
     list_statistical_designs,
     read_plan,
 )
+from scientific_reproduction.rendering.style import (
+    ACCENT_HEX,
+    ACCENT_SOFT_HEX,
+    FAIL_BG_HEX,
+    FAIL_HEX,
+    INFO_HEX,
+    INK_HEX,
+    MUTED_HEX,
+    PANEL_HEX,
+    PAPER_HEX,
+    PASS_BG_HEX,
+    PASS_HEX,
+    RULE_HEX,
+)
 
 __all__ = [
     "PLAN_DOC_VERSION",
@@ -135,30 +152,33 @@ _SECTION_TITLES: tuple[str, ...] = (
 )
 
 #: The shared renderer-family design system (issues #105/#106/#107):
-#: self-contained print CSS over A4 with design tokens. Appended per
-#: document: the ``@page`` footer rule carrying the project id and plan
-#: version (``_footer_css``).
-_PLAN_DOC_CSS: str = """\
-:root {
-  --ink: #111827;
-  --muted: #6b7280;
-  --rule: #d1d5db;
-  --paper: #ffffff;
-  --panel: #f9fafb;
-  --accent: #1d4ed8;
-  --accent-soft: #eff6ff;
-  --hard: #111827;
-  --soft: #4b5563;
-  --info: #9ca3af;
-  --pass: #065f46;
-  --pass-soft: #ecfdf5;
-  --fail: #991b1b;
-  --fail-soft: #fef2f2;
+#: self-contained print CSS over A4. The color tokens are imported from
+#: ``rendering.style`` (the single source of the family palette -- the
+#: PDF report and the execution sheets use the same values); fonts and
+#: layout stay local. Appended per document: the ``@page`` footer rule
+#: carrying the project id and plan version (``_footer_css``).
+_PLAN_DOC_CSS: str = (
+    f""":root {{
+  --ink: {INK_HEX};
+  --muted: {MUTED_HEX};
+  --rule: {RULE_HEX};
+  --paper: {PAPER_HEX};
+  --panel: {PANEL_HEX};
+  --accent: {ACCENT_HEX};
+  --accent-soft: {ACCENT_SOFT_HEX};
+  --hard: {INK_HEX};
+  --soft: {MUTED_HEX};
+  --info: {INFO_HEX};
+  --pass: {PASS_HEX};
+  --pass-soft: {PASS_BG_HEX};
+  --fail: {FAIL_HEX};
+  --fail-soft: {FAIL_BG_HEX};
   --serif: Georgia, "Times New Roman", serif;
   --sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --mono: Consolas, Menlo, monospace;
-}
-
+}}
+"""
+    + """\
 @page {
   size: A4;
   margin: 22mm 18mm 20mm 18mm;
@@ -376,6 +396,7 @@ td {
   margin: 4pt 0 10pt 0;
 }
 """
+)
 
 #: DAG SVG geometry (deterministic layered layout constants).
 _DAG_NODE_W: int = 168
@@ -387,18 +408,19 @@ _DAG_TITLE_MAX: int = 28
 
 #: Dependency strength -> (stroke color, extra line attributes). The
 #: fixed palette of the DAG vocabulary: solid = hard gate, dashed = soft
-#: dependency, dotted = informational.
+#: dependency, dotted = informational. Colors come from
+#: ``rendering.style`` (the shared family palette).
 _STRENGTH_STYLE: dict[DependencyType, tuple[str, str]] = {
-    DependencyType.HARD_GATE: ("#111827", ""),
-    DependencyType.SOFT_DEPENDENCY: ("#4b5563", ' stroke-dasharray="7 4"'),
-    DependencyType.INFORMATIONAL: ("#9ca3af", ' stroke-dasharray="2 4"'),
+    DependencyType.HARD_GATE: (INK_HEX, ""),
+    DependencyType.SOFT_DEPENDENCY: (MUTED_HEX, ' stroke-dasharray="7 4"'),
+    DependencyType.INFORMATIONAL: (INFO_HEX, ' stroke-dasharray="2 4"'),
 }
 
 #: Arrow marker fill per strength (must match ``_STRENGTH_STYLE``).
 _MARKER_COLORS: dict[str, str] = {
-    "hard": "#111827",
-    "soft": "#4b5563",
-    "info": "#9ca3af",
+    "hard": INK_HEX,
+    "soft": MUTED_HEX,
+    "info": INFO_HEX,
 }
 
 #: Serialization: canonical JSON (indent + sorted keys + trailing newline).
