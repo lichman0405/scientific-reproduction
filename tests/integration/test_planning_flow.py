@@ -528,11 +528,14 @@ def test_planning_flow_ac02_complete_inventory_produces_frozen_plan_v1(
     # The draft record is written alongside and stays a draft.
     draft = read_plan(root, "v1-draft")
     assert draft.status is PlanStatus.DRAFT
-    # The goal-contract drafts are never rewritten by the freeze.
+    # The frozen goal-contract family is persisted in place by the freeze
+    # (AC-02): the on-disk goal record reads back frozen at version v1.
     goal_record = json.loads(
         (root / "goals" / "GOAL-1.json").read_text(encoding="utf-8")
     )
-    assert goal_record["frozen"] is False
+    assert goal_record["frozen"] is True
+    assert goal_record["version"] == "v1"
+    assert goal_record["frozen_at"] == FROZEN_AT_ISO
 
 
 # ---------------------------------------------------------------------------
@@ -655,12 +658,13 @@ def test_planning_flow_dag_frozen_plan_v1_exports_semantic_dag(tmp_path) -> None
     assert dag.blockers.plan_blocking_resource_ids == ("RES-1",)
 
     # Blocking never alters scientific acceptance: the blocked goal's
-    # acceptance sub-object is carried verbatim from the registered draft
-    # contract (a gap blocks execution scheduling, never acceptance).
+    # acceptance sub-object is carried verbatim from the registered
+    # frozen contract (a gap blocks execution scheduling, never
+    # acceptance).
     registered_goal = read_goal(root, "GOAL-1")
     assert goal1_node.goal.acceptance == registered_goal.acceptance
     assert goal1_node.goal.acceptance.criteria_ref == "ACC-1"
-    assert goal1_node.goal.acceptance.frozen is False
+    assert goal1_node.goal.acceptance.frozen is True  # the frozen contract
 
 
 # ---------------------------------------------------------------------------

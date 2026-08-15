@@ -162,7 +162,7 @@ EXPECTED_REFERENCES = (
     ContextReference(ReferenceKind.EVIDENCE, "EVID-1"),
     ContextReference(ReferenceKind.GOAL, "GOAL-1", "v1"),
     ContextReference(ReferenceKind.POLICY, "RETRY-ENGINEERING-DEFAULT"),
-    ContextReference(ReferenceKind.PROTOCOL, "ANP-1", "v1-draft"),
+    ContextReference(ReferenceKind.PROTOCOL, "ANP-1", "v1"),
     ContextReference(ReferenceKind.RESOURCE, "RES-1"),
     ContextReference(ReferenceKind.SOURCE, "SRC-1"),
     ContextReference(ReferenceKind.UPSTREAM_OUTPUT, "GOAL-2#raw_isotherm_data"),
@@ -389,15 +389,16 @@ def test_governance_ac01_guard_protects_the_real_frozen_contract(
         enforce_goal_mutation(Role.EXPERIMENT_WORKER, goal)
     assert exc.value.assessment.input.action is Action.FROZEN_GOAL_MUTATE
     assert exc.value.assessment.matched_rule_id == "R-PRM-D1"
-    # The registered draft record (goals/GOAL-1.json stays a draft after
-    # the freeze) is denied to workers as well
+    # The registered record (goals/GOAL-1.json is the frozen contract
+    # after the freeze -- AC-02 persistence) is denied to workers as well
     # (03-ROLE-AND-PERMISSION-SPEC.md SS5: workers may not change Goals in
     # any state).
-    draft = read_goal(root, "GOAL-1")
-    assert draft.frozen is False
+    registered = read_goal(root, "GOAL-1")
+    assert registered.frozen is True
+    assert registered == goal
     with pytest.raises(PermissionDeniedError) as exc:
-        enforce_goal_mutation(Role.COMPUTATION_WORKER, draft)
-    assert exc.value.assessment.input.action is Action.GOAL_MUTATE
+        enforce_goal_mutation(Role.COMPUTATION_WORKER, registered)
+    assert exc.value.assessment.input.action is Action.FROZEN_GOAL_MUTATE
 
 
 @pytest.mark.parametrize("role", NON_SUPERVISOR_ROLES)
