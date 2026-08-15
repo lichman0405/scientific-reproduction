@@ -17,8 +17,8 @@ frozen spec grounds this module:
 * ``agent-contracts/RESEARCH.md``: the Research Agent's *startup
   obligation* is to *perform systematic bootstrap research before Plan
   v1*.
-* ``CLAUDE-CODE-HANDOFF.md`` (M5): the *bootstrap-research workflow
-  contract* is a milestone deliverable.
+* ``agent-contracts/RESEARCH.md``: the *bootstrap-research workflow
+  contract* is part of the Research Agent's startup obligation.
 
 The contract (AC-01)
 --------------------

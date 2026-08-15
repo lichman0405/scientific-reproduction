@@ -1,8 +1,9 @@
 """FDM-201 planning-benchmark acceptance -- AC-01 (DEV-M12-G07).
 
-AC-01 of ``.development/goals/DEV-M12-G07.yaml``: **100% of the formal
-FDM-201 planning benchmark passes**. This file asserts the frozen planning
-benchmark state under ``benchmarks/fdm201/``:
+AC-01 of the frozen DEV-M12-G07 goal (see
+``benchmarks/fdm201/reviews/REVIEW-FDM201-PLANNING-001.yaml``): **100% of
+the formal FDM-201 planning benchmark passes**. This file asserts the
+frozen planning benchmark state under ``benchmarks/fdm201/``:
 
 1. the frozen mapping audit (``goals/mapping_audit.yaml``) is a complete,
    self-consistent 82/82 formal-item coverage audit (coverage 1.0, PASS),

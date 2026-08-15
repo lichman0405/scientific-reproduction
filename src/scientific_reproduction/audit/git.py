@@ -4,7 +4,7 @@ Implements the Git side of the M3 audit architecture: project state lives
 in a Git repository whose history records meaningful scientific/governance
 checkpoints -- plan freeze, goal contract revision, analysis protocol
 revision, ... -- and never operational noise
-(``14-STATE-GIT-ARTIFACTS.md`` SS5, ``25-DEVELOPMENT-GIT-GOVERNANCE.md``).
+(``14-STATE-GIT-ARTIFACTS.md`` SS5).
 
 Public API
 ----------
@@ -390,7 +390,7 @@ def init_project_repo(
 
     Creates the directory (with parents) if needed and runs
     ``git init -b <branch>`` -- ``main`` by default, the integration
-    branch per 25-DEVELOPMENT-GIT-GOVERNANCE SS1. When ``identity`` is
+    branch. When ``identity`` is
     given it is written into the repository-local config so plain git
     commands run inside the repo also use it; the audit commit helper
     itself never relies on that config (it injects identity explicitly).

@@ -55,17 +55,21 @@ This file is intentionally terse and normative. Claude Code should treat these a
 
 ## Development orchestration decisions (spec package v0.1.1)
 
+*Historical: these decisions governed the v0.1.0 development campaign
+(M0–M13), whose record lives on the `main` branch and is not part of this
+release. They are kept here as locked history, not as current governance.*
+
 ### ADR-D01 — Autonomous M0–M13 Development Supervisor
 
 The default implementation handoff is one long-lived Claude Code Development Supervisor operating continuously from M0 through M13. It must delegate atomic implementation goals to other Claude Code sessions/workers and independently review their output.
 
 ### ADR-D02 — Milestones are not worker tasks
 
-M0–M13 are development Work Packages. The frozen atomic `DEV-GOAL` catalog under `development/goals/` is the worker-level unit of development.
+M0–M13 are development Work Packages. The frozen atomic `DEV-GOAL` catalog (kept on the `main` branch) is the worker-level unit of development.
 
 ### ADR-D03 — Development state is external to Agent Team task state
 
-`.development/` is the Single Source of Truth for implementation progress, reviews, attempts and gates. Claude Code Agent Team task lists are an execution mirror only.
+The development-state directory (kept on the `main` branch) is the Single Source of Truth for implementation progress, reviews, attempts and gates. Claude Code Agent Team task lists are an execution mirror only.
 
 ### ADR-D04 — Global native /goal, worker goal-contract semantics
 

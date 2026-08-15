@@ -20,8 +20,8 @@ spec grounds this module:
 * ``09-RESEARCH-SUBSYSTEM.md`` SS5 ("Evidence extraction"): research must
   produce *structured source and evidence records, including exact claims,
   locations, limitations and A/R/D assessments*.
-* ``CLAUDE-CODE-HANDOFF.md`` M5 acceptance: *evidence is claim-specific*,
-  and *Reliability cannot be written without checklist result reference*.
+* Frozen acceptance: *evidence is claim-specific*, and *Reliability cannot
+  be written without checklist result reference*.
 * ``agent-contracts/RESEARCH.md``: the research role builds *the project
   evidence base using traceable sources and claim-specific evidence
   assessments*.
@@ -367,9 +367,9 @@ def _validate_record(evidence: ClaimSpecificEvidence) -> None:
       must store an evidence ID, source ID and claim ID/text);
     * the A/R/D axes are integers within the 0-4 rubric range
       (06-EVIDENCE-SYSTEM.md SS2; the frozen schema bounds);
-    * ``reliability_checklist_ref`` is a non-empty string
-      (``CLAUDE-CODE-HANDOFF.md`` M5 acceptance: Reliability cannot be
-      written without a checklist result reference);
+    * ``reliability_checklist_ref`` is a non-empty string (frozen
+      acceptance: Reliability cannot be written without a checklist
+      result reference);
     * every ``used_by`` entry is a non-empty string (AC-03 refs are
       opaque strings).
 

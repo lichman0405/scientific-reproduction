@@ -1,48 +1,56 @@
 # Development documentation
 
-Developer-focused documentation for the `scientific-reproduction` package
-(M0 bootstrap, DEV-M0-G01).
+Developer-focused documentation for the `scientific-reproduction` package.
 
 ## Repository layout
 
-The repository root contains the frozen specification package. Start with:
+The repository root **is** the installable skill package (see
+[`SKILL.md`](../SKILL.md) for the skill entry and
+[`AGENTS.md`](../AGENTS.md) for the Codex entry). Start with:
 
 - `00-README.md` — product overview
 - `02-SYSTEM-ARCHITECTURE.md` — architectural model and planes
-- `CLAUDE-CODE-HANDOFF.md` — implementation handoff, milestone plan, and
-  repository layout for `scientific_reproduction/`
-- `development/` — frozen Development Plan v1 (milestones, goals, policies)
+- `docs/spec/index.md` — normative specification index
 
 Python package sources:
 
 ```text
 src/scientific_reproduction/
-  core/        core object model and filesystem state backend (M1)
-  planning/    Supervisor planning primitives (M4)
-  research/    research subsystem (M5)
-  monitoring/  execution monitor (M8)
-  workers/     worker context and permission enforcement (M6)
-  analysis/    analysis/statistics subsystem (M9)
-  adapters/    platform and execution adapters (M7, M10)
+  core/        core object model and filesystem state backend
+  planning/    Supervisor planning primitives
+  research/    research subsystem
+  monitoring/  execution monitor
+  workers/     worker context and permission enforcement
+  analysis/    analysis/statistics subsystem
+  adapters/    platform and execution adapters
     lab/       lab adapter (filesystem handoff)
     compute/   compute adapter (local / SSH / Slurm)
     research/  research adapter interfaces
     platform/  Claude Code / Codex platform adapters
   domain_packs/
-    materials_chemistry/  materials chemistry domain pack (M11)
+    materials_chemistry/  materials chemistry domain pack
   cli/         command-line entry points
-  reporting/   reporting and audit (M13)
-tests/         pytest suite (smoke tests at this stage)
-scripts/       development tooling (see below)
+  reporting/   reporting and audit
+scripts/
+  reproduce.py  zero-install `/reproduce` CLI wrapper
+  smoke.py      platform-independent smoke verification
+  verify.py     canonical repository verification entry point
+schemas/        frozen product schemas (validated by the runtime)
+agent-contracts/  frozen agent role contracts
+benchmarks/fdm201/  official FDM-201 reference reproduction case
+examples/fdm-201/   example instance files
+templates/      skill/project skeleton templates
+tests/          pytest suite
+docs/           user, operations, spec, ADR, and release documentation
 ```
-
-At M0 only the skeleton exists: every package directory has a minimal
-`__init__.py` and there is no scientific runtime behavior yet. Subsystems
-are implemented in later milestones and must match this layout.
 
 ## Installation
 
 Requirements: Python 3.11–3.13 (Windows or POSIX).
+
+The skill is self-contained: `scripts/reproduce.py` runs the runtime with
+**no install step** (it adds `src/` to `PYTHONPATH`). For development of the
+package itself:
 
 ```bash
 python -m venv .venv
@@ -76,7 +84,8 @@ python -m pytest -q
 
 ## Scope note
 
-Per `25-DEVELOPMENT-GIT-GOVERNANCE.md`, the root specification documents
-(`0x-*.md`, `CLAUDE-CODE-HANDOFF.md`, `CONTRIBUTING.md`, ...), `schemas/`,
-`.github/`, and `development/` are frozen outside development-goal scope.
-Only the paths listed in each DEV-GOAL contract may change.
+The root specification documents (`0x-*.md`, `SKILL.md`, `AGENTS.md`,
+`CONTRIBUTING.md`), `schemas/`, `agent-contracts/`, and `.github/` are
+frozen product content. Changes to them require an ADR under `docs/adr/`
+(see `docs/adr/README.md`); implementation changes to `src/` go through
+normal branch/PR/CI review per `CONTRIBUTING.md`.

@@ -139,11 +139,12 @@ All must pass:
 7. Codex adapter interface exists and passes mock contract tests; real-platform verification should be attempted where available.
 8. Final machine-auditable package validates traceability.
 
-## 5. Development-orchestration acceptance
+## 5. Development-orchestration acceptance (historical — v0.1.0 development campaign)
 
-The implementation process itself is expected to run in `AUTO_RUN_M0_TO_M13` mode as specified in `21-DEVELOPMENT-SUPERVISOR-SPEC.md`.
-
-Before calling the implementation handoff successful, verify:
+The v0.1.0 implementation campaign ran in `AUTO_RUN_M0_TO_M13` mode under an
+autonomous Development Supervisor (recorded on the `main` branch; the
+development record is not part of this release). For that campaign, before
+calling the implementation handoff successful, verify:
 
 1. M0–M13 were represented as milestones rather than monolithic worker tasks.
 2. Atomic development goals were delegated to independent workers where platform capability allowed.
@@ -152,4 +153,4 @@ Before calling the implementation handoff successful, verify:
 5. The Supervisor automatically unlocked downstream work after milestone/goal acceptance.
 6. The Supervisor did not require routine user confirmation between milestones.
 7. Agent Team task state was not used as the sole development source of truth.
-8. If Agent Teams were unavailable or lost after session resume, `.development/` state allowed replacement workers and continuation.
+8. If Agent Teams were unavailable or lost after session resume, the development-state directory allowed replacement workers and continuation.

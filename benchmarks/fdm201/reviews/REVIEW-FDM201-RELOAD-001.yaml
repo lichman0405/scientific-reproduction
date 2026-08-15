@@ -1,7 +1,7 @@
 # FDM-201 benchmark-state reload and audit acceptance review -- AC-03
 # (DEV-M12-G07)
 #
-# Acceptance record for AC-03 of .development/goals/DEV-M12-G07.yaml:
+# Acceptance record for AC-03 of the frozen DEV-M12-G07 goal (v0.1.0):
 # "Benchmark state can be reloaded and audited". The evidence is the
 # deterministic reload/audit suite tests/benchmarks/test_fdm201_reload_audit.py:
 # the frozen register (project record, 82-item/82-requirement inventory,

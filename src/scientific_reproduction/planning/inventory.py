@@ -57,7 +57,7 @@ computations of the main paper, SI and linked public data (``00-README.md``;
 ``01-PRODUCT-REQUIREMENTS.md`` SS5: the Supervisor "creates a complete
 Reproduction Inventory" and the inventory "is audited for 100% coverage of
 formally reported items"). Ambiguities are explicit rather than silently
-omitted (``23-DEVELOPMENT-GOAL-CATALOG.md`` DEV-M12-G02): an item whose
+omitted: an item whose
 ``requirement_ids`` reference requirements the registry does not hold is
 ``AMBIGUOUS`` and receives a stable ``ambiguity_notes`` string naming the
 unresolved ids.

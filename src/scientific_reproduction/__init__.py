@@ -1,13 +1,13 @@
-"""Scientific Reproduction Skill runtime package (v0.1).
+"""Scientific Reproduction Skill runtime package (v0.2; runtime v0.1).
 
-This package implements the deterministic runtime of the Scientific
-Reproduction Skill. Subsystems are added incrementally per milestone;
-at this stage only the package skeleton exists (see docs/README.md and
-the repository spec documents at the repository root).
-
-No scientific runtime behavior is implemented yet.
+Deterministic runtime of the Scientific Reproduction Skill: core models and
+filesystem state backend, planning, research, workers, monitoring, analysis,
+reporting, adapters (lab/compute/research/platform), and the materials
+chemistry domain pack. The runtime is stdlib-only; the skill orchestrates
+scientific execution through agent roles per the root specification
+documents.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = ["__version__"]

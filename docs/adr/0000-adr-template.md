@@ -8,9 +8,8 @@
 
 - **Status:** proposed <!-- proposed | accepted | superseded -->
 - **Date:** YYYY-MM-DD
-- **Reviewer:** Development Supervisor <!-- always; workers never self-approve -->
-- **Related change request:** DCR-<YYYYMMDD>-<NNN> <!-- or "none" -->
-- **Related goal:** DEV-M?-G?? <!-- the DEV-GOAL that triggered this ADR, or "none" -->
+- **Reviewer:** <PR reviewer> <!-- always an independent reviewer; authors never self-approve -->
+- **Related PR:** #<NNN> <!-- the pull request that ships this ADR, or "none" -->
 - **Supersedes:** <!-- ADR-NNNN when this ADR replaces an earlier one, else "none" -->
 - **Superseded by:** <!-- ADR-NNNN when a later ADR replaces this one, else "none" -->
 
@@ -37,5 +36,5 @@
 
 ## Verification notes
 
-<!-- How the Development Supervisor (and any reviewer) can verify that the
-     implementation matches this decision. "n/a" if not applicable. -->
+<!-- How a reviewer can verify that the implementation matches this decision.
+     "n/a" if not applicable. -->

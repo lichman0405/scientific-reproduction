@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scientific-reproduction"
-version = "0.1.0"
+version = "0.2.0"
 description = "Scientific Reproduction Skill - deterministic runtime for auditable scientific reproduction (v0.1)"
 readme = "docs/README.md"
 requires-python = ">=3.11"
@@ -17,10 +17,9 @@ dev = [
     "pytest-cov>=4",
     "ruff>=0.6",
     "mypy>=1.10",
-    # DEV-M1-G01: schema validation adapter validates against the frozen
-    # product schemas (YAML) in schemas/; jsonschema is the validator and
-    # PyYAML loads the schema files. scripts/validate_development_contracts.py
-    # already depends on both.
+    # Schema validation validates against the frozen product schemas (YAML)
+    # in schemas/; jsonschema is the validator and PyYAML loads the schema
+    # files.
     "jsonschema>=4.18",
     "PyYAML>=6.0",
 ]
@@ -48,17 +47,11 @@ markers = [
 ]
 addopts = ["-m", "not slow"]
 
-# Ruff linter (DEV-M0-G02): deterministic lint gate for the repository's
+# Ruff linter: deterministic lint gate for the repository's
 # owned code (scripts/, src/, tests/).
 # E4/E7/E9 = unambiguous pycodestyle errors, F = pyflakes, I = import sorting.
 [tool.ruff]
 target-version = "py311"
-# Frozen spec content lives under development/ and .development/; the frozen
-# spec rules forbid reformatting it, so the lint gate excludes those trees.
-extend-exclude = [
-    "development",
-    ".development",
-]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]

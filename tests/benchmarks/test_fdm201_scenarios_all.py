@@ -1,10 +1,11 @@
 """FDM-201 scenario-suite acceptance -- AC-02 (DEV-M12-G07).
 
-AC-02 of ``.development/goals/DEV-M12-G07.yaml``: **all scenarios A-J
-pass in one clean run**. The one-clean-run evidence is the verification
-command itself (``python -m pytest -q tests/benchmarks tests/scenarios``
--- the DEV-M12-G07 verification gate). This file pins the acceptance
-fixture of that command:
+AC-02 of the frozen DEV-M12-G07 goal (see
+``benchmarks/fdm201/reviews/REVIEW-FDM201-SCENARIOS-001.yaml``): **all
+scenarios A-J pass in one clean run**. The one-clean-run evidence is the
+verification command itself (``python -m pytest -q tests/benchmarks
+tests/scenarios`` -- the DEV-M12-G07 verification gate). This file pins
+the acceptance fixture of that command:
 
 1. all ten scenario files exist under ``tests/scenarios/`` with the
    documented names (``test_<scenario>_fdm201_*.py``);
@@ -15,8 +16,8 @@ fixture of that command:
    the acceptance fixture -- see the deviation note in the PR body);
 3. every scenario file maps onto the acceptance criteria of its governing
    development goal, encoded here as the frozen per-file AC mapping table
-   (from ``.development/reviews/DEV-M12-G05-a1.yaml`` and
-   ``DEV-M12-G06-a1.yaml``):
+   (frozen from the v0.1.0 G05/G06 review records, whose files live on
+   the ``main`` branch):
 
    =========  ==========================  ==========================
    file       goal / AC                   test-name evidence
@@ -221,22 +222,22 @@ def test_fdm201_scenario_tests_map_to_goal_acceptance_criteria(
             raise AssertionError(f"unknown predicate mode {mode!r}")
 
 
+# Frozen acceptance-criteria sets of the two governing development goals
+# (DEV-M12-G05: scenarios A-E, DEV-M12-G06: scenarios F-J), extracted from
+# the v0.1.0 review records DEV-M12-G05-a1.yaml / DEV-M12-G06-a1.yaml
+# (kept on the main branch; the release packaging strips the development
+# record, so the sets are embedded here).
+FROZEN_REVIEW_ACS: dict[str, set[str]] = {
+    "G05": {"AC-01", "AC-02", "AC-03", "AC-04", "AC-05"},
+    "G06": {"AC-01", "AC-02", "AC-03", "AC-04", "AC-05"},
+}
+
+
 def test_fdm201_scenario_ac_mapping_matches_the_frozen_reviews():
     # The mapping table above is grounded in the frozen G05/G06 review
     # records: each review documents the scenario->AC assignment this
-    # file pins. Re-read the reviews and verify the AC numbers referenced
-    # by the test-name fragments appear in the review acceptance criteria.
-    reviews_dir = Path(__file__).resolve().parents[2] / ".development" / "reviews"
-    g05 = reviews_dir / "DEV-M12-G05-a1.yaml"
-    g06 = reviews_dir / "DEV-M12-G06-a1.yaml"
-    assert g05.is_file() and g06.is_file()
-    import yaml
-
-    review_ac_ids: dict[str, set[str]] = {}
-    for path in (g05, g06):
-        record = yaml.safe_load(path.read_text(encoding="utf-8"))
-        goal = "G05" if "G05" in path.name else "G06"
-        review_ac_ids[goal] = set(record["acceptance_criteria"])
+    # file pins. Verify the AC numbers referenced by the test-name
+    # fragments appear in the frozen acceptance-criteria sets.
     for scenario, filename in SCENARIO_FILES:
         goal = "G06" if scenario in ("F", "G", "H", "I", "J") else "G05"
         fragments = {fragment for mode, fragment in SCENARIO_AC_MAPPING[scenario]}
@@ -247,7 +248,7 @@ def test_fdm201_scenario_ac_mapping_matches_the_frozen_reviews():
             for fragment in fragments
             if fragment.startswith("ac0") and len(fragment) == 4
         }
-        assert acs <= review_ac_ids[goal], (
+        assert acs <= FROZEN_REVIEW_ACS[goal], (
             f"scenario {scenario}: AC ids {acs} not in the frozen"
-            f" {goal} review acceptance criteria {review_ac_ids[goal]}"
+            f" {goal} review acceptance criteria {FROZEN_REVIEW_ACS[goal]}"
         )

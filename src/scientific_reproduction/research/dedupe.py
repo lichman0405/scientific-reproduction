@@ -5,8 +5,8 @@ Implements the **deduplication rules** deliverable over the frozen
 ``ResearchSource`` model (``schemas/source.schema.yaml`` /
 ``core/models.py``), grounded in ``06-EVIDENCE-SYSTEM.md`` section 7
 (*source identity using DOI/identifier/hash*; mirrors must not be treated
-as independent evidence) and ``CLAUDE-CODE-HANDOFF.md`` M5 acceptance
-(*duplicate DOI mirrors collapse to one source*). The engine follows the
+as independent evidence) and the frozen acceptance rule (*duplicate DOI
+mirrors collapse to one source*). The engine follows the
 frozen rule-engine paradigm of ``core/rules/`` (ordered rule table with
 version constant, first-match-wins, every rule evaluation recorded in an
 auditable assessment, ``TypeError`` at public boundaries, pure

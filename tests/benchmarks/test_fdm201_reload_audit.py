@@ -1,8 +1,10 @@
 """FDM-201 benchmark-state reload and audit -- AC-03 (DEV-M12-G07).
 
-AC-03 of ``.development/goals/DEV-M12-G07.yaml``: **benchmark state can
-be reloaded and audited**. This file proves the frozen FDM-201 benchmark
-register under ``benchmarks/fdm201/`` is a loadable, auditable state:
+AC-03 of the frozen DEV-M12-G07 goal (see
+``benchmarks/fdm201/reviews/REVIEW-FDM201-RELOAD-001.yaml``): **benchmark
+state can be reloaded and audited**. This file proves the frozen FDM-201
+benchmark register under ``benchmarks/fdm201/`` is a loadable, auditable
+state:
 
 1. the frozen project record reloads into a fresh workspace through the
    real ``initialize_project`` API (fixed identity and the frozen

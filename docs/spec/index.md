@@ -1,14 +1,13 @@
 # Normative Specification Index
 
 This index maps every locked specification document of Scientific Reproduction
-Skill v0.1 to its canonical path and a one-line purpose. It is a **local
+Skill v0.2 to its canonical path and a one-line purpose. It is a **local
 pointer index only**: the normative text lives in the canonical files listed
 below. Do not duplicate normative requirements here — any quoted snippet must
 be verbatim from the canonical document, and if an entry needs more than a
 one-line purpose, the canonical document is the place for it.
 
 The canonical documents are frozen. Changes to the specification itself are
-governed by `26-DEVELOPMENT-CHANGE-CI-RELEASE.md` (change requests) and
 recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 
 ## Locked specification documents (repository root)
@@ -35,40 +34,23 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 | [`17-FDM201-REFERENCE-CASE.md`](../../17-FDM201-REFERENCE-CASE.md) | FDM-201 official reference reproduction case (DOI `10.1039/D5TA00771B`). |
 | [`18-TEST-AND-ACCEPTANCE-PLAN.md`](../../18-TEST-AND-ACCEPTANCE-PLAN.md) | v0.1 test and acceptance plan (planning/orchestration plus simulated execution). |
 | [`19-VERSION-ROADMAP.md`](../../19-VERSION-ROADMAP.md) | Version roadmap for v0.1 and later releases. |
-| [`20-ARCHITECTURE-DECISIONS.md`](../../20-ARCHITECTURE-DECISIONS.md) | **Locked architecture decisions** (ADR summary): 50 product decisions plus development ADRs; canonical source for architecture review. |
-| [`21-DEVELOPMENT-SUPERVISOR-SPEC.md`](../../21-DEVELOPMENT-SUPERVISOR-SPEC.md) | Development Supervisor specification: autonomous M0–M13 orchestration authority and review gate. |
-| [`22-AUTONOMOUS-M0-M13-EXECUTION.md`](../../22-AUTONOMOUS-M0-M13-EXECUTION.md) | Autonomous M0–M13 execution protocol (`AUTO_RUN_M0_TO_M13` default mode). |
-| [`23-DEVELOPMENT-GOAL-CATALOG.md`](../../23-DEVELOPMENT-GOAL-CATALOG.md) | Development goal catalog; normative source is `development/plan + milestones + goals` YAML. |
-| [`24-DEVELOPMENT-QUALITY-GATES.md`](../../24-DEVELOPMENT-QUALITY-GATES.md) | Development quality gates: workers implement, Supervisor verifies, CI participates. |
-| [`25-DEVELOPMENT-GIT-GOVERNANCE.md`](../../25-DEVELOPMENT-GIT-GOVERNANCE.md) | Normative Git/GitHub governance: branch-per-goal, PR, CI, Supervisor-only merge. |
-| [`26-DEVELOPMENT-CHANGE-CI-RELEASE.md`](../../26-DEVELOPMENT-CHANGE-CI-RELEASE.md) | Development change management (`DEVELOPMENT_CHANGE_REQUEST`), CI, and release policy. |
+| [`20-ARCHITECTURE-DECISIONS.md`](../../20-ARCHITECTURE-DECISIONS.md) | **Locked architecture decisions** (ADR summary): 50 product decisions; canonical source for architecture review. |
+
+## Skill package files
+
+| File | Purpose |
+|---|---|
+| [`SKILL.md`](../../SKILL.md) | Skill manifest and entry instructions (Claude Code, WorkBuddy and any Agent-Skills-standard platform). |
+| [`AGENTS.md`](../../AGENTS.md) | Agent entry instructions for Codex. |
+| [`scripts/reproduce.py`](../../scripts/reproduce.py) | Zero-install `/reproduce` CLI wrapper (no pip install required). |
+| [`scripts/smoke.py`](../../scripts/smoke.py) | Platform-independent smoke verification (skill structure + `reproduce init`). |
+| [`scripts/verify.py`](../../scripts/verify.py) | Canonical repository verification entry point (pytest + ruff + mypy). |
 
 ## Root auxiliary documents
 
 | Document | Purpose |
 |---|---|
-| [`CLAUDE-CODE-HANDOFF.md`](../../CLAUDE-CODE-HANDOFF.md) | Claude Code implementation handoff: autonomous M0–M13 with PR governance. |
-| [`IMPLEMENTATION-CHECKLIST.md`](../../IMPLEMENTATION-CHECKLIST.md) | Human summary checklist; canonical development state lives in the YAML contracts. |
-| [`PACKAGE-MANIFEST.json`](../../PACKAGE-MANIFEST.json) | Machine-readable package manifest: files, version, milestone/goal counts. |
-| [`SPEC-CHANGELOG.md`](../../SPEC-CHANGELOG.md) | Specification package changelog (v0.1.0 → v0.1.2). |
-| [`START-CLAUDE-CODE.md`](../../START-CLAUDE-CODE.md) | Shortest startup path for autonomous M0–M13 + GitHub PR governance. |
 | [`CONTRIBUTING.md`](../../CONTRIBUTING.md) | Contribution rules: branch/PR/commit governance and verification gates. |
-
-## Development governance (`development/`)
-
-| Path | Purpose |
-|---|---|
-| [`development/README.md`](../../development/README.md) | Overview of the frozen autonomous-development package. |
-| [`development/development-plan.v1.yaml`](../../development/development-plan.v1.yaml) | Frozen Development Plan v1: mode, concurrency, Human Gates, terminal condition. |
-| [`development/git-policy.v1.yaml`](../../development/git-policy.v1.yaml) | Machine-readable Git/GitHub policy (branch-per-goal, PR, merge authority). |
-| [`development/milestones/M0.yaml` … `M13.yaml`](../../development/milestones/) | 14 frozen milestone contracts with dependencies and milestone-level acceptance. |
-| [`development/goals/DEV-M*-G*.yaml`](../../development/goals/) | 80 frozen atomic development goal contracts (worker-level units of development). |
-| [`development/schemas/`](../../development/schemas/) | 7 development schemas: plan, milestone, goal, attempt, change-request, result, review. |
-| [`development/templates/`](../../development/templates/) | Startup, worker-contract, git-addendum, PR, change-request, Claude.md and agent-teams templates. |
-| [`development/hooks/README.md`](../../development/hooks/README.md) | Claude Code quality-gate hook guidance (TaskCompleted / TeammateIdle). |
-| [`development/CLAUDE-CODE-CAPABILITY-NOTES.md`](../../development/CLAUDE-CODE-CAPABILITY-NOTES.md) | Verified platform capability notes for the Claude Code development adapter. |
-| [`development/validate_development_spec.py`](../../development/validate_development_spec.py) | Deterministic development-spec validation script. |
-| [`development/validate_spec_package.py`](../../development/validate_spec_package.py) | Spec-package integrity validation script. |
 
 ## Product schemas (`schemas/`)
 
@@ -113,7 +95,7 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 |---|---|
 | [`templates/CLAUDE.md.template`](../../templates/CLAUDE.md.template) | User-project `CLAUDE.md` skeleton. |
 | [`templates/PROJECT-TREE.template.txt`](../../templates/PROJECT-TREE.template.txt) | Project tree skeleton. |
-| [`templates/SKILL.md.template`](../../templates/SKILL.md.template) | Skill manifest skeleton. |
+| [`templates/SKILL.md.template`](../../templates/SKILL.md.template) | Skill manifest skeleton (source for the root `SKILL.md`). |
 
 ## Reference examples (`examples/`)
 
@@ -132,18 +114,17 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 
 | Path | Purpose |
 |---|---|
-| [`README.md`](../../README.md) | Repository entry point (this package). |
+| [`README.md`](../../README.md) | Repository entry point (skill installation and usage). |
 | [`docs/README.md`](../README.md) | Developer-focused package documentation (also the PyPI readme). |
 | [`docs/spec/index.md`](index.md) | This normative specification index. |
 | [`docs/adr/`](../adr/README.md) | Architecture Decision Records directory (README, template, recorded ADRs). |
+| [`docs/release/KNOWN-LIMITATIONS.md`](../release/KNOWN-LIMITATIONS.md) | Known limitations and accepted risks of the v0.1 runtime. |
 
 ## Index maintenance rules
 
 1. This index must only **reference** canonical documents; never copy normative
-   text into it (avoids specification drift; see `20-ARCHITECTURE-DECISIONS.md`
-   and `24-DEVELOPMENT-QUALITY-GATES.md`).
-2. When the specification package changes, update the affected rows and the
-   `SPEC-CHANGELOG.md` link in the same change, and record an ADR or change
-   request where `26-DEVELOPMENT-CHANGE-CI-RELEASE.md` requires one.
+   text into it (avoids specification drift; see `20-ARCHITECTURE-DECISIONS.md`).
+2. When the specification package changes, update the affected rows and record
+   an ADR under `docs/adr/` in the same change.
 3. One-line purposes must remain faithful summaries; when in doubt, shorten
    rather than paraphrase normatively.

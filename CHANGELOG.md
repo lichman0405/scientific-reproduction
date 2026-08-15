@@ -2,6 +2,31 @@
 
 All notable changes are tracked here. This repository follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions with a single immutable release line per version.
 
+## [0.2.0] - 2026-08-15
+
+Skill-packaging release: this repository is now directly distributable as an installable skill.
+
+### Added
+
+- **`SKILL.md`** — skill manifest and entry instructions (Agent Skills standard; loadable by Claude Code and WorkBuddy).
+- **`AGENTS.md`** — entry instructions for Codex.
+- **`scripts/reproduce.py`** — zero-install `/reproduce` CLI wrapper (adds `src/` to `PYTHONPATH`; no venv or pip install required).
+- **`scripts/smoke.py`** — platform-independent smoke verification: skill structure checks plus a real `reproduce init` run against the FDM-201 reference DOI with output assertions.
+
+### Changed
+
+- **Distribution form** — the repository root *is* the skill directory (`scientific-reproduction`); installation is copying the directory into `~/.claude/skills/` (Claude Code), `~/.workbuddy/skills/` (WorkBuddy), or opening it with Codex.
+- **Docs** — `00-README.md` (distribution + reading order), `README.md`, `docs/spec/index.md` (skill-package section), `docs/README.md` (layout), `docs/user/*` (zero-install usage), `CONTRIBUTING.md` (standard branch/PR/CI governance), `docs/adr/README.md`, `docs/release/KNOWN-LIMITATIONS.md` (release-audit content trimmed to technical limitations), `pyproject.toml` (version 0.2.0).
+
+### Removed
+
+- Development-process artifacts (autonomous M0–M13 development record and governance): `.development/`, `development/`, specs `21-DEVELOPMENT-SUPERVISOR-SPEC.md` … `26-DEVELOPMENT-CHANGE-CI-RELEASE.md`, `START-CLAUDE-CODE.md`, `CLAUDE-CODE-HANDOFF.md`, `IMPLEMENTATION-CHECKLIST.md`, `PACKAGE-MANIFEST.json`, `SPEC-CHANGELOG.md`, `docs/release/` process records, `scripts/validate_development_contracts.py`, and the CI development-contract validation job. The v0.1.0 development record remains immutable in the `main` branch history.
+
+### Verification
+
+- Full test suite, ruff lint, and mypy type check via `python scripts/verify.py`.
+- Skill smoke verification via `python scripts/smoke.py`.
+
 ## [0.1.0] - 2026-08-14
 
 First release. The Scientific Reproduction Skill package (`scientific-reproduction` 0.1.0) plus the full M0–M13 development record (80/80 atomic goals, all milestones PASS, release gates green).

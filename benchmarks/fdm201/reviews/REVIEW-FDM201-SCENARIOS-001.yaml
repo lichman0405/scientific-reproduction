@@ -1,6 +1,6 @@
 # FDM-201 scenario-suite acceptance review -- AC-02 (DEV-M12-G07)
 #
-# Acceptance record for AC-02 of .development/goals/DEV-M12-G07.yaml:
+# Acceptance record for AC-02 of the frozen DEV-M12-G07 goal (v0.1.0):
 # "All scenarios A-J pass in one clean run". The one-clean-run evidence
 # is the goal's verification command itself:
 #   python -m pytest -q tests/benchmarks tests/scenarios

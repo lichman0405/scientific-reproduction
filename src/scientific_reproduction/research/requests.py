@@ -17,8 +17,8 @@ module:
 * ``schemas/research-request.schema.yaml``: the frozen request vocabulary
   -- ``requested_by`` is the constant ``"supervisor"`` and ``status`` is
   one of ``OPEN`` / ``SEARCHING`` / ``COMPLETE`` / ``EXHAUSTED``.
-* ``CLAUDE-CODE-HANDOFF.md`` (M5): *Research Request objects* is a
-  milestone deliverable.
+* Frozen acceptance: *Research Request objects* are a milestone
+  deliverable of the research subsystem.
 
 Frozen request vocabulary (normative reading)
 ---------------------------------------------

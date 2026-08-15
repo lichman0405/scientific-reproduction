@@ -22,8 +22,8 @@ rule trace. The frozen spec grounds this module:
   assessments*; reliability is written only after the checklist result.
 * ``agent-contracts/RESEARCH.md`` ("Must not"): the research role must not
   *assign Reliability from intuition instead of checklist/rule mapping*.
-* ``CLAUDE-CODE-HANDOFF.md`` M5 acceptance: *Reliability cannot be written
-  without checklist result reference* (AC-01).
+* Frozen acceptance: *Reliability cannot be written without checklist
+  result reference* (AC-01).
 * ``research/evidence.py`` (DEV-M5-G03, the sibling data layer): the
   ``EvidenceAssessment.reliability_checklist_ref`` non-empty-string rule is
   the handoff this module's AC-01 rule layer builds on -- the score and its

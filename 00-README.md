@@ -1,10 +1,15 @@
-# Scientific Reproduction Skill v0.1 — Implementation Specification
+# Scientific Reproduction Skill v0.2 — Implementation Specification
 
 ## Purpose
 
-This package is an implementation-ready specification for a **Scientific Reproduction Skill** intended to run on agentic coding environments such as Claude Code and Codex. The Skill is not a single prompt. It is a packaged scientific workflow runtime composed of role contracts, schemas, adapters, state management, evidence governance, statistical validation, and domain-specific rules.
+This package is a **Scientific Reproduction Skill**: an installable skill that
+runs on agentic coding environments such as Claude Code, Codex, and WorkBuddy.
+The Skill is not a single prompt. It is a packaged scientific workflow runtime
+composed of role contracts, schemas, adapters, state management, evidence
+governance, statistical validation, and domain-specific rules.
 
-The first domain pack is **materials chemistry / computational materials science**. The official v0.1 reference case is:
+The first domain pack is **materials chemistry / computational materials
+science**. The official v0.1 reference case is:
 
 - Paper: *A highly connected metal–organic framework with stretched inorganic units for propylene/ethylene separation*
 - DOI: `10.1039/D5TA00771B`
@@ -18,7 +23,12 @@ The intended user interaction is conceptually:
 /reproduce <PDF | DOI | URL>
 ```
 
-The user primarily interacts with the **Supervisor**. The system initializes a reproduction project, acquires sources, builds a complete reproduction inventory, creates and freezes Plan v1, executes a `/goals` DAG using dynamic worker sessions, monitors long-running experiment/computation runs, performs independent analysis, handles evidence-backed recovery, and produces both a human-readable report and a machine-auditable reproduction package.
+The user primarily interacts with the **Supervisor**. The system initializes a
+reproduction project, acquires sources, builds a complete reproduction
+inventory, creates and freezes Plan v1, executes a `/goals` DAG using dynamic
+worker sessions, monitors long-running experiment/computation runs, performs
+independent analysis, handles evidence-backed recovery, and produces both a
+human-readable report and a machine-auditable reproduction package.
 
 ## Non-negotiable architecture decisions
 
@@ -36,23 +46,35 @@ The user primarily interacts with the **Supervisor**. The system initializes a r
 12. Git stores scientific decision history; large artifacts are stored externally and registered using manifests plus checksums.
 13. Three project-persistent roles exist: Supervisor, Research, Execution Monitor. The Execution Monitor is the only v0.1 role requiring high-availability runtime behavior.
 14. Dynamic worker sessions are created automatically by platform adapters whenever possible.
-15. Core scientific logic must be shared across Claude Code and Codex; platform-specific behavior is isolated behind adapters.
+15. Core scientific logic must be shared across agent platforms; platform-specific behavior is isolated behind adapters.
 
-## Recommended reading order for implementers
+## Distribution (v0.2 skill packaging)
 
-For autonomous Claude Code development, read first:
+This repository **is** the installable skill. The skill entry is
+[`SKILL.md`](SKILL.md) (Agent Skills standard: Claude Code, WorkBuddy), the
+Codex entry is [`AGENTS.md`](AGENTS.md), and the Python runtime under `src/`
+is bundled with **zero install steps** — the wrapper
+[`scripts/reproduce.py`](scripts/reproduce.py) runs it via `PYTHONPATH`.
 
-1. `21-DEVELOPMENT-SUPERVISOR-SPEC.md`
-2. `22-AUTONOMOUS-M0-M13-EXECUTION.md`
-3. `23-DEVELOPMENT-GOAL-CATALOG.md`
-4. `24-DEVELOPMENT-QUALITY-GATES.md`
-5. `25-DEVELOPMENT-GIT-GOVERNANCE.md`
-6. `26-DEVELOPMENT-CHANGE-CI-RELEASE.md`
-7. `CLAUDE-CODE-HANDOFF.md`
-8. `development/development-plan.v1.yaml`
-9. `development/git-policy.v1.yaml`
+- **Claude Code**: copy this directory to `~/.claude/skills/scientific-reproduction/`
+  (or install as a plugin/marketplace skill).
+- **WorkBuddy**: copy this directory to `~/.workbuddy/skills/scientific-reproduction/`
+  (or install from a skill hub).
+- **Codex**: open this directory (Codex reads `AGENTS.md`).
 
-Then read the product specification:
+Verify any installation with `python scripts/smoke.py`. The skill is
+self-contained: Python 3.11+ and git are the only external requirements.
+
+## Recommended reading order
+
+For skill users:
+
+1. `docs/user/installation.md`
+2. `docs/user/reproduce-and-goals.md`
+3. `docs/user/monitor-and-handoff.md`
+4. `docs/operations/adapters-slurm.md`
+
+For implementers, the product specification:
 
 1. `01-PRODUCT-REQUIREMENTS.md`
 2. `02-SYSTEM-ARCHITECTURE.md`
@@ -66,10 +88,13 @@ Then read the product specification:
 10. `14-STATE-GIT-ARTIFACTS.md`
 11. `17-FDM201-REFERENCE-CASE.md`
 12. `18-TEST-AND-ACCEPTANCE-PLAN.md`
-13. `CLAUDE-CODE-HANDOFF.md`
+13. `docs/spec/index.md` — canonical index of every normative document
 
 ## Package contents
 
+- Skill manifest (`SKILL.md`) and Codex entry (`AGENTS.md`)
+- Zero-install `/reproduce` CLI wrapper and smoke verification
+- Bundled Python runtime (stdlib-only) under `src/scientific_reproduction/`
 - Product and architecture specifications
 - Lifecycle and permission models
 - Goal/Run/Evidence/Assumption/Resource schemas
@@ -78,23 +103,13 @@ Then read the product specification:
 - Research, experiment, computation, analysis and monitoring subsystem specifications
 - State, Git, artifact, adapter and concurrency rules
 - Materials Chemistry domain pack specification
-- FDM-201 reference benchmark
-- v0.1 test plan and version roadmap
-- Role contracts and skeleton templates
-- Claude Code implementation handoff
-- Autonomous Development Supervisor specification
-- Frozen M0–M13 milestone DAG and 80 atomic development goals
-- Development goal/milestone/result/review schemas and startup templates
+- FDM-201 reference benchmark and examples
+- Test plan, version roadmap, and role contracts
 
 ## What this package does NOT contain
 
-This is **not** a complete implementation. It intentionally stops at an implementation-ready design. Claude Code (or another coding agent) should implement the package according to these locked requirements rather than redesigning the product from scratch.
-
-## Autonomous implementation mode
-
-The default handoff now assumes one Claude Code **Development Supervisor** that automatically completes M0–M13 by delegating frozen atomic development goals to independent Claude Code workers, independently verifying results, retrying rejected work, and continuing until all v0.1 release gates pass. The user should not need to approve routine milestone progression. See `development/templates/DEVELOPMENT-SUPERVISOR-START.md`.
-
-
-## GitHub development remote
-
-The default implementation remote is `https://github.com/lichman0405/scientific-reproduction.git`. After the specification-only empty-repository bootstrap commit, every repository-changing DEV-GOAL must use a short-lived goal branch, PR, required verification/CI, independent Supervisor review, and merge to `main`. See `25-DEVELOPMENT-GIT-GOVERNANCE.md`.
+The v0.1 runtime is a **skeleton**: it implements the deterministic state,
+schema, planning-init, and audit primitives, while the scientific execution
+flow (research → plan → execute → analyze → report) is orchestrated by the
+agent roles according to the locked specifications. The complete scientific
+runtime is implemented incrementally per `19-VERSION-ROADMAP.md`.

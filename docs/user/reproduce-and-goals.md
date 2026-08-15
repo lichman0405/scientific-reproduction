@@ -1,12 +1,11 @@
 # `/reproduce` and `/goals` usage
 
 This guide documents how the two user-facing surfaces of the product contract
-(`01-PRODUCT-REQUIREMENTS.md` SS6 and SS9) are realized in the v0.1 codebase:
+(`01-PRODUCT-REQUIREMENTS.md` SS6 and SS9) are realized in the v0.2 codebase:
 the `/reproduce` command-line primitive, and the `/goals` surface, which is
 exposed as deterministic planning primitives and worker contracts rather than
-a CLI. It extends the handoff documents (`START-CLAUDE-CODE.md`,
-`CLAUDE-CODE-HANDOFF.md`) — those describe the autonomous development flow;
-this guide describes the scientific runtime surfaces.
+a CLI. It describes the scientific runtime surfaces behind the skill entry
+files (`SKILL.md`, `AGENTS.md`).
 
 Grounding: `01-PRODUCT-REQUIREMENTS.md` SS4–SS6/SS9, `05-GOAL-RUN-SCHEMA.md`,
 `08-STRICT-RECOVERY-CLOSURE.md`, `14-STATE-GIT-ARTIFACTS.md`,
@@ -18,9 +17,10 @@ permissions), `templates/PROJECT-TREE.template.txt`.
 ## `/reproduce` — initialize a one-paper project
 
 The `/reproduce <PDF|DOI|URL>` primitive (SS9) is implemented as the
-`reproduce` CLI (DEV-M4-G01):
+`reproduce` CLI (zero-install wrapper first, module form equivalent):
 
 ```bash
+python scripts/reproduce.py init <target> [options]
 python -m scientific_reproduction.cli.reproduce init <target> [options]
 ```
 
@@ -120,10 +120,10 @@ equivalent commands" — the platform adapter surface is the `expose_command`
 contract of `15-ADAPTER-SPEC.md` SS5 and the runtime role-contract descriptors
 of `src/scientific_reproduction/adapters/platform/contracts/base.py`
 (DEV-M10-G01). What v0.1 ships is the deterministic planning layer that every
-`/goals` view is a pure function of, plus the worker execution surface. The
-CLAUDE-CODE-HANDOFF.md note applies here unchanged: built-in slash commands
-cannot be reliably injected into teammate sessions, so the Supervisor uses
-native `/goal` and teammates receive frozen goal contracts (SS5 there).
+`/goals` view is a pure function of, plus the worker execution surface.
+Platform note: built-in slash commands cannot be reliably injected into
+teammate sessions on all platforms, so the Supervisor uses native `/goal`
+commands and teammates receive frozen goal contracts (SS5).
 
 ### The goal/run model
 

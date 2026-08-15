@@ -1,8 +1,7 @@
 name: CI
 
-# Every pull request targeting `main` must pass the deterministic
-# development-contract validation, the unit test suite, the lint gate,
-# and the type/static check before it may merge (DEV-M0-G00/G02).
+# Every pull request targeting `main` must pass the unit test suite,
+# the lint gate, and the type/static check before it may merge.
 on:
   pull_request:
     branches: [main]
@@ -11,26 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  validate-development-contracts:
-    name: Validate development contracts
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install validation dependencies
-        run: pip install pyyaml jsonschema
-
-      - name: Validate development contracts
-        # Exits non-zero on any malformed milestone/goal contract or DAG
-        # issue, failing the pull request.
-        run: python scripts/validate_development_contracts.py
-
   test-lint-type:
     name: Test, lint, and type check
     runs-on: ubuntu-latest

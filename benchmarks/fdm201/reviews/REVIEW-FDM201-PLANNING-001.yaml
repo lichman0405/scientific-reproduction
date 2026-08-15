@@ -1,6 +1,6 @@
 # FDM-201 planning-benchmark acceptance review -- AC-01 (DEV-M12-G07)
 #
-# Acceptance record for AC-01 of .development/goals/DEV-M12-G07.yaml:
+# Acceptance record for AC-01 of the frozen DEV-M12-G07 goal (v0.1.0):
 # "100% planning benchmark passes". The evidence is the deterministic
 # benchmark-acceptance suite tests/benchmarks/test_fdm201_planning_benchmark.py
 # run at the repository root with the frozen register read live from

@@ -526,8 +526,8 @@ def test_registry_rejects_blank_ids_and_finding() -> None:
 
 
 def test_registry_rejects_assessment_without_checklist_reference() -> None:
-    # CLAUDE-CODE-HANDOFF.md M5 acceptance: Reliability cannot be written
-    # without a checklist result reference.
+    # Frozen acceptance: Reliability cannot be written without a checklist
+    # result reference.
     blank_ref = _evidence(evidence_id="EVID-1")
     blank_ref = dataclasses.replace(
         blank_ref,

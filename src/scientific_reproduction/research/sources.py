@@ -11,8 +11,7 @@ record. The frozen spec grounds this module:
   multiple mirrors of the same paper as independent evidence.*
 * ``agent-contracts/RESEARCH.md``: a worker must not *treat mirrored copies
   of one paper as independent evidence*.
-* ``CLAUDE-CODE-HANDOFF.md`` (M5 acceptance): *duplicate DOI mirrors
-  collapse to one source*.
+* Duplicate DOI mirrors collapse to one source (frozen acceptance).
 
 Everything here is pure and deterministic: no randomness, no wall-clock
 time, no counter state. The same record always yields the same identity,

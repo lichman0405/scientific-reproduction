@@ -1,25 +1,12 @@
-# [DEV-GOAL-ID] — <title>
-
-## Goal contract
-
-- Goal: `DEV-M?-G??`
-- Milestone: `M?`
-- Change type: `FEATURE | BUGFIX | REFACTOR | TEST | DOCUMENTATION | CI | BUILD | CHORE`
-- Base SHA:
-- Head SHA:
+# <title>
 
 ## Objective
 
-<copy the frozen objective from the DEV-GOAL contract; do not rewrite it to match the implementation>
+<what this change does and why>
 
 ## Scope changed
 
 - `<path/module>`
-
-## Acceptance criteria
-
-- [ ] `AC-01` —
-- [ ] `AC-02` —
 
 ## Verification executed
 
@@ -30,20 +17,19 @@
 ## Architecture / contract impact
 
 - [ ] No locked architecture/product contract changed.
-- [ ] Any required ADR/change request is linked below.
+- [ ] Any required ADR is linked below.
 
 References:
 
 - ADR:
-- Change request:
 
 ## Known limitations
 
 - None / list them.
 
-## Worker declaration
+## Contributor declaration
 
 - [ ] No direct `main` push was used.
 - [ ] No unrelated feature/refactor was included.
 - [ ] No test/CI gate was weakened solely to make this PR pass.
-- [ ] Worker does **not** claim authority to merge; Development Supervisor must independently review.
+- [ ] The author does not claim merge authority; an independent reviewer must approve.

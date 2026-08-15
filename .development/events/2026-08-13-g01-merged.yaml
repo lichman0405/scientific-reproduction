@@ -1,9 +1,0 @@
-event_id: EVT-20260813-0006
-timestamp: '2026-08-13'
-type: GOAL_MERGED
-actor: development-supervisor
-summary: DEV-M1-G01 PASS (review DEV-M1-G01-a1) and merged (d02dfc6).
-details:
-  pr: 6
-  merge_sha: d02dfc6
-  goal_id: DEV-M1-G01

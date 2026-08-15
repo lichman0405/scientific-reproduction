@@ -1,17 +1,18 @@
 # Installation and verification guide
 
-This guide is grounded in the real package metadata (`pyproject.toml`), the
-repository verification entry point (`scripts/verify.py`), and the frozen
-quality gates (`24-DEVELOPMENT-QUALITY-GATES.md`, `26-DEVELOPMENT-CHANGE-CI-RELEASE.md`).
-Every command below runs against the actual v0.1 implementation.
+This guide is grounded in the real package metadata (`pyproject.toml`) and
+the repository verification entry point (`scripts/verify.py`). Every command
+below runs against the actual v0.2 release.
 
 ## Requirements
 
 - Python **3.11 or newer** (`pyproject.toml`: `requires-python = ">=3.11"`).
   The verification in this repository runs on Python 3.13 on Windows and is
   supported on POSIX as well.
-- A working `pip` and the `venv` module (standard library).
-- Network access on the first install only (to fetch the dev extras).
+- Git (the runtime records audit checkpoints in the project workspace).
+- A working `pip` and the `venv` module (standard library) — only needed for
+  the developer install below; using the skill itself requires neither.
+- Network access on the first developer install only (to fetch the dev extras).
 
 The v0.1 runtime is intentionally **stdlib-only**: `pyproject.toml` declares
 `dependencies = []` and the package has no runtime dependencies. The `dev`
@@ -19,7 +20,21 @@ extra installs the verification toolchain: `pytest`, `pytest-cov`, `ruff`,
 `mypy`, `jsonschema` and `PyYAML` (the last two validate the frozen schemas
 and benchmark data files).
 
+## Use the skill with zero install
+
+The skill is self-contained. The wrapper
+
+```bash
+python scripts/reproduce.py init <target> [options]
+```
+
+runs the runtime directly (it adds `src/` to `PYTHONPATH`) — no venv, no
+`pip install`. The same wrapper is what the skill entry files (`SKILL.md`,
+`AGENTS.md`) instruct agents to call.
+
 ## Install the package (editable, from the repository root)
+
+For developing the package itself:
 
 ```bash
 python -m venv .venv
@@ -99,7 +114,7 @@ Initialize a throwaway one-paper project (see
 [`reproduce-and-goals.md`](reproduce-and-goals.md)):
 
 ```bash
-python -m scientific_reproduction.cli.reproduce init 10.1039/D5TA00771B --root /tmp/fdm201-demo
+python scripts/reproduce.py init 10.1039/D5TA00771B --root /tmp/fdm201-demo
 ```
 
 Expected output on success (exit code 0):
