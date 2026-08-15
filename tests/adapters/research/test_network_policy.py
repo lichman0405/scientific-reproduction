@@ -1,4 +1,4 @@
-"""Tests for the fake-IP DNS fetch policy of future network adapters.
+"""Tests for the IP-literal fetch policy of future network adapters.
 
 Acceptance coverage (09-RESEARCH-SUBSYSTEM.md section 4, fetch-target
 validation policy; ``adapters/research/network_policy.py``):
@@ -7,12 +7,14 @@ validation policy; ``adapters/research/network_policy.py``):
     198.18.0.0/15 (RFC 2544 / RFC 5735), and the guard never resolves
     DNS (AC-03 offline determinism: every socket/DNS entry point is
     patched to raise, and the guard still validates);
-  * IP-literal hosts inside 198.18.0.0/15 are refused (SSRF guard: an
-    IP literal bypasses DNS, so a fake-IP proxy never produces one for
-    a legitimate scholarly host);
-  * IP-literal hosts outside the range -- including loopback and IPv6,
-    locking the documented scope: the policy is a guard for the fake-IP
-    range, not a general SSRF firewall -- are allowed;
+  * IP-literal hosts are refused when the literal addresses any blocked
+    network (``BLOCKED_IP_LITERAL_NETWORKS``): the fake-IP range,
+    private-use/CGNAT space, loopback, link-local (cloud metadata),
+    multicast/reserved, the IPv6 unspecified/loopback/unique-local/
+    link-local ranges, and IPv4-mapped forms of a blocked IPv4 (SSRF
+    guard: an IP literal bypasses DNS, so a fake-IP proxy never
+    produces a blocked address for a legitimate scholarly host);
+  * IP-literal hosts in public address space are allowed;
   * error discipline follows the frozen adapter paradigm: ``TypeError``
     at public boundaries, ``AdapterDataError`` for malformed URLs,
     ``AdapterNetworkPolicyError`` (an ``AdapterError`` subclass) for
@@ -30,6 +32,7 @@ import socket
 import pytest
 
 from scientific_reproduction.adapters.research import (
+    BLOCKED_IP_LITERAL_NETWORKS,
     FAKE_IP_NETWORK,
     AdapterDataError,
     AdapterNetworkPolicyError,
@@ -49,26 +52,49 @@ DOMAIN_HOST_URLS: tuple[str, ...] = (
     "https://www.crystallography.net:443/cod/2110001.html?q=1#sec",
 )
 
-#: IP literals inside 198.18.0.0/15 -- refused regardless of scheme,
+#: IP literals inside a blocked network -- refused regardless of scheme,
 #: port, path or query (they bypass DNS, so no fake-IP proxy produces
-#: them for a legitimate host).
-FAKE_IP_LITERAL_URLS: tuple[str, ...] = (
+#: them for a legitimate scholarly host). One literal per family:
+#: fake-IP range, private-use/CGNAT, loopback, link-local (cloud
+#: metadata), multicast, reserved, IPv6 unspecified/loopback/
+#: unique-local/link-local, and IPv4-mapped forms of blocked IPv4.
+BLOCKED_IP_LITERAL_URLS: tuple[str, ...] = (
+    # the fake-IP benchmarking range (RFC 2544 / RFC 5735)
     "http://198.18.0.1/",
     "http://198.18.0.0/",  # network address: still inside the range
     "http://198.19.255.255/",  # last address of the range
     "https://198.18.1.1:8443/path?q=1",
+    # private-use (RFC 1918) and shared CGNAT space (RFC 6598)
+    "http://10.0.0.5/",
+    "http://172.16.1.1/",
+    "http://192.168.1.10/",
+    "http://100.64.0.1/",
+    # loopback (RFC 1122) and link-local / cloud metadata (RFC 3927)
+    "http://127.0.0.1:8000/",
+    "http://169.254.169.254/latest/meta-data/",
+    # multicast (RFC 5771) and reserved (RFC 1112)
+    "http://224.0.0.1/",
+    "http://240.0.0.1/",
+    # IPv6: unspecified, loopback, unique-local, link-local
+    "http://[::]/",
+    "http://[::1]/",
+    "http://[fc00::1]/",
+    "http://[fe80::1]/",
+    # IPv4-mapped IPv6 cannot smuggle a blocked IPv4 through the IPv6 form
+    "http://[::ffff:127.0.0.1]/",
+    "http://[::ffff:192.168.0.1]/",
 )
 
-#: IP literals outside 198.18.0.0/15 -- allowed; loopback and IPv6 lock
-#: the documented scope (the policy is the fake-IP range, not a general
-#: SSRF firewall).
-NON_FAKE_IP_LITERAL_URLS: tuple[str, ...] = (
-    "http://198.17.255.255/",  # just below the range
-    "http://198.20.0.0/",  # just above the range
+#: IP literals in public address space -- allowed; the boundary values
+#: around the fake-IP range lock the documented constant, and the IPv6
+#: documentation range is not a blocked network.
+PUBLIC_IP_LITERAL_URLS: tuple[str, ...] = (
+    "http://198.17.255.255/",  # just below the fake-IP range
+    "http://198.20.0.0/",  # just above the fake-IP range
     "https://1.1.1.1/",
-    "http://127.0.0.1:8000/",
+    "https://8.8.8.8/path?q=1",
     "http://[2001:db8::1]/",
-    "http://[::1]/",
+    "http://[::ffff:1.1.1.1]/",  # IPv4-mapped public address stays allowed
 )
 
 
@@ -85,7 +111,7 @@ def _refuse_network(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# The documented constant
+# The documented constants
 # ---------------------------------------------------------------------------
 
 
@@ -93,6 +119,28 @@ def test_fake_ip_network_is_the_documented_benchmarking_range() -> None:
     """FAKE_IP_NETWORK is exactly 198.18.0.0/15 (RFC 2544 / RFC 5735)."""
     assert FAKE_IP_NETWORK == ipaddress.ip_network("198.18.0.0/15")
     assert str(FAKE_IP_NETWORK) == "198.18.0.0/15"
+
+
+def test_blocked_networks_cover_every_documented_family() -> None:
+    """BLOCKED_IP_LITERAL_NETWORKS contains the fake-IP range and every
+    non-global/unsafe family the SSRF guard refuses for literals."""
+    assert FAKE_IP_NETWORK in BLOCKED_IP_LITERAL_NETWORKS
+    for prefix in (
+        "0.0.0.0/8",
+        "10.0.0.0/8",
+        "100.64.0.0/10",
+        "127.0.0.0/8",
+        "169.254.0.0/16",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "224.0.0.0/4",
+        "240.0.0.0/4",
+        "::/128",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+    ):
+        assert ipaddress.ip_network(prefix) in BLOCKED_IP_LITERAL_NETWORKS
 
 
 # ---------------------------------------------------------------------------
@@ -124,23 +172,25 @@ def test_domain_hosts_that_look_numeric_are_treated_as_domains(
 
 
 # ---------------------------------------------------------------------------
-# IP-literal hosts inside the range: refused (SSRF guard)
+# IP-literal hosts in blocked networks: refused (SSRF guard)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("url", FAKE_IP_LITERAL_URLS)
-def test_ip_literals_inside_fake_ip_range_are_refused(monkeypatch, url: str) -> None:
-    """An IP literal inside 198.18.0.0/15 is a policy violation: it
+@pytest.mark.parametrize("url", BLOCKED_IP_LITERAL_URLS)
+def test_ip_literals_in_blocked_networks_are_refused(
+    monkeypatch, url: str
+) -> None:
+    """An IP literal inside a blocked network is a policy violation: it
     bypasses DNS, so no fake-IP proxy produces it for a legitimate
     scholarly host (SSRF guard)."""
     _refuse_network(monkeypatch)
-    with pytest.raises(AdapterNetworkPolicyError, match="fake-IP benchmarking range"):
+    with pytest.raises(AdapterNetworkPolicyError, match="refused IP literal"):
         validate_fetch_url(url)
 
 
 def test_policy_violation_is_an_adapter_error_with_stable_message() -> None:
     """The refusal is an AdapterError subclass with a stable message
-    naming the offending literal and the policy."""
+    naming the offending literal, the blocked network and the policy."""
     assert issubclass(AdapterNetworkPolicyError, ValueError)
     with pytest.raises(AdapterNetworkPolicyError) as excinfo:
         validate_fetch_url("http://198.18.0.1/")
@@ -151,17 +201,17 @@ def test_policy_violation_is_an_adapter_error_with_stable_message() -> None:
 
 
 # ---------------------------------------------------------------------------
-# IP-literal hosts outside the range: allowed (documented scope)
+# IP-literal hosts in public address space: allowed
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("url", NON_FAKE_IP_LITERAL_URLS)
-def test_ip_literals_outside_fake_ip_range_are_allowed(
+@pytest.mark.parametrize("url", PUBLIC_IP_LITERAL_URLS)
+def test_ip_literals_in_public_address_space_are_allowed(
     monkeypatch, url: str
 ) -> None:
-    """Literals outside 198.18.0.0/15 -- loopback and IPv6 included --
-    pass: the policy is a guard for the fake-IP range, not a general
-    SSRF firewall (09-RESEARCH-SUBSYSTEM.md section 4)."""
+    """Literals outside every blocked network -- public IPv4 and IPv6
+    included -- pass: only the blocked families are refused
+    (09-RESEARCH-SUBSYSTEM.md section 4)."""
     _refuse_network(monkeypatch)
     assert validate_fetch_url(url) == url
 

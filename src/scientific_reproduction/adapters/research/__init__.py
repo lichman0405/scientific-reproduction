@@ -32,6 +32,7 @@ from scientific_reproduction.adapters.research.fixtures import (
     PUBLIC_SOURCE_FIXTURES,
 )
 from scientific_reproduction.adapters.research.network_policy import (
+    BLOCKED_IP_LITERAL_NETWORKS,
     FAKE_IP_NETWORK,
     AdapterNetworkPolicyError,
     host_is_ip_literal,
@@ -76,6 +77,7 @@ __all__ = [
     "ResearchAdapterRegistry",
     "acquire_available_sources",
     "PUBLIC_SOURCE_FIXTURES",
+    "BLOCKED_IP_LITERAL_NETWORKS",
     "FAKE_IP_NETWORK",
     "host_is_ip_literal",
     "validate_fetch_url",
