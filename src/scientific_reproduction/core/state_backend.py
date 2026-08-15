@@ -3,11 +3,21 @@
 Layout (14-STATE-GIT-ARTIFACTS.md SS2/SS3)
 ------------------------------------------
 ``FilesystemStateBackend`` persists **one JSON file per object** under
-``base_dir/<obj_type>/<object_id>.json`` -- there is deliberately **no
-monolithic mutable project-state file** (AC-01). Each write is atomic
-(AC-02, via ``core.atomic.atomic_write``: unique same-directory temp file
-+ fsync + ``os.replace``), so an interrupted write never clobbers the
-last valid object.
+``base_dir/<tree_dir>/<object_id>.json`` where ``<tree_dir>`` is the
+canonical state-tree directory for the schema name
+(``SCHEMA_TO_STATE_DIR``) -- there is deliberately **no monolithic
+mutable project-state file** (AC-01). Each write is atomic (AC-02, via
+``core.atomic.atomic_write``: unique same-directory temp file + fsync +
+``os.replace``), so an interrupted write never clobbers the last valid
+object.
+
+The tree directories are the **same directories the planning registries
+resolve** (plural per-type dirs: ``goals/``, ``runs/``, ``events/``
+... per 14-STATE-GIT-ARTIFACTS.md SS3, ``planning.init.INIT_DIRECTORIES``
+and the ``*_STATE_DIR`` constants): a worker that reads Core state
+through the backend sees exactly the files the registries write, so
+``list_ids``/``read`` never miss records the registries produced (AC-02
+truth-source contract).
 
 Schema gate (AC-03)
 -------------------
@@ -82,10 +92,58 @@ from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.models import SCHEMA_NAMES
 from scientific_reproduction.core.schema_validation import validate_and_reject
 
+#: Canonical state-tree directory for each schema name (``obj_type``).
+#:
+#: The state tree (14-STATE-GIT-ARTIFACTS.md SS3) uses **plural
+#: per-type directories** (``goals/``, ``runs/``, ``events/`` ...), and
+#: the planning registries already resolve exactly these directories
+#: (e.g. ``planning.plan.GOALS_STATE_DIR == "goals"``). The backend
+#: resolves each object to ``base_dir/<tree_dir>/<object_id>.json`` so
+#: every reader of Core state sees the same files the registries write:
+#: there is exactly one canonical layout (AC-02 truth-source contract).
+#:
+#: * values present in ``templates/PROJECT-TREE.template.txt``
+#:   (``planning.init.INIT_DIRECTORIES``) are that exact directory;
+#: * ``acceptance/`` and ``closure/`` follow the registries that created
+#:   them on demand (``ACCEPTANCE_STATE_DIR``, ``CLOSURE_STATE_DIR``);
+#:   ``research-requests/`` and ``retry-policies/`` extend the same
+#:   plural-of-schema-name convention for their on-demand kinds;
+#: * ``lab/`` is the lab subtree of the tree template (whose children
+#:   ``lab/outgoing`` and ``lab/incoming`` the lab adapter already
+#:   uses for handoffs);
+#: * ``project`` is the one schema name without a tree directory: the
+#:   canonical single Project record is ``project.yaml`` at the workspace
+#:   root (written by ``planning.init``), so the backend keeps the
+#:   per-type directory ``project/``.
+SCHEMA_TO_STATE_DIR: dict[str, str] = {
+    "project": "project",
+    "run": "runs",
+    "plan": "plans",
+    "goal": "goals",
+    "evidence": "evidence",
+    "assumption": "assumptions",
+    "closure-contract": "closure",
+    "inventory-item": "inventory",
+    "resource": "resources",
+    "source": "sources",
+    "worker-context": "work-packages",
+    "lab-execution-package": "lab",
+    "analysis": "protocols",
+    "decision": "decisions",
+    "human-gate": "human-gates",
+    "event": "events",
+    "requirement": "requirements",
+    "artifact-manifest": "manifests",
+    "acceptance-criteria": "acceptance",
+    "research-request": "research-requests",
+    "retry-policy": "retry-policies",
+}
+
 __all__ = [
     "StateBackend",
     "FilesystemStateBackend",
     "UnknownObjectTypeError",
+    "SCHEMA_TO_STATE_DIR",
 ]
 
 
@@ -165,9 +223,12 @@ class StateBackend(ABC):
 class FilesystemStateBackend(StateBackend):
     """Per-object, per-type JSON persistence on the filesystem.
 
-    Layout: ``base_dir/<obj_type>/<object_id>.json``. All writes go
-    through ``atomic_write`` (temp file + ``os.replace``), so partial
-    writes never replace the last valid object (AC-02).
+    Layout: ``base_dir/<tree_dir>/<object_id>.json`` where ``<tree_dir>``
+    is the canonical state-tree directory for the schema name
+    (``SCHEMA_TO_STATE_DIR``, the same plural directories the planning
+    registries resolve). All writes go through ``atomic_write`` (temp
+    file + ``os.replace``), so partial writes never replace the last
+    valid object (AC-02).
 
     Args:
         base_dir: root of the state tree. May be a ``str`` or ``Path``.
@@ -215,11 +276,11 @@ class FilesystemStateBackend(StateBackend):
     def _object_path(self, obj_type: str, object_id: str) -> Path:
         self._check_obj_type(obj_type)
         self._check_object_id(object_id)
-        return self.base_dir / obj_type / f"{object_id}.json"
+        return self.base_dir / SCHEMA_TO_STATE_DIR[obj_type] / f"{object_id}.json"
 
     def _type_dir(self, obj_type: str) -> Path:
         self._check_obj_type(obj_type)
-        return self.base_dir / obj_type
+        return self.base_dir / SCHEMA_TO_STATE_DIR[obj_type]
 
     def _check_write_target(self, path: Path) -> None:
         """Refuse writes whose resolved parent escapes the resolved base.

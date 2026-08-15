@@ -4,7 +4,9 @@
 Covered behaviors:
   * write/read/exists/list_ids/delete round-trips for every normative
     object type (valid documents reused from tests/core/fixtures.py);
-  * per-object file layout ``base_dir/<obj_type>/<object_id>.json`` with
+  * per-object file layout ``base_dir/<tree_dir>/<object_id>.json`` with
+    the canonical tree directories of ``SCHEMA_TO_STATE_DIR`` (the same
+    plural directories the planning registries resolve, AC-02) and
     **no monolithic state file** (AC-01);
   * schema-valid content round-trips exactly and stays schema-valid on
     read (AC-03);
@@ -31,15 +33,21 @@ import pytest
 from scientific_reproduction.core import atomic as atomic_module
 from scientific_reproduction.core import models as m
 from scientific_reproduction.core.ids import generate_id
+from scientific_reproduction.core.models import SCHEMA_NAMES
 from scientific_reproduction.core.schema_validation import (
     SchemaValidationError,
     validate_object,
 )
 from scientific_reproduction.core.state_backend import (
+    SCHEMA_TO_STATE_DIR,
     FilesystemStateBackend,
     StateBackend,
     UnknownObjectTypeError,
 )
+from scientific_reproduction.planning import init as planning_init
+from scientific_reproduction.planning import inventory as planning_inventory
+from scientific_reproduction.planning import plan as planning_plan
+from scientific_reproduction.planning import resources as planning_resources
 from tests.core.fixtures import VALID_DOCS
 
 
@@ -157,13 +165,17 @@ def test_per_object_layout_and_no_monolithic_state_file(tmp_path) -> None:
 
     base = tmp_path / "state"
     assert (base / "project" / f"{project['project_id']}.json").is_file()
-    assert (base / "plan" / f"{plan['plan_id']}.json").is_file()
-    assert (base / "event" / f"{event['event_id']}.json").is_file()
+    assert (base / "plans" / f"{plan['plan_id']}.json").is_file()
+    assert (base / "events" / f"{event['event_id']}.json").is_file()
 
     # AC-01: no monolithic mutable state blob -- every entry at the base
-    # dir root is a per-type directory, and every file is a per-object
-    # <object_id>.json inside one of them.
-    assert {entry.name for entry in base.iterdir()} == {"project", "plan", "event"}
+    # dir root is a per-type tree directory, and every file is a
+    # per-object <object_id>.json inside one of them.
+    assert {entry.name for entry in base.iterdir()} == {
+        "project",
+        "plans",
+        "events",
+    }
     for entry in base.iterdir():
         assert entry.is_dir(), f"unexpected file at base_dir root: {entry}"
         for file_ in entry.iterdir():
@@ -197,7 +209,7 @@ def test_stored_file_is_canonical_json(tmp_path) -> None:
     backend = FilesystemStateBackend(tmp_path / "state")
     doc = copy.deepcopy(VALID_DOCS["event"])
     backend.write("event", doc["event_id"], doc)
-    raw = (tmp_path / "state" / "event" / f"{doc['event_id']}.json").read_text(
+    raw = (tmp_path / "state" / "events" / f"{doc['event_id']}.json").read_text(
         encoding="utf-8"
     )
     assert json.loads(raw) == doc
@@ -336,7 +348,7 @@ def test_delete_removes_object(tmp_path) -> None:
     backend.delete("run", doc["run_id"])
     assert not backend.exists("run", doc["run_id"])
     assert backend.list_ids("run") == []
-    assert not (tmp_path / "state" / "run" / f"{doc['run_id']}.json").exists()
+    assert not (tmp_path / "state" / "runs" / f"{doc['run_id']}.json").exists()
 
 
 def test_delete_missing_object_raises(tmp_path) -> None:
@@ -523,3 +535,102 @@ def test_backend_default_mode_does_not_chmod(tmp_path, monkeypatch) -> None:
     doc = copy.deepcopy(VALID_DOCS["project"])
     backend.write("project", doc["project_id"], doc)
     assert calls == []
+
+
+# ---------------------------------------------------------------------------
+# Canonical tree layout (SCHEMA_TO_STATE_DIR, AC-02 truth-source contract)
+# ---------------------------------------------------------------------------
+
+
+def test_schema_to_state_dir_covers_exactly_the_schema_names() -> None:
+    """Every schema name maps to exactly one canonical tree directory."""
+    assert set(SCHEMA_TO_STATE_DIR) == set(SCHEMA_NAMES)
+    assert len(SCHEMA_TO_STATE_DIR) == len(SCHEMA_NAMES)
+    # Every target is a single safe relative path segment (mirrors the
+    # object-id stem policy: the map must never produce an escaping path).
+    assert len(set(SCHEMA_TO_STATE_DIR.values())) == len(SCHEMA_NAMES)
+    for tree_dir in SCHEMA_TO_STATE_DIR.values():
+        assert tree_dir not in (".", "..")
+        assert "/" not in tree_dir and "\\" not in tree_dir
+        assert tree_dir and not tree_dir.startswith(".")
+
+
+def test_schema_to_state_dir_matches_the_planning_registries() -> None:
+    """The backend resolves exactly the directories the registries write.
+
+    AC-02 truth-source contract: a worker reading Core state through the
+    backend sees the same files the planning registries persist. The
+    registry ``*_STATE_DIR`` constants are the same strings the backend
+    map uses for those schema names, and every tree directory is the
+    canonical workspace tree (``planning.init.INIT_DIRECTORIES``) except
+    the documented on-demand dirs and ``project`` (whose canonical single
+    record is ``project.yaml`` at the workspace root).
+    """
+    assert SCHEMA_TO_STATE_DIR["goal"] == planning_plan.GOALS_STATE_DIR
+    assert SCHEMA_TO_STATE_DIR["plan"] == planning_plan.PLANS_STATE_DIR
+    assert (
+        SCHEMA_TO_STATE_DIR["acceptance-criteria"]
+        == planning_plan.ACCEPTANCE_STATE_DIR
+    )
+    assert SCHEMA_TO_STATE_DIR["analysis"] == planning_plan.PROTOCOLS_STATE_DIR
+    assert (
+        SCHEMA_TO_STATE_DIR["closure-contract"]
+        == planning_plan.CLOSURE_STATE_DIR
+    )
+    assert (
+        SCHEMA_TO_STATE_DIR["inventory-item"]
+        == planning_inventory.INVENTORY_STATE_DIR
+    )
+    assert (
+        SCHEMA_TO_STATE_DIR["requirement"]
+        == planning_inventory.REQUIREMENTS_STATE_DIR
+    )
+    assert SCHEMA_TO_STATE_DIR["resource"] == planning_resources.RESOURCES_STATE_DIR
+
+    # Tree directories created on demand by adapters/registries rather
+    # than at init: ``acceptance/``/``closure/`` follow the registries
+    # that created them on demand (``ACCEPTANCE_STATE_DIR``,
+    # ``CLOSURE_STATE_DIR``), ``research-requests/``/``retry-policies/``
+    # extend the plural-of-schema-name convention for their on-demand
+    # kinds, and ``lab/``/``human-gates/``/``manifests/`` are template
+    # tree dirs (``templates/PROJECT-TREE.template.txt``) created by the
+    # lab and manifest adapters on first use.
+    on_demand = {
+        "acceptance",
+        "closure",
+        "research-requests",
+        "retry-policies",
+        "lab",
+        "human-gates",
+        "manifests",
+    }
+    for schema_name, tree_dir in SCHEMA_TO_STATE_DIR.items():
+        if tree_dir == "project" or tree_dir in on_demand:
+            continue
+        assert tree_dir in planning_init.INIT_DIRECTORIES, (
+            f"{schema_name!r} maps to {tree_dir!r}, which is not a canonical"
+            " workspace tree directory"
+        )
+
+
+def test_backend_record_lands_in_the_registry_tree_directory(tmp_path) -> None:
+    """A backend write lands exactly where the registries would read it.
+
+    The issue scenario in reverse: ``backend.write("goal", ...)`` must
+    produce ``<root>/goals/<id>.json`` -- the file the planning goal
+    registry resolves (``GOALS_STATE_DIR``) -- so a worker that reads
+    Core state through the backend and a supervisor using the registry
+    observe the same records (AC-02).
+    """
+    backend = FilesystemStateBackend(tmp_path / "state")
+    doc = copy.deepcopy(VALID_DOCS["goal"])
+    goal_id = doc["goal_id"]
+    backend.write("goal", goal_id, doc)
+
+    path = tmp_path / "state" / planning_plan.GOALS_STATE_DIR / f"{goal_id}.json"
+    assert path.is_file()
+    assert json.loads(path.read_text(encoding="utf-8")) == doc
+    # And a fresh backend over the same base sees it (no cache anywhere).
+    assert FilesystemStateBackend(tmp_path / "state").list_ids("goal") == [
+        goal_id
+    ]
