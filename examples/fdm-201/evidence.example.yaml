@@ -11,6 +11,9 @@ assessment:
   reliability: 2
   directness: 4
   reliability_checklist_ref: RCHK-FDM201-SEED-001
-  ranking_score: 70.0
+  # ranking_score = (0.25*A + 0.45*R + 0.30*D) / 4 * 100 under the versioned
+  # ranking_rule_v1 weights (06-EVIDENCE-SYSTEM.md SS3):
+  # (0.25*4 + 0.45*2 + 0.30*4) / 4 * 100 = 77.5.
+  ranking_score: 77.5
 used_by:
   - REQ-ADS-001

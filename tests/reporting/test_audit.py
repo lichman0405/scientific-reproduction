@@ -347,7 +347,9 @@ def test_audit_errors_are_sorted_deterministically_ac03(
         FilesystemStateBackend,
     )
 
-    FilesystemStateBackend(tmp_path / "runs").write(
+    # The run store is a state backend over the workspace root, resolving
+    # the canonical runs/ tree directory.
+    FilesystemStateBackend(tmp_path).write(
         "run", ghost_run.run_id, ghost_run.to_dict()
     )
     result = validate_package(tmp_path, evidence, ["GHOST-CLAIM"])
@@ -378,7 +380,7 @@ def test_audit_uninitialized_workspace_raises(tmp_path: Path) -> None:
 def test_audit_corrupt_run_record_raises(tmp_path: Path) -> None:
     """A corrupt stored run record surfaces as AuditCorruptError."""
     evidence = install_valid_chain(tmp_path)
-    run_path = tmp_path / "runs" / "run" / f"{RUN_ID}.json"
+    run_path = tmp_path / "runs" / f"{RUN_ID}.json"
     run_path.write_text("{not json", encoding="utf-8")
 
     with pytest.raises(AuditCorruptError, match="run"):

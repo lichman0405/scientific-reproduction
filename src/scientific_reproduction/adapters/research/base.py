@@ -137,7 +137,11 @@ class AdapterOperation(StrEnum):
 
     The vocabulary of 15-ADAPTER-SPEC.md section 4 ("ResearchSourceAdapter"):
     query/search, fetch metadata, and fetch content/file when legally
-    and technically available.
+    and technically available. A network-capable adapter (one that
+    advertises ``FETCH_CONTENT`` or performs live metadata fetches) must
+    run every http(s) fetch target through
+    ``network_policy.validate_fetch_url`` before opening a connection
+    (fake-IP DNS policy, 09-RESEARCH-SUBSYSTEM.md section 4).
     """
 
     SEARCH = "search"

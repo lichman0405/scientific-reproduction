@@ -14,8 +14,12 @@ recovery rule below -- never through wall-clock guessing.
 Filesystem protocol
 -------------------
 A lease is a single JSON runtime record at
-``base_dir/leases/<obj_type>/<object_id>.json`` and *is its own lock*:
-no separate lock file is needed for leases, because the expiry is the
+``base_dir/leases/<tree_dir>/<object_id>.json`` where ``<tree_dir>`` is
+the canonical state-tree directory for the object's schema name
+(``core.state_backend.SCHEMA_TO_STATE_DIR``) -- leases mirror the state
+backend's layout, so the lease for an object lives under the same tree
+directory as the object itself. The lease *is its own lock*: no
+separate lock file is needed for leases, because the expiry is the
 staleness mechanism (a crashed holder's lease simply expires, unlike a
 lock file which would block forever).
 
@@ -85,7 +89,10 @@ from typing import Any, Callable, Mapping, Self
 
 from scientific_reproduction.core.locks import atomic_create
 from scientific_reproduction.core.models import SCHEMA_NAMES
-from scientific_reproduction.core.state_backend import UnknownObjectTypeError
+from scientific_reproduction.core.state_backend import (
+    SCHEMA_TO_STATE_DIR,
+    UnknownObjectTypeError,
+)
 
 __all__ = [
     "LeaseError",
@@ -227,11 +234,12 @@ def _require_number(name: str, data: Mapping[str, Any]) -> float:
 class LeaseStore:
     """Per-object bounded leases on the filesystem (14-STATE-GIT-ARTIFACTS.md SS4).
 
-    Layout: ``base_dir/leases/<obj_type>/<object_id>.json`` -- one
+    Layout: ``base_dir/leases/<tree_dir>/<object_id>.json`` -- one
     JSON runtime record per leased object, next to (but separate from)
     the schema-validated object files of ``FilesystemStateBackend``
-    (``base_dir/<obj_type>/<object_id>.json``).  All writes go through
-    ``atomic_write`` staging + ``os.link`` (``core.locks.atomic_create``).
+    (``base_dir/<tree_dir>/<object_id>.json``, via
+    ``SCHEMA_TO_STATE_DIR``).  All writes go through ``atomic_write``
+    staging + ``os.link`` (``core.locks.atomic_create``).
 
     Args:
         base_dir: root of the state tree (share the state backend's
@@ -309,7 +317,12 @@ class LeaseStore:
     def _lease_path(self, obj_type: str, object_id: str) -> Path:
         self._check_obj_type(obj_type)
         self._check_object_id(object_id)
-        return self.base_dir / "leases" / obj_type / f"{object_id}.json"
+        return (
+            self.base_dir
+            / "leases"
+            / SCHEMA_TO_STATE_DIR[obj_type]
+            / f"{object_id}.json"
+        )
 
     # -- persistence -------------------------------------------------------
 

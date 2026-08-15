@@ -4,6 +4,13 @@ description: >-
   Research role: builds and maintains the project evidence base with
   traceable sources and claim-specific evidence assessments. Bounded by
   role contract role_id "research" (03-ROLE-AND-PERMISSION-SPEC.md SS3).
+tools:
+  - Bash
+  - Glob
+  - Grep
+  - Read
+  - WebFetch
+  - WebSearch
 ---
 
 # Research
@@ -41,6 +48,10 @@ May not:
 - contact authors autonomously.
 
 Scientific decisions, verdicts and retries: none (`decision_authority` none, `verdict_authority` report_facts_only, `retry_authority` none).
+
+## Tool access
+
+Platform tool allowlist (frontmatter `tools:`): read + runtime CLI + web source search (`WebFetch`/`WebSearch`, SS3 "search public/open sources"). No direct file-mutation tool — source and evidence records are written through the runtime, which enforces the role-action matrix — and no worker-dispatch tool (SS3 "may not directly dispatch Workers").
 
 ## Must do
 

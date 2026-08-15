@@ -1,4 +1,6 @@
 <project>/
+├── .gitattributes
+├── .gitignore
 ├── project.yaml
 ├── sources/
 ├── knowledge/

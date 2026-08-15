@@ -27,8 +27,8 @@ package validates traceability). Grounded in the real records:
   ``run_ref`` (the input Run's ``run_id``), ``input_artifact_ids``,
   ``acceptance_ref`` and ``requirement_refs``.
 * **Runs** are the schema-validated ``core.models.Run`` records persisted
-  through the real ``core.state_backend.FilesystemStateBackend`` under
-  ``runs/run/<run_id>.json``.
+  through the real ``core.state_backend.FilesystemStateBackend`` over the
+  workspace root (``runs/<run_id>.json``, the canonical tree directory).
 * **Raw Artifact manifests** are the ``artifacts.registry.ArtifactRegistry``
   records (``manifests/<artifact_id>.json``) with their producer links
   ``run_id`` / ``analysis_id``.
@@ -121,16 +121,13 @@ TraceRecord: TypeAlias = (
     | Run
 )
 
-#: The run store object type of the state backend (``runs/run/<id>.json``).
+#: The run store object type of the state backend (resolved through
+#: ``SCHEMA_TO_STATE_DIR`` to the canonical ``runs/<id>.json`` records).
 _RUN_OBJECT_TYPE: str = "run"
 
 #: The artifact registry base directory of a project workspace
 #: (``14-STATE-GIT-ARTIFACTS.md`` SS6: manifests live under ``manifests/``).
 _ARTIFACTS_STATE_DIR: str = "manifests"
-
-#: The runs state directory of a project workspace (the ``runs/`` tree of
-#: ``planning.init.INIT_DIRECTORIES``).
-_RUNS_STATE_DIR: str = "runs"
 
 
 # ---------------------------------------------------------------------------
@@ -371,7 +368,7 @@ def trace_claim(
 
     # -- preload the registered state through the real read APIs ------------
     results = {result.result_id: result for result in _list_results(project_root)}
-    run_store = FilesystemStateBackend(project_root / _RUNS_STATE_DIR)
+    run_store = FilesystemStateBackend(project_root)
     runs = {
         run_id: _read_run(run_store, run_id)
         for run_id in run_store.list_ids(_RUN_OBJECT_TYPE)
@@ -532,7 +529,7 @@ def trace_claim(
                 record.run_ref,
                 f"run_ref {record.run_ref!r} of analysis result"
                 f" {record.result_id!r} resolves to no registered Run record"
-                f" (runs/run/{record.run_ref}.json); the report-traceability"
+                f" (runs/{record.run_ref}.json); the report-traceability"
                 " chain requires the Run hop to resolve (AC-02)"
             )
         else:

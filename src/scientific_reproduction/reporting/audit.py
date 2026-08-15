@@ -13,9 +13,10 @@ machine-auditable package validates traceability"). The validator reads
 * analysis results -- ``analysis.results.list_results`` /
   ``read_result`` (``analysis/results/<result_id>.json``);
 * Runs -- the schema-validated ``core.models.Run`` records of the real
-  ``core.state_backend.FilesystemStateBackend`` run store
-  (``runs/run/<run_id>.json``). **Every** run is assembled into the
-  package, failed runs included (AC-03): the frozen Run vocabulary has no
+  ``core.state_backend.FilesystemStateBackend`` run store over the
+  workspace root (``runs/<run_id>.json``, the canonical tree directory).
+  **Every** run is assembled into the package, failed runs included
+  (AC-03): the frozen Run vocabulary has no
   "failed" lifecycle state -- scientific PASS/FAIL is a review decision
   stored separately (``05-GOAL-RUN-SCHEMA.md`` SS7) and a run that was
   abandoned or invalidated is recorded by the terminal states
@@ -127,16 +128,13 @@ _JSON_INDENT: int = 2
 #: :class:`AuditValidationResult`).
 PACKAGE_VERSION: str = "1.0"
 
-#: The run store object type of the state backend (``runs/run/<id>.json``).
+#: The run store object type of the state backend (resolved through
+#: ``SCHEMA_TO_STATE_DIR`` to the canonical ``runs/<id>.json`` records).
 _RUN_OBJECT_TYPE: str = "run"
 
 #: The artifact registry base directory of a project workspace
 #: (``14-STATE-GIT-ARTIFACTS.md`` SS6: manifests live under ``manifests/``).
 _ARTIFACTS_STATE_DIR: str = "manifests"
-
-#: The runs state directory of a project workspace (the ``runs/`` tree of
-#: ``planning.init.INIT_DIRECTORIES``).
-_RUNS_STATE_DIR: str = "runs"
 
 #: The frozen Run states that record a failed execution (AC-03): the
 #: terminal states of ``core.rules.lifecycle`` minus ``CLOSED`` -- a run
@@ -392,8 +390,9 @@ def build_audit_package(
     """Assemble the machine-auditable package from the real records.
 
     Reads every record through the real registration APIs: the run store
-    (``FilesystemStateBackend`` under ``runs/`` -- **all** runs, failed
-    runs included, AC-03), the analysis result registry, the artifact
+    (``FilesystemStateBackend`` over the workspace root, resolving the
+    canonical ``runs/`` tree directory -- **all** runs, failed runs
+    included, AC-03), the analysis result registry, the artifact
     manifest registry, the acceptance and requirement registries, and the
     given claim-specific evidence registry. Each key claim is traced with
     ``reporting.traceability.trace_claim`` (the trace is total: missing
@@ -434,7 +433,7 @@ def build_audit_package(
     project_root = Path(root).resolve()
     _require_initialized(project_root)
 
-    run_store = FilesystemStateBackend(project_root / _RUNS_STATE_DIR)
+    run_store = FilesystemStateBackend(project_root)
     artifact_registry = ArtifactRegistry(project_root / _ARTIFACTS_STATE_DIR)
 
     run_entries = tuple(

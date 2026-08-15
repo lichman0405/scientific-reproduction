@@ -1,16 +1,17 @@
 """Append-only, ordered, idempotent project event log (DEV-M1-G04).
 
 Layered on ``FilesystemStateBackend`` (DEV-M1-G02), which persists one
-JSON file per object under ``base_dir/<obj_type>/<object_id>.json``.
-Per that backend's docstring, append-only/ordering/idempotency
-semantics are a workflow-layer concern and are implemented here, on top
-of the backend's per-object CRUD; the backend itself is not modified.
+JSON file per object under ``base_dir/<tree_dir>/<object_id>.json``
+(``SCHEMA_TO_STATE_DIR``). Per that backend's docstring,
+append-only/ordering/idempotency semantics are a workflow-layer concern
+and are implemented here, on top of the backend's per-object CRUD; the
+backend itself is not modified.
 
 Layout
 ------
 ``ProjectEventLog`` manages three kinds of files under ``base_dir``:
 
-* ``event/<event_id>.json`` -- the event records themselves, persisted
+* ``events/<event_id>.json`` -- the event records themselves, persisted
   through the state backend (schema-validated, canonical JSON, atomic
   writes). Each record carries two log-managed additional properties
   (both permitted by ``schemas/event.schema.yaml``'s

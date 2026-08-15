@@ -77,6 +77,7 @@ __all__ = [
     "MethodReproducibility",
     "DecisionMode",
     "Confidence",
+    "MarginBasis",
     "ResearchRequestStatus",
     # models
     "Project",
@@ -99,6 +100,7 @@ __all__ = [
     "ReproductionRequirement",
     "ArtifactManifest",
     "AcceptanceCriteria",
+    "StatisticalDesign",
     "ResearchRequest",
 ]
 
@@ -360,6 +362,25 @@ class Confidence(StrEnum):
     LOW = "LOW"
 
 
+class MarginBasis(StrEnum):
+    """The frozen margin-basis vocabulary (07-STATISTICS-AND-ACCEPTANCE.md
+    SS8: every numeric margin or decision threshold records its basis).
+
+    The five sanctioned basis categories of SS8 -- target paper
+    error/variation, independent reproduction literature, standard
+    method/instrument uncertainty, a domain-specific accepted threshold,
+    or an explicit scientific equivalence judgment with documented
+    rationale. Values are the exact SS8 category names; no global fixed
+    percent rule exists anywhere.
+    """
+
+    TARGET_PAPER_ERROR = "target_paper_error"
+    REPRODUCTION_LITERATURE = "reproduction_literature"
+    INSTRUMENT_UNCERTAINTY = "instrument_uncertainty"
+    DOMAIN_THRESHOLD = "domain_threshold"
+    SCIENTIFIC_JUDGMENT = "scientific_judgment"
+
+
 class ResearchRequestStatus(StrEnum):
     OPEN = "OPEN"
     SEARCHING = "SEARCHING"
@@ -558,7 +579,7 @@ class ClosureLiterature(CoreModel):
 
 
 # ---------------------------------------------------------------------------
-# The 21 normative object models
+# The 22 normative object models
 # ---------------------------------------------------------------------------
 
 
@@ -900,6 +921,45 @@ class AcceptanceCriteria(CoreModel):
 
 
 @dataclass(frozen=True)
+class StatisticalDesign(CoreModel):
+    """The frozen statistical design of a goal (07-STATISTICS-AND-ACCEPTANCE.md
+    SS9: the design -- target metrics, equivalence margin, replication
+    design, primary statistical method, alpha/confidence level,
+    preprocessing/exclusion criteria, outlier rules, failed-Run handling --
+    is frozen BEFORE data generation).
+
+    The first-class record behind ``AcceptanceCriteria.statistical_design_ref``
+    (``schemas/statistical-design.schema.yaml``): one record per goal,
+    registered in the goal-contract family registry (``planning.plan``
+    ``register_statistical_design``, ``designs/<design_id>.json``) and
+    frozen by the plan freeze. ``margin_basis`` records the SS8 basis
+    category of the recorded margin (target paper error, reproduction
+    literature, instrument uncertainty, domain threshold, or an explicit
+    scientific judgment) so margin provenance is machine-checkable.
+    """
+
+    schema_name: ClassVar[str] = "statistical-design"
+
+    design_id: str
+    goal_id: str
+    version: str
+    frozen: bool
+    metrics: list[str]
+    replication: GoalReplication
+    primary_method: str
+    margin: Any = None
+    margin_basis: MarginBasis | None = None
+    alpha: float | None = None
+    confidence_level: float | None = None
+    preprocessing_exclusion_rules: list[str] = field(default_factory=list)
+    outlier_rules: list[str] = field(default_factory=list)
+    failed_run_handling: str | None = None
+    evidence_refs: list[str] = field(default_factory=list)
+    rationale: str | None = None
+    revision_reason: str | None = None
+
+
+@dataclass(frozen=True)
 class ResearchRequest(CoreModel):
     schema_name: ClassVar[str] = "research-request"
 
@@ -939,6 +999,7 @@ MODEL_REGISTRY: dict[str, type[CoreModel]] = {
     "requirement": ReproductionRequirement,
     "artifact-manifest": ArtifactManifest,
     "acceptance-criteria": AcceptanceCriteria,
+    "statistical-design": StatisticalDesign,
     "research-request": ResearchRequest,
 }
 

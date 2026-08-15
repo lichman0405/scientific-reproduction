@@ -58,7 +58,7 @@ def _event(n: int, **overrides: object) -> ProjectEvent:
 
 
 def _record_path(base, event_id):
-    return base / "event" / f"{event_id}.json"
+    return base / "events" / f"{event_id}.json"
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def test_idempotent_event_returns_existing_record(tmp_path) -> None:
     records = log.list_events()
     assert [r.event.event_id for r in records] == [event1.event_id]
     assert [r.sequence for r in records] == [1]
-    assert len(list((base / "event").glob("*.json"))) == 1
+    assert len(list((base / "events").glob("*.json"))) == 1
 
 
 def test_distinct_keys_produce_distinct_events(tmp_path) -> None:
@@ -201,7 +201,7 @@ def test_event_stale_idempotency_claim_is_reclaimed(tmp_path) -> None:
     assert record.event.event_id == _event(2).event_id
     assert record.replayed is False
     assert record.sequence == 2
-    assert len(list((base / "event").glob("*.json"))) == 1
+    assert len(list((base / "events").glob("*.json"))) == 1
     assert len(list((base / "_event_log" / "idempotency").glob("*.json"))) == 1
 
     # The recovered key now replays against the recovered record.
@@ -283,7 +283,7 @@ def test_schema_invalid_event_rejected_before_persistence(tmp_path) -> None:
     bad = _event(1, payload=[])
     with pytest.raises(SchemaValidationError):
         log.append(bad)
-    assert not (base / "event").exists()
+    assert not (base / "events").exists()
     assert not (base / "_event_log").exists()
     # The log still works afterwards, and the first sequence is 1.
     assert log.append(_event(2)).sequence == 1
@@ -328,7 +328,7 @@ def test_non_event_record_in_event_dir_surfaces_error(tmp_path) -> None:
     log.append(_event(1))
 
     # A stray file that is not a JSON object: the backend error surfaces.
-    (base / "event" / "not_an_event.json").write_text(
+    (base / "events" / "not_an_event.json").write_text(
         "[1, 2, 3]", encoding="utf-8"
     )
     with pytest.raises(ValueError):
@@ -338,7 +338,7 @@ def test_non_event_record_in_event_dir_surfaces_error(tmp_path) -> None:
 
     # A schema-valid event JSON without a sequence is a corrupt record.
     doc = _event(2).to_dict()
-    (base / "event" / "no_sequence.json").write_text(
+    (base / "events" / "no_sequence.json").write_text(
         json.dumps(doc), encoding="utf-8"
     )
     with pytest.raises(ev.CorruptEventLogError):

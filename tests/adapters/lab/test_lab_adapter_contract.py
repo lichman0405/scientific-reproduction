@@ -295,7 +295,7 @@ def test_contract_assessment_is_a_stable_decision_record():
     )
     assert isinstance(assessment, ResultManifestAssessment)
     assert assessment.valid is True
-    assert assessment.ruleset_version == "1.0"
+    assert assessment.ruleset_version == "1.1"
     assert assessment.run_matched is True
     assert assessment.package_matched is True
     assert assessment.missing_fields == ()
