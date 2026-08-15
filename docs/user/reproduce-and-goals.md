@@ -103,6 +103,17 @@ it rejects with `TargetAlreadyRegisteredError` on any unmodified project.
 `read_project_state(root)` reads the persisted record back as a typed
 `Project`.
 
+`register_target_metadata(root, *, doi=None, title=None, timestamp=None)` is
+the primary-target metadata-registration step of the research bootstrap
+(`09-RESEARCH-SUBSYSTEM.md` section 2): it registers the paper DOI and/or
+title on the existing primary target record and returns the updated `Project`.
+A PDF target carries only its local path at init, so the DOI extracted from
+the PDF during bootstrap research — or supplied manually by the operator —
+is registered here; the record keeps exactly one primary target (AC-01) whose
+form and identifier are never replaced, re-registering identical metadata is
+a deterministic no-op, and a malformed DOI or one contradicting a DOI-form
+identifier is rejected with a stable error.
+
 ## `/goals` — Goal DAG, contracts, and states
 
 The semantic contract of `01-PRODUCT-REQUIREMENTS.md` SS6:

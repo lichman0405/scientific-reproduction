@@ -2,6 +2,18 @@
 
 All notable changes are tracked here. This repository follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions with a single immutable release line per version.
 
+## [Unreleased]
+
+### Fixed
+
+- **Primary-target metadata registration** — a PDF target carried only its
+  local path on the project record at init; the new
+  `planning.init.register_target_metadata` API is the first-class
+  metadata-registration step of the research bootstrap (W-BOOT-1) and
+  registers the paper DOI/title on the existing primary target record,
+  making PDF target identity machine-usable for mirror collapse and evidence
+  linking before Plan v1 (see `docs/adr/0001-primary-target-metadata-registration.md`).
+
 ## [0.2.0] - 2026-08-15
 
 Skill-packaging release: this repository is now directly distributable as an installable skill.

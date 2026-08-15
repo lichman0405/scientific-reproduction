@@ -64,8 +64,10 @@ slash-command mechanism where available, otherwise through the runtime.
 1. **Initialize** — `/reproduce` the primary target paper (exactly one per
    project) and record the primary target.
 2. **Bootstrap research** — build the complete evidence base from the main
-   paper, SI, and linked public data; collapse duplicate DOI mirrors; never
-   treat mirrors as independent evidence.
+   paper, SI, and linked public data; register the primary target's
+   DOI/title metadata on the project record (a PDF target carries only its
+   path at init); collapse duplicate DOI mirrors; never treat mirrors as
+   independent evidence.
 3. **Inventory** — enumerate *all* formally reported experiments, controls,
    and computations; audit for 100% coverage.
 4. **Plan v1** — build and freeze Plan v1 (goals as Unit Processes, DAG
