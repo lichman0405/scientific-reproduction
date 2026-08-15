@@ -10,10 +10,11 @@ Public API
 * ``initialize_project`` -- the project initializer: creates the one-paper
   workspace tree (``templates/PROJECT-TREE.template.txt``), writes the
   project state record ``project.yaml``, appends the ``project.initialized``
-  event, initializes the Git repository through the M3-G01 helpers
-  (``audit.git.init_project_repo``) and records the "project initialized"
-  audit checkpoint commit (``audit.git.commit_checkpoint``,
-  ``14-STATE-GIT-ARTIFACTS.md`` SS5).
+  event as a first-class log record (``ProjectEventLog`` over the
+  workspace root, sequence 1), initializes the Git repository through the
+  M3-G01 helpers (``audit.git.init_project_repo``) and records the
+  "project initialized" audit checkpoint commit
+  (``audit.git.commit_checkpoint``, ``14-STATE-GIT-ARTIFACTS.md`` SS5).
 * ``register_primary_target`` -- primary target registration: the
   one-primary enforcement point. AC-01: exactly ONE Primary Target Paper
   per project; a second registration raises ``TargetAlreadyRegisteredError``
@@ -78,6 +79,7 @@ from scientific_reproduction.audit.git import (
     init_project_repo,
 )
 from scientific_reproduction.core.atomic import atomic_write
+from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     PrimaryTarget,
@@ -363,11 +365,13 @@ def initialize_project(
     """Initialize a one-paper reproduction project and register its primary target.
 
     Creates the workspace tree (``INIT_DIRECTORIES``), writes
-    ``project.yaml``, appends the ``project.initialized`` event, initializes
-    the Git repository and creates the "project initialized" audit commit
-    (AC-02: no lab/HPC inventory is required anywhere on this path). The
-    primary target is registered exactly once, as the single required
-    ``primary_target`` of the project record (AC-01, AC-03).
+    ``project.yaml``, appends the ``project.initialized`` event through
+    ``ProjectEventLog`` (a first-class log record with sequence 1 in the
+    canonical ``events/`` directory), initializes the Git repository and
+    creates the "project initialized" audit commit (AC-02: no lab/HPC
+    inventory is required anywhere on this path). The primary target is
+    registered exactly once, as the single required ``primary_target`` of
+    the project record (AC-01, AC-03).
 
     Args:
         root: workspace root directory; created (with parents) when missing.
@@ -460,8 +464,13 @@ def initialize_project(
         to=INITIAL_PHASE.value,
     )
     validate_and_reject("event", event.to_dict())
+    # The init event goes through ``ProjectEventLog`` so it is a first-
+    # class log record (sequence 1) in the canonical ``events/`` tree
+    # directory -- the same directory a ``ProjectEventLog`` over the
+    # workspace root reads, and the same file the state backend resolves
+    # for obj_type ``event`` (``SCHEMA_TO_STATE_DIR``).
     event_path = project_root / "events" / f"{event.event_id}.json"
-    atomic_write(event_path, _canonical_json(event.to_dict()))
+    ProjectEventLog(project_root).append(event)
 
     init_project_repo(project_root, identity=identity)
     commit = commit_checkpoint(

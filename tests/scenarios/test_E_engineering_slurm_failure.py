@@ -380,14 +380,14 @@ def event_records(events_dir: Path) -> tuple[dict[str, object], ...]:
     return tuple(
         json.loads(p.read_text(encoding="utf-8"))
         for p in sorted(
-            (events_dir / "event").glob("*.json"),
+            events_dir.glob("*.json"),
             key=lambda p: p.name,
         )
     )
 
 
 def run_file_bytes(runs_dir: Path) -> bytes:
-    return (runs_dir / "run" / f"{RUN_ID}.json").read_bytes()
+    return (runs_dir / f"{RUN_ID}.json").read_bytes()
 
 
 def job_file_bytes(adapter_state: Path) -> bytes:
@@ -428,7 +428,6 @@ def execute_scenario_e(
     """
     state_dir = root / "monitor"
     runs_dir = root / "runs"
-    events_dir = root / "events"
     adapter_state = root / "adapter"
 
     clock = FakeClock()
@@ -466,7 +465,7 @@ def execute_scenario_e(
     )
     run = make_run(external)
     watch = make_watch_record(external)
-    run_store = FilesystemStateBackend(runs_dir)
+    run_store = FilesystemStateBackend(root)
     write_run(run_store, run)
     WatchedRunRegistry(state_dir, now=clock, monitor_id=MONITOR_ID).watch(watch)
     run_bytes_before = run_file_bytes(runs_dir)
@@ -477,8 +476,8 @@ def execute_scenario_e(
         monitor_id=MONITOR_ID,
         classifier=AdapterFailureClassifier(adapter),
         resubmit=AdapterResubmitPlumbing(adapter, cluster),
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
     summary = dispatcher.decide_all()
     assert len(summary.outcomes) == 1
@@ -525,8 +524,8 @@ def make_dispatcher(
             ),
             SlurmClusterMock(),
         ),
-        run_store=FilesystemStateBackend(root / "runs"),
-        event_log=ProjectEventLog(root / "events"),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
 
 
@@ -605,7 +604,7 @@ def test_E_ac01_resubmission_is_a_scheduler_receipt_not_a_new_job_record(
     jobs_dir = tmp_path / "scenario-e" / "adapter" / JOBS_STATE_DIR
     assert sorted(p.name for p in jobs_dir.glob("*.json")) == [f"{JOB_ID}.json"]
     run_records = sorted(
-        p.name for p in (tmp_path / "scenario-e" / "runs" / "run").glob("*.json")
+        p.name for p in (tmp_path / "scenario-e" / "runs").glob("*.json")
     )
     assert run_records == [f"{RUN_ID}.json"]
     watched = sorted(

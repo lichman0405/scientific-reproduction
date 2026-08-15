@@ -32,6 +32,7 @@ from init_helpers import IDENTITY, TIMESTAMP, TIMESTAMP_ISO
 
 from scientific_reproduction.audit.git import count_commits, current_head
 from scientific_reproduction.cli.reproduce import main as cli_main
+from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     PrimaryTarget,
@@ -40,6 +41,7 @@ from scientific_reproduction.core.models import (
     TargetSourceType,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
+from scientific_reproduction.core.state_backend import FilesystemStateBackend
 from scientific_reproduction.planning.init import (
     DEFAULT_DOMAIN_PACK,
     INIT_DIRECTORIES,
@@ -59,6 +61,8 @@ from scientific_reproduction.planning.init import (
     read_project_state,
     register_primary_target,
 )
+from scientific_reproduction.planning.plan import GOALS_STATE_DIR, register_goal
+from tests.core.fixtures import VALID_DOCS
 
 DOI = "10.1039/D5TA00771B"
 URL = "https://doi.org/10.1039/D5TA00771B"
@@ -261,9 +265,34 @@ def test_init_writes_project_initialized_event(tmp_path: Path) -> None:
         "object_id": result.project.project_id,
         "to": "INITIALIZING",
         "payload": {},
+        # The init event is a first-class log record (sequence 1).
+        "sequence": 1,
     }
     # The event is schema-valid (persistence gate).
     validate_and_reject("event", event)
+
+
+def test_init_event_is_a_first_class_log_record(tmp_path: Path) -> None:
+    """The init event lands in the canonical events/ tree directory and is
+    readable as a ``ProjectEventLog`` record over the workspace root --
+    the same directory the state backend resolves for obj_type "event".
+    """
+    result = _init(tmp_path / "project", DOI)
+    log = ProjectEventLog(result.project_root)
+    records = log.list_events()
+    assert [r.event.event_id for r in records] == [result.event.event_id]
+    assert [r.sequence for r in records] == [1]
+    assert records[0].event == result.event
+    # A state backend over the workspace root sees the same record.
+    backend = FilesystemStateBackend(result.project_root)
+    assert backend.list_ids("event") == [result.event.event_id]
+    stored = backend.read("event", result.event.event_id)
+    assert stored["event_id"] == result.event.event_id
+    assert stored["sequence"] == 1
+    # The log's sequence counter is initialized by the append.
+    assert (
+        result.project_root / "_event_log" / "sequence.json"
+    ).is_file()
 
 
 def test_init_works_without_lab_hpc_inventory(tmp_path: Path) -> None:
@@ -573,3 +602,28 @@ def test_init_errors_are_planning_value_errors() -> None:
     ):
         assert issubclass(exc_type, PlanningError)
         assert issubclass(exc_type, ValueError)
+
+
+def test_init_registry_records_are_visible_through_the_state_backend(
+    tmp_path: Path,
+) -> None:
+    """The AC-02 truth-source contract in the issue scenario.
+
+    A goal the planning registry writes to ``goals/<goal_id>.json`` must
+    be found and read by a ``FilesystemStateBackend`` over the workspace
+    root: a worker that reads Core state exclusively through the backend
+    sees exactly the records the registries write (one canonical layout,
+    ``SCHEMA_TO_STATE_DIR``).
+    """
+    result = _init(tmp_path / "project", DOI)
+    goal = register_goal(result.project_root, VALID_DOCS["goal"])
+    assert goal.goal_id == VALID_DOCS["goal"]["goal_id"]
+
+    # The registry wrote the canonical tree directory ...
+    path = result.project_root / GOALS_STATE_DIR / f"{goal.goal_id}.json"
+    assert path.is_file()
+    # ... and the backend over the workspace root reads that same record.
+    backend = FilesystemStateBackend(result.project_root)
+    assert backend.list_ids("goal") == [goal.goal_id]
+    stored = backend.read("goal", goal.goal_id)
+    assert stored == json.loads(path.read_text(encoding="utf-8"))

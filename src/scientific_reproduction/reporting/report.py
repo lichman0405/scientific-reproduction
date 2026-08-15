@@ -4,8 +4,9 @@ Implements the **report generator** deliverable of DEV-M13-G02: the
 human-readable markdown projection of the registered project state. The
 report assembles its content **from the real registered state through the
 real read APIs** -- the run store
-(``core.state_backend.FilesystemStateBackend`` under ``runs/``), the
-analysis result registry (``analysis.results.list_results``), the
+(``core.state_backend.FilesystemStateBackend`` over the workspace root,
+resolving the canonical ``runs/`` tree directory), the analysis result
+registry (``analysis.results.list_results``), the
 artifact manifest registry, the planning registries (project state,
 goals, requirements, inventory items, acceptance criteria, closure
 contracts) and the analysis protocol lineage
