@@ -4,6 +4,31 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added
+
+- **Deterministic final reproduction report renderer** (issue #107) —
+  `reporting.pdf_report.build_pdf_report` renders a review-ready PDF from
+  recorded project state only: executive summary with verdict callout and
+  the single most important number with its confidence interval vs the
+  frozen acceptance band, target paper identity and reproduction scope,
+  pipeline summary, per-requirement outcome tables with evidence trails
+  (analysis records, decisions, closure-contract status), governance
+  exercised (recovery ladder, recorded n-policy/margin statistical
+  designs, supervisor decisions, monitor reconciliations), the audit
+  trail (git state, frozen plan refs, checkpoint events, artifact
+  manifests with full SHA-256 checksums), explicit simulation/real-data
+  labeling, and a table of contents. Rendering is deterministic (no wall
+  clock, no network, byte-identical for identical state; `generated_at`
+  is injected) and stdlib-only (no dependencies at render time). The
+  shared `rendering` package — a stdlib-only deterministic PDF 1.4
+  writer (base-14 fonts, uncompressed greppable streams) — provides the
+  visual system. The report lands in `reports/reproduction-report.pdf`
+  with a canonical JSON sidecar `reports/reproduction-report.json`.
+- **Report-file registration** — the machine-auditable package
+  (`reporting.audit` v1.1) registers the files of the workspace
+  `reports/` directory with SHA-256 checksums and sizes, sorted by name,
+  so the report files are part of the audited state.
+
 ### Fixed
 
 - **Primary-target metadata registration** — a PDF target carried only its

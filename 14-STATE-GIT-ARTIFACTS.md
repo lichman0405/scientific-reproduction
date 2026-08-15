@@ -117,6 +117,15 @@ Report claim
  -> Source/Evidence as appropriate
 ```
 
+The final report itself (`reporting.pdf_report`) is rendered from
+recorded state only, with no wall clock, no network, and no agent prose:
+an injected `generated_at` stamps generation time, and identical state
+renders byte-identical PDF bytes. The written
+`reports/reproduction-report.pdf` and its canonical JSON sidecar
+(`reports/reproduction-report.json`) are registered in the
+machine-auditable package with SHA-256 checksums, so the report files
+are themselves part of the audited state.
+
 ## 8. Future backend interface
 
 Implement `StateBackend` interface from v0.1 even though only FilesystemStateBackend exists. Future options may include SQLite/PostgreSQL without changing agent governance logic.

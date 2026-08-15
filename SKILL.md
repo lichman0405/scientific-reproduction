@@ -89,8 +89,14 @@ expose them through a native slash-command mechanism where available.
 7. **Analyze independently** — analysis is separated from execution; apply
    the frozen statistics and acceptance governance
    (`07-STATISTICS-AND-ACCEPTANCE.md`).
-8. **Report** — produce a human-readable report and a machine-auditable
-   reproduction package with full traceability.
+8. **Report** — render the deterministic final report PDF
+   (`reporting.build_pdf_report`): executive summary with verdict callout
+   and the single most important number vs the frozen acceptance band,
+   target identity and scope counts, per-requirement outcomes with
+   evidence trails, governance exercised, and the audit trail with
+   checksums — plus the machine-auditable reproduction package with full
+   traceability. Both report files land in `reports/` and are registered
+   in the audit package with SHA-256 checksums.
 
 ## Frozen data to respect
 
