@@ -84,25 +84,29 @@ snapshots).
 Goal-contract registries (normative)
 ------------------------------------
 The goal-contract family (``GoalContract``, ``AcceptanceCriteria``,
-``AnalysisProtocolOrResult``, ``ClosureContract``) is authored through
-draft registrations before the plan freeze (``01-PRODUCT-REQUIREMENTS.md``
-SS5 step 7 precedes step 8): ``register_goal`` /
-``register_acceptance`` / ``register_analysis_protocol`` /
+``StatisticalDesign``, ``AnalysisProtocolOrResult``,
+``ClosureContract``) is authored through draft registrations before the
+plan freeze (``01-PRODUCT-REQUIREMENTS.md`` SS5 step 7 precedes step 8):
+``register_goal`` / ``register_acceptance`` /
+``register_statistical_design`` / ``register_analysis_protocol`` /
 ``register_closure_contract`` persist one schema-validated record per id
-into ``goals/``, ``acceptance/``, ``protocols/`` and ``closure/``. The
-first and third directories are declared in
-``templates/PROJECT-TREE.template.txt``; ``acceptance/`` and ``closure/``
-are created on demand by ``atomic_write`` -- normative reading: the tree
-template enumerates the init-time layout, and the per-object state-file
-convention (``14-STATE-GIT-ARTIFACTS.md`` SS3) applies to every record
-kind that has a schema (``schemas/acceptance-criteria.schema.yaml``,
+into ``goals/``, ``acceptance/``, ``designs/``, ``protocols/`` and
+``closure/``. The first and third directories are declared in
+``templates/PROJECT-TREE.template.txt``; ``acceptance/``, ``designs/``
+and ``closure/`` are created on demand by ``atomic_write`` -- normative
+reading: the tree template enumerates the init-time layout, and the
+per-object state-file convention (``14-STATE-GIT-ARTIFACTS.md`` SS3)
+applies to every record kind that has a schema
+(``schemas/acceptance-criteria.schema.yaml``,
+``schemas/statistical-design.schema.yaml``,
 ``schemas/closure-contract.schema.yaml``; the FDM-201 example ships
-``examples/fdm-201/acceptance.example.yaml``). The registries are
-immutable-functional like the M4-G02 registry: a record id can be
+``examples/fdm-201/acceptance.example.yaml`` and
+``examples/fdm-201/statistical-design.example.yaml``). The registries
+are immutable-functional like the M4-G02 registry: a record id can be
 registered exactly once (``DuplicateGoalError`` and siblings), drafts
 carry the draft version (``"v1-draft"``) with ``frozen`` False, and the
 freeze flow (``planning/freeze.py``) consumes them to produce the frozen
-Goal/Acceptance/Analysis/Closure contracts.
+Goal/Acceptance/StatisticalDesign/Analysis/Closure contracts.
 
 Pure deterministic functions, no randomness, no wall-clock, no LLM;
 ``TypeError`` at the public boundaries; errors of the registry path
@@ -128,6 +132,7 @@ from scientific_reproduction.core.models import (
     GoalContract,
     Plan,
     PlanStatus,
+    StatisticalDesign,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.audit import evaluate_completeness_audit
@@ -143,6 +148,7 @@ from scientific_reproduction.planning.inventory import load_inventory_registry
 __all__ = [
     "ACCEPTANCE_STATE_DIR",
     "CLOSURE_STATE_DIR",
+    "DESIGNS_STATE_DIR",
     "GOALS_STATE_DIR",
     "PLANS_STATE_DIR",
     "PROTOCOLS_STATE_DIR",
@@ -159,6 +165,7 @@ __all__ = [
     "DuplicateClosureContractError",
     "DuplicateGoalError",
     "DuplicatePlanVersionError",
+    "DuplicateStatisticalDesignError",
     "GoalFamilyError",
     "GoalInput",
     "GoalNotFoundError",
@@ -173,6 +180,8 @@ __all__ = [
     "PlanStatusDecision",
     "PlanStatusInput",
     "PlanStatusRule",
+    "StatisticalDesignInput",
+    "StatisticalDesignNotFoundError",
     "build_plan_v1",
     "formal_version",
     "is_draft_version",
@@ -182,6 +191,7 @@ __all__ = [
     "list_closure_contracts",
     "list_goals",
     "list_plans",
+    "list_statistical_designs",
     "next_version",
     "plan_lineage",
     "read_acceptance",
@@ -189,11 +199,13 @@ __all__ = [
     "read_closure_contract",
     "read_goal",
     "read_plan",
+    "read_statistical_design",
     "register_acceptance",
     "register_analysis_protocol",
     "register_closure_contract",
     "register_goal",
     "register_plan",
+    "register_statistical_design",
 ]
 
 # ---------------------------------------------------------------------------
@@ -257,6 +269,14 @@ class ClosureContractNotFoundError(GoalFamilyError, ValueError):
     """Raised when reading a closure contract id that is not registered."""
 
 
+class DuplicateStatisticalDesignError(GoalFamilyError, ValueError):
+    """Raised when a ``design_id`` is registered a second time."""
+
+
+class StatisticalDesignNotFoundError(GoalFamilyError, ValueError):
+    """Raised when reading a design id that is not registered."""
+
+
 class InvalidRecordIdError(GoalFamilyError, ValueError):
     """Raised when a goal-family id is not a safe registry path segment."""
 
@@ -285,6 +305,10 @@ PROTOCOLS_STATE_DIR: str = "protocols"
 #: (created on demand; see the module docstring for the normative reading).
 CLOSURE_STATE_DIR: str = "closure"
 
+#: Workspace directory holding the statistical design records
+#: (created on demand; see the module docstring for the normative reading).
+DESIGNS_STATE_DIR: str = "designs"
+
 #: Version of the plan-status (supersession) rule table. Bumped whenever a
 #: rule changes; recorded in every assessment so old decisions stay
 #: interpretable.
@@ -310,6 +334,9 @@ AnalysisInput: TypeAlias = AnalysisProtocolOrResult | Mapping[str, Any]
 
 #: A user-supplied closure contract record: the typed model or a dict.
 ClosureInput: TypeAlias = ClosureContract | Mapping[str, Any]
+
+#: A user-supplied statistical design record: the typed model or a dict.
+StatisticalDesignInput: TypeAlias = StatisticalDesign | Mapping[str, Any]
 
 _R = TypeVar("_R", bound=CoreModel)
 
@@ -925,6 +952,40 @@ def register_closure_contract(
     )
 
 
+def register_statistical_design(
+    root: str | Path, design: StatisticalDesignInput
+) -> StatisticalDesign:
+    """Register one statistical design draft at ``designs/<id>.json``.
+
+    Same registration contract as :func:`register_goal`
+    (``schemas/statistical-design.schema.yaml``; the first-class record
+    behind ``AcceptanceCriteria.statistical_design_ref`` --
+    07-STATISTICS-AND-ACCEPTANCE.md SS9 freezes the design BEFORE data
+    generation). Duplicate ids raise ``DuplicateStatisticalDesignError``.
+
+    Raises:
+        TypeError: ``root`` is not a str/Path, or ``design`` is neither a
+            ``StatisticalDesign`` nor a mapping.
+        ValueError: the record is schema-invalid or a required field is
+            missing.
+        InvalidRecordIdError: the ``design_id`` is not a safe single path
+            segment.
+        ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
+        DuplicateStatisticalDesignError: a design with the same id is
+            already registered (stable message).
+    """
+    return _register_goal_family_record(
+        root=root,
+        state_dir=DESIGNS_STATE_DIR,
+        schema_name="statistical-design",
+        kind_label="statistical design",
+        value=design,
+        record_type=StatisticalDesign,
+        duplicate_error=DuplicateStatisticalDesignError,
+        default_version=INITIAL_PLAN_VERSION,
+    )
+
+
 def read_goal(root: str | Path, goal_id: str) -> GoalContract:
     """Read one registered goal contract record as a typed model.
 
@@ -987,6 +1048,22 @@ def read_closure_contract(root: str | Path, closure_id: str) -> ClosureContract:
     return _read_goal_family_record(root, CLOSURE_STATE_DIR, "closure contract", closure_id, ClosureContract, ClosureContractNotFoundError)
 
 
+def read_statistical_design(root: str | Path, design_id: str) -> StatisticalDesign:
+    """Read one registered statistical design record as a typed model.
+
+    Raises:
+        TypeError: ``root`` is not a str/Path, or ``design_id`` is not a
+            str.
+        InvalidRecordIdError: ``design_id`` is not a safe single path
+            segment.
+        ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
+        StatisticalDesignNotFoundError: no record with that id is
+            registered.
+        ValueError: the stored record is corrupt.
+    """
+    return _read_goal_family_record(root, DESIGNS_STATE_DIR, "statistical design", design_id, StatisticalDesign, StatisticalDesignNotFoundError)
+
+
 def list_goals(root: str | Path) -> tuple[GoalContract, ...]:
     """List every registered goal contract, sorted by id (deterministic)."""
     return _list_goal_family_records(root, GOALS_STATE_DIR, "goal", GoalContract)
@@ -1005,6 +1082,11 @@ def list_analysis_protocols(root: str | Path) -> tuple[AnalysisProtocolOrResult,
 def list_closure_contracts(root: str | Path) -> tuple[ClosureContract, ...]:
     """List every registered closure contract, sorted by id (deterministic)."""
     return _list_goal_family_records(root, CLOSURE_STATE_DIR, "closure contract", ClosureContract)
+
+
+def list_statistical_designs(root: str | Path) -> tuple[StatisticalDesign, ...]:
+    """List every registered statistical design, sorted by id (deterministic)."""
+    return _list_goal_family_records(root, DESIGNS_STATE_DIR, "statistical design", StatisticalDesign)
 
 
 # ---------------------------------------------------------------------------
@@ -1127,6 +1209,8 @@ def _record_id(record_type: type[_R], record: CoreModel) -> str:
         return cast(AcceptanceCriteria, record).acceptance_id
     if issubclass(record_type, AnalysisProtocolOrResult):
         return cast(AnalysisProtocolOrResult, record).analysis_id
+    if issubclass(record_type, StatisticalDesign):
+        return cast(StatisticalDesign, record).design_id
     return cast(ClosureContract, record).closure_id
 
 
