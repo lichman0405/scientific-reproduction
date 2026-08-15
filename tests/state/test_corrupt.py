@@ -78,7 +78,7 @@ def test_truncated_json_raises_value_error_with_stable_message(tmp_path) -> None
 
 def test_malformed_json_raises_value_error(tmp_path) -> None:
     backend = FilesystemStateBackend(tmp_path / "state")
-    path = tmp_path / "state" / "run" / "RUN-1.json"
+    path = tmp_path / "state" / "runs" / "RUN-1.json"
     _write_raw(path, "{not json at all")
 
     with pytest.raises(ValueError, match="is corrupt"):
@@ -90,7 +90,7 @@ def test_invalid_utf8_raises_value_error(tmp_path) -> None:
     "is corrupt" ValueError (UnicodeDecodeError path).
     """
     backend = FilesystemStateBackend(tmp_path / "state")
-    path = tmp_path / "state" / "run" / "RUN-1.json"
+    path = tmp_path / "state" / "runs" / "RUN-1.json"
     _write_raw(path, b"\xff\xfe\x00\x01")
 
     with pytest.raises(ValueError) as exc_info:
@@ -112,7 +112,7 @@ def test_valid_json_non_object_raises_value_error(tmp_path, raw: str) -> None:
     documented message, pinned exactly.
     """
     backend = FilesystemStateBackend(tmp_path / "state")
-    path = tmp_path / "state" / "event" / "EV-1.json"
+    path = tmp_path / "state" / "events" / "EV-1.json"
     _write_raw(path, raw)
 
     with pytest.raises(ValueError) as exc_info:
@@ -136,7 +136,7 @@ def test_schema_violating_object_returned_as_is_without_repair(tmp_path) -> None
     backend = FilesystemStateBackend(tmp_path / "state")
     doc = copy.deepcopy(VALID_DOCS["run"])
     backend.write("run", doc["run_id"], doc)
-    path = tmp_path / "state" / "run" / f"{doc['run_id']}.json"
+    path = tmp_path / "state" / "runs" / f"{doc['run_id']}.json"
 
     # Out-of-band hand edit: bogus enum value plus an unknown key.
     tampered = copy.deepcopy(doc)
@@ -166,7 +166,7 @@ def test_schema_violating_object_is_visible_to_exists(tmp_path) -> None:
     backend = FilesystemStateBackend(tmp_path / "state")
     doc = copy.deepcopy(VALID_DOCS["run"])
     backend.write("run", doc["run_id"], doc)
-    path = tmp_path / "state" / "run" / f"{doc['run_id']}.json"
+    path = tmp_path / "state" / "runs" / f"{doc['run_id']}.json"
     path.write_text('{"run_id": "RUN-001", "bogus', encoding="utf-8")
 
     assert backend.exists("run", doc["run_id"])
@@ -185,7 +185,7 @@ def test_corrupt_record_is_deletable_for_operational_repair(tmp_path) -> None:
     anyone who tries to read it.
     """
     backend = FilesystemStateBackend(tmp_path / "state")
-    path = tmp_path / "state" / "event" / "EV-CORRUPT.json"
+    path = tmp_path / "state" / "events" / "EV-CORRUPT.json"
     _write_raw(path, '{"event_id": "EV-CORRUPT", "ti')
 
     with pytest.raises(ValueError, match="is corrupt"):
@@ -209,7 +209,7 @@ def test_list_ids_reports_corrupt_records_but_ignores_stray_non_json_files(
     backend = FilesystemStateBackend(tmp_path / "state")
     doc = copy.deepcopy(VALID_DOCS["event"])
     backend.write("event", doc["event_id"], doc)
-    type_dir = tmp_path / "state" / "event"
+    type_dir = tmp_path / "state" / "events"
     (type_dir / "EV-CORRUPT.json").write_text('{"broken', encoding="utf-8")
     (type_dir / "notes.txt").write_text("not an object", encoding="utf-8")
     (type_dir / ".stale.tmp").write_text('{"truncat', encoding="utf-8")
@@ -232,7 +232,7 @@ def test_read_of_directory_at_object_path_raises_deterministic_error(tmp_path) -
     FileNotFoundError or a platform-dependent OSError.
     """
     backend = FilesystemStateBackend(tmp_path / "state")
-    dir_path = tmp_path / "state" / "run" / "RUN-DIR.json"
+    dir_path = tmp_path / "state" / "runs" / "RUN-DIR.json"
     dir_path.mkdir(parents=True)
 
     with pytest.raises(ValueError, match="not a regular file"):
@@ -248,7 +248,7 @@ def test_delete_of_directory_at_object_path_raises_deterministic_error(
     so behavior is identical everywhere.
     """
     backend = FilesystemStateBackend(tmp_path / "state")
-    dir_path = tmp_path / "state" / "run" / "RUN-DIR.json"
+    dir_path = tmp_path / "state" / "runs" / "RUN-DIR.json"
     dir_path.mkdir(parents=True)
 
     with pytest.raises(ValueError, match="not a regular file"):
@@ -262,7 +262,7 @@ def test_exists_is_false_for_directory_at_object_path(tmp_path) -> None:
     definition of a persisted object.
     """
     backend = FilesystemStateBackend(tmp_path / "state")
-    (tmp_path / "state" / "run" / "RUN-DIR.json").mkdir(parents=True)
+    (tmp_path / "state" / "runs" / "RUN-DIR.json").mkdir(parents=True)
 
     assert not backend.exists("run", "RUN-DIR")
     with pytest.raises(ValueError, match="not a regular file"):

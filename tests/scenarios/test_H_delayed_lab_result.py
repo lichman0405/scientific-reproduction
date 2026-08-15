@@ -128,15 +128,13 @@ class ExperimentWorker:
         self,
         handoff: Path,
         monitor_state: Path,
-        runs_dir: Path,
-        events_dir: Path,
+        root: Path,
         *,
         clock: FakeClock,
     ) -> None:
         self._handoff = handoff
         self._monitor_state = monitor_state
-        self._runs_dir = runs_dir
-        self._events_dir = events_dir
+        self._root = root
         self._clock = clock
 
     def dispatch_and_exit(self) -> DispatchRecord:
@@ -164,7 +162,7 @@ class ExperimentWorker:
             procedure=[{"step": 1, "action": "weigh the precursor"}],
             required_return=list(REQUIRED_RETURN),
         )
-        run_store = FilesystemStateBackend(self._runs_dir)
+        run_store = FilesystemStateBackend(self._root)
         run = Run(
             run_id=RUN_ID,
             goal_id=GOAL_ID,
@@ -306,7 +304,7 @@ def tree_bytes(root: Path) -> bytes:
 
 
 def run_record_bytes(runs_dir: Path) -> bytes:
-    return (runs_dir / "run" / f"{RUN_ID}.json").read_bytes()
+    return (runs_dir / f"{RUN_ID}.json").read_bytes()
 
 
 def trigger_files(monitor_state: Path) -> list[Path]:
@@ -316,7 +314,7 @@ def trigger_files(monitor_state: Path) -> list[Path]:
 
 
 def event_files(events_dir: Path) -> list[Path]:
-    return sorted((events_dir / "event").glob("*.json"), key=lambda p: p.name)
+    return sorted(events_dir.glob("*.json"), key=lambda p: p.name)
 
 
 def completion_event_id() -> str:
@@ -360,14 +358,11 @@ def execute_scenario_h(root: Path) -> ScenarioHResult:
     handoff = root / "lab"
     monitor_state = root / "monitor"
     runs_dir = root / "runs"
-    events_dir = root / "events"
     requests_dir = root / "requests"
     clock = FakeClock()
 
     # step 1: the worker dispatches and exits -- never referenced again
-    worker = ExperimentWorker(
-        handoff, monitor_state, runs_dir, events_dir, clock=clock
-    )
+    worker = ExperimentWorker(handoff, monitor_state, root, clock=clock)
     dispatch = worker.dispatch_and_exit()
     del worker
     run_bytes_before = run_record_bytes(runs_dir)
@@ -383,11 +378,11 @@ def execute_scenario_h(root: Path) -> ScenarioHResult:
         now=clock,
         monitor_id=MONITOR_ID,
         probe=probe,
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
     reconcile_outcome = engine.reconcile(RUN_ID)
-    run_store = FilesystemStateBackend(runs_dir)
+    run_store = FilesystemStateBackend(root)
     run = Run.from_dict(run_store.read("run", RUN_ID))
     followup = AnalysisFollowupPlumbing(requests_dir)
     triggers = TriggerRegistry(
@@ -430,9 +425,7 @@ def test_H_worker_dispatches_and_exits_leaving_durable_artifacts(
     runs_dir = root / "runs"
     clock = FakeClock()
 
-    worker = ExperimentWorker(
-        handoff, monitor_state, runs_dir, root / "events", clock=clock
-    )
+    worker = ExperimentWorker(handoff, monitor_state, root, clock=clock)
     worker.dispatch_and_exit()
     del worker  # the worker session is gone before the result returns
 
@@ -477,12 +470,11 @@ def test_H_ac02_before_result_no_detection_no_trigger(tmp_path: Path) -> None:
     root = tmp_path / "scenario-h"
     handoff = root / "lab"
     monitor_state = root / "monitor"
-    runs_dir = root / "runs"
     events_dir = root / "events"
     requests_dir = root / "requests"
     clock = FakeClock()
 
-    ExperimentWorker(handoff, monitor_state, runs_dir, events_dir, clock=clock).dispatch_and_exit()
+    ExperimentWorker(handoff, monitor_state, root, clock=clock).dispatch_and_exit()
     assert not (handoff / "incoming" / RUN_ID / "result-manifest.json").exists()
 
     adapter = FilesystemLabAdapter(handoff)
@@ -492,14 +484,14 @@ def test_H_ac02_before_result_no_detection_no_trigger(tmp_path: Path) -> None:
         now=clock,
         monitor_id=MONITOR_ID,
         probe=probe,
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
     outcome = engine.reconcile(RUN_ID)
     assert not outcome.completed
     assert outcome.observed_state == EXTERNAL_STATE_RUNNING
 
-    run = Run.from_dict(FilesystemStateBackend(runs_dir).read("run", RUN_ID))
+    run = Run.from_dict(FilesystemStateBackend(root).read("run", RUN_ID))
     assert run.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
 
     followup = AnalysisFollowupPlumbing(requests_dir)
@@ -628,14 +620,10 @@ def test_H_ac03_worker_process_gone_before_result_returns(tmp_path: Path) -> Non
     root = tmp_path / "scenario-h"
     handoff = root / "lab"
     monitor_state = root / "monitor"
-    runs_dir = root / "runs"
-    events_dir = root / "events"
     requests_dir = root / "requests"
     clock = FakeClock()
 
-    worker = ExperimentWorker(
-        handoff, monitor_state, runs_dir, events_dir, clock=clock
-    )
+    worker = ExperimentWorker(handoff, monitor_state, root, clock=clock)
     dispatch = worker.dispatch_and_exit()
     del worker  # the worker session ends before the result returns
 
@@ -650,11 +638,11 @@ def test_H_ac03_worker_process_gone_before_result_returns(tmp_path: Path) -> Non
         now=clock,
         monitor_id=MONITOR_ID,
         probe=probe,
-        run_store=FilesystemStateBackend(runs_dir),
-        event_log=ProjectEventLog(events_dir),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
     assert engine.reconcile(RUN_ID).completed
-    run = Run.from_dict(FilesystemStateBackend(runs_dir).read("run", RUN_ID))
+    run = Run.from_dict(FilesystemStateBackend(root).read("run", RUN_ID))
     assert run.lifecycle_state is LifecycleState.RESULT_AVAILABLE
     assert run.worker_session_ref == WORKER_SESSION  # stale, never used
     collected = FilesystemLabAdapter(handoff).collect(DISPATCH_ID)
@@ -695,8 +683,8 @@ def test_H_ac02_completion_event_recorded_exactly_once(tmp_path: Path) -> None:
         now=clock,
         monitor_id=MONITOR_ID,
         probe=LabAdapterProbe(FilesystemLabAdapter(root / "lab")),
-        run_store=FilesystemStateBackend(root / "runs"),
-        event_log=ProjectEventLog(root / "events"),
+        run_store=FilesystemStateBackend(root),
+        event_log=ProjectEventLog(root),
     )
     again = engine.reconcile(RUN_ID)
     assert not again.completed

@@ -19,6 +19,11 @@ Covers:
     record without replacing it (AC-01), malformed or contradictory DOIs
     are rejected, identical re-registration is a no-op, and the update is
     schema-validated and atomic;
+  * the init guardrails -- a non-empty root is refused with
+    ``NonEmptyRootError`` unless ``allow_non_empty_root=True`` (API) or
+    ``--allow-non-empty-root`` (CLI) is passed, and the starter
+    ``.gitignore``/``.gitattributes`` are written and recorded in the
+    initial audit commit;
   * the /reproduce CLI ``init`` subcommand (exit codes, stable output).
 
 Every test name contains "init" so the goal verification command
@@ -35,8 +40,9 @@ from pathlib import Path
 import pytest
 from init_helpers import IDENTITY, TIMESTAMP, TIMESTAMP_ISO
 
-from scientific_reproduction.audit.git import count_commits, current_head
+from scientific_reproduction.audit.git import count_commits, current_head, read_file_at
 from scientific_reproduction.cli.reproduce import main as cli_main
+from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     PrimaryTarget,
@@ -45,13 +51,19 @@ from scientific_reproduction.core.models import (
     TargetSourceType,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
+from scientific_reproduction.core.state_backend import FilesystemStateBackend
 from scientific_reproduction.planning.init import (
     DEFAULT_DOMAIN_PACK,
+    GITATTRIBUTES_FILENAME,
+    GITIGNORE_FILENAME,
     INIT_DIRECTORIES,
     INIT_EVENT_ACTOR,
     INIT_EVENT_TYPE,
     INITIAL_PLAN_VERSION,
     PROJECT_STATE_FILENAME,
+    STARTER_GITATTRIBUTES,
+    STARTER_GITIGNORE,
+    NonEmptyRootError,
     PlanningError,
     ProjectAlreadyInitializedError,
     ProjectInitResult,
@@ -65,6 +77,8 @@ from scientific_reproduction.planning.init import (
     register_primary_target,
     register_target_metadata,
 )
+from scientific_reproduction.planning.plan import GOALS_STATE_DIR, register_goal
+from tests.core.fixtures import VALID_DOCS
 
 DOI = "10.1039/D5TA00771B"
 URL = "https://doi.org/10.1039/D5TA00771B"
@@ -181,6 +195,60 @@ def test_init_rejects_primary_registration_before_initialization(
     assert "initialize the project first" in str(excinfo.value)
 
 
+def test_init_refuses_non_empty_root(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "unrelated.txt").write_text("keep me", encoding="utf-8")
+    with pytest.raises(NonEmptyRootError) as excinfo:
+        _init(root, DOI)
+    message = str(excinfo.value)
+    assert "not empty" in message
+    assert "allow_non_empty_root=True" in message
+    # Hidden entries count too: a root holding only a stray file is
+    # refused, never silently initialized around.
+    hidden = tmp_path / "hidden"
+    hidden.mkdir()
+    (hidden / ".DS_Store").write_text("junk", encoding="utf-8")
+    with pytest.raises(NonEmptyRootError, match="not empty"):
+        _init(hidden, DOI)
+    # Nothing was created in the refused root: no state, no git repo, no
+    # workspace directories, and the unrelated content is untouched.
+    assert not (root / PROJECT_STATE_FILENAME).is_file()
+    assert not (root / ".git").is_dir()
+    assert not (root / "sources").is_dir()
+    assert (root / "unrelated.txt").read_text(encoding="utf-8") == "keep me"
+
+
+def test_init_allows_non_empty_root_with_flag(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "unrelated.txt").write_text("keep me", encoding="utf-8")
+    result = _init(root, DOI, allow_non_empty_root=True)
+    # The unrelated content survives, and the initial audit commit
+    # records only the initialization payload, never the stray file.
+    assert (root / "unrelated.txt").read_text(encoding="utf-8") == "keep me"
+    assert _state_dict(root)["primary_target"]["identifier"] == DOI
+    assert count_commits(result.project_root) == 1
+    process = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "--name-only", "HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=True,
+    )
+    assert "unrelated.txt" not in process.stdout
+
+
+def test_init_accepts_existing_empty_root(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    result = _init(root, DOI)
+    assert result.project_root == root.resolve()
+    assert _state_dict(root)["primary_target"]["identifier"] == DOI
+    assert count_commits(result.project_root) == 1
+
+
 # ---------------------------------------------------------------------------
 # AC-02: Git/state structures with zero lab/HPC inventory, offline
 # ---------------------------------------------------------------------------
@@ -193,6 +261,29 @@ def test_init_creates_project_directories(tmp_path: Path) -> None:
     # Nested lab handoff directories exist (PROJECT-TREE template).
     assert (result.project_root / "lab" / "outgoing").is_dir()
     assert (result.project_root / "lab" / "incoming").is_dir()
+
+
+def test_init_writes_starter_gitignore_and_gitattributes(tmp_path: Path) -> None:
+    result = _init(tmp_path / "project", DOI)
+    root = result.project_root
+    # The starter files exist with exactly the shipped content...
+    gitignore = root / GITIGNORE_FILENAME
+    gitattributes = root / GITATTRIBUTES_FILENAME
+    assert gitignore.read_text(encoding="utf-8") == STARTER_GITIGNORE
+    assert gitattributes.read_text(encoding="utf-8") == STARTER_GITATTRIBUTES
+    # ...and cover the hazards of the issue: the nested-repo gitlink risk
+    # (documented; the directory itself must be ignored), large raw
+    # artifacts per ADR 38, and LF normalization.
+    assert "gitlink" in STARTER_GITIGNORE
+    assert "*.h5" in STARTER_GITIGNORE
+    assert "*.zip" in STARTER_GITIGNORE
+    assert "* text=auto eol=lf" in STARTER_GITATTRIBUTES
+    assert "*.pdf binary" in STARTER_GITATTRIBUTES
+    # Both files are recorded in the initial audit commit (git show, not
+    # working copy), so .gitattributes is effective immediately and the
+    # initial tree is complete.
+    assert read_file_at(root, GITIGNORE_FILENAME) == STARTER_GITIGNORE
+    assert read_file_at(root, GITATTRIBUTES_FILENAME) == STARTER_GITATTRIBUTES
 
 
 def test_init_initializes_git_repository(tmp_path: Path) -> None:
@@ -267,9 +358,34 @@ def test_init_writes_project_initialized_event(tmp_path: Path) -> None:
         "object_id": result.project.project_id,
         "to": "INITIALIZING",
         "payload": {},
+        # The init event is a first-class log record (sequence 1).
+        "sequence": 1,
     }
     # The event is schema-valid (persistence gate).
     validate_and_reject("event", event)
+
+
+def test_init_event_is_a_first_class_log_record(tmp_path: Path) -> None:
+    """The init event lands in the canonical events/ tree directory and is
+    readable as a ``ProjectEventLog`` record over the workspace root --
+    the same directory the state backend resolves for obj_type "event".
+    """
+    result = _init(tmp_path / "project", DOI)
+    log = ProjectEventLog(result.project_root)
+    records = log.list_events()
+    assert [r.event.event_id for r in records] == [result.event.event_id]
+    assert [r.sequence for r in records] == [1]
+    assert records[0].event == result.event
+    # A state backend over the workspace root sees the same record.
+    backend = FilesystemStateBackend(result.project_root)
+    assert backend.list_ids("event") == [result.event.event_id]
+    stored = backend.read("event", result.event.event_id)
+    assert stored["event_id"] == result.event.event_id
+    assert stored["sequence"] == 1
+    # The log's sequence counter is initialized by the append.
+    assert (
+        result.project_root / "_event_log" / "sequence.json"
+    ).is_file()
 
 
 def test_init_works_without_lab_hpc_inventory(tmp_path: Path) -> None:
@@ -296,6 +412,13 @@ def test_init_state_contents_are_deterministic(tmp_path: Path) -> None:
     second_event = _event_dict(second.project_root, second.project.project_id)
     assert (first.project_root / "events" / f"{first_event['event_id']}.json").read_bytes() == (
         second.project_root / "events" / f"{second_event['event_id']}.json"
+    ).read_bytes()
+    # The starter guardrail files are byte-identical too.
+    assert (first.project_root / GITIGNORE_FILENAME).read_bytes() == (
+        second.project_root / GITIGNORE_FILENAME
+    ).read_bytes()
+    assert (first.project_root / GITATTRIBUTES_FILENAME).read_bytes() == (
+        second.project_root / GITATTRIBUTES_FILENAME
     ).read_bytes()
     assert first.project.project_id == second.project.project_id
     assert first.commit.commit_sha == second.commit.commit_sha
@@ -601,6 +724,10 @@ def test_init_wrong_types_raise_type_error(tmp_path: Path) -> None:
     with pytest.raises(TypeError):
         initialize_project(root, DOI, identity="Audit Bot")  # type: ignore[arg-type]
     with pytest.raises(TypeError):
+        initialize_project(
+            root, DOI, allow_non_empty_root=1  # type: ignore[arg-type]
+        )
+    with pytest.raises(TypeError):
         parse_target_form(42)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         register_primary_target(root, DOI, timestamp=7)  # type: ignore[arg-type]
@@ -700,6 +827,40 @@ def test_init_cli_rejects_second_initialization(
     assert "already initialized" in captured.err
 
 
+def test_init_cli_refuses_non_empty_root(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "unrelated.txt").write_text("keep me", encoding="utf-8")
+    code = cli_main(["init", DOI, "--root", str(root)])
+    captured = capsys.readouterr()
+    assert code == 1
+    assert captured.err.startswith("error: ")
+    assert "not empty" in captured.err
+    assert not (root / PROJECT_STATE_FILENAME).is_file()
+    assert (root / "unrelated.txt").read_text(encoding="utf-8") == "keep me"
+
+
+def test_init_cli_allow_non_empty_root_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "unrelated.txt").write_text("keep me", encoding="utf-8")
+    code = cli_main(
+        ["init", DOI, "--root", str(root), "--allow-non-empty-root"]
+    )
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "error" not in captured.err
+    assert "initialized project" in captured.out
+    assert _state_dict(root)["primary_target"]["identifier"] == DOI
+    # The starter guardrail files are part of the initialized workspace.
+    assert (root / GITIGNORE_FILENAME).is_file()
+    assert (root / GITATTRIBUTES_FILENAME).is_file()
+
+
 def test_init_cli_rejects_naive_timestamp(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -744,6 +905,32 @@ def test_init_errors_are_planning_value_errors() -> None:
         ProjectAlreadyInitializedError,
         ProjectNotInitializedError,
         TargetAlreadyRegisteredError,
+        NonEmptyRootError,
     ):
         assert issubclass(exc_type, PlanningError)
         assert issubclass(exc_type, ValueError)
+
+
+def test_init_registry_records_are_visible_through_the_state_backend(
+    tmp_path: Path,
+) -> None:
+    """The AC-02 truth-source contract in the issue scenario.
+
+    A goal the planning registry writes to ``goals/<goal_id>.json`` must
+    be found and read by a ``FilesystemStateBackend`` over the workspace
+    root: a worker that reads Core state exclusively through the backend
+    sees exactly the records the registries write (one canonical layout,
+    ``SCHEMA_TO_STATE_DIR``).
+    """
+    result = _init(tmp_path / "project", DOI)
+    goal = register_goal(result.project_root, VALID_DOCS["goal"])
+    assert goal.goal_id == VALID_DOCS["goal"]["goal_id"]
+
+    # The registry wrote the canonical tree directory ...
+    path = result.project_root / GOALS_STATE_DIR / f"{goal.goal_id}.json"
+    assert path.is_file()
+    # ... and the backend over the workspace root reads that same record.
+    backend = FilesystemStateBackend(result.project_root)
+    assert backend.list_ids("goal") == [goal.goal_id]
+    stored = backend.read("goal", goal.goal_id)
+    assert stored == json.loads(path.read_text(encoding="utf-8"))

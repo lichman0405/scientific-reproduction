@@ -250,7 +250,7 @@ def make_dispatcher(
 def event_records(events_dir: Path) -> list[dict[str, object]]:
     """The raw persisted event records (sorted, read from disk)."""
     records: list[dict[str, object]] = []
-    for path in sorted((events_dir / "event").glob("*.json")):
+    for path in sorted((events_dir / "events").glob("*.json")):
         records.append(json.loads(path.read_text(encoding="utf-8")))
     return records
 
@@ -311,7 +311,7 @@ def test_ac01_whitelisted_transport_failure_triggers_identical_resubmission(
     )
     watch_all(dispatcher, (make_watch_record(1, external=run.external),))
     write_run(dispatcher.run_store, run)
-    run_file_before = (runs_dir / "run" / f"{run.run_id}.json").read_bytes()
+    run_file_before = (runs_dir / "runs" / f"{run.run_id}.json").read_bytes()
 
     outcome = dispatcher.decide(run.run_id, FAILURE_CLASS_TRANSPORT)
 
@@ -366,7 +366,7 @@ def test_ac01_whitelisted_transport_failure_triggers_identical_resubmission(
 
     # The identical resubmission: the run record -- parameters and
     # lifecycle -- is byte-identical (no parameter mutation, ever).
-    assert (runs_dir / "run" / f"{run.run_id}.json").read_bytes() == (
+    assert (runs_dir / "runs" / f"{run.run_id}.json").read_bytes() == (
         run_file_before
     )
     persisted = Run.from_dict(dispatcher.run_store.read("run", run.run_id))
@@ -437,7 +437,7 @@ def test_ac02_scientific_compute_failure_never_resubmits_or_mutates(
     )
     watch_all(dispatcher, (make_watch_record(1, external=run.external),))
     write_run(dispatcher.run_store, run)
-    run_file_before = (runs_dir / "run" / f"{run.run_id}.json").read_bytes()
+    run_file_before = (runs_dir / "runs" / f"{run.run_id}.json").read_bytes()
 
     outcome = dispatcher.decide(run.run_id, FAILURE_CLASS_JOB)
 
@@ -459,7 +459,7 @@ def test_ac02_scientific_compute_failure_never_resubmits_or_mutates(
     assert persisted.goal_id == run.goal_id
     assert persisted.run_type is run.run_type
     assert persisted.external == run.external
-    assert (runs_dir / "run" / f"{run.run_id}.json").read_bytes() == (
+    assert (runs_dir / "runs" / f"{run.run_id}.json").read_bytes() == (
         run_file_before
     )
 
@@ -792,7 +792,7 @@ def test_ac03_every_decision_is_auditable_in_the_event_log(
     # for identical inputs).
     raw = event_records(events_dir)
     assert len(raw) == 3
-    for path in sorted((events_dir / "event").glob("*.json")):
+    for path in sorted((events_dir / "events").glob("*.json")):
         parsed = json.loads(path.read_text(encoding="utf-8"))
         assert path.read_text(encoding="utf-8") == json.dumps(
             parsed, indent=2, sort_keys=True, ensure_ascii=False
@@ -862,7 +862,7 @@ def test_retry_corrupt_run_record_raises_corrupt_state_error(
     run = make_run(1)
     dispatcher = make_dispatcher(state, runs_dir, events_dir)
     watch_all(dispatcher, (make_watch_record(1, external=run.external),))
-    path = runs_dir / "run" / f"{run.run_id}.json"
+    path = runs_dir / "runs" / f"{run.run_id}.json"
     path.parent.mkdir(parents=True)
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(CorruptRetryStateError):
@@ -1000,7 +1000,7 @@ def test_retry_corrupt_recorded_decision_raises_corrupt_state_error(
         },
         "sequence": 1,
     }
-    path = events_dir / "event" / f"{event_id}.json"
+    path = events_dir / "events" / f"{event_id}.json"
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(bad_record, sort_keys=True), encoding="utf-8")
 

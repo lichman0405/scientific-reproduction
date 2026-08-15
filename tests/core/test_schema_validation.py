@@ -45,7 +45,7 @@ def test_model_serialization_remains_schema_valid(obj_type: str) -> None:
 
 
 def test_example_documents_from_fdm201_validate() -> None:
-    # The seven frozen reference-case example files are valid fixtures.
+    # The eight frozen reference-case example files are valid fixtures.
     for obj_type in [
         "project",
         "goal",
@@ -53,6 +53,7 @@ def test_example_documents_from_fdm201_validate() -> None:
         "assumption",
         "inventory-item",
         "acceptance-criteria",
+        "statistical-design",
         "research-request",
     ]:
         assert validate_object(obj_type, VALID_DOCS[obj_type]) == []
@@ -166,6 +167,22 @@ INVALID_CASES: dict[str, tuple[str, dict, str]] = {
         {"run_id": "R1", "goal_id": "G1", "goal_version": "v1",
          "run_type": 42, "lifecycle_state": "CREATED"},
         "run_type",
+    ),
+    "min_items_metrics_empty": (
+        "statistical-design",
+        {"design_id": "SD1", "goal_id": "G1", "version": "v1", "frozen": False,
+         "metrics": [],
+         "replication": {"independent_required": True, "planned_n_policy": "p"},
+         "primary_method": "equivalence_test"},
+        "metrics",
+    ),
+    "alpha_out_of_range": (
+        "statistical-design",
+        {"design_id": "SD1", "goal_id": "G1", "version": "v1", "frozen": False,
+         "metrics": ["uptake"], "alpha": 1.5,
+         "replication": {"independent_required": True, "planned_n_policy": "p"},
+         "primary_method": "equivalence_test"},
+        "alpha",
     ),
 }
 

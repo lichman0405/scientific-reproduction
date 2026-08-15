@@ -19,7 +19,8 @@ Invocation
 ``python -m scientific_reproduction.cli.reproduce init <target> [options]``
 
 Exit codes: 0 on success; 1 for deterministic errors (malformed target,
-already-initialized root, invalid timestamp); 2 for argument-parsing errors.
+already-initialized or non-empty root, invalid timestamp); 2 for
+argument-parsing errors.
 """
 
 from __future__ import annotations
@@ -99,6 +100,16 @@ def build_parser() -> argparse.ArgumentParser:
             " (default: now-UTC)"
         ),
     )
+    init.add_argument(
+        "--allow-non-empty-root",
+        dest="allow_non_empty_root",
+        action="store_true",
+        help=(
+            "allow initializing into a non-empty root directory (default:"
+            " refuse; unrelated content would be dragged into the"
+            " scientific audit history)"
+        ),
+    )
     return parser
 
 
@@ -129,6 +140,7 @@ def _run_init(args: argparse.Namespace) -> int:
             domain_pack=args.domain_pack,
             timestamp=timestamp,
             identity=identity,
+            allow_non_empty_root=args.allow_non_empty_root,
         )
     except PlanningError as exc:
         print(f"error: {exc}", file=sys.stderr)

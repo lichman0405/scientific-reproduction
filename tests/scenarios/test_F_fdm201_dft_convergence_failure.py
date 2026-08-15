@@ -572,8 +572,10 @@ def test_F_failure_reported_never_silent_retry(tmp_path):
     assert worker_results[0].deviations[0].kind is DeviationType.FAILURE
     runs_dir = root / "runs"
     assert list(runs_dir.glob("*.json")) == []
-    assert (root / "resources").is_dir()  # retry policies would live here
-    assert list((root / "resources").glob("*retry*")) == []
+    # Retry policies live in the canonical ``retry-policies/`` tree
+    # directory (SCHEMA_TO_STATE_DIR); none were written -- the worker
+    # layer reports, it never silently retries.
+    assert not (root / "retry-policies").exists()
     # The analysis/worker modules expose no retry/resubmit callable.
     for module in (workers_results_module, results_module, computational_module):
         for name in dir(module):

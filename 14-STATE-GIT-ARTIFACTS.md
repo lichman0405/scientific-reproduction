@@ -16,11 +16,16 @@ Required properties:
 - append-only event records;
 - deterministic IDs;
 - state validation against schemas;
-- safe recovery after partial process failure.
+- safe recovery after partial process failure;
+- one canonical per-type tree directory per schema name
+  (``SCHEMA_TO_STATE_DIR`` in ``core/state_backend.py``): the state
+  backend, the event log and the planning registries resolve the same
+  directories (``goals/``, ``runs/``, ``events/`` ...), so a reader of
+  Core state never misses records a registry wrote.
 
 ## 3. Avoid a monolithic state file
 
-Preferred:
+Canonical layout (per-type plural tree directories):
 
 ```text
 goals/GOAL-....yaml
@@ -30,6 +35,16 @@ decisions/DEC-....yaml
 events/EVT-....json
 locks/<object>.lock
 ```
+
+``FilesystemStateBackend`` and ``ProjectEventLog`` persist one JSON
+object per id under ``base_dir/<tree_dir>/<object_id>.json``, where
+``<tree_dir>`` is the canonical tree directory for the schema name
+(``core.state_backend.SCHEMA_TO_STATE_DIR``); the planning registries'
+``*_STATE_DIR`` constants (``planning.plan.GOALS_STATE_DIR`` etc.) are
+the same strings, and the tree template
+(``templates/PROJECT-TREE.template.txt`` / ``planning.init.INIT_DIRECTORIES``)
+holds the same directories. ``project`` is the exception: the single
+canonical Project record is ``project.yaml`` at the workspace root.
 
 This reduces write contention.
 
@@ -66,6 +81,12 @@ Commit examples:
 - Requirement closed;
 - Requirement outcome updated;
 - project final outcome.
+
+Every workspace is initialized with a starter `.gitignore` (nested
+repositories, large raw artifacts per ADR 38, OS/editor noise) and
+`.gitattributes` (LF normalization), recorded in the "project
+initialized" commit, so the audit history never drags in unrelated or
+raw content and commits are identical on any platform.
 
 ## 6. Artifact Store
 

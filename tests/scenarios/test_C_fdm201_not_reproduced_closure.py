@@ -579,9 +579,9 @@ class BatchExecutor:
         self._goal_id = goal_id
         self._clock = clock
         self._adapter = FilesystemLabAdapter(root / "lab")
-        self._runs = FilesystemStateBackend(root / "runs")
+        self._runs = FilesystemStateBackend(root)
         self._manifests = ArtifactRegistry(root / ARTIFACTS_STATE_DIR)
-        self._log = ProjectEventLog(root / "events")
+        self._log = ProjectEventLog(root)
 
     def execute(
         self,
@@ -859,7 +859,7 @@ def execute_scenario_c(root: Path) -> ScenarioCResult:
     """Execute scenario C end to end and return the full evidence trail."""
     clock = FakeClock()
     project_id = init_project(root)
-    log = ProjectEventLog(root / "events")
+    log = ProjectEventLog(root)
     _register_planning(root, log)
 
     # -- strict-track execution: statistically sufficient failure, valid QC -
@@ -1287,7 +1287,7 @@ def tree_bytes(root: Path) -> bytes:
 def event_records(root: Path) -> list[Path]:
     """The persisted scenario event files, in sequence-file name order."""
     return sorted(
-        (root / "events" / "event").glob("*.json"), key=lambda p: p.name
+        (root / "events").glob("*.json"), key=lambda p: p.name
     )
 
 
@@ -1341,7 +1341,7 @@ def test_C_ac03_all_eligible_hypotheses_tested_or_ruled_out(tmp_path: Path) -> N
     assert result.cycle_novelty == [1, 1, 1, 0, 0]
     assert result.recovery_verdict.verdict is EquivalenceVerdict.NOT_EQUIVALENT
     assert result.recovery_verdict.matched_rule_id == "R-EQ-2"
-    store = FilesystemStateBackend(root / "runs")
+    store = FilesystemStateBackend(root)
     for run_id, hypothesis_id in zip(
         RECOVERY_RUN_IDS, HYPOTHESIS_IDS, strict=True
     ):
