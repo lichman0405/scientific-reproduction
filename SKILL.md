@@ -37,6 +37,11 @@ in `20-ARCHITECTURE-DECISIONS.md`, and the role definitions in
   project-persistent evidence service; the Execution Monitor owns recovery.
 - Freeze acceptance criteria and primary analysis protocols before execution.
 - Assess every piece of evidence as Source × Claim — never one global score.
+- Role boundaries are enforced at the platform tool level too: the role
+  agents in `.claude/agents/` carry per-role `tools:` allowlists, so only
+  the Supervisor holds direct file-mutation and worker-dispatch tools;
+  other roles' state writes flow through the runtime CLI, which enforces
+  the role-action matrix.
 
 ## Runtime operations
 

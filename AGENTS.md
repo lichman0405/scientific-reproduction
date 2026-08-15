@@ -38,7 +38,11 @@ Use Codex sub-agents (or sequential sessions with explicit role context) to
 enact these roles. When Codex cannot spawn independent sessions, run the
 roles sequentially in one session but keep the separation of duties: record
 which role produced which record, and never let worker output substitute for
-Supervisor adjudication.
+Supervisor adjudication. On Claude Code the role agents additionally
+enforce these boundaries at the platform tool level: each `.claude/agents/`
+definition carries a per-role `tools:` allowlist, so only the Supervisor
+holds direct file-mutation and worker-dispatch tools; other roles' state
+writes flow through the runtime CLI, which enforces the role-action matrix.
 
 ## Workflow
 
