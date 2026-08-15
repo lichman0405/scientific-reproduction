@@ -33,6 +33,21 @@ is a pure function of the execution package identity
 (``core.ids.generate_id``), so the same package always dispatches to
 the same id. Errors follow the ``ValueError``-subclass convention with
 stable messages; ``TypeError`` at the public boundaries.
+
+Run-record linkage (ownership)
+------------------------------
+The adapter performs the handoff **only** and never touches the Run
+record (``run.external.*``, lifecycle state) -- it has no knowledge of
+the project's run store. The **dispatching orchestrator** (the
+Experiment Worker of ``10-EXPERIMENT-SUBSYSTEM.md`` SS1) owns the
+linkage and must perform it immediately after a successful ``dispatch``:
+record the returned ``DispatchRecord.dispatch_id`` as
+``run.external.dispatch_id`` (plus ``run.external.backend``) and
+advance the Run to ``RUNNING_EXTERNAL`` through the real transition
+machinery. The bundled helper
+:func:`~scientific_reproduction.adapters.lab.linkage.link_run_to_dispatch`
+performs both steps as one validated operation over an injected run
+store (15-ADAPTER-SPEC.md SS2 "Run record linkage").
 """
 
 from __future__ import annotations
@@ -491,7 +506,13 @@ class LabAdapter(ABC):
                 clock in the adapter).
 
         Returns:
-            The :class:`DispatchRecord` of the dispatch (AC-01).
+            The :class:`DispatchRecord` of the dispatch (AC-01). The
+            adapter never touches the Run record: the caller owns the
+            linkage and must record the returned ``dispatch_id`` on the
+            Run (``run.external.dispatch_id``) and advance it to
+            ``RUNNING_EXTERNAL`` -- perform it with
+            :func:`scientific_reproduction.adapters.lab.linkage.link_run_to_dispatch`
+            (15-ADAPTER-SPEC.md SS2 "Run record linkage").
 
         Raises:
             TypeError: ``execution_package`` is neither a

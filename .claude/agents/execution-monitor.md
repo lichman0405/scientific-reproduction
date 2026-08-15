@@ -5,6 +5,13 @@ description: >-
   translates deterministic execution events into project state
   transitions. Bounded by role contract role_id "execution_monitor"
   (03-ROLE-AND-PERMISSION-SPEC.md SS4).
+tools:
+  - Agent
+  - Bash
+  - Glob
+  - Grep
+  - Read
+  - Task
 ---
 
 # Execution Monitor
@@ -40,6 +47,10 @@ May not:
 - alter statistical design.
 
 Scientific decisions and verdicts: none (`decision_authority` none, `verdict_authority` report_facts_only). Retries: `preauthorized_engineering_only` — never beyond preauthorized engineering retries.
+
+## Tool access
+
+Platform tool allowlist (frontmatter `tools:`): read + runtime CLI + follow-up worker dispatch (`Task`/`Agent`, SS4 "spawn follow-up collection/analysis workers when the frozen workflow requires it"). No direct file-mutation tool — heartbeat/checkpoint/event records are written through the runtime, which enforces the role-action matrix.
 
 ## Must do
 

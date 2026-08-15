@@ -1,0 +1,34 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: StatisticalDesign
+type: object
+required: [design_id, goal_id, version, frozen, metrics, replication, primary_method]
+properties:
+  design_id: {type: string}
+  goal_id: {type: string}
+  version: {type: string}
+  frozen: {type: boolean}
+  metrics:
+    type: array
+    minItems: 1
+    items: {type: string}
+  margin: {}
+  margin_basis:
+    enum: [target_paper_error, reproduction_literature, instrument_uncertainty, domain_threshold, scientific_judgment]
+  replication:
+    type: object
+    required: [independent_required, planned_n_policy]
+    properties:
+      independent_required: {type: boolean}
+      minimum_n: {type: integer, minimum: 1}
+      planned_n_policy: {type: string}
+      technical_repeats: {type: [integer, "null"], minimum: 0}
+  primary_method: {type: string}
+  alpha: {type: [number, "null"], minimum: 0, maximum: 1}
+  confidence_level: {type: [number, "null"], minimum: 0, maximum: 1}
+  preprocessing_exclusion_rules: {type: array, items: {type: string}}
+  outlier_rules: {type: array, items: {type: string}}
+  failed_run_handling: {type: string}
+  evidence_refs: {type: array, items: {type: string}}
+  rationale: {type: string}
+  revision_reason: {type: [string, "null"]}
+additionalProperties: true

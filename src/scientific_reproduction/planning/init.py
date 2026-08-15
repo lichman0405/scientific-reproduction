@@ -60,6 +60,21 @@ No lab/HPC inventory is required (AC-02): initialization never discovers
 inventory, never reads configuration and never touches the network; the
 ``inventory/`` directory is created empty and the full state is
 deterministic from the inputs alone.
+
+Guardrails
+----------
+* ``initialize_project`` refuses a non-empty root unless the explicit
+  ``allow_non_empty_root=True`` override is passed: initializing into a
+  directory that already holds files or repositories would silently drag
+  unrelated content into the scientific audit history (an embedded
+  repository is staged as a gitlink by ``git add -A``). The CLI exposes
+  this as ``--allow-non-empty-root``.
+* Every initialized workspace ships a starter ``.gitignore`` (nested
+  repositories, large raw artifacts per ADR 38, OS/editor noise) and a
+  starter ``.gitattributes`` (LF normalization), written by
+  ``initialize_project`` and recorded in the "project initialized" audit
+  commit, so the initial Git tree is complete and deterministic on any
+  platform.
 """
 
 from __future__ import annotations
@@ -95,15 +110,20 @@ __all__ = [
     "DEFAULT_AUDIT_IDENTITY",
     "DEFAULT_DOMAIN_PACK",
     "DEFAULT_STATE_BACKEND",
+    "GITATTRIBUTES_FILENAME",
+    "GITIGNORE_FILENAME",
     "INIT_DIRECTORIES",
     "INIT_EVENT_ACTOR",
     "INIT_EVENT_TYPE",
     "INITIAL_PLAN_VERSION",
     "PROJECT_STATE_FILENAME",
+    "NonEmptyRootError",
     "PlanningError",
     "ProjectAlreadyInitializedError",
     "ProjectInitResult",
     "ProjectNotInitializedError",
+    "STARTER_GITATTRIBUTES",
+    "STARTER_GITIGNORE",
     "TargetAlreadyRegisteredError",
     "TargetValidationError",
     "TargetInput",
@@ -129,6 +149,17 @@ class TargetValidationError(PlanningError, ValueError):
 
 class ProjectAlreadyInitializedError(PlanningError, ValueError):
     """Raised when ``initialize_project`` runs on an already-initialized root."""
+
+
+class NonEmptyRootError(PlanningError, ValueError):
+    """Raised when ``initialize_project`` runs on a non-empty root.
+
+    Guardrail: initializing into a directory that already holds files or
+    repositories would silently drag unrelated content into the
+    scientific audit history (an embedded repository is staged as a
+    gitlink by ``git add -A``). Pass ``allow_non_empty_root=True`` to
+    override explicitly.
+    """
 
 
 class ProjectNotInitializedError(PlanningError, ValueError):
@@ -204,6 +235,121 @@ INIT_DIRECTORIES: tuple[str, ...] = (
     "lab/incoming",
     "reports",
 )
+
+#: Name of the starter ``.gitignore`` written at the workspace root by
+#: ``initialize_project`` (``templates/PROJECT-TREE.template.txt``).
+GITIGNORE_FILENAME: str = ".gitignore"
+
+#: Name of the starter ``.gitattributes`` written at the workspace root by
+#: ``initialize_project`` (``templates/PROJECT-TREE.template.txt``).
+GITATTRIBUTES_FILENAME: str = ".gitattributes"
+
+#: Starter ``.gitignore`` shipped by ``initialize_project``: keeps nested
+#: repositories, large raw artifacts (ADR 38) and OS/editor noise out of
+#: the scientific audit history. Note that ignoring a nested repository's
+#: ``.git`` does NOT stop ``git add -A`` from staging the repository as a
+#: gitlink -- the directory itself must be ignored, so the template lists
+#: commented entries for the operator to fill in.
+STARTER_GITIGNORE: str = """\
+# Scientific reproduction workspace -- starter .gitignore
+# The workspace Git repository records the scientific audit history only
+# (14-STATE-GIT-ARTIFACTS.md SS5). Everything listed below must never
+# enter that history.
+
+# --- Nested repositories (gitlink hazard) ---
+# `git add -A` stages a repository kept inside the workspace as a gitlink
+# (mode 160000), dragging unrelated history into the audit tree. Ignoring
+# the nested `.git` directory does NOT prevent this -- the directory
+# itself must be ignored. Uncomment for every repository you keep inside
+# the workspace:
+# nested-repo/
+# tools/vendor/
+
+# --- Large raw artifacts (ADR 38) ---
+# Large raw data lives in the external artifact store; the project keeps
+# only manifests and checksums (20-ARCHITECTURE-DECISIONS.md, ADR 38).
+# These patterns keep bulk data out of the audit history; extend with the
+# formats your domain produces.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.gz
+*.h5
+*.hdf5
+*.hdf
+*.npy
+*.npz
+*.nxs
+*.fits
+*.tif
+*.tiff
+*.mrc
+*.raw
+*.bin
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# --- Secrets (defense in depth) ---
+*.pem
+*.key
+.env
+.env.*
+"""
+
+#: Starter ``.gitattributes`` shipped by ``initialize_project``: LF
+#: normalization -- text files are stored with LF in the audit history and
+#: checked out with LF on every platform, so Windows working trees stay
+#: quiet (no "LF will be replaced by CRLF" warnings) and identical inputs
+#: produce identical commits on any machine. Binary formats are marked
+#: explicitly so they are never renormalized.
+STARTER_GITATTRIBUTES: str = """\
+# Scientific reproduction workspace -- starter .gitattributes
+# LF normalization: text files are stored with LF in the audit history
+# and checked out with LF on every platform. Windows working trees stay
+# quiet (no "LF will be replaced by CRLF" warnings) and identical inputs
+# produce identical commits on any machine.
+* text=auto eol=lf
+
+# Binary formats are never renormalized; they stay byte-exact.
+*.pdf binary
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.tgz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.rar binary
+*.gz binary
+*.h5 binary
+*.hdf5 binary
+*.hdf binary
+*.npy binary
+*.npz binary
+*.nxs binary
+*.fits binary
+*.tif binary
+*.tiff binary
+*.mrc binary
+*.raw binary
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+"""
 
 #: DOI syntax: ``10.<registrant>/<suffix>`` with 4-9 registrant digits and
 #: a suffix of the characters DOI permits (ISO 26324 style).
@@ -361,20 +507,26 @@ def initialize_project(
     timestamp: datetime | None = None,
     identity: AuditIdentity = DEFAULT_AUDIT_IDENTITY,
     commit_time: datetime | None = None,
+    allow_non_empty_root: bool = False,
 ) -> ProjectInitResult:
     """Initialize a one-paper reproduction project and register its primary target.
 
     Creates the workspace tree (``INIT_DIRECTORIES``), writes
-    ``project.yaml``, appends the ``project.initialized`` event through
-    ``ProjectEventLog`` (a first-class log record with sequence 1 in the
-    canonical ``events/`` directory), initializes the Git repository and
+    ``project.yaml``, the starter ``.gitignore``/``.gitattributes`` and the
+    ``project.initialized`` event through ``ProjectEventLog`` (a first-class
+    log record with sequence 1 in the canonical ``events/`` directory),
+    initializes the Git repository and
     creates the "project initialized" audit commit (AC-02: no lab/HPC
     inventory is required anywhere on this path). The primary target is
     registered exactly once, as the single required ``primary_target`` of
     the project record (AC-01, AC-03).
 
     Args:
-        root: workspace root directory; created (with parents) when missing.
+        root: workspace root directory; created (with parents) when
+            missing. A root that already contains any entry (including
+            hidden files) is refused unless ``allow_non_empty_root`` is
+            set: initializing into a directory with unrelated content
+            would silently drag it into the scientific audit history.
         target: the primary target paper as a raw string (PDF path, DOI, or
             http(s) URL) or an already-parsed ``PrimaryTarget``.
         project_id: explicit project id; defaults to a deterministic id
@@ -386,6 +538,10 @@ def initialize_project(
             defaults to now-UTC. State-content tests pass a fixed value.
         identity: author/committer identity for the audit commit.
         commit_time: timezone-aware commit time; defaults to ``timestamp``.
+        allow_non_empty_root: explicit override for the non-empty-root
+            guardrail; ``False`` by default (``NonEmptyRootError``).
+            Setting it acknowledges that unrelated content in ``root`` may
+            enter the audit history.
 
     Returns:
         A ``ProjectInitResult`` carrying the root, the typed project
@@ -397,6 +553,8 @@ def initialize_project(
             is malformed (subclass ``TargetValidationError``).
         ProjectAlreadyInitializedError: ``root`` already contains a
             ``project.yaml`` record.
+        NonEmptyRootError: ``root`` exists and is not empty, and
+            ``allow_non_empty_root`` is ``False``.
     """
     if not isinstance(root, (str, Path)):
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
@@ -416,6 +574,11 @@ def initialize_project(
         raise TypeError(
             f"commit_time must be a datetime, got {type(commit_time).__name__}"
         )
+    if not isinstance(allow_non_empty_root, bool):
+        raise TypeError(
+            "allow_non_empty_root must be a bool,"
+            f" got {type(allow_non_empty_root).__name__}"
+        )
 
     project_root = Path(root).resolve()
     state_path = project_root / PROJECT_STATE_FILENAME
@@ -423,6 +586,13 @@ def initialize_project(
         raise ProjectAlreadyInitializedError(
             f"project already initialized at {project_root}:"
             f" {PROJECT_STATE_FILENAME} exists"
+        )
+    if not allow_non_empty_root and _root_has_entries(project_root):
+        raise NonEmptyRootError(
+            f"refusing to initialize project at {project_root}: the root is"
+            " not empty; unrelated content would be dragged into the"
+            " scientific audit history (pass allow_non_empty_root=True to"
+            " override)"
         )
 
     primary_target = _coerce_target(target, title=title)
@@ -472,11 +642,19 @@ def initialize_project(
     event_path = project_root / "events" / f"{event.event_id}.json"
     ProjectEventLog(project_root).append(event)
 
+    # Starter guardrail files (nested repos, large raw artifacts per
+    # ADR 38, LF normalization); recorded in the initial audit commit so
+    # the first Git tree is complete and deterministic on any platform.
+    gitignore_path = project_root / GITIGNORE_FILENAME
+    gitattributes_path = project_root / GITATTRIBUTES_FILENAME
+    atomic_write(gitignore_path, STARTER_GITIGNORE)
+    atomic_write(gitattributes_path, STARTER_GITATTRIBUTES)
+
     init_project_repo(project_root, identity=identity)
     commit = commit_checkpoint(
         project_root,
         kind=INIT_EVENT_TYPE,
-        files=[state_path, event_path],
+        files=[state_path, event_path, gitignore_path, gitattributes_path],
         identity=identity,
         commit_time=effective_commit_time,
     )
@@ -612,6 +790,19 @@ def _coerce_target(target: TargetInput, *, title: str | None = None) -> PrimaryT
     raise TypeError(
         f"target must be a str or PrimaryTarget, got {type(target).__name__}"
     )
+
+
+def _root_has_entries(root: Path) -> bool:
+    """Return True when ``root`` exists and contains any entry.
+
+    Deterministic guardrail input: hidden entries count (a stray
+    ``.DS_Store`` or an existing ``.git`` directory marks the root as
+    non-empty); a missing root is empty.
+    """
+    try:
+        return any(root.iterdir())
+    except FileNotFoundError:
+        return False
 
 
 def _resolve_timestamp(timestamp: datetime | None, *, name: str) -> datetime:

@@ -32,7 +32,8 @@ On success, ``freeze_plan`` produces the frozen ``Plan``
 (``PlanStatus.FROZEN``, ``frozen_at``, ``frozen_commit`` = the pre-freeze
 ``git HEAD`` at ``root`` -- ``None`` when ``root`` is not a Git
 repository, which is documented in the record) **and** the frozen
-Goal/Acceptance/Analysis/Closure contracts as in-memory frozen dataclass
+Goal/Acceptance/StatisticalDesign/Analysis/Closure contracts as
+in-memory frozen dataclass
 objects (``PlanFreezeResult``): direct mutation of any frozen object is
 rejected with ``FrozenInstanceError``. The persisted frozen artifact is
 the Plan record (``plans/<version>.json``); goal-family drafts are never
@@ -77,6 +78,7 @@ from scientific_reproduction.core.models import (
     GoalContract,
     Plan,
     PlanStatus,
+    StatisticalDesign,
 )
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.init import PlanningError
@@ -92,6 +94,7 @@ from scientific_reproduction.planning.plan import (
     list_analysis_protocols,
     list_closure_contracts,
     list_goals,
+    list_statistical_designs,
     next_version,
     read_plan,
     register_plan,
@@ -161,7 +164,9 @@ class UnresolvedContractReferenceError(FreezeError, ValueError):
     """Raised when a goal-family reference cannot be resolved.
 
     Freezing requires every goal referenced by the plan to be registered
-    and every registered goal's acceptance/analysis/closure references to
+    and every registered goal's acceptance/analysis/closure references --
+    and every acceptance's ``statistical_design_ref`` (the frozen
+    statistical design, ``07-STATISTICS-AND-ACCEPTANCE.md`` SS9) -- to
     resolve to registered records (the goal-contract family is part of
     the frozen contract, ``01-PRODUCT-REQUIREMENTS.md`` SS5 step 7-8).
     """
@@ -182,18 +187,20 @@ class PlanFreezeResult:
 
     ``frozen_plan`` is the persisted frozen ``Plan`` record
     (``plans/<formal-version>.json``). ``goals`` / ``acceptance`` /
-    ``analysis_protocols`` / ``closure_contracts`` are the frozen
-    goal-contract family variants produced **in memory** from the
-    registered drafts (version set to the frozen plan version, ``frozen``
-    True, freeze metadata attached where the model declares it) -- the
-    drafts on disk are never rewritten, and every returned object is a
-    frozen dataclass rejecting direct mutation. ``frozen_at`` /
-    ``frozen_commit`` are the freeze stamp shared by all of them.
+    ``statistical_designs`` / ``analysis_protocols`` /
+    ``closure_contracts`` are the frozen goal-contract family variants
+    produced **in memory** from the registered drafts (version set to the
+    frozen plan version, ``frozen`` True, freeze metadata attached where
+    the model declares it) -- the drafts on disk are never rewritten, and
+    every returned object is a frozen dataclass rejecting direct mutation.
+    ``frozen_at`` / ``frozen_commit`` are the freeze stamp shared by all
+    of them.
     """
 
     frozen_plan: Plan
     goals: tuple[GoalContract, ...]
     acceptance: tuple[AcceptanceCriteria, ...]
+    statistical_designs: tuple[StatisticalDesign, ...]
     analysis_protocols: tuple[AnalysisProtocolOrResult, ...]
     closure_contracts: tuple[ClosureContract, ...]
     frozen_at: str
@@ -223,7 +230,10 @@ def freeze_plan(
     written by the freeze). The formal version must not be frozen yet
     (``PlanAlreadyFrozenError``); every goal referenced by the plan must
     be registered and every registered goal's acceptance/analysis/closure
-    references must resolve (``UnresolvedContractReferenceError``).
+    references -- and every acceptance's ``statistical_design_ref``
+    (07-STATISTICS-AND-ACCEPTANCE.md SS9: the design is frozen before
+    data generation) -- must resolve
+    (``UnresolvedContractReferenceError``).
 
     On success, the frozen ``Plan`` (``PlanStatus.FROZEN``, ``frozen_at``,
     ``frozen_commit`` = pre-freeze ``git HEAD`` or ``None`` outside a Git
@@ -470,7 +480,10 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
     contract, and every registered goal's acceptance criteria,
     analysis protocol and (optional) closure contract references must
     resolve to registered records -- the frozen contract is the whole
-    family (``01-PRODUCT-REQUIREMENTS.md`` SS5 steps 7-8). A registered
+    family (``01-PRODUCT-REQUIREMENTS.md`` SS5 steps 7-8). Every
+    acceptance's ``statistical_design_ref`` must resolve to a registered
+    statistical design record: the design is frozen BEFORE data
+    generation (``07-STATISTICS-AND-ACCEPTANCE.md`` SS9). A registered
     goal-family record that is already frozen blocks the freeze
     (``GoalFamilyNotDraftError``): the family must be frozen *by* the
     plan freeze, not before it.
@@ -485,9 +498,11 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
         )
 
     acceptance = list_acceptance(project_root)
+    designs = list_statistical_designs(project_root)
     analysis = list_analysis_protocols(project_root)
     closure = list_closure_contracts(project_root)
     acceptance_ids = {a.acceptance_id for a in acceptance}
+    design_ids = {d.design_id for d in designs}
     analysis_ids = {a.analysis_id for a in analysis}
     closure_ids = {c.closure_id for c in closure}
 
@@ -511,9 +526,21 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
                 f" {goal.closure_contract_ref!r} which is not registered"
             )
 
+    # The statistical design is frozen BEFORE data generation
+    # (07-STATISTICS-AND-ACCEPTANCE.md SS9): every acceptance's
+    # statistical_design_ref must resolve to a registered design record.
+    for acceptance_record in acceptance:
+        design_ref = acceptance_record.statistical_design_ref
+        if design_ref is not None and design_ref not in design_ids:
+            raise UnresolvedContractReferenceError(
+                f"acceptance criteria {acceptance_record.acceptance_id!r} references"
+                f" statistical design {design_ref!r} which is not registered"
+            )
+
     for record in (
         *goals,
         *acceptance,
+        *designs,
         *analysis,
         *closure,
     ):
@@ -533,6 +560,8 @@ def _goal_family_kind_and_id(record: Any) -> tuple[str, str]:
         return "acceptance criteria", record.acceptance_id
     if isinstance(record, AnalysisProtocolOrResult):
         return "analysis protocol", record.analysis_id
+    if isinstance(record, StatisticalDesign):
+        return "statistical design", record.design_id
     return "closure contract", record.closure_id
 
 
@@ -545,9 +574,9 @@ def _frozen_goal_family(
     formal version (``protocol_version`` for analysis protocols -- the
     model's version field), ``frozen`` True, and the freeze stamp where
     the model declares those fields (``GoalContract.frozen_at`` /
-    ``frozen_commit``; acceptance and analysis models carry no
-    ``frozen_at``/``frozen_commit``, ``ClosureContract`` carries no
-    version fields at all -- see ``core/models.py``). Nothing is
+    ``frozen_commit``; acceptance, statistical-design and analysis models
+    carry no ``frozen_at``/``frozen_commit``, ``ClosureContract`` carries
+    no version fields at all -- see ``core/models.py``). Nothing is
     persisted here: the drafts on disk stay drafts, byte-identical.
     """
     version = frozen_plan.version
@@ -569,6 +598,10 @@ def _frozen_goal_family(
         replace(a, version=version, frozen=True)
         for a in list_acceptance(project_root)
     )
+    designs = tuple(
+        replace(d, version=version, frozen=True)
+        for d in list_statistical_designs(project_root)
+    )
     analysis = tuple(
         replace(a, protocol_version=version, frozen=True)
         for a in list_analysis_protocols(project_root)
@@ -580,6 +613,7 @@ def _frozen_goal_family(
         frozen_plan=frozen_plan,
         goals=goals,
         acceptance=acceptance,
+        statistical_designs=designs,
         analysis_protocols=analysis,
         closure_contracts=closure,
         frozen_at=frozen_at,

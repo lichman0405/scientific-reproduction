@@ -1,7 +1,7 @@
 """Tests for the typed core object models (DEV-M1-G01, acceptance AC-01).
 
 Covered behaviors:
-  * all 21 normative object types round-trip ``to_dict()`` / ``from_dict()``;
+  * all 22 normative object types round-trip ``to_dict()`` / ``from_dict()``;
   * serialization to JSON works for every model;
   * required fields from the frozen schemas are always present in the
     serialized output;
@@ -29,9 +29,9 @@ from scientific_reproduction.core.schema_validation import (
 ALL_MODEL_NAMES = sorted(m.MODEL_REGISTRY)
 
 
-def test_registry_covers_all_21_normative_types() -> None:
-    assert len(m.MODEL_REGISTRY) == 21
-    assert len(m.SCHEMA_NAMES) == 21
+def test_registry_covers_all_22_normative_types() -> None:
+    assert len(m.MODEL_REGISTRY) == 22
+    assert len(m.SCHEMA_NAMES) == 22
     assert set(m.SCHEMA_NAMES) == set(m.MODEL_REGISTRY)
 
 

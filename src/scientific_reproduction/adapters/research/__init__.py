@@ -31,6 +31,12 @@ from scientific_reproduction.adapters.research.fixtures import (
     FIXTURE_VERSION,
     PUBLIC_SOURCE_FIXTURES,
 )
+from scientific_reproduction.adapters.research.network_policy import (
+    FAKE_IP_NETWORK,
+    AdapterNetworkPolicyError,
+    host_is_ip_literal,
+    validate_fetch_url,
+)
 from scientific_reproduction.adapters.research.public import (
     PUBLIC_ADAPTERS,
     CrossrefOpenAlexAdapter,
@@ -51,6 +57,7 @@ __all__ = [
     "AdapterDataError",
     "AdapterRecordNotFoundError",
     "AdapterRegistrationError",
+    "AdapterNetworkPolicyError",
     "AdapterState",
     "AdapterOperation",
     "AdapterSearchQuery",
@@ -69,4 +76,7 @@ __all__ = [
     "ResearchAdapterRegistry",
     "acquire_available_sources",
     "PUBLIC_SOURCE_FIXTURES",
+    "FAKE_IP_NETWORK",
+    "host_is_ip_literal",
+    "validate_fetch_url",
 ]

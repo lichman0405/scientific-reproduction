@@ -75,8 +75,18 @@ Commit examples:
 - Acceptance revision;
 - Analysis Protocol revision;
 - Recovery plan created;
+- Recovery entry;
+- Goal reviewed;
+- Run closed;
 - Requirement closed;
+- Requirement outcome updated;
 - project final outcome.
+
+Every workspace is initialized with a starter `.gitignore` (nested
+repositories, large raw artifacts per ADR 38, OS/editor noise) and
+`.gitattributes` (LF normalization), recorded in the "project
+initialized" commit, so the audit history never drags in unrelated or
+raw content and commits are identical on any platform.
 
 ## 6. Artifact Store
 
