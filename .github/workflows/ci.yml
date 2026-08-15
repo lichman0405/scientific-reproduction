@@ -1,10 +1,11 @@
 name: CI
 
-# Every pull request targeting `main` must pass the unit test suite,
-# the lint gate, and the type/static check before it may merge.
+# Every pull request targeting the release branch (or `main`) must pass
+# the unit test suite, the lint gate, and the type/static check before
+# it may merge.
 on:
   pull_request:
-    branches: [main]
+    branches: [release/skill-v0.2.0, main]
 
 permissions:
   contents: read

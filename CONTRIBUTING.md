@@ -10,15 +10,18 @@ normative documents before making any change:
 ## Integration model: one branch, one pull request
 
 Every repository change is implemented on **one short-lived branch** and
-integrated through **one pull request** targeting `main`.
+integrated through **one pull request** targeting the current release
+branch (`release/skill-v0.2.0`).
 
 ### Rules that are not optional
 
-1. **No direct commits to `main`.** All changes go through short-lived
-   branches and pull requests.
+1. **No direct commits to `main` or the release branch.** All changes go
+   through short-lived branches and pull requests. `main` is the frozen
+   v0.1.0 development record and never receives new commits.
 2. **Authors never merge their own PR.** A PR is merged only after
    verification and CI pass and an independent reviewer approves it.
-3. Force-pushing or rewriting `main` history is forbidden.
+3. Force-pushing or rewriting `main` or the release branch history is
+   forbidden.
 
 ## Branch naming
 
