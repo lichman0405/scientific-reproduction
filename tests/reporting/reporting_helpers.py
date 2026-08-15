@@ -199,6 +199,7 @@ def make_requirement(
     *,
     inventory_items: list[str] | None = None,
     goal_ids: list[str] | None = None,
+    outcome: RequirementOutcome = RequirementOutcome.REPRODUCED,
     **kwargs: Any,
 ) -> ReproductionRequirement:
     """Build a schema-valid requirement with compact defaults."""
@@ -210,7 +211,7 @@ def make_requirement(
         ),
         criticality=Criticality.CRITICAL,
         goal_ids=[GOAL_ID] if goal_ids is None else list(goal_ids),
-        outcome=RequirementOutcome.REPRODUCED,
+        outcome=outcome,
         **kwargs,
     )
 
@@ -331,6 +332,7 @@ def install_valid_chain(
     manifest: ArtifactManifest | None = None,
     result: ResultRecord | None = None,
     evidence: ClaimSpecificEvidence | None = None,
+    requirement: ReproductionRequirement | None = None,
 ) -> EvidenceRegistry:
     """Install a fully linked, valid SS7 report-traceability chain at ``root``.
 
@@ -353,7 +355,7 @@ def install_valid_chain(
     register_goal(root, make_goal())
     register_acceptance(root, acceptance or make_acceptance())
     register_inventory_item(root, make_inventory_item())
-    register_requirement(root, make_requirement())
+    register_requirement(root, requirement or make_requirement())
     # The run store is a state backend over the workspace root, resolving
     # the canonical ``runs/`` tree directory (SCHEMA_TO_STATE_DIR).
     FilesystemStateBackend(root).write(
