@@ -43,6 +43,8 @@ Operations vary by source type but should normalize:
 
 Commercial adapters are optional.
 
+Network-capable adapters (live metadata fetch, content/file fetch) must validate every http(s) fetch target before opening a connection (`adapters/research/network_policy.py`): domain-name hosts are always allowed, because transparent-proxy fake-IP DNS legitimately resolves them into `198.18.0.0/15` (RFC 2544 / RFC 5735); IP-literal hosts inside that range are refused, because an IP literal bypasses DNS and is never produced by a fake-IP proxy (SSRF guard). The policy is a documented guard for the fake-IP range only; it is not a general SSRF firewall (09-RESEARCH-SUBSYSTEM.md section 4).
+
 ## 5. PlatformAdapter
 
 Must implement a normalized orchestration contract:
