@@ -24,8 +24,10 @@ Covered behaviors:
 from __future__ import annotations
 
 import dataclasses
+from pathlib import Path
 
 import pytest
+import yaml
 
 from scientific_reproduction.core.models import SourceType
 from scientific_reproduction.core.rules.evidence import (
@@ -345,3 +347,25 @@ def test_ranking_score_rejects_out_of_range_axes() -> None:
         ranking_score(4, -1, 4)
     with pytest.raises(EvidenceRulesError):
         ranking_score(4, 4, 9)
+
+
+def test_example_evidence_ranking_score_matches_the_versioned_formula() -> None:
+    # The frozen FDM-201 example record
+    # (examples/fdm-201/evidence.example.yaml) must carry the value the
+    # versioned SS3 rule (ranking_rule_v1) produces for its recorded A/R/D
+    # axes: a stored ranking_score that cannot be reproduced from the
+    # documented weights would break record comparability across runs.
+    example = yaml.safe_load(
+        (
+            Path(__file__).resolve().parents[2]
+            / "examples"
+            / "fdm-201"
+            / "evidence.example.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    assessment = example["assessment"]
+    assert assessment["ranking_score"] == ranking_score(
+        assessment["authority"],
+        assessment["reliability"],
+        assessment["directness"],
+    )

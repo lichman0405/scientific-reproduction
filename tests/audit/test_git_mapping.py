@@ -72,6 +72,11 @@ def test_checkpoint_kinds_are_documented_pure_data() -> None:
         "recovery.created",
         "requirement.closed",
         "project.outcome",
+        # Execution-phase governance milestones.
+        "goal.reviewed",
+        "run.closed",
+        "requirement.outcome.updated",
+        "recovery.entry",
         "heartbeat",
     }
     assert set(CHECKPOINTS) == expected_kinds
@@ -85,8 +90,8 @@ def test_checkpoint_kinds_are_documented_pure_data() -> None:
     # The checkpoint set mirrors the governance checkpoint list of
     # 14-STATE-GIT-ARTIFACTS.md SS5 (plan freeze, goal contract revision,
     # acceptance/analysis-protocol revision, recovery, requirement
-    # closure, final outcome) -- and nothing for heartbeats but the
-    # record-only marker.
+    # closure, run-level adjudications, final outcome) -- and nothing for
+    # heartbeats but the record-only marker.
     assert AUDIT_CHECKPOINT_KINDS == expected_kinds - {"heartbeat"}
 
 
@@ -104,6 +109,13 @@ def test_event_types_map_to_checkpoint_kinds() -> None:
     assert (
         EVENT_TYPE_TO_CHECKPOINT["project.outcome.recorded"] == "project.outcome"
     )
+    assert EVENT_TYPE_TO_CHECKPOINT["goal.reviewed"] == "goal.reviewed"
+    assert EVENT_TYPE_TO_CHECKPOINT["run.closed"] == "run.closed"
+    assert (
+        EVENT_TYPE_TO_CHECKPOINT["requirement.outcome.updated"]
+        == "requirement.outcome.updated"
+    )
+    assert EVENT_TYPE_TO_CHECKPOINT["recovery.entry"] == "recovery.entry"
 
 
 def test_every_event_type_resolves_to_a_declared_checkpoint() -> None:
@@ -172,6 +184,27 @@ def test_revision_message_templates() -> None:
     )
 
 
+def test_execution_phase_message_templates() -> None:
+    assert (
+        render_checkpoint_message("goal.reviewed", object_id="GOAL-001")
+        == "goal contract GOAL-001 reviewed"
+    )
+    assert (
+        render_checkpoint_message("run.closed", object_id="RUN-COMP-017-01")
+        == "run RUN-COMP-017-01 closed"
+    )
+    assert (
+        render_checkpoint_message(
+            "requirement.outcome.updated", object_id="REQ-001"
+        )
+        == "requirement REQ-001 outcome updated"
+    )
+    assert (
+        render_checkpoint_message("recovery.entry", object_id="GOAL-001")
+        == "goal GOAL-001 entered recovery"
+    )
+
+
 def test_placeholder_free_templates_ignore_supplied_fields() -> None:
     assert render_checkpoint_message("project.initialized") == "project initialized"
     assert (
@@ -224,6 +257,56 @@ def test_goal_revision_event_maps_to_commit_request() -> None:
 def test_revision_event_without_version_raises_loudly() -> None:
     with pytest.raises(ValueError, match="requires field\\(s\\): version"):
         map_event_to_audit(governance_event("goal.revised", object_id="GOAL-001"))
+
+
+# ---------------------------------------------------------------------------
+# Execution-phase governance events map to commit checkpoints
+# ---------------------------------------------------------------------------
+
+
+def test_goal_reviewed_event_maps_to_commit_request() -> None:
+    result = map_event_to_audit(
+        governance_event("goal.reviewed", object_id="GOAL-001")
+    )
+    assert isinstance(result, AuditCommitRequest)
+    assert result.kind == "goal.reviewed"
+    assert result.message == "goal contract GOAL-001 reviewed"
+    assert result.object_id == "GOAL-001"
+
+
+def test_run_closed_event_maps_to_commit_request() -> None:
+    result = map_event_to_audit(
+        governance_event("run.closed", object_id="RUN-COMP-017-01")
+    )
+    assert isinstance(result, AuditCommitRequest)
+    assert result.kind == "run.closed"
+    assert result.message == "run RUN-COMP-017-01 closed"
+    assert result.object_id == "RUN-COMP-017-01"
+
+
+def test_requirement_outcome_updated_event_maps_to_commit_request() -> None:
+    result = map_event_to_audit(
+        governance_event("requirement.outcome.updated", object_id="REQ-001")
+    )
+    assert isinstance(result, AuditCommitRequest)
+    assert result.kind == "requirement.outcome.updated"
+    assert result.message == "requirement REQ-001 outcome updated"
+    assert result.object_id == "REQ-001"
+
+
+def test_recovery_entry_event_maps_to_commit_request() -> None:
+    result = map_event_to_audit(
+        governance_event("recovery.entry", object_id="GOAL-001")
+    )
+    assert isinstance(result, AuditCommitRequest)
+    assert result.kind == "recovery.entry"
+    assert result.message == "goal GOAL-001 entered recovery"
+    assert result.object_id == "GOAL-001"
+
+
+def test_execution_phase_event_without_object_id_raises_loudly() -> None:
+    with pytest.raises(ValueError, match="requires field\\(s\\): object_id"):
+        map_event_to_audit(governance_event("run.closed"))
 
 
 # ---------------------------------------------------------------------------

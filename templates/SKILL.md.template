@@ -37,6 +37,11 @@ in `20-ARCHITECTURE-DECISIONS.md`, and the role definitions in
   project-persistent evidence service; the Execution Monitor owns recovery.
 - Freeze acceptance criteria and primary analysis protocols before execution.
 - Assess every piece of evidence as Source × Claim — never one global score.
+- Role boundaries are enforced at the platform tool level too: the role
+  agents in `.claude/agents/` carry per-role `tools:` allowlists, so only
+  the Supervisor holds direct file-mutation and worker-dispatch tools;
+  other roles' state writes flow through the runtime CLI, which enforces
+  the role-action matrix.
 
 ## Runtime operations
 
@@ -56,8 +61,9 @@ The workspace is the Single Source of Truth — sessions are replaceable
 executors (see `14-STATE-GIT-ARTIFACTS.md`).
 
 `/goals` views are deterministic pure functions of the planning layer (see
-`docs/user/reproduce-and-goals.md`); expose them through the platform's
-slash-command mechanism where available, otherwise through the runtime.
+`docs/user/reproduce-and-goals.md`): in v0.2 they are agent-authored from
+that layer — the runtime ships no `/goals` subcommand — and platforms may
+expose them through a native slash-command mechanism where available.
 
 ## Orchestration of the reproduction flow
 

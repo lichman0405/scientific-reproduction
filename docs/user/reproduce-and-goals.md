@@ -124,13 +124,15 @@ The semantic contract of `01-PRODUCT-REQUIREMENTS.md` SS6:
 - `/goals runs <GOAL_ID>` — show Runs;
 - `/goals blocked` — show blocked Goals and blocker objects.
 
-In v0.1 these are **not implemented as slash-command code in this
+In v0.2 these are **not implemented as slash-command code in this
 repository**: `/reproduce` has a CLI module (`cli/reproduce.py`), but `/goals`
-has none. Per SS6, "platform adapters may expose these as slash commands or
-equivalent commands" — the platform adapter surface is the `expose_command`
+has none — the views are agent-authored, composed deterministically from the
+planning layer rather than rendered by a runtime subcommand. Per SS6,
+"platform adapters may expose these as slash commands or equivalent
+commands" — the platform adapter surface is the `expose_command`
 contract of `15-ADAPTER-SPEC.md` SS5 and the runtime role-contract descriptors
 of `src/scientific_reproduction/adapters/platform/contracts/base.py`
-(DEV-M10-G01). What v0.1 ships is the deterministic planning layer that every
+(DEV-M10-G01). What v0.2 ships is the deterministic planning layer that every
 `/goals` view is a pure function of, plus the worker execution surface.
 Platform note: built-in slash commands cannot be reliably injected into
 teammate sessions on all platforms, so the Supervisor uses native `/goal`

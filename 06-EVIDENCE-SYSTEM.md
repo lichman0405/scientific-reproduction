@@ -55,15 +55,25 @@ Suggested rubric:
 
 ## 3. Composite score
 
-A composite score may be computed for **search ranking only**. It must not replace hard gates.
+A composite score may be computed for **search ranking only**. It must not replace hard gates (architecture decision 19).
 
-Example default:
+The versioned default rule (`ranking_rule_v1`, weights `(0.25, 0.45, 0.30)`) maps the three 0–4 axes to a 0–100 display number:
 
 ```text
 ranking_score = (0.25*A + 0.45*R + 0.30*D) / 4 * 100
 ```
 
-Weights are configurable and versioned.
+Example derivation (the axes of `examples/fdm-201/evidence.example.yaml`, A=4, R=2, D=4):
+
+```text
+(0.25*4 + 0.45*2 + 0.30*4) / 4 * 100 = 3.1 / 4 * 100 = 77.5
+```
+
+Weights are configurable and versioned. The reference implementation is
+`core/rules/evidence.py` (`ranking_score`, `RANKING_RULE_VERSION`,
+`RankingWeights`); `schemas/evidence.schema.yaml` allows `ranking_score` to be
+a number or `null`, so a record may omit the composite when it is not
+computed.
 
 ## 4. Hard gates
 

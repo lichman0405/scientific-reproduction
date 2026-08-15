@@ -33,6 +33,22 @@ matched (``run_matched`` / ``package_matched``). The I/O layer
 ``valid``; the assessment itself is what the caller sees -- a stable,
 specific record of WHAT is missing, never a silent default.
 
+Required-return coverage (result-manifest v1.1)
+----------------------------------------------
+The dispatched package's ``required_return`` entries are raw-data-export
+tokens (``10-EXPERIMENT-SUBSYSTEM.md`` SS3), not file names. A returned
+file covers a required return when the result manifest explicitly maps
+the token to the returned file name via the optional
+``required_return_files`` entry (``{token: file name}`` -- the
+operator's declaration of coverage; AC-03: coverage is never guessed
+from file stems or extensions). The mapped file must be declared in
+``files`` and present in the incoming handoff. A required return without
+an explicit mapping entry stays on the v1.0 rule: it is covered only by
+a declared file whose name is exactly the token. A ``required_return_files``
+entry that is present but malformed is recorded as a missing manifest
+field, and the assessment carries the exact mapping the decision was
+computed from.
+
 Boundaries
 ----------
 The result manifest vocabulary is this module's own auditable shape
@@ -51,6 +67,7 @@ from typing import Any, Mapping, Sequence
 
 __all__ = [
     "RESULT_MANIFEST_REQUIRED_FIELDS",
+    "RESULT_MANIFEST_RETURN_MAPPING_KEY",
     "RESULT_MANIFEST_RULESET_VERSION",
     "RESULT_MANIFEST_VERSION",
     "LabResultManifest",
@@ -60,12 +77,21 @@ __all__ = [
 ]
 
 #: Version of the returned result manifest schema (``manifest_version``
-#: key of :class:`LabResultManifest`).
-RESULT_MANIFEST_VERSION: str = "1.0"
+#: key of :class:`LabResultManifest`). ``1.1`` adds the optional
+#: ``required_return_files`` mapping (explicit required-return coverage
+#: declarations); ``1.0`` manifests remain valid -- the mapping is
+#: optional.
+RESULT_MANIFEST_VERSION: str = "1.1"
 
 #: Version of the result-manifest evaluation rule set; recorded in every
-#: assessment.
-RESULT_MANIFEST_RULESET_VERSION: str = "1.0"
+#: assessment. ``1.1`` adds explicit required-return coverage via the
+#: manifest's ``required_return_files`` mapping; the v1.0 exact-name
+#: rule remains the fallback for unmapped required returns.
+RESULT_MANIFEST_RULESET_VERSION: str = "1.1"
+
+#: The optional result-manifest entry mapping each ``required_return``
+#: token to the returned file name that covers it (``{token: file name}``).
+RESULT_MANIFEST_RETURN_MAPPING_KEY: str = "required_return_files"
 
 #: The required entries of a returned result manifest. ``files`` declares
 #: the returned data files; the identity entries name the exact project,
@@ -93,7 +119,11 @@ class LabResultManifest:
     exactly the ``run_id`` of the dispatched execution package's Run;
     ``files`` is the canonical sorted declaration of the returned data
     files (AC-03: every declared file must be present in the incoming
-    handoff to be collected); ``notes`` carries optional operator notes.
+    handoff to be collected); ``required_return_files`` is the canonical
+    sorted ``(required return, file name)`` mapping declaring which
+    returned file covers which dispatched ``required_return`` entry
+    (empty when the manifest declares no mapping); ``notes`` carries
+    optional operator notes.
     """
 
     manifest_version: str
@@ -102,6 +132,7 @@ class LabResultManifest:
     goal_id: str
     run_id: str
     files: tuple[str, ...]
+    required_return_files: tuple[tuple[str, str], ...] = ()
     notes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -133,6 +164,32 @@ class LabResultManifest:
                     "LabResultManifest.files entries must be non-empty"
                     " strings"
                 )
+        if not isinstance(self.required_return_files, tuple):
+            raise TypeError(
+                "LabResultManifest.required_return_files must be a tuple"
+                " of (required return, file name) pairs, got"
+                f" {type(self.required_return_files).__name__}"
+            )
+        for entry in self.required_return_files:
+            if not isinstance(entry, tuple) or len(entry) != 2:
+                raise TypeError(
+                    "LabResultManifest.required_return_files entries must"
+                    " be (required return, file name) pairs, got"
+                    f" {type(entry).__name__}"
+                )
+            for value in entry:
+                if not isinstance(value, str):
+                    raise TypeError(
+                        "LabResultManifest.required_return_files entries"
+                        " must hold str values, got"
+                        f" {type(value).__name__}"
+                    )
+                if not value.strip():
+                    raise ResultManifestError(
+                        "LabResultManifest.required_return_files entries"
+                        " must be (required return, file name) pairs of"
+                        " non-empty strings"
+                    )
         if not isinstance(self.notes, tuple):
             raise TypeError(
                 "LabResultManifest.notes must be a tuple, got"
@@ -149,6 +206,7 @@ class LabResultManifest:
             "run_id": self.run_id,
             "files": list(self.files),
         }
+        data[RESULT_MANIFEST_RETURN_MAPPING_KEY] = dict(self.required_return_files)
         data["notes"] = list(self.notes)
         return data
 
@@ -182,6 +240,10 @@ class LabResultManifest:
             name: data[name] for name in RESULT_MANIFEST_REQUIRED_FIELDS
         }
         kwargs["files"] = tuple(sorted(set(data["files"])))
+        if RESULT_MANIFEST_RETURN_MAPPING_KEY in data:
+            kwargs["required_return_files"] = _canonical_return_mapping(
+                data[RESULT_MANIFEST_RETURN_MAPPING_KEY]
+            )
         if "notes" in data:
             kwargs["notes"] = tuple(data["notes"])
         return cls(**kwargs)
@@ -205,7 +267,10 @@ class ResultManifestAssessment:
       never silently matched.
 
     ``declared_files`` / ``present_files`` / ``required_returns`` record
-    the exact inputs the decision was computed from.
+    the exact inputs the decision was computed from;
+    ``required_return_files`` records the manifest's explicit
+    ``{required return: file name}`` coverage mapping (canonical sorted
+    pairs, empty when the manifest declares none).
     """
 
     valid: bool
@@ -220,6 +285,7 @@ class ResultManifestAssessment:
     unmet_required_returns: tuple[str, ...]
     declared_files: tuple[str, ...]
     present_files: tuple[str, ...]
+    required_return_files: tuple[tuple[str, str], ...] = ()
     ruleset_version: str = RESULT_MANIFEST_RULESET_VERSION
 
 
@@ -239,7 +305,10 @@ def evaluate_result_manifest(
     incoming handoff. Nothing is guessed and nothing is silently
     defaulted: an absent or mismatched run reference fails the
     association (AC-02) and every missing entry/file/return is recorded
-    by name in the assessment (AC-03).
+    by name in the assessment (AC-03). A required return is covered by
+    the manifest's explicit ``required_return_files`` mapping entry when
+    one exists (the mapped file must be declared and present), else by
+    a declared file whose name is exactly the token (the v1.0 rule).
 
     Args:
         manifest: the returned result manifest (raw mapping read from
@@ -305,8 +374,29 @@ def evaluate_result_manifest(
     missing_files = tuple(
         sorted(name for name in declared_files if name not in present)
     )
-    uncovered = set(required_returns) - set(declared_files)
-    unmet_required_returns = tuple(sorted(uncovered))
+
+    # The optional required_return_files mapping: the operator's explicit
+    # declaration of which returned file covers which required return
+    # (AC-03 -- coverage is never guessed from file stems or extensions).
+    # A mapping that is present but malformed is corrupt operator data:
+    # recorded as a missing manifest field, never silently dropped.
+    return_mapping: dict[str, str] = {}
+    if RESULT_MANIFEST_RETURN_MAPPING_KEY in manifest:
+        mapping_value = manifest[RESULT_MANIFEST_RETURN_MAPPING_KEY]
+        if not _return_mapping_shape_ok(mapping_value):
+            missing_fields.append(RESULT_MANIFEST_RETURN_MAPPING_KEY)
+        else:
+            return_mapping = dict(mapping_value)
+
+    unmet_required_returns = tuple(
+        sorted(
+            required
+            for required in set(required_returns)
+            if not _required_return_covered(
+                required, declared_files, present, return_mapping
+            )
+        )
+    )
 
     valid = (
         not missing_fields
@@ -328,6 +418,7 @@ def evaluate_result_manifest(
         unmet_required_returns=unmet_required_returns,
         declared_files=declared_files,
         present_files=tuple(sorted(set(present_files))),
+        required_return_files=tuple(sorted(return_mapping.items())),
     )
 
 
@@ -361,3 +452,72 @@ def _file_entries(manifest: Mapping[str, Any]) -> tuple[str, ...]:
     ):
         return tuple(value)
     return ()
+
+
+def _return_mapping_shape_ok(value: Any) -> bool:
+    """True iff an optional ``required_return_files`` entry is a mapping
+    of non-empty strings to non-empty strings.
+
+    A malformed entry is corrupt operator data: it is recorded as a
+    missing manifest field rather than silently dropped.
+    """
+    return isinstance(value, Mapping) and all(
+        isinstance(token, str)
+        and token.strip()
+        and isinstance(filename, str)
+        and filename.strip()
+        for token, filename in value.items()
+    )
+
+
+def _required_return_covered(
+    required: str,
+    declared_files: Sequence[str],
+    present_files: set[str],
+    return_mapping: Mapping[str, str],
+) -> bool:
+    """True iff one required return is covered by the returned files.
+
+    An explicit ``required_return_files`` mapping entry is the
+    operator's declaration of coverage (AC-03 -- never guessed from file
+    stems or extensions): the mapped file must be declared in ``files``
+    and actually present in the incoming handoff. Without an explicit
+    entry, the v1.0 rule applies: the required return is covered only by
+    a declared file whose name is exactly the token.
+    """
+    mapped_file = return_mapping.get(required)
+    if mapped_file is not None:
+        return mapped_file in declared_files and mapped_file in present_files
+    return required in declared_files
+
+
+def _canonical_return_mapping(value: Any) -> tuple[tuple[str, str], ...]:
+    """Canonical sorted ``(required return, file name)`` pairs of an
+    optional ``required_return_files`` mapping.
+
+    A malformed mapping is corrupt operator data and is refused (never
+    silently dropped from the typed record).
+
+    Raises:
+        TypeError: ``value`` is not a mapping.
+        ResultManifestError: a key or value is not a non-empty string.
+    """
+    if not isinstance(value, Mapping):
+        raise TypeError(
+            "LabResultManifest.required_return_files must be a mapping of"
+            f" required returns to file names, got {type(value).__name__}"
+        )
+    entries: list[tuple[str, str]] = []
+    for token, filename in value.items():
+        if not isinstance(token, str) or not token.strip():
+            raise ResultManifestError(
+                "result manifest required_return_files keys must be"
+                " non-empty strings"
+            )
+        if not isinstance(filename, str) or not filename.strip():
+            raise ResultManifestError(
+                "result manifest required_return_files values must be"
+                " non-empty strings"
+            )
+        entries.append((token, filename))
+    return tuple(sorted(entries))

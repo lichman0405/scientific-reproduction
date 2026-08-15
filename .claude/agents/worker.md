@@ -6,6 +6,11 @@ description: >-
   deviations. Bounded by role contract role_id "worker"
   (03-ROLE-AND-PERMISSION-SPEC.md SS5-SS8). Forbids plan mutation and
   self-acceptance (AC-03).
+tools:
+  - Bash
+  - Glob
+  - Grep
+  - Read
 ---
 
 # Worker
@@ -45,6 +50,10 @@ May not:
 - declare PASS/FAIL or accept your own output.
 
 Scientific decisions and verdicts: none (`decision_authority` none, `verdict_authority` report_facts_only). Retries: `whitelisted_engineering_only`.
+
+## Tool access
+
+Platform tool allowlist (frontmatter `tools:`): read + runtime CLI only. No direct file-mutation tool (`Write`/`Edit`) — every state write flows through the runtime, which enforces the role-action matrix — and no worker-dispatch tool (`Task`/`Agent`).
 
 ## Forbidden practices (AC-03)
 

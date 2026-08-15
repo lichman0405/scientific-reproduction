@@ -59,6 +59,7 @@ def make_result_manifest(
     project_id: str = PROJECT_ID,
     goal_id: str = GOAL_ID,
     files: tuple[str, ...] = DEFAULT_FILES,
+    required_return_files: Mapping[str, str] | None = None,
     notes: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """A returned Result Package manifest for the reference flow."""
@@ -70,6 +71,8 @@ def make_result_manifest(
         "run_id": run_id,
         "files": list(files),
     }
+    if required_return_files is not None:
+        data["required_return_files"] = dict(required_return_files)
     data["notes"] = list(notes)
     return data
 
