@@ -4,6 +4,40 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added
+
+- **Operator-facing execution sheets** (`reporting.sheets`, issue #106) —
+  deterministic print-ready A4 sheets rendered as pure functions of the
+  registered state (stdlib-only, no wall clock/randomness/network; an
+  optional `generated_at` stamp is caller-injected):
+  - `reporting.sheets.html` — the shared A4 print visual system (dark-blue
+    banner, red prohibited-changes block, amber safety block, fill-in
+    fields, checkboxes, signatures, fixed print footer) any future
+    renderer (plan sheets) must reuse.
+  - `reporting.sheets.experiment.build_experiment_sheet` — one sheet per
+    dispatched lab package, from the real outgoing handoff
+    (`lab/outgoing/<RUN_ID>/`) plus the project/goal context: identity,
+    objective, reagents/instruments tables, numbered procedure, critical
+    control variables, the visually dominant prohibited-changes block
+    (STRICT-track emphasis), safety notes, operator record fill-in
+    fields, the exact `required_return` checklist tokens (issue #85),
+    unknown manifest keys in an "Additional package data" section
+    (1:1 manifest fidelity), signatures and the fixed footer.
+  - `reporting.sheets.computation.build_computation_sheet` — one sheet
+    per compute job, from the durable job record
+    (`<state_dir>/jobs/<job_id>.json`, re-hydrated through the real
+    `JobRecord`/`SSHJobRecord`/`SlurmJobRecord` contracts) plus the
+    run → goal → acceptance → statistical-design chain (07 SS7/SS9):
+    identity/job state, inputs, the verbatim shell-joined command,
+    resource requests (Slurm modules/environment overrides, scheduler
+    state), required outputs with the deterministic artifact-id rule and
+    the convergence/validation criteria with "not registered" markers
+    for absent links (never guessed).
+  - Stable error surface (`SheetError` hierarchy) and `TypeError` at the
+    public boundaries; canonical JSON sheet surfaces; byte-identical
+    determinism. Benchmark acceptance: every FDM-201 experiment and
+    computation package renders 1:1 (PDF-convertible full documents).
+
 ### Fixed
 
 - **Primary-target metadata registration** — a PDF target carried only its
