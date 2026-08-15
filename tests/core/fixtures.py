@@ -1,6 +1,6 @@
-"""Shared valid example documents for the 21 normative object types.
+"""Shared valid example documents for the 22 normative object types.
 
-Seven of the documents are loaded from the frozen FDM-201 reference-case
+Eight of the documents are loaded from the frozen FDM-201 reference-case
 example files in ``examples/fdm-201/``; the remaining fourteen are minimal
 hand-written documents that satisfy the corresponding frozen schema in
 ``schemas/`` (required fields present, enum values from the schema enums).
@@ -49,6 +49,7 @@ VALID_DOCS: dict[str, dict[str, Any]] = {
     "assumption": _load_example("assumption.example.yaml"),
     "inventory-item": _load_example("inventory.example.yaml"),
     "acceptance-criteria": _load_example("acceptance.example.yaml"),
+    "statistical-design": _load_example("statistical-design.example.yaml"),
     "research-request": _load_example("research-request.example.yaml"),
     # --- minimal hand-written documents for the remaining types ---
     "run": {

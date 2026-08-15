@@ -86,7 +86,7 @@ Persistence and git boundary (normative reading)
 ------------------------------------------------
 This module is a **pure evaluator over in-memory state**: it persists
 nothing and performs no Git operations. Rationale: ``schemas/`` has no
-standalone audit schema (``core.schema_validation`` knows 21 object
+standalone audit schema (``core.schema_validation`` knows 22 object
 types; ``plan.schema.yaml`` defines ``inventory_audit`` only as a nested
 sub-object of the Plan), ``templates/PROJECT-TREE.template.txt`` has no
 ``audit/`` directory, and the inventory models carry no timestamp fields
