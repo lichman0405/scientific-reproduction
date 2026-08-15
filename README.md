@@ -9,6 +9,20 @@ chemistry / computational materials science, with the official FDM-201
 reference case. See [`00-README.md`](00-README.md) for the product overview
 and non-negotiable architecture decisions.
 
+## Get the skill
+
+Download the release archive from
+[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.0),
+or clone the release branch:
+
+```bash
+git clone --branch release/skill-v0.2.0 https://github.com/lichman0405/scientific-reproduction.git
+```
+
+> Note: the default branch `main` carries the v0.1.0 development record and
+> is **not** the skill distribution — always use the release branch or the
+> release archive.
+
 ## Install as a skill
 
 This repository **is** the skill directory. Copy it into your platform's
