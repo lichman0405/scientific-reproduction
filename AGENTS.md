@@ -50,7 +50,10 @@ Follow the orchestration flow in `SKILL.md` (initialize → bootstrap research
 → inventory → freeze Plan v1 → execute goals → monitor/recover → independent
 analysis → auditable report). The workspace created by `reproduce init` is
 the Single Source of Truth; every state change goes through it, and every
-scientific decision is recorded there.
+scientific decision is recorded there. During bootstrap research, register
+the primary target's DOI/title metadata on the project record
+(`planning.init.register_target_metadata`) so a PDF target's identity is
+machine-usable before Plan v1.
 
 ## Reference case
 

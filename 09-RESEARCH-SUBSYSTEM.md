@@ -21,6 +21,21 @@ Before Plan v1, Research must systematically acquire and index:
 - public database records;
 - computational method sources.
 
+The bootstrap also carries a first-class primary-target metadata
+registration: the primary paper step (W-BOOT-1 of
+`research/workflows.py`, `TARGET_METADATA_REGISTRATION`) registers the
+primary target's DOI/title metadata on the project record through
+`planning.init.register_target_metadata`. A PDF target carries only its
+local path at init (`planning.init`), so registering the DOI/title
+extracted during bootstrap research — or supplied manually by the
+operator — makes the target identity machine-usable for mirror collapse
+and evidence linking (section 7 of `06-EVIDENCE-SYSTEM.md`) before Plan
+v1. The registration updates the existing primary target record and never
+replaces it (one target paper per project, `20-ARCHITECTURE-DECISIONS.md`
+decision 3); the identity facts are reported by Research, and the
+project-record write follows the Supervisor governance path
+(`03-ROLE-AND-PERMISSION-SPEC.md` section 1).
+
 ## 3. Research Requests
 
 Only Supervisor may issue formal Research Requests. Workers report anomalies to Supervisor; Supervisor decides whether a research question is warranted.

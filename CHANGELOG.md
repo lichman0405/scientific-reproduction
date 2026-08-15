@@ -6,6 +6,13 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ### Fixed
 
+- **Primary-target metadata registration** — a PDF target carried only its
+  local path on the project record at init; the new
+  `planning.init.register_target_metadata` API is the first-class
+  metadata-registration step of the research bootstrap (W-BOOT-1) and
+  registers the paper DOI/title on the existing primary target record,
+  making PDF target identity machine-usable for mirror collapse and evidence
+  linking before Plan v1 (see `docs/adr/0001-primary-target-metadata-registration.md`).
 - **Lab result-manifest coverage** — a dispatched package's `required_return` entries (raw-data-export tokens) can now be covered by an explicit `required_return_files` mapping in the returned result manifest (`{token: file name}`, the operator's declaration of coverage), so natural lab file names (`yield_pct.txt`, `2026-08-15_product_photo.jpg`) no longer need to be engineered to equal the token. The v1.0 exact-name rule remains the fallback for unmapped required returns; a malformed mapping is refused as corrupt operator data. Result manifest v1.1 / ruleset v1.1 (`adapters/lab/manifest.py`).
 
 ## [0.2.0] - 2026-08-15
