@@ -30,6 +30,7 @@ from scientific_reproduction.planning.init import (
     parse_target_form,
     read_project_state,
     register_primary_target,
+    register_target_metadata,
 )
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     "parse_target_form",
     "read_project_state",
     "register_primary_target",
+    "register_target_metadata",
 ]

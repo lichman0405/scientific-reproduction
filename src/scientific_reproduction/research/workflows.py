@@ -59,6 +59,20 @@ Category <-> frozen source vocabulary (normative mapping)
 
 The mapping is exhaustive and disjoint over all 14 frozen ``SourceType``
 members (locked by the tests).
+
+Metadata registration (normative reading)
+-----------------------------------------
+The bootstrap contract also carries a first-class **metadata-registration
+obligation** (:data:`TARGET_METADATA_REGISTRATION`): the primary paper
+step (W-BOOT-1) registers the primary target's DOI/title metadata on the
+project record through ``planning.init.register_target_metadata``. A PDF
+target carries only its local path at init (``planning.init``), so the
+DOI/title extracted during bootstrap research makes the target identity
+machine-usable -- mirror collapse (``06-EVIDENCE-SYSTEM.md`` section 7)
+and evidence linking key on the DOI. The obligation is not an acquisition
+category: it updates the existing primary target record (AC-01: exactly
+one primary target) instead of acquiring a new source, so it has no
+``SourceType`` and no place in the six-category table.
 """
 
 from __future__ import annotations
@@ -75,6 +89,8 @@ __all__ = [
     "BOOTSTRAP_CATEGORIES",
     "BOOTSTRAP_WORKFLOW",
     "SPEC_ACQUISITION_ITEMS",
+    "TargetMetadataRegistration",
+    "TARGET_METADATA_REGISTRATION",
     "bootstrap_category_for_source_type",
     "bootstrap_source_types",
 ]
@@ -216,6 +232,47 @@ BOOTSTRAP_WORKFLOW: tuple[BootstrapStep, ...] = (
         source_types=(SourceType.INFORMAL, SourceType.OTHER),
     ),
 )
+
+@dataclass(frozen=True)
+class TargetMetadataRegistration:
+    """The bootstrap's first-class primary-target metadata registration.
+
+    The primary paper step (W-BOOT-1) carries the obligation to register
+    the primary target's DOI/title metadata on the project record through
+    ``planning.init.register_target_metadata`` (``09-RESEARCH-SUBSYSTEM.md``
+    section 2; the "Metadata registration" reading of this module's
+    docstring). It is not an acquisition category: it updates the existing
+    primary target record (AC-01: exactly one primary target) instead of
+    acquiring a new source, so it has no ``SourceType`` and no place in
+    the six-category table.
+
+    ``step_id`` is the workflow step that carries the obligation; ``api``
+    is the runtime registration API that performs it; ``description``
+    states what is registered.
+    """
+
+    step_id: str
+    api: str
+    description: str
+
+
+#: The bootstrap's primary-target metadata-registration obligation: the
+#: W-BOOT-1 primary paper step registers the primary target's DOI/title
+#: metadata on the project record, making the target identity
+#: machine-usable (mirror collapse, evidence linking, research bootstrap)
+#: before Plan v1.
+TARGET_METADATA_REGISTRATION: TargetMetadataRegistration = (
+    TargetMetadataRegistration(
+        step_id="W-BOOT-1",
+        api="planning.init.register_target_metadata",
+        description=(
+            "register the primary target's DOI/title metadata on the"
+            " project record (a PDF target carries only its local path at"
+            " init)"
+        ),
+    )
+)
+
 
 #: The 09-RESEARCH-SUBSYSTEM.md section 2 acquisition bullets; used by the
 #: tests to prove every bullet is covered by exactly one step.

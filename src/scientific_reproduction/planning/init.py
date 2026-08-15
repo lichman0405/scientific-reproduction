@@ -22,6 +22,14 @@ Public API
   required single object, ``schemas/project.schema.yaml``), so on an
   unmodified project this API always rejects -- it exists to make the
   one-primary invariant an enforced behavior, not just a schema property.
+* ``register_target_metadata`` -- primary target metadata registration:
+  the first-class "metadata registration" step of the research bootstrap
+  (``09-RESEARCH-SUBSYSTEM.md`` section 2; the ``W-BOOT-1`` primary paper
+  step of ``research/workflows.py``). A PDF target carries only its local
+  path at init, so the paper DOI/title extracted during bootstrap research
+  (or supplied manually by the operator) is registered on the existing
+  primary target record -- never replacing it (AC-01) and never
+  contradicting a DOI-form identifier (AC-03).
 * ``parse_target_form`` / ``detect_target_form`` -- AC-03: the three target
   forms ``pdf`` (local path), ``doi`` and ``url`` (values frozen in
   ``TargetSourceType``, ``core/models.py``) are detected deterministically
@@ -110,6 +118,7 @@ __all__ = [
     "parse_target_form",
     "read_project_state",
     "register_primary_target",
+    "register_target_metadata",
 ]
 
 # ---------------------------------------------------------------------------
@@ -554,6 +563,104 @@ def register_primary_target(
     validate_and_reject("project", updated.to_dict())
     atomic_write(state_path, _canonical_json(updated.to_dict()))
     return primary_target
+
+
+def register_target_metadata(
+    root: str | Path,
+    *,
+    doi: str | None = None,
+    title: str | None = None,
+    timestamp: datetime | None = None,
+) -> Project:
+    """Register DOI/title metadata on the primary target record.
+
+    The first-class "metadata registration" step of the research bootstrap
+    (``09-RESEARCH-SUBSYSTEM.md`` section 2; the ``W-BOOT-1`` primary paper
+    step of ``research/workflows.py``): a PDF target carries only its local
+    path at init (``parse_target_form``, AC-03), so the paper DOI/title
+    extracted during bootstrap research -- or supplied manually by the
+    operator -- is registered here, on the existing primary target record.
+    The registration never replaces the target (AC-01: a project has
+    exactly one primary target; ``source_type`` and ``identifier`` are
+    preserved), and a DOI that contradicts a DOI-form identifier is
+    rejected, so the target's identity stays consistent.
+
+    The update is deterministic and validated like every project-record
+    write: the DOI must match the frozen DOI syntax (``DOI_PATTERN``), the
+    persisted record is schema-validated (``core.schema_validation``) and
+    written atomically, and ``updated_at`` is pinned to ``timestamp``
+    (default now-UTC). Re-registering identical metadata is a deterministic
+    no-op that leaves the record untouched (no write, no timestamp move).
+    The write is state-only, following the ``register_primary_target``
+    convention: no event record and no git checkpoint are created here.
+
+    Args:
+        root: the initialized workspace root.
+        doi: the paper DOI to register (``10.<registrant>/<suffix>``).
+        title: the paper title to register.
+        timestamp: timezone-aware timestamp for ``updated_at``; defaults
+            to now-UTC.
+
+    Returns:
+        The updated ``Project`` record (the current record when the
+        registration is a no-op).
+
+    Raises:
+        TypeError: any argument has the wrong type.
+        ValueError: neither ``doi`` nor ``title`` is given, or ``timestamp``
+            is naive. A malformed or contradictory DOI raises the
+            ``TargetValidationError`` subclass with a stable message.
+        ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
+    """
+    if not isinstance(root, (str, Path)):
+        raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
+    if doi is not None and not isinstance(doi, str):
+        raise TypeError(f"doi must be a str, got {type(doi).__name__}")
+    if title is not None and not isinstance(title, str):
+        raise TypeError(f"title must be a str, got {type(title).__name__}")
+    if timestamp is not None and not isinstance(timestamp, datetime):
+        raise TypeError(
+            f"timestamp must be a datetime, got {type(timestamp).__name__}"
+        )
+    if doi is None and title is None:
+        raise ValueError("nothing to register: give at least one of doi or title")
+    project_root = Path(root).resolve()
+    state_path = project_root / PROJECT_STATE_FILENAME
+    if not state_path.is_file():
+        raise ProjectNotInitializedError(
+            f"cannot register target metadata: no project state at {project_root}"
+            f" ({PROJECT_STATE_FILENAME} missing); initialize the project first"
+        )
+    project = _read_project_state(state_path)
+    target = project.primary_target
+    if doi is not None:
+        if not _is_doi(doi):
+            raise TargetValidationError(
+                f"malformed DOI {doi!r}: expected 10.<4-9 digits>/<suffix>"
+            )
+        if target.source_type == TargetSourceType.DOI and doi != target.identifier:
+            raise TargetValidationError(
+                f"cannot register DOI {doi!r}: the primary target is DOI-form"
+                f" with identifier {target.identifier!r}; the registered DOI"
+                " must match the DOI-form identifier"
+            )
+    updated_target = replace(
+        target,
+        doi=doi if doi is not None else target.doi,
+        title=title if title is not None else target.title,
+    )
+    if updated_target == target:
+        # Deterministic no-op: the metadata is already registered.
+        return project
+    effective_time = _resolve_timestamp(timestamp, name="timestamp")
+    updated = replace(
+        project,
+        primary_target=updated_target,
+        updated_at=_format_iso(effective_time),
+    )
+    validate_and_reject("project", updated.to_dict())
+    atomic_write(state_path, _canonical_json(updated.to_dict()))
+    return updated
 
 
 # ---------------------------------------------------------------------------

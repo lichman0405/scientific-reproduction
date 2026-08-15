@@ -14,6 +14,11 @@ Covers:
     round-trip into the project state without loss; malformed forms (bad
     DOI syntax, unparsable URL, non-``.pdf`` path) are rejected with stable
     messages;
+  * primary target metadata registration (the research bootstrap step): a
+    PDF target's DOI/title is registered on the existing primary target
+    record without replacing it (AC-01), malformed or contradictory DOIs
+    are rejected, identical re-registration is a no-op, and the update is
+    schema-validated and atomic;
   * the /reproduce CLI ``init`` subcommand (exit codes, stable output).
 
 Every test name contains "init" so the goal verification command
@@ -58,6 +63,7 @@ from scientific_reproduction.planning.init import (
     parse_target_form,
     read_project_state,
     register_primary_target,
+    register_target_metadata,
 )
 
 DOI = "10.1039/D5TA00771B"
@@ -416,6 +422,161 @@ def test_init_rejects_explicit_form_mismatch(tmp_path: Path) -> None:
         parse_target_form(URL, form=TargetSourceType.DOI)
     with pytest.raises(TargetValidationError, match="unparsable URL"):
         parse_target_form(DOI, form=TargetSourceType.URL)
+
+
+# ---------------------------------------------------------------------------
+# Primary target metadata registration (research bootstrap step)
+# ---------------------------------------------------------------------------
+
+
+def test_init_registers_metadata_on_pdf_target(tmp_path: Path) -> None:
+    # The issue scenario: a local PDF target carries only its path at init;
+    # the DOI/title extracted during bootstrap research (or supplied by the
+    # operator) is registered on the existing primary target record.
+    result = _init(tmp_path / "project", PDF_PATH)
+    assert result.project.primary_target.doi is None
+    updated = register_target_metadata(
+        result.project_root,
+        doi=DOI,
+        title="FDM-201 propylene/ethylene separation reproduction",
+        timestamp=TIMESTAMP,
+    )
+    assert updated.primary_target == PrimaryTarget(
+        source_type=TargetSourceType.PDF,
+        identifier=PDF_PATH,
+        doi=DOI,
+        title="FDM-201 propylene/ethylene separation reproduction",
+    )
+    # The form and identifier are preserved (AC-01: one primary target).
+    state = _state_dict(result.project_root)
+    assert state["primary_target"] == {
+        "source_type": "pdf",
+        "identifier": PDF_PATH,
+        "doi": DOI,
+        "title": "FDM-201 propylene/ethylene separation reproduction",
+    }
+    # The persisted record round-trips and is schema-valid.
+    assert read_project_state(result.project_root) == updated
+    validate_and_reject("project", state)
+
+
+def test_init_metadata_registration_preserves_existing_title(
+    tmp_path: Path,
+) -> None:
+    result = _init(tmp_path / "project", PDF_PATH, title="paper title")
+    updated = register_target_metadata(
+        result.project_root, doi=DOI, timestamp=TIMESTAMP
+    )
+    # Registering only the DOI leaves the existing title untouched.
+    assert updated.primary_target.title == "paper title"
+    assert updated.primary_target.doi == DOI
+    # Registering only a title leaves the existing DOI untouched.
+    again = register_target_metadata(
+        result.project_root, title="new title", timestamp=TIMESTAMP
+    )
+    assert again.primary_target.doi == DOI
+    assert again.primary_target.title == "new title"
+
+
+def test_init_metadata_registration_corrects_metadata(tmp_path: Path) -> None:
+    # Registration is a correction path: a wrong DOI can be replaced by a
+    # valid one on the same target (identity and form are unchanged).
+    result = _init(tmp_path / "project", PDF_PATH)
+    first = register_target_metadata(
+        result.project_root, doi="10.1000/182", timestamp=TIMESTAMP
+    )
+    assert first.primary_target.doi == "10.1000/182"
+    second = register_target_metadata(
+        result.project_root, doi=DOI, timestamp=TIMESTAMP
+    )
+    assert second.primary_target.doi == DOI
+    assert second.primary_target.identifier == PDF_PATH
+    assert second.primary_target.source_type == TargetSourceType.PDF
+
+
+def test_init_metadata_registration_rejects_malformed_doi(
+    tmp_path: Path,
+) -> None:
+    result = _init(tmp_path / "project", PDF_PATH)
+    for value in ("10.1039/", "10.1039", "10.1/abc", "doi:10.1039/abc"):
+        with pytest.raises(TargetValidationError, match="malformed DOI"):
+            register_target_metadata(
+                result.project_root, doi=value, timestamp=TIMESTAMP
+            )
+        # Rejection leaves the recorded state untouched.
+        state_target = _state_dict(result.project_root)["primary_target"]
+        assert isinstance(state_target, dict)
+        assert state_target.get("doi") is None
+
+
+def test_init_metadata_registration_rejects_doi_form_contradiction(
+    tmp_path: Path,
+) -> None:
+    # A DOI-form target's identifier IS the DOI; registering a different
+    # DOI would break the identity and is rejected (AC-03 consistency).
+    result = _init(tmp_path / "project", DOI)
+    with pytest.raises(TargetValidationError, match="must match"):
+        register_target_metadata(
+            result.project_root, doi="10.1000/182", timestamp=TIMESTAMP
+        )
+    assert _state_dict(result.project_root)["primary_target"]["doi"] == DOI
+
+
+def test_init_metadata_registration_requires_something_to_register(
+    tmp_path: Path,
+) -> None:
+    result = _init(tmp_path / "project", PDF_PATH)
+    with pytest.raises(ValueError, match="nothing to register"):
+        register_target_metadata(result.project_root, timestamp=TIMESTAMP)
+
+
+def test_init_metadata_registration_requires_initialized_project(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ProjectNotInitializedError, match="initialize the project"):
+        register_target_metadata(
+            tmp_path / "empty", doi=DOI, timestamp=TIMESTAMP
+        )
+
+
+def test_init_metadata_registration_identical_values_are_noop(
+    tmp_path: Path,
+) -> None:
+    result = _init(tmp_path / "project", PDF_PATH)
+    updated = register_target_metadata(
+        result.project_root, doi=DOI, title="FDM-201", timestamp=TIMESTAMP
+    )
+    state_path = result.project_root / PROJECT_STATE_FILENAME
+    recorded = state_path.read_bytes()
+    again = register_target_metadata(
+        result.project_root, doi=DOI, title="FDM-201", timestamp=TIMESTAMP
+    )
+    # A deterministic no-op: the record is byte-identical (no write, no
+    # updated_at move) and the returned record equals the stored one.
+    assert state_path.read_bytes() == recorded
+    assert again == updated
+    assert again.updated_at == updated.updated_at
+
+
+def test_init_metadata_registration_wrong_types_raise_type_error(
+    tmp_path: Path,
+) -> None:
+    result = _init(tmp_path / "project", PDF_PATH)
+    with pytest.raises(TypeError):
+        register_target_metadata(result.project_root, doi=7)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        register_target_metadata(result.project_root, title=7)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        register_target_metadata(  # type: ignore[arg-type]
+            result.project_root, doi=DOI, timestamp="2026-01-01"  # type: ignore[arg-type]
+        )
+    with pytest.raises(TypeError):
+        register_target_metadata(42, doi=DOI)  # type: ignore[arg-type]
+    # Naive timestamps are rejected (same convention as the init helpers).
+    with pytest.raises(ValueError, match="timezone-aware"):
+        register_target_metadata(
+            result.project_root, doi=DOI, timestamp=datetime(2026, 1, 1)
+        )
 
 
 # ---------------------------------------------------------------------------

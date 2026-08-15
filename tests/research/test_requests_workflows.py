@@ -9,7 +9,13 @@ Acceptance coverage (exact AC test names below):
     ``SourceType`` members (``schemas/source.schema.yaml``) maps to
     exactly one category (total, disjoint); every 09-RESEARCH-SUBSYSTEM.md
     section 2 acquisition bullet is covered by exactly one step; the
-    contract is versioned and frozen.
+    contract is versioned and frozen;
+  * the primary-target metadata registration obligation -- the W-BOOT-1
+    primary paper step carries the bootstrap's first-class
+    metadata-registration obligation: ``TARGET_METADATA_REGISTRATION``
+    binds to the primary paper step, resolves to the real
+    ``planning.init.register_target_metadata`` API, is frozen, and
+    describes what is registered (the PDF-target DOI/title case).
 
 Invariants: the category mapping is a pure deterministic function of the
 frozen vocabulary (equal inputs -> equal outputs), the table is
@@ -25,13 +31,16 @@ import dataclasses
 import pytest
 
 from scientific_reproduction.core.models import SourceType
+from scientific_reproduction.planning import init as planning_init
 from scientific_reproduction.research.workflows import (
     BOOTSTRAP_CATEGORIES,
     BOOTSTRAP_WORKFLOW,
     BOOTSTRAP_WORKFLOW_VERSION,
     SPEC_ACQUISITION_ITEMS,
+    TARGET_METADATA_REGISTRATION,
     BootstrapCategory,
     BootstrapStep,
+    TargetMetadataRegistration,
     bootstrap_category_for_source_type,
     bootstrap_source_types,
 )
@@ -157,6 +166,52 @@ def test_ac01_bootstrap_workflow_contract_is_versioned_and_frozen() -> None:
     assert step.source_types == step.source_types
     # No mutation occurred despite the attempted writes.
     assert "changed" not in {s.description for s in BOOTSTRAP_WORKFLOW}
+
+
+# ---------------------------------------------------------------------------
+# Primary-target metadata registration (the bootstrap's first-class
+# metadata-registration obligation)
+# ---------------------------------------------------------------------------
+
+
+def test_target_metadata_registration_binds_to_primary_paper_step() -> None:
+    """The obligation rides the W-BOOT-1 primary paper step."""
+    assert isinstance(TARGET_METADATA_REGISTRATION, TargetMetadataRegistration)
+    assert TARGET_METADATA_REGISTRATION.step_id == "W-BOOT-1"
+    step = next(
+        step
+        for step in BOOTSTRAP_WORKFLOW
+        if step.step_id == TARGET_METADATA_REGISTRATION.step_id
+    )
+    assert step.category == BootstrapCategory.PAPER
+    # The primary paper step indeed covers the target paper acquisition.
+    assert SourceType.TARGET_PAPER in step.source_types
+
+
+def test_target_metadata_registration_api_resolves_in_planning_init() -> None:
+    """The declared API is the real runtime registration function."""
+    api = TARGET_METADATA_REGISTRATION.api
+    assert api == "planning.init.register_target_metadata"
+    parts = api.split(".")
+    assert parts[:2] == ["planning", "init"]
+    assert callable(getattr(planning_init, parts[-1]))
+
+
+def test_target_metadata_registration_is_frozen() -> None:
+    """The obligation is a frozen, immutable contract entry."""
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        TARGET_METADATA_REGISTRATION.description = "changed"  # type: ignore[misc]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        TARGET_METADATA_REGISTRATION.step_id = "W-BOOT-7"  # type: ignore[misc]
+    assert TARGET_METADATA_REGISTRATION.description != "changed"
+    assert TARGET_METADATA_REGISTRATION.step_id == "W-BOOT-1"
+
+
+def test_target_metadata_registration_describes_obligation() -> None:
+    """The entry states what is registered, in the goal's vocabulary."""
+    assert TARGET_METADATA_REGISTRATION.description
+    assert "DOI" in TARGET_METADATA_REGISTRATION.description
+    assert "title" in TARGET_METADATA_REGISTRATION.description
 
 
 # ---------------------------------------------------------------------------
