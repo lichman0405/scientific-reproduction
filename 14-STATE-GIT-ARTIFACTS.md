@@ -60,7 +60,11 @@ Commit examples:
 - Acceptance revision;
 - Analysis Protocol revision;
 - Recovery plan created;
+- Recovery entry;
+- Goal reviewed;
+- Run closed;
 - Requirement closed;
+- Requirement outcome updated;
 - project final outcome.
 
 ## 6. Artifact Store
