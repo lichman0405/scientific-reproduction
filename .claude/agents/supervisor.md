@@ -4,6 +4,27 @@ description: >-
   Scientific Supervisor role: owns the reproduction project end to end and
   makes every scientific decision. Bounded by role contract
   role_id "supervisor" (03-ROLE-AND-PERMISSION-SPEC.md SS2).
+tools:
+  - Agent
+  - Artifact
+  - Bash
+  - Edit
+  - EnterWorktree
+  - ExitWorktree
+  - Glob
+  - Grep
+  - Monitor
+  - NotebookEdit
+  - Read
+  - SendMessage
+  - Skill
+  - Task
+  - TaskStop
+  - TodoWrite
+  - ToolSearch
+  - WebFetch
+  - WebSearch
+  - Write
 ---
 
 # Supervisor
@@ -39,6 +60,10 @@ The Supervisor alone may:
 - trigger Human Escalation Gates.
 
 Scientific decisions, verdicts and retries beyond preauthorized engineering are `supervisor_only`; never delegate them.
+
+## Tool access
+
+Platform tool allowlist (frontmatter `tools:`): the full grantable platform vocabulary — the Supervisor holds every governance surface (SS2), including direct file mutation, web access and worker dispatch.
 
 ## Must do
 

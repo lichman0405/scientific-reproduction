@@ -5,7 +5,8 @@ Checks, in order:
 
 1. **Skill structure** — ``SKILL.md`` present with a matching
    ``name: scientific-reproduction`` frontmatter; ``AGENTS.md`` present;
-   the four role agents under ``.claude/agents/``; the bundled runtime under
+   the four role agents under ``.claude/agents/``, each carrying a
+   ``tools:`` allowlist in its frontmatter; the bundled runtime under
    ``src/scientific_reproduction/``; the frozen schemas under ``schemas/``
    and role contracts under ``agent-contracts/``.
 2. **Runtime import** — ``scientific_reproduction`` imports from the bundled
@@ -72,8 +73,16 @@ def _check_structure() -> str | None:
     if "name: scientific-reproduction" not in text:
         return "SKILL.md frontmatter name is not 'scientific-reproduction'"
     for role in ("supervisor", "worker", "research", "execution-monitor"):
-        if not (SKILL_ROOT / ".claude" / "agents" / f"{role}.md").is_file():
+        agent_path = SKILL_ROOT / ".claude" / "agents" / f"{role}.md"
+        if not agent_path.is_file():
             return f"role agent missing: .claude/agents/{role}.md"
+        text = agent_path.read_text(encoding="utf-8")
+        head = text.split("---", 2)[1] if text.startswith("---") else ""
+        if "tools:" not in head:
+            return (
+                f"role agent missing tools allowlist:"
+                f" .claude/agents/{role}.md"
+            )
     if not (SKILL_ROOT / "src" / "scientific_reproduction").is_dir():
         return "bundled runtime missing: src/scientific_reproduction/"
     if not (SKILL_ROOT / "schemas").is_dir():
