@@ -94,7 +94,7 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 | Template | Purpose |
 |---|---|
 | [`templates/CLAUDE.md.template`](../../templates/CLAUDE.md.template) | User-project `CLAUDE.md` skeleton. |
-| [`templates/PROJECT-TREE.template.txt`](../../templates/PROJECT-TREE.template.txt) | Project tree skeleton. |
+| [`templates/PROJECT-TREE.template.txt`](../../templates/PROJECT-TREE.template.txt) | Project tree skeleton (starter `.gitignore`/`.gitattributes` are written by `reproduce init`). |
 | [`templates/SKILL.md.template`](../../templates/SKILL.md.template) | Skill manifest skeleton (source for the root `SKILL.md`). |
 
 ## Reference examples (`examples/`)

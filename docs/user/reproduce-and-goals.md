@@ -42,13 +42,26 @@ python -m scientific_reproduction.cli.reproduce init <target> [options]
 | `--author-name NAME` | `Scientific Reproduction` | git author/committer name |
 | `--author-email EMAIL` | `repro@example.org` | git author/committer email |
 | `--timestamp ISO-8601` | now-UTC | pins state/event/commit timestamps |
+| `--allow-non-empty-root` | off | allow initializing into a non-empty root directory (default: refuse) |
 
 ### Exit codes
 
 - `0` — project initialized;
-- `1` — deterministic error (malformed target, already-initialized root,
-  naive/non-ISO `--timestamp`); the message is printed on stderr;
+- `1` — deterministic error (malformed target, already-initialized or
+  non-empty root, naive/non-ISO `--timestamp`); the message is printed on
+  stderr;
 - `2` — argument-parsing error.
+
+### Non-empty root guardrail
+
+`reproduce init` refuses a root directory that already contains anything
+(including hidden files): a fresh init in a shared or downloads directory
+would silently drag unrelated content into the scientific audit history
+(`git add -A` stages an embedded repository as a gitlink). Use an empty
+directory, or pass `--allow-non-empty-root` explicitly once you have
+reviewed what the root holds; the starter `.gitignore` (nested
+repositories, large raw artifacts per ADR 38) then limits what an
+accidental `git add -A` can pick up.
 
 ### What `init` does
 
@@ -65,9 +78,12 @@ python -m scientific_reproduction.cli.reproduce init <target> [options]
    against `schemas/project.schema.yaml`) with the primary target registered
    exactly once (the one-primary invariant, AC-01);
 3. appends the `project.initialized` event under `events/`;
-4. initializes the Git repository and records the "project initialized"
-   audit checkpoint commit (`audit.git.init_project_repo` /
-   `commit_checkpoint`, `14-STATE-GIT-ARTIFACTS.md` SS5).
+4. writes the starter `.gitignore` (nested repositories, large raw
+   artifacts per ADR 38, OS/editor noise) and `.gitattributes` (LF
+   normalization) at the workspace root;
+5. initializes the Git repository and records the "project initialized"
+   audit checkpoint commit including all four files (`audit.git.init_project_repo`
+   / `commit_checkpoint`, `14-STATE-GIT-ARTIFACTS.md` SS5).
 
 The command performs **no network access and no inventory discovery**: the
 `inventory/` directory is created empty (AC-02 of DEV-M4-G01).
