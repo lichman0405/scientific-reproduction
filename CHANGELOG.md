@@ -4,6 +4,16 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-15
+
+Issue-resolution release: every open issue is now resolved — the state tree
+is canonical, freeze persistence and init guardrails are in place, per-role
+tool allowlists enforce role boundaries, the statistical design record and
+state/linkage helpers landed, research fetch policies are documented and
+enforced, the Plan document renderer joined the renderer family, and the
+three renderers now share one visual system (`rendering.style`). Release
+branch CI gates are enabled and `main` is frozen in CONTRIBUTING.
+
 ### Added
 
 - **Deterministic final reproduction report renderer** (issue #107) —
@@ -24,6 +34,15 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
   writer (base-14 fonts, uncompressed greppable streams) — provides the
   visual system. The report lands in `reports/reproduction-report.pdf`
   with a canonical JSON sidecar `reports/reproduction-report.json`.
+- **Deterministic designed Plan document renderer** (issue #105) —
+  `reporting.plan_doc.render_plan_document` renders a print-ready designed
+  Plan document from recorded planning state only: project/plan identity,
+  goals as Unit Processes, the dependency DAG as an inline SVG diagram
+  (hard/soft/informational edges with their own dash patterns), acceptance
+  criteria with verdict placeholders, and the frozen plan annotations.
+  Rendering is deterministic (no wall clock, no network, byte-identical
+  for identical state; `generated_at` is caller-injected), stdlib-only,
+  and draws its palette from the shared `rendering` visual system.
 - **Report-file registration** — the machine-auditable package
   (`reporting.audit` v1.1) registers the files of the workspace
   `reports/` directory with SHA-256 checksums and sizes, sorted by name,
@@ -59,6 +78,21 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
     public boundaries; canonical JSON sheet surfaces; byte-identical
     determinism. Benchmark acceptance: every FDM-201 experiment and
     computation package renders 1:1 (PDF-convertible full documents).
+- **First-class statistical design record** (issue #89) — `planning`
+  records the frozen acceptance statistics as a dedicated design record
+  (`n-policy`, margin, method) on the goal contract family, so the
+  statistics an analysis must meet are machine-usable, not free text.
+- **`link_run_to_dispatch` run-record linkage helper** (issue #84) —
+  adapters helper that records the run → dispatch linkage on the run
+  record, so a dispatched lab/compute package and its returned run are
+  connected in the durable state.
+- **Fake-IP DNS fetch policy** (issue #98) — research adapters resolve
+  fetch targets and refuse DNS names that resolve to fake-IP ranges
+  (captive-portal / DNS-blocking space), with the policy documented and
+  covered by tests.
+- **Role state helpers** (issue #92) — Research and Worker/Monitor roles
+  ship state helpers so role code reads and updates registered state
+  through one canonical helper surface instead of ad-hoc registry access.
 
 ### Changed
 
@@ -68,6 +102,16 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
   derived from the same RGB constants the PDF writer uses, and the plan
   document and execution-sheet stylesheets consume them (`--ink`,
   `--accent`, `--fail`, …) instead of carrying private hex values.
+- **CI PR gates on the release branch** — the "Test, lint, and type check"
+  workflow now also triggers on pull requests against
+  `release/skill-v0.2.0`, and CONTRIBUTING freezes `main` as the v0.1.0
+  development record that never receives new commits.
+- **`/goals` positioning documented** (issue #95) — the docs state
+  explicitly that `/goals` views are agent-authored pure functions over
+  planning state in v0.2, not a platform command.
+- **Versioned `ranking_score` formula** (issue #97) — the evidence
+  `ranking_score` formula is versioned and documented, and the documented
+  example value was corrected to match the formula.
 
 ### Fixed
 
@@ -79,6 +123,30 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
   making PDF target identity machine-usable for mirror collapse and evidence
   linking before Plan v1 (see `docs/adr/0001-primary-target-metadata-registration.md`).
 - **Lab result-manifest coverage** — a dispatched package's `required_return` entries (raw-data-export tokens) can now be covered by an explicit `required_return_files` mapping in the returned result manifest (`{token: file name}`, the operator's declaration of coverage), so natural lab file names (`yield_pct.txt`, `2026-08-15_product_photo.jpg`) no longer need to be engineered to equal the token. The v1.0 exact-name rule remains the fallback for unmapped required returns; a malformed mapping is refused as corrupt operator data. Result manifest v1.1 / ruleset v1.1 (`adapters/lab/manifest.py`).
+- **Canonical state tree layout** (issues #82/#109) — the state backend and
+  the planning registries now converge on one canonical directory tree, so
+  every subsystem reads and writes the same layout.
+- **Frozen goal-contract persistence** (issue #108) — freezing a goal
+  contract family persists the frozen records in place on disk; the freeze
+  is durable, not memory-only.
+- **Init guardrails** (issue #86) — `reproduce init` refuses non-empty
+  project roots, and the package ships starter `.gitignore`/`.gitattributes`
+  so a fresh workspace is git-ready from the first checkpoint.
+- **Per-role tool allowlists** (issue #88) — role boundaries are enforced
+  by per-role tool allowlists: the worker contracts list exactly the tools
+  each role may call, and the enforcement layer rejects calls outside the
+  allowlist.
+- **Execution-phase checkpoint kinds** (issue #90) — the audit checkpoint
+  vocabulary gains execution-phase kinds, so monitoring/recovery
+  checkpoints are auditable in the machine-auditable package.
+- **IP-literal fetch refusal** (issue #110) — research adapters refuse
+  IP-literal fetch targets inside blocked networks (defense-in-depth
+  alongside the fake-IP DNS policy).
+
+### Verification
+
+- Full test suite, ruff lint, and mypy type check via `python scripts/verify.py`.
+- Skill smoke verification via `python scripts/smoke.py`.
 
 ## [0.2.0] - 2026-08-15
 

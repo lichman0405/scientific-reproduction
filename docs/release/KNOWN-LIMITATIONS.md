@@ -1,4 +1,4 @@
-# Known Limitations — Scientific Reproduction Skill v0.2.0 (runtime v0.1)
+# Known Limitations — Scientific Reproduction Skill v0.2.1 (runtime v0.1)
 
 | Field | Value |
 |---|---|
