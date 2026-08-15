@@ -33,7 +33,7 @@ _jsonschema: Any = None
 SCHEMAS_DIR_ENV = "SCIENTIFIC_REPRODUCTION_SCHEMAS_DIR"
 
 #: schema stem -> filename, e.g. "project" -> "project.schema.yaml".
-#: All 21 normative object types from schemas/*.schema.yaml.
+#: All 22 normative object types from schemas/*.schema.yaml.
 KNOWN_OBJECT_TYPES = frozenset(
     {
         "acceptance-criteria",
@@ -56,6 +56,7 @@ KNOWN_OBJECT_TYPES = frozenset(
         "retry-policy",
         "run",
         "source",
+        "statistical-design",
         "worker-context",
     }
 )

@@ -51,6 +51,7 @@ from scientific_reproduction.core.models import (
     PlanInventoryAudit,
     PlanStatus,
     PrimaryOrExploratory,
+    StatisticalDesign,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.audit import audit_inventory_registry
@@ -83,18 +84,21 @@ from scientific_reproduction.planning.plan import (
     DuplicateClosureContractError,
     DuplicateGoalError,
     DuplicatePlanVersionError,
+    DuplicateStatisticalDesignError,
     InvalidPlanIdError,
     InvalidPlanVersionError,
     InvalidRecordIdError,
     PlanError,
     PlanNotFoundError,
     PlanStatusInput,
+    StatisticalDesignNotFoundError,
     build_plan_v1,
     evaluate_plan_status,
     formal_version,
     is_draft_version,
     is_formal_version,
     list_plans,
+    list_statistical_designs,
     next_version,
     plan_lineage,
     read_acceptance,
@@ -102,11 +106,13 @@ from scientific_reproduction.planning.plan import (
     read_closure_contract,
     read_goal,
     read_plan,
+    read_statistical_design,
     register_acceptance,
     register_analysis_protocol,
     register_closure_contract,
     register_goal,
     register_plan,
+    register_statistical_design,
 )
 
 #: Fixed freeze timestamp: every freeze in this suite is deterministic.
@@ -146,7 +152,10 @@ def make_goal(
 
 
 def make_acceptance(
-    acceptance_id: str, *, goal_id: str = "GOAL-1"
+    acceptance_id: str,
+    *,
+    goal_id: str = "GOAL-1",
+    statistical_design_ref: str | None = None,
 ) -> AcceptanceCriteria:
     """Build a schema-valid draft acceptance record (version ``v1-draft``)."""
     return AcceptanceCriteria(
@@ -166,6 +175,7 @@ def make_acceptance(
             "published_seed_value_cm3_g": 180.5,
         },
         confidence=Confidence.LOW,
+        statistical_design_ref=statistical_design_ref,
     )
 
 
@@ -195,13 +205,35 @@ def make_closure(closure_id: str) -> ClosureContract:
     )
 
 
+def make_statistical_design(
+    design_id: str, *, goal_id: str = "GOAL-1"
+) -> StatisticalDesign:
+    """Build a schema-valid draft statistical design (version ``v1-draft``)."""
+    return StatisticalDesign(
+        design_id=design_id,
+        goal_id=goal_id,
+        version=INITIAL_PLAN_VERSION,
+        frozen=False,
+        metrics=["uptake_at_defined_pressure"],
+        margin={"type": "equivalence_interval", "relative_pct": None},
+        replication=GoalReplication(
+            independent_required=True,
+            minimum_n=3,
+            planned_n_policy="dynamically_planned_n_with_minimum_3",
+        ),
+        primary_method="equivalence_test",
+        alpha=0.05,
+        confidence_level=0.95,
+    )
+
+
 def build_complete_workspace(root: Path) -> Path:
     """Initialize a project with a fully mapped, freeze-eligible state.
 
     Two formally reported items mapped to two requirements (one goal)
     and the full goal-contract family drafts: goal ``GOAL-1`` with
-    acceptance ``ACC-1``, analysis protocol ``ANL-1`` and closure
-    contract ``CLS-1``.
+    acceptance ``ACC-1`` (referencing statistical design ``DESIGN-1``),
+    analysis protocol ``ANL-1`` and closure contract ``CLS-1``.
     """
     init_project(root)
     register_inventory_item(
@@ -221,7 +253,11 @@ def build_complete_workspace(root: Path) -> Path:
     register_goal(
         root, make_goal("GOAL-1", requirement_ids=("REQ-1", "REQ-2"))
     )
-    register_acceptance(root, make_acceptance("ACC-1", goal_id="GOAL-1"))
+    register_statistical_design(root, make_statistical_design("DESIGN-1"))
+    register_acceptance(
+        root,
+        make_acceptance("ACC-1", goal_id="GOAL-1", statistical_design_ref="DESIGN-1"),
+    )
     register_analysis_protocol(root, make_analysis("ANL-1"))
     register_closure_contract(root, make_closure("CLS-1"))
     return root
@@ -343,6 +379,7 @@ def test_freeze_ac01_empty_inventory_freezes_vacuously(tmp_path):
     assert result.frozen_plan.requirement_ids == []
     assert result.goals == ()
     assert result.acceptance == ()
+    assert result.statistical_designs == ()
     assert result.analysis_protocols == ()
     assert result.closure_contracts == ()
 
@@ -396,6 +433,16 @@ def test_freeze_ac02_frozen_closure_contract_rejects_direct_mutation(tmp_path):
         closure.closure_allowed = True  # type: ignore[misc]
 
 
+def test_freeze_ac02_frozen_statistical_design_rejects_direct_mutation(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    design = freeze_complete(root).statistical_designs[0]
+    assert design.frozen is True
+    with pytest.raises(FrozenInstanceError):
+        design.metrics = []  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        design.replication.minimum_n = 5  # type: ignore[misc]
+
+
 def test_freeze_ac02_frozen_plan_carries_freeze_metadata(tmp_path):
     root = build_complete_workspace(tmp_path)
     result = freeze_complete(root)
@@ -423,6 +470,10 @@ def test_freeze_ac02_frozen_goal_family_carries_freeze_metadata(tmp_path):
     assert goal.acceptance.criteria_ref == "ACC-1"
     assert result.acceptance[0].frozen is True
     assert result.acceptance[0].version == "v1"
+    assert result.acceptance[0].statistical_design_ref == "DESIGN-1"
+    assert result.statistical_designs[0].frozen is True
+    assert result.statistical_designs[0].version == "v1"
+    assert result.statistical_designs[0].design_id == "DESIGN-1"
     assert result.analysis_protocols[0].frozen is True
     assert result.analysis_protocols[0].protocol_version == "v1"
     assert result.closure_contracts[0].frozen is True
@@ -574,6 +625,9 @@ def test_freeze_ac02_goal_family_registries_no_clobber(tmp_path):
     register_closure_contract(root, make_closure("CLS-1"))
     with pytest.raises(DuplicateClosureContractError):
         register_closure_contract(root, make_closure("CLS-1"))
+    register_statistical_design(root, make_statistical_design("DESIGN-1"))
+    with pytest.raises(DuplicateStatisticalDesignError):
+        register_statistical_design(root, make_statistical_design("DESIGN-1"))
 
 
 # ---------------------------------------------------------------------------
@@ -984,6 +1038,8 @@ def test_freeze_plan_error_hierarchy_and_stable_messages(tmp_path):
         UnresolvedContractReferenceError,
         GoalFamilyNotDraftError,
         DuplicatePlanVersionError,
+        DuplicateStatisticalDesignError,
+        StatisticalDesignNotFoundError,
         InvalidPlanVersionError,
         InvalidPlanIdError,
         InvalidRecordIdError,
@@ -1057,6 +1113,7 @@ def test_freeze_plan_records_pass_their_schemas(tmp_path):
     validate_and_reject("plan", result.frozen_plan.to_dict())
     validate_and_reject("goal", result.goals[0].to_dict())
     validate_and_reject("acceptance-criteria", result.acceptance[0].to_dict())
+    validate_and_reject("statistical-design", result.statistical_designs[0].to_dict())
     validate_and_reject("analysis", result.analysis_protocols[0].to_dict())
     validate_and_reject("closure-contract", result.closure_contracts[0].to_dict())
     revised = revise_plan(root, result.frozen_plan)
@@ -1088,6 +1145,36 @@ def test_freeze_plan_unresolved_goal_refs_block_freeze(tmp_path):
     assert "ANL-MISSING" in str(exc.value)
     assert not (root / "plans" / "v1-draft.json").exists()
     assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_plan_unresolved_design_ref_blocks_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # An acceptance naming a statistical design that was never registered.
+    register_acceptance(
+        root,
+        make_acceptance(
+            "ACC-2", goal_id="GOAL-1", statistical_design_ref="DESIGN-MISSING"
+        ),
+    )
+    with pytest.raises(UnresolvedContractReferenceError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "ACC-2" in str(exc.value)
+    assert "DESIGN-MISSING" in str(exc.value)
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_plan_statistical_design_registry_read_and_list(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    design = read_statistical_design(root, "DESIGN-1")
+    assert design.design_id == "DESIGN-1"
+    assert design.goal_id == "GOAL-1"
+    assert design.version == INITIAL_PLAN_VERSION
+    assert design.frozen is False
+    assert design.primary_method == "equivalence_test"
+    assert list_statistical_designs(root) == (design,)
+    with pytest.raises(StatisticalDesignNotFoundError):
+        read_statistical_design(root, "DESIGN-MISSING")
 
 
 def test_freeze_plan_unregistered_plan_goal_blocks_freeze(tmp_path):

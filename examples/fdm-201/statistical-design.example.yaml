@@ -1,0 +1,25 @@
+design_id: STAT-ADS-C3H6-298K-001
+goal_id: GOAL-ADS-C3H6-298K-001
+version: v1-draft
+frozen: false
+metrics:
+  - uptake_at_defined_pressure
+margin:
+  type: equivalence_interval
+  relative_pct: null
+replication:
+  independent_required: true
+  minimum_n: 3
+  planned_n_policy: dynamically_planned_n_with_minimum_3
+  technical_repeats: null
+primary_method: equivalence_test
+alpha: 0.05
+confidence_level: 0.95
+preprocessing_exclusion_rules:
+  - pending_freeze_after_si_method_verification
+outlier_rules:
+  - pending_freeze
+failed_run_handling: pending_freeze
+evidence_refs: []
+rationale: Must be finalized from primary and supporting evidence before data generation per 07-SS9; no default ±10% rule is permitted.
+revision_reason: null

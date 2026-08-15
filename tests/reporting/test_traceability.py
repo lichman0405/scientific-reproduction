@@ -370,7 +370,7 @@ def test_trace_claim_uninitialized_workspace_raises(tmp_path: Path) -> None:
 def test_trace_claim_corrupt_run_record_raises(tmp_path: Path) -> None:
     """A corrupt stored run record surfaces as TraceCorruptError."""
     evidence = install_valid_chain(tmp_path)
-    run_path = tmp_path / "runs" / "run" / f"{RUN_ID}.json"
+    run_path = tmp_path / "runs" / f"{RUN_ID}.json"
     run_path.write_text("{not json", encoding="utf-8")
 
     with pytest.raises(TraceCorruptError, match="run"):

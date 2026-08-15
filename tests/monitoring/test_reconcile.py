@@ -252,7 +252,7 @@ def load_checkpoint(state_dir: Path) -> MonitorRunCheckpoint | None:
 def event_records(events_dir: Path) -> list[dict[str, object]]:
     """The raw persisted event records (sorted, read from disk)."""
     records: list[dict[str, object]] = []
-    for path in sorted((events_dir / "event").glob("*.json")):
+    for path in sorted((events_dir / "events").glob("*.json")):
         records.append(json.loads(path.read_text(encoding="utf-8")))
     return records
 
@@ -298,7 +298,7 @@ def test_ac01_external_completion_moves_run_to_result_available_exactly_once(
     engine = make_engine(state, runs_dir, events_dir, probe=probe)
     watch_all(engine, (make_watch_record(1, external=run.external),))
     write_run(engine.run_store, run)
-    run_file_before = (runs_dir / "run" / f"{run.run_id}.json").read_bytes()
+    run_file_before = (runs_dir / "runs" / f"{run.run_id}.json").read_bytes()
 
     outcome = engine.reconcile(run.run_id)
 
@@ -316,7 +316,7 @@ def test_ac01_external_completion_moves_run_to_result_available_exactly_once(
     )
     assert persisted.lifecycle_state is LifecycleState.RESULT_AVAILABLE
     assert persisted.updated_at == FIXED_STAMP
-    assert (runs_dir / "run" / f"{run.run_id}.json").read_bytes() != run_file_before
+    assert (runs_dir / "runs" / f"{run.run_id}.json").read_bytes() != run_file_before
 
     # Exactly one transition event with the normative vocabulary.
     log = engine.event_log
@@ -347,12 +347,12 @@ def test_ac01_external_completion_moves_run_to_result_available_exactly_once(
 
     # Re-reconciling the same progress: no second transition, no second
     # event, identical run-record bytes (AC-01 exactly-once).
-    run_file_after = (runs_dir / "run" / f"{run.run_id}.json").read_bytes()
+    run_file_after = (runs_dir / "runs" / f"{run.run_id}.json").read_bytes()
     again = engine.reconcile(run.run_id)
     assert again.completed is False
     assert again.transitioned_at is None
     assert log.list_events() == records  # same single record, same sequence
-    assert (runs_dir / "run" / f"{run.run_id}.json").read_bytes() == run_file_after
+    assert (runs_dir / "runs" / f"{run.run_id}.json").read_bytes() == run_file_after
 
 
 def test_ac01_completion_after_crash_window_emits_single_event(
@@ -768,7 +768,7 @@ def test_reconcile_corrupt_run_record_raises_corrupt_progress_error(
     run = make_run(1)
     engine = make_engine(state, runs_dir, events_dir)
     watch_all(engine, (make_watch_record(1, external=run.external),))
-    path = runs_dir / "run" / f"{run.run_id}.json"
+    path = runs_dir / "runs" / f"{run.run_id}.json"
     path.parent.mkdir(parents=True)
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(CorruptProgressError):
@@ -929,7 +929,7 @@ def test_reconcile_default_store_layout_over_state_dir(tmp_path: Path) -> None:
     engine.registry.watch(make_watch_record(1, external=run.external))
     outcome = engine.reconcile(run.run_id)
     assert outcome.completed is True
-    assert (state / "run" / f"{run.run_id}.json").is_file()
+    assert (state / "runs" / f"{run.run_id}.json").is_file()
     assert event_records(state)  # events at <state_dir>/event/
 
 

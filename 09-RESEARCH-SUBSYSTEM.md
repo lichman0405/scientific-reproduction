@@ -57,6 +57,15 @@ Optional adapters:
 
 Missing paid access must degrade gracefully rather than block the whole project.
 
+Fetch-target validation policy (fake-IP DNS tolerance):
+
+When network fetch leaves fixture mode (content/file fetch, live metadata fetch), every http(s) fetch target must be validated before a connection is opened, using the adapter-layer guard (`adapters/research/network_policy.py`). Transparent proxies with fake-IP DNS (Clash-style tools) answer DNS queries for public hosts with addresses in the IANA-reserved benchmarking range `198.18.0.0/15` (RFC 2544 / RFC 5735), so the policy is:
+
+- domain-name hosts are always allowed: DNS may legitimately answer with a fake IP inside `198.18.0.0/15`, and the guard never resolves DNS;
+- IP-literal hosts are refused when the literal addresses any blocked network (`network_policy.BLOCKED_IP_LITERAL_NETWORKS`): the fake-IP benchmarking range, private-use and CGNAT space, loopback, link-local (cloud metadata), multicast/reserved, and the IPv6 unspecified/loopback/unique-local/link-local ranges. An IP literal bypasses DNS, so a fake-IP proxy never produces a blocked address for a legitimate scholarly host; refusing these ranges for literals keeps SSRF protection intact without breaking fake-IP environments. Literals in public address space are allowed.
+
+The guard inspects host forms only; resolved-address attacks (DNS rebinding, compromised public hosts) are out of scope and remain the adapter layer's documented boundary: the connecting adapter must re-validate every resolved address against the blocked networks before opening a connection.
+
 ## 5. Evidence extraction
 
 Research must not merely store PDFs. It must produce structured source and evidence records, including exact claims, locations, limitations and A/R/D assessments.

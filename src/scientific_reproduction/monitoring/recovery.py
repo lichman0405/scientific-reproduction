@@ -344,10 +344,10 @@ class MonitorRecovery:
             always reports unknown and can never fabricate completion).
         run_store: the durable Run store (default:
             ``FilesystemStateBackend(state_dir)`` -- runs at
-            ``<state_dir>/run/``).
+            ``<state_dir>/runs/``, the canonical tree directory).
         event_log: the append-only event log (default:
             ``ProjectEventLog(state_dir)`` -- events at
-            ``<state_dir>/event/``).
+            ``<state_dir>/events/``, the canonical tree directory).
         dispatch: the external-job dispatch hook of a replacement
             Monitor session. Reconstruction must never invoke it
             (AC-02); it is exposed only as the documented seam.

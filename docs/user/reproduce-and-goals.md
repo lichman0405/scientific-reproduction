@@ -42,13 +42,26 @@ python -m scientific_reproduction.cli.reproduce init <target> [options]
 | `--author-name NAME` | `Scientific Reproduction` | git author/committer name |
 | `--author-email EMAIL` | `repro@example.org` | git author/committer email |
 | `--timestamp ISO-8601` | now-UTC | pins state/event/commit timestamps |
+| `--allow-non-empty-root` | off | allow initializing into a non-empty root directory (default: refuse) |
 
 ### Exit codes
 
 - `0` — project initialized;
-- `1` — deterministic error (malformed target, already-initialized root,
-  naive/non-ISO `--timestamp`); the message is printed on stderr;
+- `1` — deterministic error (malformed target, already-initialized or
+  non-empty root, naive/non-ISO `--timestamp`); the message is printed on
+  stderr;
 - `2` — argument-parsing error.
+
+### Non-empty root guardrail
+
+`reproduce init` refuses a root directory that already contains anything
+(including hidden files): a fresh init in a shared or downloads directory
+would silently drag unrelated content into the scientific audit history
+(`git add -A` stages an embedded repository as a gitlink). Use an empty
+directory, or pass `--allow-non-empty-root` explicitly once you have
+reviewed what the root holds; the starter `.gitignore` (nested
+repositories, large raw artifacts per ADR 38) then limits what an
+accidental `git add -A` can pick up.
 
 ### What `init` does
 
@@ -65,9 +78,12 @@ python -m scientific_reproduction.cli.reproduce init <target> [options]
    against `schemas/project.schema.yaml`) with the primary target registered
    exactly once (the one-primary invariant, AC-01);
 3. appends the `project.initialized` event under `events/`;
-4. initializes the Git repository and records the "project initialized"
-   audit checkpoint commit (`audit.git.init_project_repo` /
-   `commit_checkpoint`, `14-STATE-GIT-ARTIFACTS.md` SS5).
+4. writes the starter `.gitignore` (nested repositories, large raw
+   artifacts per ADR 38, OS/editor noise) and `.gitattributes` (LF
+   normalization) at the workspace root;
+5. initializes the Git repository and records the "project initialized"
+   audit checkpoint commit including all four files (`audit.git.init_project_repo`
+   / `commit_checkpoint`, `14-STATE-GIT-ARTIFACTS.md` SS5).
 
 The command performs **no network access and no inventory discovery**: the
 `inventory/` directory is created empty (AC-02 of DEV-M4-G01).
@@ -113,13 +129,15 @@ The semantic contract of `01-PRODUCT-REQUIREMENTS.md` SS6:
 - `/goals runs <GOAL_ID>` — show Runs;
 - `/goals blocked` — show blocked Goals and blocker objects.
 
-In v0.1 these are **not implemented as slash-command code in this
+In v0.2 these are **not implemented as slash-command code in this
 repository**: `/reproduce` has a CLI module (`cli/reproduce.py`), but `/goals`
-has none. Per SS6, "platform adapters may expose these as slash commands or
-equivalent commands" — the platform adapter surface is the `expose_command`
+has none — the views are agent-authored, composed deterministically from the
+planning layer rather than rendered by a runtime subcommand. Per SS6,
+"platform adapters may expose these as slash commands or equivalent
+commands" — the platform adapter surface is the `expose_command`
 contract of `15-ADAPTER-SPEC.md` SS5 and the runtime role-contract descriptors
 of `src/scientific_reproduction/adapters/platform/contracts/base.py`
-(DEV-M10-G01). What v0.1 ships is the deterministic planning layer that every
+(DEV-M10-G01). What v0.2 ships is the deterministic planning layer that every
 `/goals` view is a pure function of, plus the worker execution surface.
 Platform note: built-in slash commands cannot be reliably injected into
 teammate sessions on all platforms, so the Supervisor uses native `/goal`
@@ -151,10 +169,16 @@ review decision stored separately, never a Run lifecycle state.
   — the goal-contract registry (`<root>/goals/<goal_id>.json`; a goal id
   registers exactly once, and the freeze/revision flows transition the
   registered record between its draft and frozen states);
-- `register_acceptance`, `register_analysis_protocol`,
+- `register_acceptance`, `register_statistical_design`,
+  `register_analysis_protocol`,
   `register_closure_contract` with the matching read/list helpers — the
-  goal-contract family (`<root>/acceptance/`, `<root>/protocols/`,
-  `<root>/closure/`; the last two directories are created on demand);
+  goal-contract family (`<root>/acceptance/`, `<root>/designs/`,
+  `<root>/protocols/`, `<root>/closure/`; the first, second and last
+  directories are created on demand). The statistical design record
+  (`schemas/statistical-design.schema.yaml`) is the first-class record
+  behind `AcceptanceCriteria.statistical_design_ref`: the design is
+  frozen before data generation (`07-STATISTICS-AND-ACCEPTANCE.md` SS9)
+  and the plan freeze resolves every such reference;
 - `build_plan_v1(root)` — the deterministic Plan v1 draft, a pure function
   of the registered state (project + inventory items + requirements);
 - `register_plan`, `read_plan`, `list_plans`, `plan_lineage` — the
@@ -173,9 +197,11 @@ fails the audit; 100% mapped passes.
 **Freeze and versioned revision** — `src/scientific_reproduction/planning/freeze.py`
 (DEV-M4-G04): `freeze_plan(root, plan)` is prohibited unless the completeness
 audit passes (AC-01), and produces the frozen Plan record plus the frozen
-Goal/Acceptance/Analysis/Closure contracts, which are **persisted in place**
-at their registry paths (`goals/`, `acceptance/`, `protocols/`, `closure/`)
-so any state reader sees the frozen contract the freeze returned (AC-02);
+Goal/Acceptance/StatisticalDesign/Analysis/Closure contracts, which are
+**persisted in place** at their registry paths (`goals/`, `acceptance/`,
+`protocols/`, `closure/`) so any state reader sees the frozen contract
+the freeze returned (AC-02; every acceptance's `statistical_design_ref`
+must resolve to a registered design);
 `revise_plan(root, plan)` creates the next draft version (`v1 -> v2-draft`)
 from a registered FROZEN plan and re-opens the goal-contract family as
 drafts of that version — the frozen content as the authoring baseline
@@ -255,8 +281,9 @@ These surfaces implement `01-PRODUCT-REQUIREMENTS.md` SS5 steps 4–8 exactly:
 Research acquires sources, the Supervisor builds the Reproduction Inventory
 (`planning/inventory.py`), the audit proves 100% coverage of formally
 reported items (`planning/audit.py`), the Supervisor authors Work
-Packages/Requirements/Goals/acceptance/analysis/closure records
-(`planning/plan.py`), Plan v1 is frozen (`planning/freeze.py`), and eligible
+Packages/Requirements/Goals/acceptance/statistical-design/analysis/closure
+records (`planning/plan.py`), Plan v1 is frozen (`planning/freeze.py`), and
+eligible
 workers then execute one Goal context at a time
 (`workers/context.py` + `workers/results.py`) while the Execution Monitor
 tracks external Runs (`monitoring/`).

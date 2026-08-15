@@ -2,9 +2,11 @@
 
 Covers AC-01 (plan freeze produces an auditable commit), AC-02 (goal and
 protocol revision produce auditable commits through the same helper,
-parameterized by checkpoint kind), and the deterministic design contract:
-explicit author/committer identity, fixed message templates, injectable
-commit time -- no wall clock, no git config, no network.
+parameterized by checkpoint kind), the execution-phase checkpoints (goal
+review, run closure, outcome updates, recovery entry), and the
+deterministic design contract: explicit author/committer identity, fixed
+message templates, injectable commit time -- no wall clock, no git config,
+no network.
 """
 
 from __future__ import annotations
@@ -261,6 +263,80 @@ def test_revision_checkpoints_share_the_same_helper(tmp_path: Path) -> None:
     assert plan_record.message == "plan PLAN-001 version v1 frozen"
     assert goal_record.message == "goal contract GOAL-001 revised to version v2"
     assert plan_record.commit_sha != goal_record.commit_sha
+
+
+# ---------------------------------------------------------------------------
+# Execution-phase checkpoints: goal review, run closure, outcome updates,
+# recovery entry all commit through the same sanctioned helper
+# ---------------------------------------------------------------------------
+
+
+def test_execution_phase_checkpoints_commit_through_the_helper(
+    tmp_path: Path,
+) -> None:
+    """Run-level governance milestones (goal review, run closure,
+    requirement-outcome updates, recovery entry) are commit checkpoints:
+    supervisors never need raw git commits for them."""
+    repo = make_repo(tmp_path / "project")
+    goal_file = repo / "goals" / "GOAL-001.json"
+    goal_file.parent.mkdir()
+    goal_file.write_text("{}", encoding="utf-8")
+    run_file = repo / "runs" / "RUN-COMP-017-01.json"
+    run_file.parent.mkdir()
+    run_file.write_text("{}", encoding="utf-8")
+    req_file = repo / "requirements" / "REQ-001.json"
+    req_file.parent.mkdir()
+    req_file.write_text("{}", encoding="utf-8")
+
+    review = commit_checkpoint(
+        repo,
+        kind="goal.reviewed",
+        object_id="GOAL-001",
+        files=[goal_file],
+        identity=IDENTITY,
+        commit_time=COMMIT_TIME,
+    )
+    closed = commit_checkpoint(
+        repo,
+        kind="run.closed",
+        object_id="RUN-COMP-017-01",
+        files=[run_file],
+        identity=IDENTITY,
+        commit_time=COMMIT_TIME,
+    )
+    outcome = commit_checkpoint(
+        repo,
+        kind="requirement.outcome.updated",
+        object_id="REQ-001",
+        files=[req_file],
+        identity=IDENTITY,
+        commit_time=COMMIT_TIME,
+    )
+    # The goal state changed again (track switch), so the file differs
+    # from the goal-review commit.
+    goal_file.write_text('{"track": "RECOVERY"}', encoding="utf-8")
+    recovery = commit_checkpoint(
+        repo,
+        kind="recovery.entry",
+        object_id="GOAL-001",
+        files=[goal_file],
+        identity=IDENTITY,
+        commit_time=COMMIT_TIME,
+    )
+
+    assert count_commits(repo) == 4
+    assert review.message == "goal contract GOAL-001 reviewed"
+    assert closed.message == "run RUN-COMP-017-01 closed"
+    assert outcome.message == "requirement REQ-001 outcome updated"
+    assert recovery.message == "goal GOAL-001 entered recovery"
+    shas = [
+        review.commit_sha,
+        closed.commit_sha,
+        outcome.commit_sha,
+        recovery.commit_sha,
+    ]
+    assert len(set(shas)) == 4
+    assert recovery.commit_sha == current_head(repo)
 
 
 # ---------------------------------------------------------------------------

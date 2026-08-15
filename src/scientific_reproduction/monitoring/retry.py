@@ -498,10 +498,12 @@ class RetryDispatcher:
             resubmission).
         run_store: the durable Run store the dispatcher reads Run
             records through (default: ``FilesystemStateBackend(
-            state_dir)`` -- runs at ``<state_dir>/run/``).
+            state_dir)`` -- runs at ``<state_dir>/runs/``, the canonical
+            tree directory).
         event_log: the append-only event log the dispatcher appends
             decision records to (default: ``ProjectEventLog(state_dir)``
-            -- events at ``<state_dir>/event/``).
+            -- events at ``<state_dir>/events/``, the canonical tree
+            directory).
 
     Raises:
         TypeError: ``state_dir`` is not a str/Path, ``now``,

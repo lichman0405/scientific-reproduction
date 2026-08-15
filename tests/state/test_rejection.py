@@ -33,7 +33,10 @@ import yaml
 
 from scientific_reproduction.core import models as m
 from scientific_reproduction.core.schema_validation import SchemaValidationError
-from scientific_reproduction.core.state_backend import FilesystemStateBackend
+from scientific_reproduction.core.state_backend import (
+    SCHEMA_TO_STATE_DIR,
+    FilesystemStateBackend,
+)
 from tests.core.fixtures import VALID_DOCS
 
 
@@ -171,7 +174,9 @@ def test_schema_invalid_rewrite_leaves_previous_object_byte_identical(
     object_id = valid_doc[_id_field(obj_type)]
 
     backend.write(obj_type, object_id, valid_doc)
-    path = tmp_path / "state" / obj_type / f"{object_id}.json"
+    path = (
+        tmp_path / "state" / SCHEMA_TO_STATE_DIR[obj_type] / f"{object_id}.json"
+    )
     before = path.read_bytes()
 
     with pytest.raises(SchemaValidationError) as exc_info:
@@ -185,9 +190,8 @@ def test_schema_invalid_rewrite_leaves_previous_object_byte_identical(
     assert path.read_bytes() == before
     assert backend.read(obj_type, object_id) == valid_doc
     assert backend.list_ids(obj_type) == [object_id]
-    assert sorted(p.name for p in (tmp_path / "state" / obj_type).iterdir()) == [
-        f"{object_id}.json"
-    ]
+    type_dir = tmp_path / "state" / SCHEMA_TO_STATE_DIR[obj_type]
+    assert sorted(p.name for p in type_dir.iterdir()) == [f"{object_id}.json"]
 
 
 @pytest.mark.parametrize(
