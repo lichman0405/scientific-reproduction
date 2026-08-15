@@ -50,10 +50,13 @@ python scripts/reproduce.py init <PDF|DOI|URL> --root <workspace>
 
 The wrapper runs `python -m scientific_reproduction.cli.reproduce` from the
 bundled `src/`. The command initializes the one-paper project workspace
-(`project.yaml` plus the frozen directory tree, see
-`templates/PROJECT-TREE.template.txt`) and records a git checkpoint commit.
-The workspace is the Single Source of Truth — sessions are replaceable
-executors (see `14-STATE-GIT-ARTIFACTS.md`).
+(`project.yaml` plus the frozen directory tree and starter
+`.gitignore`/`.gitattributes`, see `templates/PROJECT-TREE.template.txt`)
+and records a git checkpoint commit. It refuses a non-empty root unless
+`--allow-non-empty-root` is passed: unrelated content in the root must
+never enter the scientific audit history. The workspace is the Single
+Source of Truth — sessions are replaceable executors (see
+`14-STATE-GIT-ARTIFACTS.md`).
 
 `/goals` views are deterministic pure functions of the planning layer (see
 `docs/user/reproduce-and-goals.md`); expose them through the platform's
