@@ -78,7 +78,11 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from scientific_reproduction.analysis.results import ResultRecord, list_results
-from scientific_reproduction.artifacts.exceptions import ArtifactNotFoundError
+from scientific_reproduction.artifacts.checksum import compute_sha256
+from scientific_reproduction.artifacts.exceptions import (
+    ArtifactFileError,
+    ArtifactNotFoundError,
+)
 from scientific_reproduction.artifacts.registry import ArtifactRegistry
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
@@ -111,6 +115,7 @@ __all__ = [
     "AuditPackage",
     "AuditValidationResult",
     "FAILED_RUN_LIFECYCLE_STATES",
+    "ReportFile",
     "RunEntry",
     "RunStatus",
     "ValidationError",
@@ -125,8 +130,9 @@ __all__ = [
 _JSON_INDENT: int = 2
 
 #: Version of the audit package serialization (``package_version`` key of
-#: :class:`AuditValidationResult`).
-PACKAGE_VERSION: str = "1.0"
+#: :class:`AuditValidationResult`). Bumped to 1.1 for the report-file
+#: registration of issue #107.
+PACKAGE_VERSION: str = "1.1"
 
 #: The run store object type of the state backend (resolved through
 #: ``SCHEMA_TO_STATE_DIR`` to the canonical ``runs/<id>.json`` records).
@@ -135,6 +141,11 @@ _RUN_OBJECT_TYPE: str = "run"
 #: The artifact registry base directory of a project workspace
 #: (``14-STATE-GIT-ARTIFACTS.md`` SS6: manifests live under ``manifests/``).
 _ARTIFACTS_STATE_DIR: str = "manifests"
+
+#: The rendered-report directory of a project workspace: the files
+#: ``reporting.pdf_report`` writes (``reproduction-report.pdf`` and its
+#: JSON sidecar) land here and are registered in the package (issue #107).
+_REPORTS_STATE_DIR: str = "reports"
 
 #: The frozen Run states that record a failed execution (AC-03): the
 #: terminal states of ``core.rules.lifecycle`` minus ``CLOSED`` -- a run
@@ -220,6 +231,29 @@ class RunEntry:
             "status": self.status.value,
             "artifacts": list(self.run.artifacts),
             "unresolved_artifact_ids": list(self.unresolved_artifact_ids),
+        }
+
+
+@dataclass(frozen=True)
+class ReportFile:
+    """One rendered report file registered in the package with its checksum.
+
+    Issue #107 requires the report files (``reproduction-report.pdf`` and
+    its JSON sidecar) to be registered in the machine-auditable package:
+    ``file_name`` is the basename, ``sha256`` the lowercase hex digest of
+    the file at assembly time, ``size_bytes`` its size on disk.
+    """
+
+    file_name: str
+    sha256: str
+    size_bytes: int
+
+    def to_dict(self) -> dict[str, Any]:
+        """Plain dict of the report file registration."""
+        return {
+            "file_name": self.file_name,
+            "sha256": self.sha256,
+            "size_bytes": self.size_bytes,
         }
 
 
@@ -320,6 +354,9 @@ class AuditPackage:
             ``acceptance_id``.
         requirements: every registered requirement record, sorted by
             ``requirement_id``.
+        report_files: every rendered report file of the workspace
+            ``reports/`` dir (issue #107) with its SHA-256 checksum and
+            size, sorted by ``file_name``.
     """
 
     claims: tuple[ClaimTrace, ...]
@@ -329,6 +366,7 @@ class AuditPackage:
     evidence: tuple[ClaimSpecificEvidence, ...]
     acceptances: tuple[AcceptanceCriteria, ...]
     requirements: tuple[ReproductionRequirement, ...]
+    report_files: tuple[ReportFile, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
         """Plain dict of the package in canonical field order."""
@@ -342,6 +380,7 @@ class AuditPackage:
             "requirements": [
                 record.requirement_id for record in self.requirements
             ],
+            "report_files": [file.to_dict() for file in self.report_files],
         }
 
     def to_canonical_json(self) -> str:
@@ -463,6 +502,7 @@ def build_audit_package(
         requirements=tuple(
             sorted(requirements, key=lambda r: r.requirement_id)
         ),
+        report_files=_read_report_files(project_root),
     )
 
 
@@ -593,6 +633,37 @@ def _require_initialized(root: Path) -> None:
 def _wrap_corrupt(exc: ValueError) -> AuditCorruptError:
     """Re-raise a stored-record corruption as ``AuditCorruptError``."""
     return AuditCorruptError(f"corrupt registered state: {exc}")
+
+
+def _read_report_files(project_root: Path) -> tuple[ReportFile, ...]:
+    """Register every regular file of the workspace ``reports/`` dir.
+
+    Deterministic: files are hashed and listed sorted by ``file_name``
+    (the report renderer names its outputs ``reproduction-report.pdf`` /
+    ``reproduction-report.json``, but any file in the dir is registered).
+    A missing dir registers nothing; an unreadable file is a corrupt
+    state, never a silent skip.
+    """
+    directory = project_root / _REPORTS_STATE_DIR
+    if not directory.is_dir():
+        return ()
+    report_files: list[ReportFile] = []
+    for path in sorted(directory.iterdir(), key=lambda p: p.name):
+        if not path.is_file():
+            continue
+        try:
+            report_files.append(
+                ReportFile(
+                    file_name=path.name,
+                    sha256=compute_sha256(path),
+                    size_bytes=path.stat().st_size,
+                )
+            )
+        except (ArtifactFileError, OSError) as exc:
+            raise AuditCorruptError(
+                f"cannot register report file {path.name!r}: {exc}"
+            ) from exc
+    return tuple(report_files)
 
 
 def _normalize_key_claims(key_claims: Sequence[str]) -> tuple[str, ...]:

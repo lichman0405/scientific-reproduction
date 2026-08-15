@@ -40,6 +40,7 @@ from reporting_helpers import (
     make_run,
 )
 
+from scientific_reproduction.artifacts.checksum import compute_sha256
 from scientific_reproduction.core.models import (
     LifecycleState,
     Run,
@@ -109,7 +110,7 @@ def test_audit_validation_result_dict_shape_ac01(tmp_path: Path) -> None:
     data = validate_package(tmp_path, evidence, [CLAIM_ID]).to_dict()
 
     assert set(data) == {"package_version", "passed", "errors", "package"}
-    assert data["package_version"] == "1.0"
+    assert data["package_version"] == "1.1"
     assert data["passed"] is True
     assert data["errors"] == []
     assert set(data["package"]) == {
@@ -120,7 +121,41 @@ def test_audit_validation_result_dict_shape_ac01(tmp_path: Path) -> None:
         "evidence",
         "acceptances",
         "requirements",
+        "report_files",
     }
+
+
+def test_audit_report_files_registered_with_checksums(tmp_path: Path) -> None:
+    """Report files in the workspace ``reports/`` dir are registered in
+    the package with SHA-256 checksums and sizes, sorted by name (issue
+    #107: report files must be registered with checksums)."""
+    evidence = install_valid_chain(tmp_path)
+    # A workspace without a reports/ dir registers no report files.
+    assert build_audit_package(
+        tmp_path, evidence, [CLAIM_ID]
+    ).report_files == ()
+
+    reports = tmp_path / "reports"
+    reports.mkdir(exist_ok=True)
+    (reports / "reproduction-report.pdf").write_bytes(b"%PDF-1.4 fake")
+    (reports / "reproduction-report.json").write_text('{"a": 1}\n', encoding="utf-8")
+
+    package = build_audit_package(tmp_path, evidence, [CLAIM_ID])
+
+    assert [
+        (file.file_name, file.size_bytes) for file in package.report_files
+    ] == [
+        ("reproduction-report.json", 10),
+        ("reproduction-report.pdf", 13),
+    ]
+    assert package.report_files[0].sha256 == compute_sha256(
+        reports / "reproduction-report.json"
+    )
+    assert package.report_files[1].sha256 == compute_sha256(
+        reports / "reproduction-report.pdf"
+    )
+    data = package.to_dict()
+    assert data["report_files"][0]["file_name"] == "reproduction-report.json"
 
 
 def test_audit_empty_key_claims_passes_vacuously_ac01(
