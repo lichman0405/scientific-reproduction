@@ -106,8 +106,10 @@ from scientific_reproduction.core.schema_validation import validate_and_reject
 #:   (``planning.init.INIT_DIRECTORIES``) are that exact directory;
 #: * ``acceptance/`` and ``closure/`` follow the registries that created
 #:   them on demand (``ACCEPTANCE_STATE_DIR``, ``CLOSURE_STATE_DIR``);
-#:   ``research-requests/`` and ``retry-policies/`` extend the same
-#:   plural-of-schema-name convention for their on-demand kinds;
+#:   ``designs/`` follows the plan-family design registry
+#:   (``DESIGNS_STATE_DIR``); ``research-requests/`` and
+#:   ``retry-policies/`` extend the same plural-of-schema-name convention
+#:   for their on-demand kinds;
 #: * ``lab/`` is the lab subtree of the tree template (whose children
 #:   ``lab/outgoing`` and ``lab/incoming`` the lab adapter already
 #:   uses for handoffs);
@@ -129,6 +131,7 @@ SCHEMA_TO_STATE_DIR: dict[str, str] = {
     "worker-context": "work-packages",
     "lab-execution-package": "lab",
     "analysis": "protocols",
+    "statistical-design": "designs",
     "decision": "decisions",
     "human-gate": "human-gates",
     "event": "events",

@@ -586,6 +586,10 @@ def test_schema_to_state_dir_matches_the_planning_registries() -> None:
         == planning_inventory.REQUIREMENTS_STATE_DIR
     )
     assert SCHEMA_TO_STATE_DIR["resource"] == planning_resources.RESOURCES_STATE_DIR
+    assert (
+        SCHEMA_TO_STATE_DIR["statistical-design"]
+        == planning_plan.DESIGNS_STATE_DIR
+    )
 
     # Tree directories created on demand by adapters/registries rather
     # than at init: ``acceptance/``/``closure/`` follow the registries
@@ -598,6 +602,7 @@ def test_schema_to_state_dir_matches_the_planning_registries() -> None:
     on_demand = {
         "acceptance",
         "closure",
+        "designs",
         "research-requests",
         "retry-policies",
         "lab",
