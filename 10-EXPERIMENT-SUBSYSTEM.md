@@ -69,6 +69,12 @@ Operators must not return only “success/failure”. Result Package should cont
 - failures/interruptions;
 - manifest/checksums where practical.
 
+The result manifest declares the returned data files and may map each
+required raw-data export (the dispatched package's `required_return`
+tokens) to the returned file that covers it (`required_return_files`),
+so operators can return files under their natural names without
+filename engineering.
+
 ## 5. Independent replication
 
 Independent Runs must be independently executed at the process level. Re-measuring one batch does not count as independent synthesis replication.

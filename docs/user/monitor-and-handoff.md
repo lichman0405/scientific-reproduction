@@ -210,7 +210,13 @@ a single point of failure (`10-EXPERIMENT-SUBSYSTEM.md` SS1,
   or mismatched: the run reference absent or not matching the dispatch's
   Run (AC-02 — never guessed), required manifest entries missing, declared
   data files absent, or the dispatched package's required returns uncovered
-  (AC-03).
+  (AC-03). A required return (a raw-data-export token, not a file name) is
+  covered by an explicit `required_return_files` mapping entry in the
+  returned result manifest — `{token: file name}`, the operator's
+  declaration of which returned file covers it, so natural lab file names
+  (`yield_pct.txt`, `2026-08-15_product_photo.jpg`) need no token
+  engineering — or, without a mapping entry, by a declared file whose name
+  is exactly the token (the v1.0 rule; result manifest v1.1).
 - `request_missing_result(dispatch_id, manifest_requirements)` — writes
   `missing-result-request.json` into the outgoing directory.
 
