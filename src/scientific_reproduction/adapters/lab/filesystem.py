@@ -51,6 +51,12 @@ randomness, no wall clock, no network. ``TypeError`` at the public
 boundaries; ``ValueError``-subclass errors with stable messages;
 adapter-written state is canonical JSON (sorted keys, 2-space indent,
 trailing newline) via ``core.atomic.atomic_write``.
+
+The adapter never touches the Run record: the dispatching orchestrator
+owns the dispatch-to-Run linkage (``run.external.dispatch_id`` +
+``RUNNING_EXTERNAL``) and performs it with the bundled helper
+:func:`~scientific_reproduction.adapters.lab.linkage.link_run_to_dispatch`
+(15-ADAPTER-SPEC.md SS2 "Run record linkage").
 """
 
 from __future__ import annotations
@@ -197,7 +203,13 @@ class FilesystemLabAdapter(LabAdapter):
         handoff.
 
         Returns:
-            The :class:`DispatchRecord` of the dispatch (AC-01).
+            The :class:`DispatchRecord` of the dispatch (AC-01). The
+            adapter never touches the Run record: the caller owns the
+            linkage and must record the returned ``dispatch_id`` on the
+            Run (``run.external.dispatch_id``) and advance it to
+            ``RUNNING_EXTERNAL`` -- perform it with
+            :func:`scientific_reproduction.adapters.lab.linkage.link_run_to_dispatch`
+            (15-ADAPTER-SPEC.md SS2 "Run record linkage").
 
         Raises:
             TypeError: ``execution_package`` is neither a

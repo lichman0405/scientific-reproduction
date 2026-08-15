@@ -202,6 +202,19 @@ a single point of failure (`10-EXPERIMENT-SUBSYSTEM.md` SS1,
   `schemas/lab-execution-package.schema.yaml`); a malformed package is
   refused loudly and nothing is written. Dispatch is exactly-once, and the
   `dispatch_id` is a deterministic pure function of the package identity.
+  The adapter never touches the Run record: the **dispatching worker
+  owns the run-record linkage** (`15-ADAPTER-SPEC.md` SS2) and must
+  perform it right after a successful dispatch — record
+  `run.external.dispatch_id` (the returned `DispatchRecord.dispatch_id`,
+  plus `run.external.backend`) and advance the Run to
+  `RUNNING_EXTERNAL` through the real transition machinery. The bundled
+  helper `adapters.lab.linkage.link_run_to_dispatch(run_store, dispatch,
+  now=clock)` performs both steps as one validated operation (real
+  transition rules, real `run` schema gate, refuses a run already linked
+  to a different dispatch). A run left at `READY`/`DISPATCHED` without a
+  `dispatch_id` drifts away from the handoff: the Monitor only completes
+  runs at `RUNNING_EXTERNAL`, so the returned package can never be
+  reconciled onto it.
 - `status(dispatch_id)` — reports `RUNNING_EXTERNAL` after dispatch and
   `RESULT_AVAILABLE` once a result manifest appears in `incoming/<RUN_ID>/`.
 - `collect(dispatch_id)` — reads the returned result manifest and evaluates

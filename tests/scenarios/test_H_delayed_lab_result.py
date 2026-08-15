@@ -50,6 +50,7 @@ from scientific_reproduction.adapters.lab.base import (
     DispatchState,
 )
 from scientific_reproduction.adapters.lab.filesystem import FilesystemLabAdapter
+from scientific_reproduction.adapters.lab.linkage import link_run_to_dispatch
 from scientific_reproduction.adapters.lab.manifest import (
     RESULT_MANIFEST_VERSION,
     LabResultManifest,
@@ -141,7 +142,18 @@ class ExperimentWorker:
     def dispatch_and_exit(self) -> DispatchRecord:
         """Dispatch the package, persist the Run record and the watch
         entry, then return the dispatch record (the worker session ends
-        here: nothing below holds or uses this worker)."""
+        here: nothing below holds or uses this worker).
+
+        The run-record linkage is the caller-owned step of the outgoing
+        handoff (15-ADAPTER-SPEC.md SS2 "Run record linkage"): the
+        worker creates the Run at ``READY``, dispatches through the
+        adapter, then links the returned ``DispatchRecord`` onto the
+        durable record with the bundled
+        ``link_run_to_dispatch`` helper -- the Run advances to
+        ``RUNNING_EXTERNAL`` and ``run.external.dispatch_id`` /
+        ``run.external.backend`` are recorded under the real transition
+        rules and the real ``run`` schema gate.
+        """
         adapter = FilesystemLabAdapter(self._handoff)
         package = LabExecutionPackage(
             package_id=PACKAGE_ID,
@@ -152,26 +164,29 @@ class ExperimentWorker:
             procedure=[{"step": 1, "action": "weigh the precursor"}],
             required_return=list(REQUIRED_RETURN),
         )
-        dispatch = adapter.dispatch(package, dispatched_at=FIXED_STAMP)
-        assert dispatch.dispatch_id == DISPATCH_ID
-
+        run_store = FilesystemStateBackend(self._runs_dir)
         run = Run(
             run_id=RUN_ID,
             goal_id=GOAL_ID,
             run_type=RunType.INDEPENDENT_REPLICATE,
-            lifecycle_state=LifecycleState.RUNNING_EXTERNAL,
+            lifecycle_state=LifecycleState.READY,
             goal_version="1.0",
             scientific_review=None,
             worker_session_ref=WORKER_SESSION,
-            external=RunExternal(backend=LAB_BACKEND, dispatch_id=dispatch.dispatch_id),
             artifacts=[],
             deviations=[],
             engineering_retries=[],
             created_at=FIXED_STAMP,
             updated_at=FIXED_STAMP,
         )
-        FilesystemStateBackend(self._runs_dir).write(
-            "run", run.run_id, run.to_dict()
+        run_store.write("run", run.run_id, run.to_dict())
+        dispatch = adapter.dispatch(package, dispatched_at=FIXED_STAMP)
+        assert dispatch.dispatch_id == DISPATCH_ID
+
+        linked = link_run_to_dispatch(run_store, dispatch, now=self._clock)
+        assert linked.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+        assert linked.external == RunExternal(
+            backend=LAB_BACKEND, dispatch_id=dispatch.dispatch_id
         )
         WatchedRunRegistry(
             self._monitor_state, now=self._clock, monitor_id=MONITOR_ID

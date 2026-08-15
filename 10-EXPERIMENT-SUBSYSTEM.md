@@ -20,6 +20,14 @@ Analysis Worker processes data
 Supervisor reviews
 ```
 
+The dispatching Worker performs the outgoing handoff **and** the
+run-record linkage: it records the returned dispatch id on the Run
+(`run.external.dispatch_id` / `run.external.backend`, via the bundled
+`adapters.lab.linkage.link_run_to_dispatch` helper) and advances the
+Run to `RUNNING_EXTERNAL` through the real transition machinery
+(15-ADAPTER-SPEC.md SS2 "Run record linkage"). The adapter itself never
+touches the Run record.
+
 ## 2. Lab Adapter v0.1
 
 Use filesystem/manual handoff as the reference implementation:
