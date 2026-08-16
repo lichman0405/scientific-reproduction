@@ -35,6 +35,16 @@ Implements the three deliverables of DEV-M4-G02 over the frozen models
   mapping: a formal item can therefore map to one or more Goals through one
   or more Requirements (AC-01), and every mapping edge carries the item's
   ``source_id`` / ``source_location`` provenance (AC-03).
+* **requirement closure** -- ``close_requirement`` is the sanctioned
+  outcome-update transition of the registry (the documented rewrite of a
+  registered record; ``register_requirement`` itself keeps its exactly-once
+  contract): it closes one registered requirement with its final outcome
+  (``04-PROJECT-LIFECYCLE.md`` section 4), enforces the normative closure
+  rules (``core.rules.outcome`` -- an ``OPEN`` outcome is rejected,
+  R-REQOUT-5) and appends one deterministic ``requirement.outcome.updated``
+  lifecycle event (the declared audit event of the "Requirement outcome
+  updated" git checkpoint; the checkpoint commit itself is created by the
+  Supervisor flow, never by this module).
 
 Mapping rules (AC-02: deterministic counting)
 ---------------------------------------------
@@ -89,12 +99,26 @@ from pathlib import Path
 from typing import AbstractSet, Any, Callable, Mapping, Sequence, TypeAlias
 
 from scientific_reproduction.core.atomic import atomic_write
+from scientific_reproduction.core.events import (
+    CorruptEventLogError,
+    EventRecord,
+    ProjectEventLog,
+)
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     InventoryItemType,
     MappingStatus,
+    MethodReproducibility,
+    ProjectEvent,
     ReproductionInventoryItem,
     ReproductionRequirement,
+    RequirementOutcome,
+)
+from scientific_reproduction.core.rules.outcome import (
+    RequirementClosureState,
+    RequirementOutcomeAssessment,
+    RequirementOutcomeRecord,
+    classify_requirement_outcome,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.init import (
@@ -107,6 +131,7 @@ __all__ = [
     "INVENTORY_STATE_DIR",
     "MAPPING_RULESET_VERSION",
     "REQUIREMENTS_STATE_DIR",
+    "REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE",
     "DuplicateInventoryItemError",
     "DuplicateRequirementError",
     "InventoryError",
@@ -121,9 +146,12 @@ __all__ = [
     "ItemMappingRule",
     "ItemMappingRuleDecision",
     "MAPPING_RULES",
+    "RequirementClosure",
+    "RequirementClosureError",
     "RequirementInput",
     "RequirementNotFoundError",
     "UnresolvedItemReferenceError",
+    "close_requirement",
     "evaluate_item_mapping",
     "list_inventory_items",
     "list_requirements",
@@ -171,6 +199,16 @@ class InvalidRegistryIdError(InventoryError, ValueError):
     """Raised when an id is not a safe single registry path segment."""
 
 
+class RequirementClosureError(InventoryError, ValueError):
+    """Raised when a requirement closure is rejected.
+
+    Covers the closure-rule gate (an ``OPEN`` outcome is not a closure,
+    ``04-PROJECT-LIFECYCLE.md`` section 4 / ``R-REQOUT-5``) and the
+    no-op guard (a closure that is already fully recorded never enters
+    the audit record a second time). Stable messages.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Frozen constants
 # ---------------------------------------------------------------------------
@@ -186,6 +224,16 @@ REQUIREMENTS_STATE_DIR: str = "requirements"
 #: Version of the item mapping rule table. Bumped whenever a rule changes;
 #: recorded in every assessment so old decisions stay interpretable.
 MAPPING_RULESET_VERSION: str = "1.0"
+
+#: Event type of a requirement closure (one ``requirement.outcome.updated``
+#: event per outcome update, appended under the deterministic key
+#: ``requirement.outcome.updated:<requirement_id>:<from>:<to>``). The event
+#: type is the declared audit event of the "Requirement outcome updated"
+#: git checkpoint (``audit/git.py`` CHECKPOINTS /
+#: ``EVENT_TYPE_TO_CHECKPOINT``); the checkpoint commit itself is created
+#: by the Supervisor flow via ``map_event_to_audit`` /
+#: ``commit_checkpoint``, never by this module.
+REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE: str = "requirement.outcome.updated"
 
 #: Serialization: canonical JSON (indent + sorted keys + trailing newline).
 _JSON_INDENT: int = 2
@@ -825,6 +873,210 @@ def load_inventory_registry(root: str | Path) -> InventoryRegistry:
 
 
 # ---------------------------------------------------------------------------
+# Requirement closure (sanctioned outcome update)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RequirementClosure:
+    """The outcome of one requirement closure (outcome update).
+
+    ``requirement`` is the frozen record after the closure (persisted at
+    ``requirements/<requirement_id>.json``); ``assessment`` is the
+    requirement-outcome classification of the new outcome through the
+    normative rule table (``core.rules.outcome``
+    ``REQUIREMENT_OUTCOME_RULES`` -- the enforced closure rules; its
+    ``matched_rule_id`` is recorded in the event payload);
+    ``event_record`` is the appended ``requirement.outcome.updated``
+    event (None when no event log was given); ``replayed`` marks a
+    crash-window convergence (the record was already at the requested
+    outcome and only the missing event was appended).
+    """
+
+    requirement: ReproductionRequirement
+    assessment: RequirementOutcomeAssessment
+    event_record: EventRecord | None = None
+    replayed: bool = False
+
+
+def close_requirement(
+    root: str | Path,
+    requirement_id: str,
+    outcome: RequirementOutcome,
+    method_reproducibility: MethodReproducibility | None = None,
+    *,
+    actor: str,
+    at: str,
+    reason: str,
+    event_log: ProjectEventLog | None = None,
+) -> RequirementClosure:
+    """Close one registered requirement with its final outcome.
+
+    The sanctioned outcome-update transition of the requirement registry
+    (``04-PROJECT-LIFECYCLE.md`` section 4: "Each Reproduction
+    Requirement ultimately closes as" one of the terminal outcomes): the
+    registered record's ``outcome`` -- and, when given, its
+    ``method_reproducibility`` -- is rewritten in place at
+    ``requirements/<requirement_id>.json`` (the documented transition
+    that rewrites a registry record; ``register_requirement`` itself
+    keeps its exactly-once contract), and one deterministic
+    ``requirement.outcome.updated`` lifecycle event is appended under an
+    idempotency key. The event type is the declared audit event of the
+    "Requirement outcome updated" git checkpoint (``audit/git.py``
+    ``CHECKPOINTS`` / ``EVENT_TYPE_TO_CHECKPOINT``); the checkpoint
+    commit itself is created by the Supervisor flow
+    (``map_event_to_audit`` / ``commit_checkpoint``) -- this module
+    never writes Git state.
+
+    Closure rules (``core/rules/outcome.py``): the new outcome is
+    classified through the normative requirement-outcome rule table
+    (``classify_requirement_outcome``); an outcome that classifies
+    UNDETERMINED -- ``OPEN``, ``R-REQOUT-5`` -- is rejected with
+    ``RequirementClosureError`` before anything is written. The
+    classified state and matched rule id are returned (``assessment``)
+    and recorded in the event payload, so the enforced decision is
+    auditable. ``method_reproducibility`` is schema-validated only
+    (``UNDETERMINED`` is a legal per-Requirement rating; the
+    project-level aggregator ``aggregate_method_reproducibility``
+    consumes it).
+
+    Exactly-once and crash-window convergence (monitoring pattern): a
+    re-submitted closure whose target is already persisted is rejected
+    as a no-op -- a no-op closure must never enter the audit record --
+    unless the deterministic event of the interrupted closure is
+    missing from the log, which proves an earlier call whose record
+    write landed but event append did not; the missing event is then
+    appended idempotently (``from`` = the outcome of the last recorded
+    closure event of the requirement, or ``OPEN`` when none) and the
+    call returns ``replayed=True``. Without an event log no convergence
+    is possible and the no-op guard always wins.
+
+    Args:
+        root: the initialized workspace root.
+        requirement_id: the id of the registered requirement to close.
+        outcome: the terminal ``RequirementOutcome`` to record (an
+            ``OPEN`` outcome is rejected by the closure rules).
+        method_reproducibility: the per-Requirement
+            ``MethodReproducibility`` rating to record (None leaves the
+            stored rating untouched when already present, and the field
+            absent when the record carried none).
+        actor: the acting role agent identity stamped on the event.
+        at: the injected deterministic closure timestamp.
+        reason: the stable closure reason (the event's ``reason``).
+        event_log: the append-only event log to audit through (default:
+            no event is appended).
+
+    Returns:
+        The :class:`RequirementClosure` (updated record, enforced
+        classification, event record, replayed flag).
+
+    Raises:
+        TypeError: ``root`` is not a str/Path, ``requirement_id`` is not
+            a str, ``outcome`` is not a ``RequirementOutcome``,
+            ``method_reproducibility`` is neither a
+            ``MethodReproducibility`` nor None, or ``actor`` / ``at`` /
+            ``reason`` is not a str.
+        RequirementClosureError: ``actor`` / ``at`` / ``reason`` is
+            empty; the closure rules reject the outcome (``OPEN``,
+            R-REQOUT-5); or the closure is already fully recorded
+            (no-op guard).
+        InvalidRegistryIdError: the ``requirement_id`` is not a safe
+            single path segment.
+        ProjectNotInitializedError: no ``project.yaml`` exists at
+            ``root``.
+        RequirementNotFoundError: no requirement with that id is
+            registered.
+        ValueError: the stored requirement record is corrupt, or the
+            stored event log state is corrupt.
+    """
+    if not isinstance(root, (str, Path)):
+        raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
+    if not isinstance(requirement_id, str):
+        raise TypeError(
+            f"requirement_id must be a str, got {type(requirement_id).__name__}"
+        )
+    if not isinstance(outcome, RequirementOutcome):
+        raise TypeError(
+            "outcome must be a RequirementOutcome member, got"
+            f" {type(outcome).__name__}"
+        )
+    if method_reproducibility is not None and not isinstance(
+        method_reproducibility, MethodReproducibility
+    ):
+        raise TypeError(
+            "method_reproducibility must be a MethodReproducibility member"
+            f" or None, got {type(method_reproducibility).__name__}"
+        )
+    _require_closure_args(actor, at, reason)
+    project_root = Path(root).resolve()
+    _require_initialized(project_root)
+    _validate_registry_id("requirement", requirement_id)
+    stored = read_requirement(project_root, requirement_id)
+    # Closure rules: classify the new outcome through the normative rule
+    # table; an OPEN outcome classifies UNDETERMINED (R-REQOUT-5) and is
+    # not a closure (04-PROJECT-LIFECYCLE.md section 4).
+    assessment = classify_requirement_outcome(
+        RequirementOutcomeRecord(
+            requirement_id=requirement_id,
+            criticality=stored.criticality,
+            outcome=outcome,
+        )
+    )
+    if assessment.state is RequirementClosureState.UNDETERMINED:
+        raise RequirementClosureError(
+            f"requirement {requirement_id!r} cannot be closed with outcome"
+            f" {outcome.value!r}: a Requirement closes only as REPRODUCED,"
+            " REPRODUCED_WITH_RECOVERY, NOT_REPRODUCED or INCONCLUSIVE"
+            " (04-PROJECT-LIFECYCLE.md section 4; R-REQOUT-5 keeps an OPEN"
+            " Requirement UNDETERMINED)"
+        )
+    updated = replace(
+        stored,
+        outcome=outcome,
+        method_reproducibility=method_reproducibility,
+    )
+    validate_and_reject("requirement", updated.to_dict())
+    if updated == stored:
+        return _converge_closure(
+            stored,
+            outcome,
+            method_reproducibility,
+            assessment,
+            actor=actor,
+            at=at,
+            reason=reason,
+            event_log=event_log,
+        )
+    event = _outcome_updated_event(
+        requirement_id,
+        from_outcome=stored.outcome,
+        outcome=outcome,
+        method_reproducibility=method_reproducibility,
+        actor=actor,
+        at=at,
+        reason=reason,
+        assessment=assessment,
+    )
+    atomic_write(
+        _requirement_path(project_root, requirement_id),
+        _canonical_json(updated.to_dict()),
+    )
+    record = _append_event(
+        event_log,
+        event,
+        idempotency_key=(
+            f"{REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE}:{requirement_id}:"
+            f"{stored.outcome.value}:{outcome.value}"
+        ),
+    )
+    return RequirementClosure(
+        requirement=updated,
+        assessment=assessment,
+        event_record=record,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
@@ -850,6 +1102,178 @@ def _validate_registry_id(kind: str, value: str) -> None:
             f"invalid {kind} id {value!r}: ids must be non-empty single path"
             " segments (no '/', no '\\', not '.' or '..')"
         )
+
+
+def _require_closure_args(actor: str, at: str, reason: str) -> None:
+    """Reject non-str / empty closure audit arguments."""
+    for label, value in (("actor", actor), ("at", at), ("reason", reason)):
+        if not isinstance(value, str):
+            raise TypeError(f"{label} must be a str, got {type(value).__name__}")
+        if value == "":
+            raise RequirementClosureError(f"{label} must not be empty")
+
+
+def _outcome_updated_event(
+    requirement_id: str,
+    *,
+    from_outcome: RequirementOutcome,
+    outcome: RequirementOutcome,
+    method_reproducibility: MethodReproducibility | None,
+    actor: str,
+    at: str,
+    reason: str,
+    assessment: RequirementOutcomeAssessment,
+) -> ProjectEvent:
+    """Build the deterministic ``requirement.outcome.updated`` event.
+
+    The event id is a pure function of the canonical transition fields
+    (requirement id and the from/to outcomes), so a re-append converges
+    on the same id and the log deduplicates it. The payload carries the
+    enforced classification (rule id) and the rating.
+    """
+    payload: dict[str, str] = {
+        "outcome": outcome.value,
+        "requirement_rule_id": assessment.matched_rule_id,
+    }
+    if method_reproducibility is not None:
+        payload["method_reproducibility"] = method_reproducibility.value
+    return ProjectEvent(
+        event_id=generate_id(
+            "event",
+            REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE,
+            requirement_id,
+            from_outcome.value,
+            outcome.value,
+        ),
+        timestamp=at,
+        actor=actor,
+        event_type=REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE,
+        object_id=requirement_id,
+        from_=from_outcome.value,
+        to=outcome.value,
+        reason=reason,
+        payload=payload,
+    )
+
+
+def _append_event(
+    event_log: ProjectEventLog | None,
+    event: ProjectEvent,
+    *,
+    idempotency_key: str,
+) -> EventRecord | None:
+    """Append ``event`` to ``event_log`` under ``idempotency_key``.
+
+    Returns None when no event log was given (persist-only mode), so
+    callers can treat the audit append as optional without branching.
+    """
+    if event_log is None:
+        return None
+    return event_log.append(event, idempotency_key=idempotency_key)
+
+
+def _last_recorded_closure_event(
+    event_log: ProjectEventLog,
+    requirement_id: str,
+) -> ProjectEvent | None:
+    """Return the last recorded closure event of the requirement, if any.
+
+    The events of one requirement form a chain in log order (the
+    sequence of its outcome updates); the last one's ``to`` is the
+    requirement's latest recorded outcome.
+    """
+    last: ProjectEvent | None = None
+    for record in event_log.list_events():
+        event = record.event
+        if (
+            event.event_type == REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE
+            and event.object_id == requirement_id
+        ):
+            last = event
+    return last
+
+
+def _converge_closure(
+    stored: ReproductionRequirement,
+    outcome: RequirementOutcome,
+    method_reproducibility: MethodReproducibility | None,
+    assessment: RequirementOutcomeAssessment,
+    *,
+    actor: str,
+    at: str,
+    reason: str,
+    event_log: ProjectEventLog | None,
+) -> RequirementClosure:
+    """Converge a re-submitted closure with the recorded state.
+
+    The record already carries the requested outcome and rating, so
+    nothing needs rewriting -- the question is whether the audit event
+    of that closure is recorded. A no-op closure must never enter the
+    audit record (exactly-once): if the matching event is already
+    recorded (same target outcome and rating), the closure is rejected
+    as already fully done. A missing event proves an earlier call whose
+    record write landed but event append did not (crash window); it is
+    appended idempotently and the call returns ``replayed=True``. The
+    ``from`` of the healed event is the outcome of the last recorded
+    closure event of the requirement (or ``OPEN`` when none).
+    """
+    if event_log is None:
+        raise RequirementClosureError(
+            f"requirement {stored.requirement_id!r} is already closed with"
+            f" outcome {outcome.value!r}; nothing to do"
+        )
+    last = _last_recorded_closure_event(event_log, stored.requirement_id)
+    recorded_rating: str | None = None
+    if last is not None and last.payload:
+        recorded_rating = last.payload.get("method_reproducibility")
+    if (
+        last is not None
+        and last.to == outcome.value
+        and recorded_rating
+        == (method_reproducibility.value if method_reproducibility is not None else None)
+    ):
+        raise RequirementClosureError(
+            f"requirement {stored.requirement_id!r} is already closed with"
+            f" outcome {outcome.value!r} (event {last.event_id!r} already"
+            " records this closure); nothing to do"
+        )
+    if last is None:
+        from_outcome = RequirementOutcome.OPEN
+    elif last.to == outcome.value:
+        # Rating-only re-closure of the same outcome: the healed event
+        # re-records the outcome line from itself.
+        from_outcome = outcome
+    else:
+        if last.to is None:
+            raise CorruptEventLogError(
+                f"event {last.event_id!r} has no 'to' outcome; cannot converge"
+                " the closure"
+            )
+        from_outcome = RequirementOutcome(last.to)
+    event = _outcome_updated_event(
+        stored.requirement_id,
+        from_outcome=from_outcome,
+        outcome=outcome,
+        method_reproducibility=method_reproducibility,
+        actor=actor,
+        at=at,
+        reason=reason,
+        assessment=assessment,
+    )
+    _append_event(
+        event_log,
+        event,
+        idempotency_key=(
+            f"{REQUIREMENT_OUTCOME_UPDATED_EVENT_TYPE}:{stored.requirement_id}:"
+            f"{from_outcome.value}:{outcome.value}"
+        ),
+    )
+    return RequirementClosure(
+        requirement=stored,
+        assessment=assessment,
+        event_record=None,
+        replayed=True,
+    )
 
 
 def _coerce_inventory_item(item: InventoryItemInput) -> ReproductionInventoryItem:
