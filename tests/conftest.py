@@ -49,6 +49,19 @@ def _commit_all(cwd: Path, message: str) -> None:
     )
 
 
+def _extract_archive(archive: bytes, dest: Path) -> None:
+    """Extract a ``git archive`` tar stream safely.
+
+    ``filter="data"`` (Python 3.12+) keeps 3.14's stricter default
+    behavior explicit; 3.11 has no filter parameter.
+    """
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as tf:
+        if sys.version_info >= (3, 12):
+            tf.extractall(dest, filter="data")
+        else:
+            tf.extractall(dest)
+
+
 def _read_version(root: Path) -> str:
     """Read the ``project.version`` from a checkout's ``pyproject.toml``."""
     text = (root / "pyproject.toml").read_text(encoding="utf-8")
@@ -157,8 +170,7 @@ def make_update_check_repo(tmp_path: Path):
                 capture_output=True,
                 check=True,
             )
-            with tarfile.open(fileobj=io.BytesIO(archive.stdout), mode="r:") as tf:
-                tf.extractall(work)
+            _extract_archive(archive.stdout, work)
         else:
             _write_pyproject(work, _read_version(REPO_ROOT))
         _run_git(None, "-C", str(work), "init", "-b", RELEASE_BRANCH)
