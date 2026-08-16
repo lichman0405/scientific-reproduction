@@ -322,14 +322,16 @@ def trace_claim(
 
     The chain resolution entry: the claim's claim-specific evidence
     records (``EvidenceRegistry.records_for_claim``), the acceptance
-    criteria the evidence supports (``AcceptanceCriteria.evidence_refs``),
-    the requirement-outcome hop through ``ClaimSpecificEvidence.used_by``,
-    the analysis result records (``ResultRecord.acceptance_ref`` /
-    ``requirement_refs``), the Runs (``ResultRecord.run_ref``) and the raw
-    artifact manifests (``ResultRecord.input_artifact_ids``, plus the
-    ``Run.artifacts`` / ``ArtifactManifest.run_id`` / ``analysis_id``
-    producer links). Every record is read through the real registration
-    APIs and never rewritten.
+    criteria the evidence supports (``AcceptanceCriteria.evidence_refs``;
+    evidence is Source x Claim specific, ``06-EVIDENCE-SYSTEM.md`` SS1, so
+    an acceptance may cite evidence records of other claims and those refs
+    resolve to the registered records too), the requirement-outcome hop
+    through ``ClaimSpecificEvidence.used_by``, the analysis result records
+    (``ResultRecord.acceptance_ref`` / ``requirement_refs``), the Runs
+    (``ResultRecord.run_ref``) and the raw artifact manifests
+    (``ResultRecord.input_artifact_ids``, plus the ``Run.artifacts`` /
+    ``ArtifactManifest.run_id`` / ``analysis_id`` producer links). Every
+    record is read through the real registration APIs and never rewritten.
 
     Total by design: a missing link is never an exception -- it is a
     :class:`TraceGap` of the returned trace, so the audit package
@@ -422,6 +424,12 @@ def trace_claim(
         for record in evidence.records_for_claim(claim_id)
     ]
     evidence_ids = {node.ref_id for node in evidence_nodes}
+    # Evidence ids are registry-global identities (06-EVIDENCE-SYSTEM.md
+    # SS6; the registry rejects duplicate ids), while evidence itself is
+    # Source x Claim specific (SS1): an acceptance may legitimately cite
+    # evidence records of a claim other than the one traced, so refs are
+    # resolved against every registered record, not only the claim's own.
+    evidence_by_id = {record.evidence_id: record for record in evidence}
 
     # -- hop 1: evidence -> requirement outcome via used_by ------------------
     # 06-EVIDENCE-SYSTEM.md SS6: ``used_by`` holds the Goals/decisions using
@@ -452,7 +460,11 @@ def trace_claim(
     # -- hop 2: evidence -> acceptance via AcceptanceCriteria.evidence_refs --
     # The acceptance criteria the claim's evidence supports; ``evidence_refs``
     # may name evidence record ids (the claim-supporting hop) or analysis
-    # result ids (the reverse hop, hop 5).
+    # result ids (the reverse hop, hop 5). Evidence is Source x Claim
+    # specific (06-EVIDENCE-SYSTEM.md SS1), so an acceptance documenting
+    # several claims cites the registered evidence records of each claim:
+    # every evidence_refs entry that names a registered evidence record
+    # (any claim) resolves to its EVIDENCE node.
     trace_acceptances: dict[str, AcceptanceCriteria] = {}
     for acceptance in acceptances.values():
         if any(ref in evidence_ids for ref in acceptance.evidence_refs):
@@ -461,8 +473,12 @@ def trace_claim(
         acceptance_node = add_node(
             TraceKind.ACCEPTANCE, acceptance_id, record
         )
-        for evidence_node in evidence_nodes:
-            if evidence_node.ref_id in record.evidence_refs:
+        for ref in record.evidence_refs:
+            evidence_record = evidence_by_id.get(ref)
+            if evidence_record is not None:
+                evidence_node = add_node(
+                    TraceKind.EVIDENCE, ref, evidence_record
+                )
                 add_link(
                     evidence_node,
                     "AcceptanceCriteria.evidence_refs",
@@ -629,8 +645,8 @@ def trace_claim(
 
     # -- dangling evidence_refs of the acceptances in the trace ---------------
     # Every evidence_refs entry of a trace acceptance must resolve to a
-    # claim evidence record or to a resolved analysis result; anything else
-    # is a missing link (AC-02).
+    # registered evidence record (any claim -- hop 2) or to a resolved
+    # analysis result; anything else is a missing link (AC-02).
     for acceptance_node in [
         n for n in nodes.values() if n.kind is TraceKind.ACCEPTANCE
     ]:
@@ -638,18 +654,18 @@ def trace_claim(
         # Acceptance nodes always carry their AcceptanceCriteria.
         assert isinstance(record, AcceptanceCriteria)
         for ref in record.evidence_refs:
-            if ref in evidence_ids:
+            if (TraceKind.EVIDENCE, ref) in nodes:
                 continue
-            if ref in results and (TraceKind.ANALYSIS, ref) in nodes:
+            if (TraceKind.ANALYSIS, ref) in nodes:
                 continue
             add_gap(
                 acceptance_node,
                 "AcceptanceCriteria.evidence_refs",
                 ref,
                 f"evidence_refs entry {ref!r} of acceptance"
-                f" {record.acceptance_id!r} resolves to no claim evidence"
-                " record and no analysis result record; the acceptance's"
-                " evidence links must resolve (AC-02)"
+                f" {record.acceptance_id!r} resolves to no registered"
+                " evidence record and no analysis result record; the"
+                " acceptance's evidence links must resolve (AC-02)"
             )
 
     return ClaimTrace(

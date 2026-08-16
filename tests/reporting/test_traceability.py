@@ -62,6 +62,12 @@ from scientific_reproduction.reporting.traceability import (
 )
 from scientific_reproduction.research.evidence import EvidenceRegistry
 
+#: The second claim and its evidence record: a registered evidence record
+#: of a *different* claim that a trace acceptance cites (the cross-claim
+#: evidence_refs case, 06-EVIDENCE-SYSTEM.md SS1/SS6).
+CROSS_CLAIM_ID: str = "CLAIM-002"
+CROSS_EVIDENCE_ID: str = "EVID-002"
+
 # ---------------------------------------------------------------------------
 # ac01 -- the full SS7 chain resolves
 # ---------------------------------------------------------------------------
@@ -195,6 +201,39 @@ def test_trace_claim_enters_via_result_evidence_refs_ac01(
     ) in links
 
 
+def test_trace_claim_cross_claim_evidence_ref_resolves_ac01(
+    tmp_path: Path,
+) -> None:
+    """An acceptance citing an evidence record of a different claim resolves
+    the ref (evidence is Source x Claim, 06-EVIDENCE-SYSTEM.md SS1/SS6): the
+    registered cross-claim record becomes an EVIDENCE node carrying its
+    typed record and links from the acceptance with no gap (AC-01)."""
+    evidence = install_valid_chain(
+        tmp_path,
+        acceptance=make_acceptance(
+            evidence_refs=[EVIDENCE_ID, CROSS_EVIDENCE_ID]
+        ),
+    ).register(
+        make_evidence(evidence_id=CROSS_EVIDENCE_ID, claim_id=CROSS_CLAIM_ID)
+    )
+    trace = trace_claim(tmp_path, CLAIM_ID, evidence)
+
+    assert trace.gaps == ()
+    records = {node.ref_id: node.record for node in trace.nodes}
+    cross_claim = records[CROSS_EVIDENCE_ID]
+    assert isinstance(cross_claim, ClaimSpecificEvidence)
+    assert cross_claim.claim_id == CROSS_CLAIM_ID
+    links = {
+        (link.source.ref_id, link.via, link.target.ref_id)
+        for link in trace.links
+    }
+    assert (
+        CROSS_EVIDENCE_ID,
+        "AcceptanceCriteria.evidence_refs",
+        ACCEPTANCE_ID,
+    ) in links
+
+
 # ---------------------------------------------------------------------------
 # ac02 -- missing links are gaps, never exceptions
 # ---------------------------------------------------------------------------
@@ -282,6 +321,30 @@ def test_trace_claim_dangling_acceptance_evidence_ref_is_a_gap_ac02(
     assert gap.source.ref_id == ACCEPTANCE_ID
     assert gap.via == "AcceptanceCriteria.evidence_refs"
     assert gap.ref_id == "GHOST-EVID"
+
+
+def test_trace_claim_cross_claim_evidence_ref_is_not_a_gap_ac02(
+    tmp_path: Path,
+) -> None:
+    """A trace acceptance citing a registered evidence record of a different
+    claim produces no trace_gap, while a genuinely unresolved evidence_refs
+    entry of the same acceptance still does (AC-02)."""
+    evidence = install_valid_chain(
+        tmp_path,
+        acceptance=make_acceptance(
+            evidence_refs=[EVIDENCE_ID, CROSS_EVIDENCE_ID, "GHOST-EVID"]
+        ),
+    ).register(
+        make_evidence(evidence_id=CROSS_EVIDENCE_ID, claim_id=CROSS_CLAIM_ID)
+    )
+    trace = trace_claim(tmp_path, CLAIM_ID, evidence)
+
+    assert trace.has_node(TraceKind.ACCEPTANCE)
+    assert trace.has_node(TraceKind.EVIDENCE)
+    assert [gap.ref_id for gap in trace.gaps] == ["GHOST-EVID"]
+    gap = trace.gaps[0]
+    assert gap.source.ref_id == ACCEPTANCE_ID
+    assert gap.via == "AcceptanceCriteria.evidence_refs"
 
 
 def test_trace_claim_without_evidence_has_only_claim_node_ac02(
