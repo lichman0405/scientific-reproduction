@@ -588,9 +588,13 @@ def register_result(root: str | Path, result: ResultInput) -> ResultRecord:
 
     Reference resolution (AC-01 exactness, in this order):
     ``analysis_id`` + ``protocol_version`` must resolve to a registered
-    PROTOCOL record of the DEV-M9-G01 lineage; every ``input_artifact_ids``
-    / ``output_artifact_ids`` entry must resolve to a registered
-    ``ArtifactManifest`` in the project artifact registry
+    PROTOCOL record of the DEV-M9-G01 lineage -- or of the DEV-M4-G04
+    goal-contract family when its id-keyed record (``protocols/<id>.json``,
+    the state ``planning.freeze.freeze_plan`` persists the frozen
+    protocols in) carries the matching ``protocol_version``
+    (``read_protocol_version`` documents the bridge); every
+    ``input_artifact_ids`` / ``output_artifact_ids`` entry must resolve
+    to a registered ``ArtifactManifest`` in the project artifact registry
     (``manifests/``); ``acceptance_ref`` (when set) must resolve to a
     registered acceptance record. Unresolved references raise
     ``UnresolvedResultReferenceError`` with a stable message before
@@ -753,7 +757,10 @@ def _resolve_protocol_ref(
 
     AC-01/AC-02: the result pins an exact registered protocol version of
     the DEV-M9-G01 lineage, and the referenced record must be a PROTOCOL
-    record (not a result-kind record of the lineage).
+    record (not a result-kind record of the lineage). The DEV-M4-G04
+    goal-contract record at the id-keyed path resolves when its stored
+    ``protocol_version`` matches (the plan-freeze family --
+    ``read_protocol_version`` documents the bridge).
     """
     try:
         version = read_protocol_version(root, analysis_id, protocol_version)
