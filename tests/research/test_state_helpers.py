@@ -22,10 +22,11 @@ the issue's observed hand-rolled layer:
   table (no-op transitions rejected), result linkage through the
   linkage rule table, and one deterministic event per operation;
 * event appends -- every operation audits through the real
-  ``ProjectEventLog`` under deterministic idempotency keys;
-  crash-window convergence and steady-state re-runs resolve to the
-  single original event (``replayed=True``, sequence never advances
-  twice);
+  ``ProjectEventLog`` under deterministic idempotency keys; a call
+  without an explicit ``event_log`` audits through the workspace-bound
+  log (``events/``); crash-window convergence and steady-state re-runs
+  resolve to the single original event (``replayed=True``, sequence
+  never advances twice);
 * reads -- ``test_reads_*``: typed reads and sorted listings with
   stable not-found and corrupt-record errors.
 
@@ -43,7 +44,7 @@ from pathlib import Path
 import pytest
 
 from scientific_reproduction.audit.git import AuditIdentity
-from scientific_reproduction.core.events import ProjectEventLog
+from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.models import (
     ClaimSpecificEvidence,
     EvidenceAssessment,
@@ -53,6 +54,7 @@ from scientific_reproduction.core.models import (
     SourceType,
 )
 from scientific_reproduction.planning.init import (
+    INIT_EVENT_TYPE,
     ProjectNotInitializedError,
     initialize_project,
 )
@@ -67,7 +69,6 @@ from scientific_reproduction.research.requests import (
 )
 from scientific_reproduction.research.sources import SourceNormalizationError
 from scientific_reproduction.research.state_helpers import (
-    EVENTS_STATE_DIR,
     EVIDENCE_RECORDED_EVENT_TYPE,
     EVIDENCE_STATE_DIR,
     REQUEST_PREDECESSOR_STATUS,
@@ -121,8 +122,19 @@ def init_project(root: Path) -> Path:
 
 
 def event_log(root: Path) -> ProjectEventLog:
-    """The workspace event log bound to the ``events/`` directory."""
-    return ProjectEventLog(root / EVENTS_STATE_DIR)
+    """The canonical workspace event log (records at ``events/``)."""
+    return ProjectEventLog(root)
+
+
+def flow_events(root: Path) -> list[EventRecord]:
+    """Event records of the state-authoring flow, excluding the
+    deterministic ``project.initialized`` event ``initialize_project``
+    appends to the same canonical log (``events/``)."""
+    return [
+        record
+        for record in event_log(root).list_events()
+        if record.event.event_type != INIT_EVENT_TYPE
+    ]
 
 
 def make_source(
@@ -193,7 +205,11 @@ def test_register_source_persists_canonical_record_and_identity(tmp_path):
     assert registration.identity.key == f"doi:{DOI.lower()}"
     assert registration.identity.normalized_doi == DOI.lower()
     assert registration.replayed is False
-    assert registration.event_record is None
+    # The default call audits through the workspace-bound log.
+    record = registration.event_record
+    assert record is not None and record.replayed is False
+    assert record.event.event_type == SOURCE_RECORDED_EVENT_TYPE
+    assert event_log(root).get(record.event.event_id) is not None
     stored = json.loads(
         (root / SOURCE_STATE_DIR / "SRC-1.json").read_text(
             encoding="utf-8"
@@ -328,7 +344,7 @@ def test_register_source_crash_window_converges_exactly_once(tmp_path):
             recorded_at=RECORDED_AT,
             event_log=log,
         )
-    assert len(log.list_events()) == 1
+    assert len(flow_events(root)) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -426,7 +442,7 @@ def test_register_evidence_duplicate_and_convergence(tmp_path):
         event_log=event_log(other_root),
     )
     assert replayed.replayed is True
-    assert len(event_log(other_root).list_events()) == 1
+    assert len(flow_events(other_root)) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -553,7 +569,7 @@ def test_advance_request_rejects_illegal_pairs(tmp_path):
             actor=ACTOR, reason="skip", at="2026-01-03T00:00:00Z",
         )
     # A no-op (OPEN -> OPEN) is never legal (R-REQ-D1) and never enters
-    # the audit record, with or without an event log.
+    # the audit record (default or explicit log).
     with pytest.raises(IllegalRequestTransitionError, match="OPEN.*OPEN"):
         advance_research_request(
             root, "REQ-1", ResearchRequestStatus.OPEN,
@@ -565,7 +581,11 @@ def test_advance_request_rejects_illegal_pairs(tmp_path):
             actor=ACTOR, reason="noop", at="2026-01-03T00:00:00Z",
             event_log=event_log(root),
         )
-    assert event_log(root).list_events() == []
+    # Only the deterministic issuance event entered the log: the illegal
+    # moves never reached the audit record.
+    assert [r.event.event_type for r in flow_events(root)] == [
+        RESEARCH_REQUEST_RECORDED_EVENT_TYPE
+    ]
     assert read_research_request(root, "REQ-1").status is ResearchRequestStatus.OPEN
 
 
@@ -591,7 +611,7 @@ def test_advance_request_steady_state_and_crash_window_converge(tmp_path):
     assert second.replayed is True
     assert second.event_record.event.event_id == first.event_record.event.event_id
     assert second.event_record.sequence == first.event_record.sequence
-    assert len(log.list_events()) == 2  # recorded + transition, nothing new
+    assert len(flow_events(root)) == 2  # recorded + transition, nothing new
     assert read_research_request(root, "REQ-1").status is ResearchRequestStatus.SEARCHING
     # Crash-window convergence: the record is already at SEARCHING but
     # the transition event was lost (raw write, no event) -- the unique
@@ -614,7 +634,7 @@ def test_advance_request_steady_state_and_crash_window_converge(tmp_path):
     assert converged.replayed is True
     assert converged.event_record.event.from_ == "OPEN"
     assert converged.event_record.event.to == "SEARCHING"
-    assert len(event_log(other).list_events()) == 2  # recorded + converged arc
+    assert len(flow_events(other)) == 2  # recorded + converged arc
 
 
 def test_advance_request_unknown_request(tmp_path):
@@ -714,9 +734,11 @@ def test_link_result_duplicate_replays_with_log_and_rejects_without(tmp_path):
     assert replayed.event_record.event.event_id == first.event_record.event.event_id
     assert replayed.linkage.linked_at == first.linkage.linked_at
     assert read_research_request(root, "REQ-1").result_evidence_ids == ["EVID-1"]
-    # Without an event log the duplicate is rejected by the rule table
-    # (R-LINK-D1: an evidence id may only be linked once).
-    other = init_project(tmp_path / "nolog")
+    # Without an explicit event log the duplicate converges through the
+    # default workspace log: R-LINK-D1 keeps an evidence id linked once,
+    # and the deterministic re-append re-resolves the original event
+    # (replayed) -- never a silent rejection.
+    other = init_project(tmp_path / "defaultlog")
     register_research_request(
         other, make_request(), actor="supervisor", recorded_at=RECORDED_AT
     )
@@ -724,24 +746,59 @@ def test_link_result_duplicate_replays_with_log_and_rejects_without(tmp_path):
     advance_research_request(
         other, "REQ-1", ResearchRequestStatus.SEARCHING,
         actor=ACTOR, reason="search started", at="2026-01-03T00:00:00Z",
-        event_log=event_log(other),
     )
-    link_result_to_request(
+    first = link_result_to_request(
         other, "REQ-1", "EVID-1",
         linked_by=ACTOR, linked_at="2026-01-04T00:00:00Z",
-        event_log=event_log(other),
     )
     # Advance to COMPLETE first so R-LINK-S1 cannot reject the re-link.
     advance_research_request(
         other, "REQ-1", ResearchRequestStatus.COMPLETE,
         actor=ACTOR, reason="findings linked", at="2026-01-05T00:00:00Z",
-        event_log=event_log(other),
     )
-    with pytest.raises(RequestLinkageError, match="R-LINK-D1"):
-        link_result_to_request(
-            other, "REQ-1", "EVID-1",
-            linked_by=ACTOR, linked_at="2026-01-06T00:00:00Z",
-        )
+    converged = link_result_to_request(
+        other, "REQ-1", "EVID-1",
+        linked_by=ACTOR, linked_at="2026-01-06T00:00:00Z",
+    )
+    assert converged.replayed is True
+    assert converged.event_record.event.event_id == first.event_record.event.event_id
+    assert read_research_request(other, "REQ-1").result_evidence_ids == ["EVID-1"]
+
+
+def test_default_event_log_is_workspace_bound_and_ordered(tmp_path):
+    root = init_project(tmp_path)
+    # No explicit event log anywhere: every operation audits through the
+    # workspace-bound log (records at events/) in append order.
+    register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
+    register_evidence(root, make_evidence(), actor=ACTOR, recorded_at=RECORDED_AT)
+    register_research_request(
+        root, make_request(), actor="supervisor", recorded_at=RECORDED_AT
+    )
+    advance_research_request(
+        root, "REQ-1", ResearchRequestStatus.SEARCHING,
+        actor=ACTOR, reason="search started", at="2026-01-03T00:00:00Z",
+    )
+    link_result_to_request(
+        root, "REQ-1", "EVID-1",
+        linked_by=ACTOR, linked_at="2026-01-04T00:00:00Z",
+    )
+    records = flow_events(root)
+    assert [record.event.event_type for record in records] == [
+        SOURCE_RECORDED_EVENT_TYPE,
+        EVIDENCE_RECORDED_EVENT_TYPE,
+        RESEARCH_REQUEST_RECORDED_EVENT_TYPE,
+        RESEARCH_REQUEST_TRANSITION_EVENT_TYPE,
+        RESEARCH_REQUEST_RESULT_LINKED_EVENT_TYPE,
+    ]
+    # The append-only order invariants hold over the shared canonical
+    # log: strictly increasing, unique sequence numbers, every event
+    # readable back from the workspace log.
+    sequences = [record.sequence for record in records]
+    assert sequences == sorted(sequences)
+    assert len(set(sequences)) == len(sequences)
+    assert all(
+        event_log(root).get(record.event.event_id) is not None for record in records
+    )
 
 
 # ---------------------------------------------------------------------------

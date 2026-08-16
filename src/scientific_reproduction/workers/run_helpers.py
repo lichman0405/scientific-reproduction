@@ -176,10 +176,10 @@ class RunRegistration:
     """The outcome of one run registration.
 
     ``run`` is the frozen record persisted at ``runs/<run_id>.json``;
-    ``event_record`` is the appended ``run.recorded`` event (None when
-    no event log was given); ``replayed`` is True when the registration
-    converged an earlier interrupted registration (the record already
-    existed and only the missing event was appended).
+    ``event_record`` is the appended ``run.recorded`` event; ``replayed``
+    is True when the registration converged an earlier interrupted
+    registration (the record already existed and only the missing event
+    was appended).
     """
 
     run: Run
@@ -226,17 +226,18 @@ def register_run(
     The worker/monitor run authoring entry: the record is
     schema-shaped (``schemas/run.schema.yaml``), canonical-JSON
     persisted through the atomic state backend, and audited with one
-    ``run.recorded`` event (when an event log is given). The record's
-    own timestamps (``created_at`` / ``updated_at``) are the record's
-    fields; ``recorded_at`` stamps the event.
+    ``run.recorded`` event under the deterministic key
+    ``run.recorded:<run_id>``. The record's own timestamps
+    (``created_at`` / ``updated_at``) are the record's fields;
+    ``recorded_at`` stamps the event.
 
     Registration is exactly once per ``run_id``: Run records are
     immutable, and a re-registration of the same id -- even with
     different content -- is rejected with ``DuplicateRunError`` and the
-    original file is never rewritten. With an event log, a re-run after
-    a crash between the record write and the event append converges
-    instead: the missing deterministic event is appended
-    (``replayed=True``) and the original record stays untouched.
+    original file is never rewritten. A re-run after a crash between
+    the record write and the event append converges instead: the
+    missing deterministic event is appended (``replayed=True``) and the
+    original record stays untouched.
 
     Args:
         root: the initialized workspace root.
@@ -267,15 +268,15 @@ def register_run(
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     model = _coerce_run(run)
     _require_actor_stamp(actor, recorded_at)
     store = _run_store(project_root)
     event_id = generate_id("event", RUN_RECORDED_EVENT_TYPE, model.run_id)
     if store.exists("run", model.run_id):
-        if event_log is None or event_log.get(event_id) is not None:
-            # Record and its deterministic event both present (or no log
-            # to prove either way): a true duplicate -- never a silent
-            # re-registration.
+        if event_log.get(event_id) is not None:
+            # Record and its deterministic event both present: a true
+            # duplicate -- never a silent re-registration.
             raise DuplicateRunError(
                 f"run {model.run_id!r} is already registered; run records"
                 " are immutable and each run_id is written exactly once"
@@ -334,9 +335,8 @@ def transition_run(
     interrupted call (the record write landed, the event append did
     not); the missing event is then appended idempotently and the call
     returns ``replayed=True``. States with several legal predecessors
-    (``CANCELLED``, ``INVALIDATED``) have no reconstructible arc, and
-    states without an event log can never converge: the no-op guard
-    wins.
+    (``CANCELLED``, ``INVALIDATED``) have no reconstructible arc: the
+    no-op guard always wins there.
 
     Args:
         root: the initialized workspace root.
@@ -380,13 +380,10 @@ def transition_run(
     _require_transition_args(actor, reason, at)
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     store = _run_store(project_root)
     current = _read_run(store, project_root, run_id)
     if current.lifecycle_state == to_state:
-        if event_log is None:
-            raise IllegalTransitionError(
-                "run-lifecycle", current.lifecycle_state, to_state
-            )
         predecessor = RUN_PREDECESSOR_STATE[to_state]
         if predecessor is None:
             raise IllegalTransitionError(
@@ -556,15 +553,31 @@ def _read_run(
     return _read_run_record(store, run_id)
 
 
+def _resolve_event_log(
+    project_root: Path, event_log: ProjectEventLog | None
+) -> ProjectEventLog:
+    """Resolve the event log to audit through (default: workspace-bound).
+
+    Every public API declares ``event_log: ProjectEventLog | None =
+    None`` with the documented default "a ProjectEventLog bound to the
+    workspace events/ directory". None must therefore never silently
+    skip the audit append: the default call path audits through a
+    ``ProjectEventLog`` over the workspace root (records at
+    ``events/<event_id>.json`` -- the same canonical log
+    ``planning.init`` and the monitoring engines append to).
+    """
+    if event_log is not None:
+        return event_log
+    return ProjectEventLog(project_root)
+
+
 def _append(
-    event_log: ProjectEventLog | None,
+    event_log: ProjectEventLog,
     event: ProjectEvent,
     *,
     idempotency_key: str,
-) -> EventRecord | None:
-    """Append ``event`` idempotently; None when no event log is given."""
-    if event_log is None:
-        return None
+) -> EventRecord:
+    """Append ``event`` idempotently through the resolved event log."""
     return event_log.append(event, idempotency_key=idempotency_key)
 
 

@@ -18,7 +18,9 @@ Coverage:
     ``replayed=True`` event;
   * re-closure between terminal outcomes chains events (the from/to
     arc documents the outcome line);
-  * persist-only mode (no event log) never appends events.
+  * default auditing: a call without an explicit ``event_log`` audits
+    through a workspace-bound ``ProjectEventLog`` (records at
+    ``events/``) -- the default call path always produces the event.
 """
 
 from __future__ import annotations
@@ -53,7 +55,6 @@ from scientific_reproduction.planning.inventory import (
     register_inventory_item,
     register_requirement,
 )
-from scientific_reproduction.research.state_helpers import EVENTS_STATE_DIR
 
 #: Deterministic acting identity stamped on every closure event.
 ACTOR = "supervisor"
@@ -84,8 +85,8 @@ TERMINAL_OUTCOMES = (
 
 
 def event_log(root: Path) -> ProjectEventLog:
-    """The workspace event log bound to the ``events/`` directory."""
-    return ProjectEventLog(root / EVENTS_STATE_DIR)
+    """The canonical workspace event log (records at ``events/``)."""
+    return ProjectEventLog(root)
 
 
 def registered_requirement(
@@ -357,7 +358,7 @@ def test_requirement_closure_noop_guard_with_log(tmp_path):
     assert len(closure_events(root)) == 1
 
 
-def test_requirement_closure_noop_guard_without_log(tmp_path):
+def test_requirement_closure_noop_guard_default_log(tmp_path):
     root = init_project(tmp_path)
     registered_requirement(root)
     close_requirement(
@@ -368,8 +369,10 @@ def test_requirement_closure_noop_guard_without_log(tmp_path):
         at=AT,
         reason=REASON,
     )
-    # Without an event log no convergence is possible: the no-op guard
-    # always wins.
+    # The default call audited through the workspace log: the closure is
+    # fully recorded, so re-submitting it is a no-op and is rejected --
+    # the audit record must never get the event a second time.
+    assert len(closure_events(root)) == 1
     with pytest.raises(RequirementClosureError, match="already closed"):
         close_requirement(
             root,
@@ -379,24 +382,23 @@ def test_requirement_closure_noop_guard_without_log(tmp_path):
             at=AT,
             reason=REASON,
         )
+    assert len(closure_events(root)) == 1
 
 
 def test_requirement_closure_crash_window_heals_missing_event(tmp_path):
     root = init_project(tmp_path)
     registered_requirement(root)
-    # Interrupted first closure: the record write landed (persist-only
-    # call), the event append never did.
-    close_requirement(
-        root,
-        "REQ-1",
-        RequirementOutcome.REPRODUCED,
-        actor=ACTOR,
-        at=AT,
-        reason=REASON,
-    )
+    # Interrupted first closure: the record write landed, the event
+    # append never did (raw crash window -- the closed record exists,
+    # the log holds no closure event).
+    path = root / REQUIREMENTS_STATE_DIR / "REQ-1.json"
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    stored["outcome"] = "REPRODUCED"
+    path.write_text(json.dumps(stored, indent=2, sort_keys=True), encoding="utf-8")
     assert closure_events(root) == []
-    # Re-run with the log: the missing deterministic event is appended
-    # (from OPEN) and the call converges as replayed.
+    # Re-run with the default (workspace-bound) log: the missing
+    # deterministic event is appended (from OPEN) and the call converges
+    # as replayed.
     result = close_requirement(
         root,
         "REQ-1",
@@ -404,7 +406,6 @@ def test_requirement_closure_crash_window_heals_missing_event(tmp_path):
         actor=ACTOR,
         at=AT,
         reason=REASON,
-        event_log=event_log(root),
     )
     assert result.replayed is True
     (event,) = closure_events(root)
@@ -419,7 +420,6 @@ def test_requirement_closure_crash_window_heals_missing_event(tmp_path):
             actor=ACTOR,
             at=AT,
             reason=REASON,
-            event_log=event_log(root),
         )
     assert len(closure_events(root)) == 1
 
@@ -427,7 +427,6 @@ def test_requirement_closure_crash_window_heals_missing_event(tmp_path):
 def test_requirement_closure_rating_only_reclose_heals_from_last_event(tmp_path):
     root = init_project(tmp_path)
     registered_requirement(root)
-    log = event_log(root)
     close_requirement(
         root,
         "REQ-1",
@@ -435,19 +434,13 @@ def test_requirement_closure_rating_only_reclose_heals_from_last_event(tmp_path)
         actor=ACTOR,
         at=AT,
         reason=REASON,
-        event_log=log,
     )
-    # Rating-only re-closure without the log: the record is rewritten
-    # with the rating, the event append is lost (crash window).
-    close_requirement(
-        root,
-        "REQ-1",
-        RequirementOutcome.REPRODUCED,
-        method_reproducibility=MethodReproducibility.DIRECTLY_REPRODUCIBLE,
-        actor=ACTOR,
-        at=AT,
-        reason=REASON,
-    )
+    # Rating-only re-closure interrupted in its crash window: the record
+    # is rewritten with the rating, the event append never landed.
+    path = root / REQUIREMENTS_STATE_DIR / "REQ-1.json"
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    stored["method_reproducibility"] = "DIRECTLY_REPRODUCIBLE"
+    path.write_text(json.dumps(stored, indent=2, sort_keys=True), encoding="utf-8")
     assert len(closure_events(root)) == 1
     # Heal: the last recorded event's 'to' is the from of the missing arc.
     result = close_requirement(
@@ -458,7 +451,6 @@ def test_requirement_closure_rating_only_reclose_heals_from_last_event(tmp_path)
         actor=ACTOR,
         at=AT,
         reason=REASON,
-        event_log=log,
     )
     assert result.replayed is True
     (first, healed) = closure_events(root)
@@ -498,7 +490,7 @@ def test_requirement_closure_reclose_chains_events(tmp_path):
     assert (second.from_, second.to) == ("REPRODUCED", "NOT_REPRODUCED")
 
 
-def test_requirement_closure_without_log_persists_only(tmp_path):
+def test_requirement_closure_default_log_audits_workspace(tmp_path):
     root = init_project(tmp_path)
     registered_requirement(root)
     result = close_requirement(
@@ -509,6 +501,11 @@ def test_requirement_closure_without_log_persists_only(tmp_path):
         at=AT,
         reason=REASON,
     )
-    assert result.event_record is None
+    # No explicit event log: the default call audits through the
+    # workspace-bound log (records at events/) -- the happy path always
+    # produces the audit event.
+    record = result.event_record
+    assert record is not None
     assert read_requirement(root, "REQ-1").outcome is RequirementOutcome.REPRODUCED
-    assert closure_events(root) == []
+    assert event_log(root).get(record.event.event_id) is not None
+    assert len(closure_events(root)) == 1
