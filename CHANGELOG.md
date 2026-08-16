@@ -4,6 +4,15 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-16
+
+Issue-resolution release: seven more issues resolved — the pre-flight
+skill update check, the sanctioned `close_requirement` API, parameterized
+language packs (`zh`) and a first-class experiment-sheet PDF, cross-claim
+evidence resolution, the goal-contract protocol registry bridge, the
+frozen goal version on lab execution packages, and workspace-bound audit
+events by default.
+
 ### Added
 
 - **Pre-flight skill update check** (issue #117) — the skill directory
@@ -25,6 +34,67 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
   contract tests (`tests/scripts/`) and demonstrated end to end in
   scenario K (`tests/scenarios/test_K_skill_update_flow.py`), and
   `scripts/smoke.py` asserts the script is part of the skill structure.
+- **Sanctioned `close_requirement` API** (issue #120) — the Supervisor
+  can now close a Requirement with a final `RequirementOutcome` through
+  the registry: `planning.inventory.close_requirement` persists the
+  rewritten record atomically (schema-validated), enforces the normative
+  closure rules from `core/rules/outcome.py` (an `OPEN` requirement is
+  refused before any write), appends one deterministic
+  `requirement.outcome.updated` event under an idempotency key (the
+  declared audit event of the "Requirement outcome updated" git
+  checkpoint), and is exactly-once with crash-window convergence — the
+  hand-rolled `store.write` path is no longer needed.
+- **Parameterized language packs and first-class experiment-sheet PDF**
+  (issue #122) — every operator-/human-facing renderer now takes an
+  explicit injected `language` (default `"en"`, never locale-detected,
+  so `(state, language)` → byte-identical output) resolved through the
+  frozen `TemplatePack` mechanism in `reporting/language.py`; a full
+  `zh` pack ships for the experiment/computation sheets and the
+  reproduction report (manifest content is data and never translated).
+  New `reporting.sheet_pdf.build_experiment_sheet_pdf` renders one
+  deterministic PDF 1.4 per dispatched lab package through the shared
+  `rendering` visual system, writing `experiment-sheet-<RUN_ID>.pdf` +
+  a canonical JSON sidecar (SHA-256) auto-registered by the audit scan
+  under `reports/`.
+
+### Fixed
+
+- **Cross-claim `evidence_refs` resolution** (issue #118) — the
+  traceability resolver resolved an acceptance's `evidence_refs` only
+  against the traced claim's own evidence records, so an acceptance
+  legitimately citing evidence of a different claim (evidence is Source ×
+  Claim per `06-EVIDENCE-SYSTEM.md`) produced false `trace_gap`
+  validation errors; `evidence_refs` entries naming any registered
+  evidence record (or a resolved analysis result) now resolve, while
+  genuinely unresolved refs still gap.
+- **Goal-contract protocol registry bridge** (issue #119) —
+  `read_protocol_version` resolves the goal-contract family's formal
+  in-place records (frozen by `freeze_plan`) by exact `protocol_version`
+  match, so a project frozen through the public planning flow can
+  register analysis results without private `_write_versioned` calls;
+  already-frozen projects resolve unchanged, and the loose
+  `"v1-draft"`-after-freeze read now correctly raises
+  `ProtocolNotFoundError`.
+- **Frozen goal version on lab execution packages** (issue #121) —
+  `LabExecutionPackage` and `schemas/lab-execution-package.schema.yaml`
+  carry the frozen `goal_version` (optional, backwards compatible:
+  existing manifests keep validating, `to_dict()` omits unset values),
+  the experiment execution sheet renders it (manifest-first, registered
+  goal fallback, "not recorded" marker), and `dispatch` surfaces it in
+  the manifest.
+- **Workspace-bound audit events by default** (issue #123) — the
+  registration/transition APIs (`research.state_helpers`,
+  `workers.run_helpers`, `planning.inventory.close_requirement`)
+  declared a workspace-bound `event_log` default that was never
+  constructed, silently skipping every audit event on the normal call
+  path; the default now resolves a `ProjectEventLog` bound to the
+  workspace `events/` directory, restoring the ADR-0001 audit-trail
+  guarantee.
+
+### Verification
+
+- Full test suite, ruff lint, and mypy type check via `python scripts/verify.py`.
+- Skill smoke verification via `python scripts/smoke.py`.
 
 ## [0.2.1] - 2026-08-15
 
