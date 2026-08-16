@@ -21,6 +21,12 @@ file adds the Codex-specific operating instructions.
    state, schema, lock, event, or adapter operations — call the runtime.
 3. Verify the installation once with `python scripts/smoke.py`; it must
    print `[smoke] PASS`.
+4. Before initializing a new reproduction project, run the pre-flight
+   update check `python scripts/check-update.py`. Exit `0` — proceed;
+   exit `1` — an update is available: inform the user and apply it only
+   after explicit confirmation (clean worktree required), then
+   re-verify with `python scripts/smoke.py`; exit `2` — cannot check,
+   proceed offline.
 
 ## Role governance
 

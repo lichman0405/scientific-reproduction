@@ -68,6 +68,34 @@ Source of Truth — sessions are replaceable executors (see
 that layer — the runtime ships no `/goals` subcommand — and platforms may
 expose them through a native slash-command mechanism where available.
 
+## Pre-flight: skill update check
+
+The skill directory *is* a git clone of the release branch
+`release/skill-v0.2.0`; any push to it makes installed copies outdated.
+Before initializing a new reproduction project (`/reproduce`), check
+whether this installation is current:
+
+```bash
+python scripts/check-update.py
+```
+
+The check is read-only (it never mutates the working tree) and is the
+only network touch of the whole skill — the reproduction path itself
+stays network-free and deterministic.
+
+- **Exit 0 — up to date**: proceed.
+- **Exit 1 — update available**: the script prints the local version,
+  the latest available version, and the N-behind commit count. Inform
+  the user and apply the update **only after explicit confirmation**,
+  and only when the skill worktree is clean (`git status --porcelain`
+  empty): `git merge --ff-only origin/release/skill-v0.2.0`, then gate
+  the result with `python scripts/smoke.py` — proceed only on
+  `[smoke] PASS`. If the fast-forward refuses, the checkout has
+  diverged: never force it, reconcile the worktree first.
+- **Exit 2 — cannot check** (offline / not a git clone): proceed; an
+  uncheckable or unavailable update never blocks the deterministic
+  reproduction path.
+
 ## Orchestration of the reproduction flow
 
 1. **Initialize** — `/reproduce` the primary target paper (exactly one per
