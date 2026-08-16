@@ -122,6 +122,7 @@ VALID_DOCS: dict[str, dict[str, Any]] = {
         "package_id": "PKG-001",
         "project_id": "RP-001",
         "goal_id": "GOAL-001",
+        "goal_version": "v1",
         "run_id": "RUN-001",
         "track": "STRICT_REPRODUCTION",
         "objective": "measure single-component C3H6 isotherm at 298 K",

@@ -6,6 +6,10 @@ properties:
   package_id: {type: string}
   project_id: {type: string}
   goal_id: {type: string}
+  # The frozen Goal version the package executes (10-EXPERIMENT-SUBSYSTEM
+  # SS3). Optional so manifests written before the field existed keep
+  # validating; the model omits the key when unset (never null).
+  goal_version: {type: string}
   run_id: {type: string}
   track: {enum: [STRICT_REPRODUCTION, RECOVERY, METHOD_REDESIGN]}
   objective: {type: string}

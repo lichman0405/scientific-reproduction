@@ -241,6 +241,23 @@ def test_enum_values_are_schema_exact() -> None:
     assert m.Criticality.SUPPORTING.value == "SUPPORTING"
 
 
+def test_lab_execution_package_goal_version_round_trip() -> None:
+    # The frozen Goal version (10-EXPERIMENT-SUBSYSTEM.md SS3) round-trips
+    # through the model; an unset goal_version is omitted from the
+    # serialized dict (never null), so packages written before the field
+    # existed keep validating and dispatching unchanged.
+    doc = copy.deepcopy(VALID_DOCS["lab-execution-package"])
+    doc["goal_version"] = "v1"
+    package = m.LabExecutionPackage.from_dict(doc)
+    assert package.goal_version == "v1"
+    assert package.to_dict()["goal_version"] == "v1"
+    assert m.LabExecutionPackage.from_dict(package.to_dict()) == package
+    del doc["goal_version"]
+    bare = m.LabExecutionPackage.from_dict(doc)
+    assert bare.goal_version is None
+    assert "goal_version" not in bare.to_dict()
+
+
 def test_constructor_holds_data_without_workflow_decisions() -> None:
     # Constructors must not pick phases/outcomes: required enum fields have
     # no implicit choices (they must be supplied by the caller), and the

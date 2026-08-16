@@ -107,6 +107,7 @@ def make_package(
         "package_id": package_id,
         "project_id": "PROJ-001",
         "goal_id": goal_id,
+        "goal_version": "v1",
         "run_id": run_id,
         "objective": "Synthesize the FDM-201 batch and record the run",
         "procedure": [

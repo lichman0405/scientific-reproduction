@@ -134,6 +134,44 @@ def test_sheets_experiment_layout_no_strict_emphasis_on_recovery_track(tmp_path)
     assert "Strict reproduction track" not in html
 
 
+def test_sheets_experiment_layout_goal_version_from_manifest(tmp_path):
+    # The frozen Goal version the package carries (10-EXPERIMENT-SUBSYSTEM
+    # SS3) renders in the identity block -- and, as a known manifest key,
+    # not in the "Additional package data" section.
+    root = init_project(tmp_path)
+    _install_goal(root)
+    run_id = _dispatch(root, goal_version="v1")
+    html = build_experiment_sheet(root, run_id).to_html()
+    assert '<td class="label">Goal version</td><td class="value">v1</td>' in html
+    assert "Additional package data" in html
+    assert '<td class="label">goal_version</td>' not in html
+
+
+def test_sheets_experiment_layout_goal_version_fallback_to_registered_goal(tmp_path):
+    # A package written before the goal_version field existed renders the
+    # registered goal's version as the goal context (the manifest-first /
+    # registry-fallback rule of the track row), never guessed.
+    root = init_project(tmp_path)
+    _install_goal(root)
+    manifest = make_package()
+    del manifest["goal_version"]
+    run_id = dispatch_package(root, manifest)
+    html = build_experiment_sheet(root, run_id).to_html()
+    assert '<td class="label">Goal version</td>' in html
+    assert "v1-draft" in html
+
+
+def test_sheets_experiment_layout_goal_version_not_recorded_marker(tmp_path):
+    # No goal_version in the manifest and no registered goal -> the
+    # "not recorded" marker (never guessed).
+    root = init_project(tmp_path)
+    manifest = make_package(goal_id="GOAL-UNKNOWN")
+    del manifest["goal_version"]
+    run_id = dispatch_package(root, manifest)
+    html = build_experiment_sheet(root, run_id).to_html()
+    assert '<td class="label">Goal version</td><td class="value">not recorded</td>' in html
+
+
 def test_sheets_experiment_layout_goal_not_registered_marker(tmp_path):
     # A package whose goal id is not registered in the project registry
     # renders the "not registered" marker -- never guessed.

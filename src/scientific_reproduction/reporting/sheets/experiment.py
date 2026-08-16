@@ -16,8 +16,8 @@ section.
 Sheet layout (operator-facing, print-ready)
 -------------------------------------------
 1. Header banner -- kind, run id, dispatch id.
-2. Identity -- project/paper identity (``Project``), goal title and
-   track (``GoalContract``), package ids.
+2. Identity -- project/paper identity (``Project``), goal title, track
+   and frozen goal version (``GoalContract``), package ids.
 3. Objective.
 4. Reagents table (reagent, amount, role + any further keys).
 5. Instruments table.
@@ -100,6 +100,7 @@ _KNOWN_MANIFEST_KEYS: frozenset[str] = frozenset(
         "package_id",
         "project_id",
         "goal_id",
+        "goal_version",
         "run_id",
         "objective",
         "procedure",
@@ -374,9 +375,10 @@ def _render_sheet(
 ) -> str:
     """Render the sheet body (deterministic: sorted, stable structure)."""
     track = _manifest_track(manifest, goal)
+    goal_version = _manifest_goal_version(manifest, goal)
     sections = [
         _render_banner(dispatch.run_id, dispatch.dispatch_id),
-        _render_identity(project, dispatch, goal, track),
+        _render_identity(project, dispatch, goal, track, goal_version),
         _render_objective(manifest),
         _render_reagents(manifest),
         _render_instruments(manifest),
@@ -409,6 +411,19 @@ def _manifest_track(
     return None
 
 
+def _manifest_goal_version(
+    manifest: Mapping[str, Any], goal: GoalContract | None
+) -> str | None:
+    """The frozen Goal version of the package: the manifest's own
+    ``goal_version`` if present, else the registered goal's version."""
+    raw = manifest.get("goal_version")
+    if isinstance(raw, str) and raw.strip():
+        return raw
+    if goal is not None:
+        return goal.version
+    return None
+
+
 def _render_banner(run_id: str, dispatch_id: str) -> str:
     """The header banner: kind, run id, dispatch id."""
     return (
@@ -426,8 +441,10 @@ def _render_identity(
     dispatch: DispatchRecord,
     goal: GoalContract | None,
     track: GoalTrack | None,
+    goal_version: str | None,
 ) -> str:
-    """Identity block: project/paper identity, goal, package ids."""
+    """Identity block: project/paper identity, goal (title, track,
+    frozen version), package ids."""
     paper = project.primary_target
     paper_parts: list[str] = []
     if paper.title:
@@ -445,6 +462,7 @@ def _render_identity(
         ("Paper", "; ".join(paper_parts)),
         ("Goal", f"{dispatch.goal_id} — {goal_title}"),
         ("Track", goal_track),
+        ("Goal version", goal_version if goal_version is not None else "not recorded"),
         ("Package", dispatch.package_id),
         ("Run", dispatch.run_id),
         ("Dispatch", dispatch.dispatch_id),
