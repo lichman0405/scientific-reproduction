@@ -10,7 +10,12 @@ SS2). Both renderers share the A4 print design system of
 ``reporting.sheets.html`` (reuse it in any future plan renderer rather
 than duplicating it) and are pure functions of the registered state:
 no wall clock (an optional ``generated_at`` stamp is caller-injected),
-no randomness, no network.
+no randomness, no network. Language is an explicit renderer input
+(issue #122): the template strings come from the injected
+``TemplatePack`` resolved from the ``language`` key (default ``"en"``),
+never from locale detection -- the experiment sheet also gets a
+first-class deterministic PDF rendering through
+``reporting.sheet_pdf``.
 
 Public API
 ----------

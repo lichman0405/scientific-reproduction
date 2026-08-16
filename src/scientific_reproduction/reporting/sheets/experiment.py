@@ -1,4 +1,4 @@
-"""Experiment execution sheet renderer (issue #106).
+"""Experiment execution sheet renderer (issues #106, #122).
 
 One print-ready A4 sheet per dispatched lab package, rendered from the
 **real outgoing handoff** the FilesystemLabAdapter wrote
@@ -35,16 +35,29 @@ Sheet layout (operator-facing, print-ready)
 13. Signature/date lines for operator and supervisor.
 14. Fixed print footer.
 
+Language packs (issue #122)
+---------------------------
+The renderer takes an explicit ``language`` key (default ``"en"``)
+resolved to its :class:`TemplatePack` by :func:`resolve_pack`; every
+template string above comes from the pack. Language is an explicit
+input -- there is **no runtime locale auto-detection** -- so
+``(state, language)`` still maps to byte-identical output
+(``14-STATE-GIT-ARTIFACTS.md`` SS7); the default ``"en"`` pack renders
+byte-identically to the pre-pack sheet. Manifest content (reagent
+names, procedure steps, recorded notes) is data and is never
+translated.
+
 Determinism and boundaries
 --------------------------
 Everything is a pure function of the registered state and the given
 inputs: no wall clock (an optional ``generated_at`` stamp is caller-
 injected), no randomness, no network. Every collection is sorted by
 stable keys, so identical state always yields byte-identical HTML and
-canonical JSON. ``TypeError`` at the public boundaries; stored-record
-errors are re-raised as ``SheetCorruptError`` with the same message
-(the ``report.py`` ``_wrap_corrupt`` discipline); a workspace without a
-project state raises ``SheetNotInitializedError``.
+canonical JSON. ``TypeError`` at the public boundaries; ``ValueError``
+for an unknown ``language``; stored-record errors are re-raised as
+``SheetCorruptError`` with the same message (the ``report.py``
+``_wrap_corrupt`` discipline); a workspace without a project state
+raises ``SheetNotInitializedError``.
 """
 
 from __future__ import annotations
@@ -67,6 +80,7 @@ from scientific_reproduction.planning.init import (
     read_project_state,
 )
 from scientific_reproduction.planning.plan import GoalNotFoundError, read_goal
+from scientific_reproduction.reporting.language import TemplatePack, resolve_pack
 from scientific_reproduction.reporting.sheets.html import (
     SHEET_CSS,
     html_document,
@@ -174,13 +188,16 @@ class ExperimentSheet:
     as read from the outgoing handoff (the 1:1 content source); ``goal``
     is the registered goal contract of the package (``None`` when the
     goal id is not registered in the project registry -- the sheet then
-    renders "not registered" markers instead of guessing).
+    renders "not registered" markers instead of guessing); ``project``
+    is the registered project state record (the identity context, also
+    consumed by the sheet PDF renderer of ``reporting.sheet_pdf``).
     """
 
     run_id: str
     dispatch: DispatchRecord
     manifest: dict[str, Any]
     goal: GoalContract | None
+    project: Project
     html: str
 
     def to_html(self) -> str:
@@ -220,6 +237,7 @@ def build_experiment_sheet(
     run_id: str,
     *,
     generated_at: str | None = None,
+    language: str = "en",
 ) -> ExperimentSheet:
     """Build the experiment execution sheet of one dispatched lab package.
 
@@ -229,7 +247,8 @@ def build_experiment_sheet(
     own constants) and the registered project/goal context. It is a pure
     function of that state plus ``generated_at`` (an optional
     caller-injected timestamp shown in the footer -- never read from a
-    wall clock).
+    wall clock) and ``language`` (an explicit pack key -- never
+    auto-detected; see :func:`resolve_pack`).
 
     Args:
         root: the project workspace root.
@@ -237,14 +256,18 @@ def build_experiment_sheet(
             directory name ``lab/outgoing/<RUN_ID>/``).
         generated_at: optional caller-injected timestamp string rendered
             in the sheet footer.
+        language: the explicit render language key (default ``"en"``);
+            resolves to the matching :class:`TemplatePack`.
 
     Returns:
         The rendered :class:`ExperimentSheet`.
 
     Raises:
         TypeError: ``root`` / ``run_id`` are not ``str``/``Path`` /
-            ``str``, or ``generated_at`` is set but not a non-empty
-            string.
+            ``str``, ``generated_at`` is set but not a non-empty string,
+            or ``language`` is not a non-empty string.
+        ValueError: ``language`` has no shipped pack (stable message
+            listing the available languages).
         SheetNotInitializedError: the workspace has no project state
             record.
         SheetNotFoundError: no outgoing handoff exists for ``run_id``
@@ -252,18 +275,22 @@ def build_experiment_sheet(
         SheetCorruptError: the dispatch record or manifest file is
             corrupt, or the registered goal record is corrupt.
     """
-    root_path, run_id = _validate_inputs(root, run_id, generated_at)
+    root_path, run_id, pack = _validate_inputs(root, run_id, generated_at, language)
     project = _read_project(root_path)
     dispatch, manifest = _read_handoff(root_path, run_id)
     goal = _read_goal_optional(root_path, dispatch.goal_id)
-    body = _render_sheet(project, dispatch, manifest, goal, generated_at)
+    body = _render_sheet(project, dispatch, manifest, goal, generated_at, pack)
     return ExperimentSheet(
         run_id=run_id,
         dispatch=dispatch,
         manifest=manifest,
         goal=goal,
+        project=project,
         html=html_document(
-            f"Experiment execution sheet — {run_id}", body, stylesheet=SHEET_CSS
+            pack.experiment.doc_title_tpl.format(run_id=run_id),
+            body,
+            stylesheet=SHEET_CSS,
+            lang=pack.html_lang,
         ),
     )
 
@@ -273,15 +300,16 @@ def render_experiment_sheet(
     run_id: str,
     *,
     generated_at: str | None = None,
+    language: str = "en",
 ) -> str:
     """Render the experiment execution sheet as a full HTML document.
 
     Convenience wrapper over :func:`build_experiment_sheet` returning
     the self-contained A4 HTML document (PDF-convertible through the
-    browser print path).
+    browser print path). Same boundaries as :func:`build_experiment_sheet`.
     """
     return build_experiment_sheet(
-        root, run_id, generated_at=generated_at
+        root, run_id, generated_at=generated_at, language=language
     ).to_html()
 
 
@@ -372,25 +400,26 @@ def _render_sheet(
     manifest: Mapping[str, Any],
     goal: GoalContract | None,
     generated_at: str | None,
+    pack: TemplatePack,
 ) -> str:
     """Render the sheet body (deterministic: sorted, stable structure)."""
     track = _manifest_track(manifest, goal)
     goal_version = _manifest_goal_version(manifest, goal)
     sections = [
-        _render_banner(dispatch.run_id, dispatch.dispatch_id),
-        _render_identity(project, dispatch, goal, track, goal_version),
-        _render_objective(manifest),
-        _render_reagents(manifest),
-        _render_instruments(manifest),
-        _render_procedure(manifest),
-        _render_critical_controls(manifest),
-        _render_prohibited(manifest, track),
-        _render_safety(manifest),
-        _render_operator_records(manifest),
-        _render_return_checklist(manifest),
-        _render_additional_data(manifest),
-        _render_signatures(),
-        _render_footer(generated_at),
+        _render_banner(dispatch.run_id, dispatch.dispatch_id, pack),
+        _render_identity(project, dispatch, goal, track, goal_version, pack),
+        _render_objective(manifest, pack),
+        _render_reagents(manifest, pack),
+        _render_instruments(manifest, pack),
+        _render_procedure(manifest, pack),
+        _render_critical_controls(manifest, pack),
+        _render_prohibited(manifest, track, pack),
+        _render_safety(manifest, pack),
+        _render_operator_records(manifest, pack),
+        _render_return_checklist(manifest, pack),
+        _render_additional_data(manifest, pack),
+        _render_signatures(pack),
+        _render_footer(generated_at, pack),
     ]
     return "\n".join(section for section in sections if section)
 
@@ -424,14 +453,17 @@ def _manifest_goal_version(
     return None
 
 
-def _render_banner(run_id: str, dispatch_id: str) -> str:
+def _render_banner(run_id: str, dispatch_id: str, pack: TemplatePack) -> str:
     """The header banner: kind, run id, dispatch id."""
+    experiment = pack.experiment
     return (
         '<div class="sheet-banner">'
-        '<div class="sheet-kind">Operator execution sheet</div>'
-        "<h1>Experiment Execution Sheet</h1>"
-        '<div class="banner-ids">run '
-        f"{html_escape(run_id)} &middot; dispatch {html_escape(dispatch_id)}"
+        f'<div class="sheet-kind">{html_escape(experiment.banner_kind)}</div>'
+        f"<h1>{html_escape(experiment.title)}</h1>"
+        '<div class="banner-ids">'
+        f"{html_escape(experiment.banner_run)} {html_escape(run_id)}"
+        " &middot; "
+        f"{html_escape(experiment.banner_dispatch)} {html_escape(dispatch_id)}"
         "</div></div>"
     )
 
@@ -442,9 +474,11 @@ def _render_identity(
     goal: GoalContract | None,
     track: GoalTrack | None,
     goal_version: str | None,
+    pack: TemplatePack,
 ) -> str:
     """Identity block: project/paper identity, goal (title, track,
     frozen version), package ids."""
+    experiment = pack.experiment
     paper = project.primary_target
     paper_parts: list[str] = []
     if paper.title:
@@ -454,54 +488,62 @@ def _render_identity(
     if paper.identifier:
         paper_parts.append(paper.identifier)
     if not paper_parts:
-        paper_parts.append("not recorded")
-    goal_title = goal.title if goal is not None else "not registered in the project registry"
-    goal_track = track.value if track is not None else "not recorded"
+        paper_parts.append(pack.not_recorded)
+    goal_title = goal.title if goal is not None else pack.not_registered
+    goal_track = track.value if track is not None else pack.not_recorded
     rows: list[tuple[str, str]] = [
-        ("Project", str(project.project_id)),
-        ("Paper", "; ".join(paper_parts)),
-        ("Goal", f"{dispatch.goal_id} — {goal_title}"),
-        ("Track", goal_track),
-        ("Goal version", goal_version if goal_version is not None else "not recorded"),
-        ("Package", dispatch.package_id),
-        ("Run", dispatch.run_id),
-        ("Dispatch", dispatch.dispatch_id),
-        ("Dispatched at", dispatch.dispatched_at or "not recorded"),
+        (experiment.label_project, str(project.project_id)),
+        (experiment.label_paper, "; ".join(paper_parts)),
+        (experiment.label_goal, f"{dispatch.goal_id} — {goal_title}"),
+        (experiment.label_track, goal_track),
+        (
+            experiment.label_goal_version,
+            goal_version if goal_version is not None else pack.not_recorded,
+        ),
+        (experiment.label_package, dispatch.package_id),
+        (experiment.label_run, dispatch.run_id),
+        (experiment.label_dispatch, dispatch.dispatch_id),
+        (
+            experiment.label_dispatched_at,
+            dispatch.dispatched_at or pack.not_recorded,
+        ),
     ]
     cells = "\n".join(
         f'<tr><td class="label">{html_escape(label)}</td>'
-        f'<td class="value">{value_html(value)}</td></tr>'
+        f'<td class="value">{value_html(value, missing_text=pack.not_recorded)}</td></tr>'
         for label, value in rows
     )
     return (
-        '<h2 class="sheet-section"><span class="section-index">1</span>'
-        "Identity</h2>\n"
+        f'<h2 class="sheet-section"><span class="section-index">1</span>'
+        f"{html_escape(experiment.section_identity)}</h2>\n"
         f'<table class="meta">{cells}</table>'
     )
 
 
-def _render_objective(manifest: Mapping[str, Any]) -> str:
+def _render_objective(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """The package objective paragraph."""
     return (
-        '<h2 class="sheet-section"><span class="section-index">2</span>'
-        "Objective</h2>\n"
-        f'<p>{value_html(manifest.get("objective"))}</p>'
+        f'<h2 class="sheet-section"><span class="section-index">2</span>'
+        f"{html_escape(pack.experiment.section_objective)}</h2>\n"
+        f"<p>{value_html(manifest.get('objective'), missing_text=pack.not_recorded)}</p>"
     )
 
 
-def _render_reagents(manifest: Mapping[str, Any]) -> str:
+def _render_reagents(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Reagents table: one row per reagent, columns = sorted union of
     item keys (amount/role plus anything else the package carries)."""
-    return _table_section(3, "Reagents", _item_list(manifest, "reagents"))
+    return _table_section(
+        3, pack.experiment.section_reagents, _item_list(manifest, "reagents"), pack
+    )
 
 
-def _render_instruments(manifest: Mapping[str, Any]) -> str:
+def _render_instruments(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Instruments table: one row per instrument, all item keys."""
     items = _item_list(manifest, "instruments")
-    return _table_section(4, "Instruments", items)
+    return _table_section(4, pack.experiment.section_instruments, items, pack)
 
 
-def _render_procedure(manifest: Mapping[str, Any]) -> str:
+def _render_procedure(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Numbered step-by-step procedure.
 
     Every step renders with the designed layout (step number/id/title/
@@ -509,24 +551,25 @@ def _render_procedure(manifest: Mapping[str, Any]) -> str:
     in a monospace block) plus any further step keys as generic detail
     rows -- no step content is dropped.
     """
+    experiment = pack.experiment
     procedure = manifest.get("procedure")
     if not isinstance(procedure, list):
         return (
-            '<h2 class="sheet-section"><span class="section-index">5</span>'
-            "Procedure</h2>\n"
-            '<p><span class="missing">not recorded</span></p>'
+            f'<h2 class="sheet-section"><span class="section-index">5</span>'
+            f"{html_escape(experiment.section_procedure)}</h2>\n"
+            f"<p>{value_html(None, missing_text=pack.not_recorded)}</p>"
         )
     steps: list[str] = []
     for index, step in enumerate(procedure, start=1):
         if not isinstance(step, Mapping):
             steps.append(
-                f'<li class="step"><div class="step-detail">{value_html(step)}</div></li>'
+                f'<li class="step"><div class="step-detail">{value_html(step, missing_text=pack.not_recorded)}</div></li>'
             )
             continue
         step_id = step.get("id") or step.get("step") or str(index)
         title = step.get("title")
         head = (
-            f'<span class="step-head">Step {index}</span>'
+            f'<span class="step-head">{html_escape(experiment.step_tpl.format(index=index))}</span>'
             f' <span class="step-id">{html_escape(str(step_id))}</span>'
         )
         if title:
@@ -534,7 +577,7 @@ def _render_procedure(manifest: Mapping[str, Any]) -> str:
         details: list[str] = []
         if "action" in step:
             details.append(
-                f'<div class="step-detail">{value_html(step["action"])}</div>'
+                f'<div class="step-detail">{value_html(step["action"], missing_text=pack.not_recorded)}</div>'
             )
         for key in sorted(step):
             if key in _STEP_LAYOUT_KEYS or key == "action":
@@ -548,34 +591,36 @@ def _render_procedure(manifest: Mapping[str, Any]) -> str:
                 continue
             details.append(
                 f'<div class="step-detail"><span class="step-label">'
-                f"{html_escape(key)}</span>: {value_html(step[key])}</div>"
+                f"{html_escape(key)}</span>: {value_html(step[key], missing_text=pack.not_recorded)}</div>"
             )
         for key in ("inputs", "outputs", "trace_refs"):
             if key in step:
                 details.append(
                     f'<div class="step-detail"><span class="step-label">'
-                    f"{html_escape(key)}</span>: {value_html(step[key])}</div>"
+                    f"{html_escape(key)}</span>: {value_html(step[key], missing_text=pack.not_recorded)}</div>"
                 )
         steps.append(
             f'<li class="step">{head}\n' + "\n".join(details) + "</li>"
         )
     body = "\n".join(steps)
     return (
-        '<h2 class="sheet-section"><span class="section-index">5</span>'
-        "Procedure</h2>\n"
+        f'<h2 class="sheet-section"><span class="section-index">5</span>'
+        f"{html_escape(experiment.section_procedure)}</h2>\n"
         f'<ol class="procedure">{body}</ol>'
     )
 
 
-def _render_critical_controls(manifest: Mapping[str, Any]) -> str:
+def _render_critical_controls(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Critical control variables: one row per variable with its value
     and tolerance (plus any further keys)."""
     items = _item_list(manifest, "critical_control_variables")
-    return _table_section(6, "Critical control variables", items)
+    return _table_section(
+        6, pack.experiment.section_critical_controls, items, pack
+    )
 
 
 def _render_prohibited(
-    manifest: Mapping[str, Any], track: GoalTrack | None
+    manifest: Mapping[str, Any], track: GoalTrack | None, pack: TemplatePack
 ) -> str:
     """Prohibited changes: the visually dominant red block.
 
@@ -583,13 +628,14 @@ def _render_prohibited(
     (``08-STRICT-RECOVERY-CLOSURE.md``: Strict Reproduction permits no
     deviation without a supervisor decision).
     """
+    experiment = pack.experiment
     changes = manifest.get("prohibited_changes")
     if not isinstance(changes, list) or not changes:
         return (
-            '<h2 class="sheet-section"><span class="section-index">7</span>'
-            "Prohibited changes</h2>\n"
-            '<div class="prohibited"><h3>Prohibited changes</h3>'
-            "<ul><li>none recorded in the execution package</li></ul>"
+            f'<h2 class="sheet-section"><span class="section-index">7</span>'
+            f"{html_escape(experiment.section_prohibited)}</h2>\n"
+            f'<div class="prohibited"><h3>{html_escape(experiment.section_prohibited)}</h3>'
+            f"<ul><li>{html_escape(experiment.none_recorded_in_package)}</li></ul>"
             "</div>"
         )
     items = "\n".join(
@@ -598,38 +644,37 @@ def _render_prohibited(
     emphasis = ""
     if track is GoalTrack.STRICT_REPRODUCTION:
         emphasis = (
-            '<div class="track-emphasis">Strict reproduction track:'
-            " every listed change is prohibited and requires a supervisor"
-            " decision before it may be made</div>"
+            f'<div class="track-emphasis">{html_escape(experiment.strict_emphasis)}</div>'
         )
     return (
-        '<h2 class="sheet-section"><span class="section-index">7</span>'
-        "Prohibited changes</h2>\n"
-        '<div class="prohibited"><h3>Prohibited changes</h3>'
+        f'<h2 class="sheet-section"><span class="section-index">7</span>'
+        f"{html_escape(experiment.section_prohibited)}</h2>\n"
+        f'<div class="prohibited"><h3>{html_escape(experiment.section_prohibited)}</h3>'
         f"<ul>{items}</ul>{emphasis}</div>"
     )
 
 
-def _render_safety(manifest: Mapping[str, Any]) -> str:
+def _render_safety(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Safety notes: the visually distinct amber block."""
+    experiment = pack.experiment
     notes = manifest.get("safety_notes")
     if not isinstance(notes, list) or not notes:
         return (
-            '<h2 class="sheet-section"><span class="section-index">8</span>'
-            "Safety notes</h2>\n"
-            '<div class="safety"><h3>Safety notes</h3>'
-            "<ul><li>none recorded in the execution package</li></ul>"
+            f'<h2 class="sheet-section"><span class="section-index">8</span>'
+            f"{html_escape(experiment.section_safety)}</h2>\n"
+            f'<div class="safety"><h3>{html_escape(experiment.section_safety)}</h3>'
+            f"<ul><li>{html_escape(experiment.none_recorded_in_package)}</li></ul>"
             "</div>"
         )
     items = "\n".join(f"<li>{html_escape(str(note))}</li>" for note in notes)
     return (
-        '<h2 class="sheet-section"><span class="section-index">8</span>'
-        "Safety notes</h2>\n"
-        f'<div class="safety"><h3>Safety notes</h3><ul>{items}</ul></div>'
+        f'<h2 class="sheet-section"><span class="section-index">8</span>'
+        f"{html_escape(experiment.section_safety)}</h2>\n"
+        f'<div class="safety"><h3>{html_escape(experiment.section_safety)}</h3><ul>{items}</ul></div>'
     )
 
 
-def _render_operator_records(manifest: Mapping[str, Any]) -> str:
+def _render_operator_records(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Operator record fields as fill-in form fields (handwriting)."""
     records = manifest.get("required_operator_records")
     if not isinstance(records, list) or not records:
@@ -641,35 +686,36 @@ def _render_operator_records(manifest: Mapping[str, Any]) -> str:
         for record in records
     )
     return (
-        '<h2 class="sheet-section"><span class="section-index">9</span>'
-        "Operator record</h2>\n" + rows
+        f'<h2 class="sheet-section"><span class="section-index">9</span>'
+        f"{html_escape(pack.experiment.section_operator_record)}</h2>\n" + rows
     )
 
 
-def _render_return_checklist(manifest: Mapping[str, Any]) -> str:
+def _render_return_checklist(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Required return checklist: every exact token of ``required_return``
     with a checkbox and a "returned as file" fill-in (issue #85 tokens
     must appear verbatim)."""
+    experiment = pack.experiment
     required = manifest.get("required_return")
     if not isinstance(required, list) or not required:
         return (
-            '<h2 class="sheet-section"><span class="section-index">10</span>'
-            "Required returns</h2>\n"
-            '<p><span class="missing">not recorded</span></p>'
+            f'<h2 class="sheet-section"><span class="section-index">10</span>'
+            f"{html_escape(experiment.section_required_returns)}</h2>\n"
+            f"<p>{value_html(None, missing_text=pack.not_recorded)}</p>"
         )
     rows = "\n".join(
         '<div class="form-row"><span class="checkbox"></span>'
-        f"{html_escape(str(token))} — returned as file: "
+        f"{html_escape(str(token))} — {html_escape(experiment.returned_as_file_label)}: "
         '<span class="field short"></span></div>'
         for token in required
     )
     return (
-        '<h2 class="sheet-section"><span class="section-index">10</span>'
-        "Required returns</h2>\n" + rows
+        f'<h2 class="sheet-section"><span class="section-index">10</span>'
+        f"{html_escape(experiment.section_required_returns)}</h2>\n" + rows
     )
 
 
-def _render_additional_data(manifest: Mapping[str, Any]) -> str:
+def _render_additional_data(manifest: Mapping[str, Any], pack: TemplatePack) -> str:
     """Any top-level manifest key the sheet does not display elsewhere,
     rendered verbatim -- the 1:1 fidelity rule of the execution sheets."""
     extra = sorted(key for key in manifest if key not in _KNOWN_MANIFEST_KEYS)
@@ -677,37 +723,37 @@ def _render_additional_data(manifest: Mapping[str, Any]) -> str:
         return ""
     rows = "\n".join(
         '<tr><td class="label">{0}</td><td class="value">{1}</td></tr>'.format(
-            html_escape(key), value_html(manifest[key])
+            html_escape(key), value_html(manifest[key], missing_text=pack.not_recorded)
         )
         for key in extra
     )
     return (
-        '<h2 class="sheet-section"><span class="section-index">11</span>'
-        "Additional package data</h2>\n"
+        f'<h2 class="sheet-section"><span class="section-index">11</span>'
+        f"{html_escape(pack.experiment.section_additional_data)}</h2>\n"
         f'<table class="meta">{rows}</table>'
     )
 
 
-def _render_signatures() -> str:
+def _render_signatures(pack: TemplatePack) -> str:
     """Signature/date lines for operator and supervisor."""
+    experiment = pack.experiment
     return (
         '<div class="signatures">'
         '<div class="signature-block"><div class="signature-line">'
-        "Operator signature &amp; date</div></div>"
+        f"{html_escape(experiment.operator_signature)}</div></div>"
         '<div class="signature-block"><div class="signature-line">'
-        "Supervisor signature &amp; date</div></div>"
+        f"{html_escape(experiment.supervisor_signature)}</div></div>"
         "</div>"
     )
 
 
-def _render_footer(generated_at: str | None) -> str:
+def _render_footer(generated_at: str | None, pack: TemplatePack) -> str:
     """The fixed print footer (repeats on every printed page)."""
-    stamp = generated_at if generated_at is not None else "deterministic render"
-    return (
-        f'<div class="footer">scientific-reproduction &middot;'
-        f" experiment execution sheet v{EXPERIMENT_SHEET_VERSION}"
-        f" &middot; {html_escape(stamp)}</div>"
+    stamp = generated_at if generated_at is not None else pack.deterministic_render
+    footer = pack.experiment.footer_html_tpl.format(
+        version=EXPERIMENT_SHEET_VERSION, stamp=html_escape(stamp)
     )
+    return f'<div class="footer">{footer}</div>'
 
 
 # ---------------------------------------------------------------------------
@@ -716,7 +762,10 @@ def _render_footer(generated_at: str | None) -> str:
 
 
 def _table_section(
-    index: int, title: str, items: list[Mapping[str, Any]]
+    index: int,
+    title: str,
+    items: list[Mapping[str, Any]],
+    pack: TemplatePack,
 ) -> str:
     """One item table: columns = sorted union of keys across the items.
 
@@ -728,7 +777,7 @@ def _table_section(
         return (
             f'<h2 class="sheet-section"><span class="section-index">{index}</span>'
             f"{html_escape(title)}</h2>\n"
-            '<p><span class="missing">no items recorded</span></p>'
+            f'<p><span class="missing">{html_escape(pack.experiment.no_items_recorded)}</span></p>'
         )
     columns = sorted({key for item in items for key in item})
     header = "\n".join(
@@ -737,7 +786,8 @@ def _table_section(
     body = "\n".join(
         "<tr>"
         + "".join(
-            f"<td>{value_html(item.get(column))}</td>" for column in columns
+            f"<td>{value_html(item.get(column), missing_text=pack.not_recorded)}</td>"
+            for column in columns
         )
         + "</tr>"
         for item in items
@@ -760,10 +810,11 @@ def _item_list(
 
 
 def _validate_inputs(
-    root: str | Path, run_id: str, generated_at: str | None
-) -> tuple[Path, str]:
+    root: str | Path, run_id: str, generated_at: str | None, language: str
+) -> tuple[Path, str, TemplatePack]:
     """Validate the public-boundary types (TypeError with stable
-    messages), returning the normalized inputs."""
+    messages), resolving the language pack; return the normalized
+    inputs."""
     if not isinstance(root, (str, Path)):
         raise TypeError(
             f"root must be a str or Path, got {type(root).__name__}"
@@ -778,4 +829,4 @@ def _validate_inputs(
         raise TypeError(
             "generated_at must be a non-empty string when set"
         )
-    return Path(root), run_id
+    return Path(root), run_id, resolve_pack(language)
