@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scientific-reproduction"
-version = "0.2.1"
+version = "0.2.2"
 description = "Scientific Reproduction Skill - deterministic runtime for auditable scientific reproduction (v0.1)"
 readme = "docs/README.md"
 requires-python = ">=3.11"

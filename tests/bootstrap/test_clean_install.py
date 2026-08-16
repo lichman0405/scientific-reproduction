@@ -70,7 +70,7 @@ def test_clean_environment_install() -> None:
                 python,
                 "-c",
                 "import scientific_reproduction; "
-                "assert scientific_reproduction.__version__ == '0.2.1'",
+                "assert scientific_reproduction.__version__ == '0.2.2'",
             ],
             capture_output=True,
             text=True,
