@@ -271,6 +271,59 @@ def test_sheets_computation_layout_injected_generated_at(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# language packs: explicit language input (issue #122)
+# ---------------------------------------------------------------------------
+
+
+def test_sheets_computation_language_zh_renders_chinese(tmp_path):
+    # The zh pack renders the template strings in Chinese; the job record
+    # content (command, outputs, module names) is data and stays verbatim.
+    root = init_project(tmp_path)
+    record = make_local_job_record(job_id=LOCAL_JOB_ID, run_id=LOCAL_RUN_ID)
+    write_job_record(root, record)
+    html = build_computation_sheet(root, LOCAL_JOB_ID, language="zh").to_html()
+
+    assert "计算执行单" in html
+    assert "操作员执行单" in html
+    assert f"作业 {LOCAL_JOB_ID}" in html
+    assert "身份与作业状态" in html and "后端" in html and "状态" in html
+    assert "输入" in html and "命令" in html
+    assert "必需输出与工件命名" in html
+    assert "收敛与验证标准" in html and "验收标准" in html
+    assert "统计设计" in html
+    assert 'lang="zh"' in html
+    # Job record content is never translated.
+    assert "python -c" in html and "result.dat" in html
+
+
+def test_sheets_computation_language_default_is_english_byte_identical(tmp_path):
+    # ``language="en"`` is the explicit default and renders byte-identical
+    # to the implicit default (the pre-pack renderer).
+    root = init_project(tmp_path)
+    record = make_local_job_record(job_id=LOCAL_JOB_ID, run_id=LOCAL_RUN_ID)
+    write_job_record(root, record)
+    default = build_computation_sheet(root, LOCAL_JOB_ID)
+    explicit = build_computation_sheet(root, LOCAL_JOB_ID, language="en")
+    assert default.to_html() == explicit.to_html()
+    assert default.to_canonical_json() == explicit.to_canonical_json()
+    assert render_computation_sheet(
+        root, LOCAL_JOB_ID, language="en"
+    ) == default.to_html()
+
+
+def test_sheets_computation_language_unknown_raises_stable_error(tmp_path):
+    # Unknown languages and non-string inputs raise the stable boundary
+    # errors of ``resolve_pack`` (never silently fall back).
+    root = init_project(tmp_path)
+    record = make_local_job_record(job_id=LOCAL_JOB_ID, run_id=LOCAL_RUN_ID)
+    write_job_record(root, record)
+    with pytest.raises(ValueError, match="available languages: en, zh"):
+        build_computation_sheet(root, LOCAL_JOB_ID, language="fr")
+    with pytest.raises(TypeError, match="language must be a non-empty string"):
+        build_computation_sheet(root, LOCAL_JOB_ID, language=123)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
 # errors: stable error surface
 # ---------------------------------------------------------------------------
 

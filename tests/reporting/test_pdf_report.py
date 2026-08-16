@@ -93,6 +93,7 @@ def _build(
     evidence: EvidenceRegistry | None = None,
     key_claims: list[str] = [CLAIM_ID],
     generated_at: str = GENERATED_AT,
+    language: str = "en",
     out_dir: Path | None = None,
 ):
     return build_pdf_report(
@@ -100,6 +101,7 @@ def _build(
         evidence,
         key_claims,
         generated_at=generated_at,
+        language=language,
         out_dir=out_dir,
     )
 
@@ -125,6 +127,7 @@ def test_pdf_report_renders_valid_pdf_and_writes_files(tmp_path: Path) -> None:
     assert json_path.exists()
     data = json.loads(json_path.read_text(encoding="utf-8"))
     assert data["project_id"] == report.project_id
+    assert data["language"] == "en"
     assert data["pdf_sha256"] == compute_sha256(pdf_path)
     assert data["pdf_size_bytes"] == len(report.pdf_bytes)
 
@@ -164,6 +167,82 @@ def test_pdf_report_no_wall_clock_keys_in_bytes(tmp_path: Path) -> None:
     assert b"/CreationDate" not in report.pdf_bytes
     assert b"/ModDate" not in report.pdf_bytes
     assert b"/ID" not in report.pdf_bytes
+
+
+# ---------------------------------------------------------------------------
+# language packs: explicit language input (issue #122)
+# ---------------------------------------------------------------------------
+
+#: The zh section titles (mirror of the zh pack's ``section_titles``).
+ZH_SECTION_TITLES = [
+    "执行摘要",
+    "目标论文身份与复现范围",
+    "流水线摘要",
+    "需求结果",
+    "核心发现",
+    "治理行使",
+    "审计追踪",
+    "模拟与真实数据标注",
+]
+
+
+def test_pdf_report_language_default_is_english_byte_identical(tmp_path):
+    # ``language="en"`` is the explicit default and renders byte-identical
+    # to the implicit default (the pre-pack renderer).
+    evidence = install_valid_chain(tmp_path)
+    default = _build(tmp_path, evidence=evidence)
+    explicit = _build(tmp_path, evidence=evidence, language="en")
+    assert default.pdf_bytes == explicit.pdf_bytes
+    assert default.to_canonical_json() == explicit.to_canonical_json()
+
+
+def test_pdf_report_language_zh_renders_chinese_sections(tmp_path):
+    # The zh pack renders the section titles in Chinese on the structured
+    # surface and in the JSON sidecar. (The deterministic PDF writer
+    # encodes WinAnsi, so CJK glyphs in the rendered bytes fall back to
+    # "?" -- the documented writer limitation; the language pack's
+    # machine-readable projection carries the Chinese titles verbatim.)
+    evidence = install_valid_chain(tmp_path)
+    out_dir = tmp_path / "reports"
+    report = _build(tmp_path, evidence=evidence, language="zh", out_dir=out_dir)
+
+    assert report.language == "zh"
+    assert [section.title for section in report.sections] == ZH_SECTION_TITLES
+    data = json.loads(
+        (out_dir / "reproduction-report.json").read_text(encoding="utf-8")
+    )
+    assert data["language"] == "zh"
+    # The sidecar mirrors the structured surface (page numbers include
+    # the leading TOC pages).
+    assert [entry["title"] for entry in data["sections"]] == ZH_SECTION_TITLES
+    assert data["sections"] == [
+        {"title": entry["title"], "page_number": entry["page_number"]}
+        for entry in data["sections"]
+    ]
+    assert all(entry["page_number"] >= 1 for entry in data["sections"])
+    # The zh document renders deterministically and differs from the en
+    # document (labels are pack strings, not data).
+    zh_twice = _build(tmp_path, evidence=evidence, language="zh")
+    assert zh_twice.pdf_bytes == report.pdf_bytes
+    assert zh_twice.to_canonical_json() == report.to_canonical_json()
+    en = _build(tmp_path, evidence=evidence)
+    assert report.pdf_bytes != en.pdf_bytes
+
+
+def test_pdf_report_language_unknown_raises_stable_error(tmp_path):
+    # Unknown languages and non-string inputs raise the stable boundary
+    # errors of ``resolve_pack`` (never silently fall back).
+    evidence = install_valid_chain(tmp_path)
+    with pytest.raises(ValueError, match="available languages: en, zh"):
+        build_pdf_report(
+            tmp_path, evidence, [CLAIM_ID],
+            generated_at=GENERATED_AT, language="fr",
+        )
+    with pytest.raises(TypeError, match="language must be a non-empty string"):
+        build_pdf_report(
+            tmp_path, evidence, [CLAIM_ID],
+            generated_at=GENERATED_AT, language=123,  # type: ignore[arg-type]
+        )
 
 
 # ---------------------------------------------------------------------------

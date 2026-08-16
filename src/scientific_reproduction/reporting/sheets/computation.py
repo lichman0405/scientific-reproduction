@@ -1,4 +1,4 @@
-"""Computation execution sheet renderer (issue #106).
+"""Computation execution sheet renderer (issues #106, #122).
 
 One print-ready A4 sheet per compute job, rendered from the **durable
 job record** of the compute subsystem (``<state_dir>/jobs/<job_id>.json``
@@ -41,15 +41,29 @@ Sheet layout (operator-facing, print-ready)
    markers.
 8. Fixed print footer.
 
+Language packs (issue #122)
+---------------------------
+The renderer takes an explicit ``language`` key (default ``"en"``)
+resolved to its :class:`TemplatePack` by :func:`resolve_pack`; every
+template string above comes from the pack, and the durable-field labels
+of the identity table derive from ``field_labels`` (the English pack
+maps each label to itself). Language is an explicit input -- there is
+**no runtime locale auto-detection** -- so ``(state, language)`` still
+maps to byte-identical output (``14-STATE-GIT-ARTIFACTS.md`` SS7); the
+default ``"en"`` pack renders byte-identically to the pre-pack sheet.
+Recorded content (commands, module names, rationale text) is data and
+is never translated.
+
 Determinism and boundaries
 --------------------------
 Everything is a pure function of the registered state and the given
 inputs: no wall clock (an optional ``generated_at`` stamp is caller-
 injected), no randomness, no network. Every collection is sorted by
 stable keys, so identical state always yields byte-identical HTML and
-canonical JSON. ``TypeError`` at the public boundaries; stored-record
-errors are re-raised as ``SheetCorruptError`` with the same message; a
-workspace without a project state raises ``SheetNotInitializedError``.
+canonical JSON. ``TypeError`` at the public boundaries; ``ValueError``
+for an unknown ``language``; stored-record errors are re-raised as
+``SheetCorruptError`` with the same message; a workspace without a
+project state raises ``SheetNotInitializedError``.
 """
 
 from __future__ import annotations
@@ -93,6 +107,7 @@ from scientific_reproduction.planning.plan import (
     read_goal,
     read_statistical_design,
 )
+from scientific_reproduction.reporting.language import TemplatePack, resolve_pack
 from scientific_reproduction.reporting.sheets.experiment import (
     SheetCorruptError,
     SheetNotFoundError,
@@ -197,6 +212,7 @@ def build_computation_sheet(
     *,
     state_dir: str | Path | None = None,
     generated_at: str | None = None,
+    language: str = "en",
 ) -> ComputationSheet:
     """Build the computation execution sheet of one compute job.
 
@@ -206,7 +222,8 @@ def build_computation_sheet(
     and the registered run/goal/acceptance/statistical-design context.
     It is a pure function of that state plus ``generated_at`` (an
     optional caller-injected timestamp shown in the footer -- never read
-    from a wall clock).
+    from a wall clock) and ``language`` (an explicit pack key -- never
+    auto-detected; see :func:`resolve_pack`).
 
     Args:
         root: the project workspace root (run/goal registries live
@@ -217,14 +234,19 @@ def build_computation_sheet(
             records; defaults to ``root``.
         generated_at: optional caller-injected timestamp string rendered
             in the sheet footer.
+        language: the explicit render language key (default ``"en"``);
+            resolves to the matching :class:`TemplatePack`.
 
     Returns:
         The rendered :class:`ComputationSheet`.
 
     Raises:
         TypeError: ``root`` / ``job_id`` are not ``str``/``Path`` /
-            ``str``, ``state_dir`` is not ``str``/``Path``/``None``, or
-            ``generated_at`` is set but not a non-empty string.
+            ``str``, ``state_dir`` is not ``str``/``Path``/``None``,
+            ``generated_at`` is set but not a non-empty string, or
+            ``language`` is not a non-empty string.
+        ValueError: ``language`` has no shipped pack (stable message
+            listing the available languages).
         SheetNotInitializedError: the workspace has no project state
             record.
         SheetNotFoundError: no durable job record exists for
@@ -233,8 +255,8 @@ def build_computation_sheet(
             record contract, or carries an unsupported ``backend`` key;
             or a stored run/goal/acceptance/design record is corrupt.
     """
-    root_path, state_path, job_id = _validate_inputs(
-        root, job_id, state_dir, generated_at
+    root_path, state_path, job_id, pack = _validate_inputs(
+        root, job_id, state_dir, generated_at, language
     )
     _read_project(root_path)
     record = _read_job_record(state_path, job_id)
@@ -242,7 +264,7 @@ def build_computation_sheet(
     goal = _read_goal_optional(root_path, run)
     acceptance = _read_acceptance_optional(root_path, goal)
     design = _read_design_optional(root_path, acceptance)
-    body = _render_sheet(record, goal, acceptance, design, generated_at)
+    body = _render_sheet(record, goal, acceptance, design, generated_at, pack)
     return ComputationSheet(
         job_id=job_id,
         record=record,
@@ -251,7 +273,10 @@ def build_computation_sheet(
         acceptance=acceptance,
         statistical_design=design,
         html=html_document(
-            f"Computation execution sheet — {job_id}", body, stylesheet=SHEET_CSS
+            pack.computation.doc_title_tpl.format(job_id=job_id),
+            body,
+            stylesheet=SHEET_CSS,
+            lang=pack.html_lang,
         ),
     )
 
@@ -262,15 +287,20 @@ def render_computation_sheet(
     *,
     state_dir: str | Path | None = None,
     generated_at: str | None = None,
+    language: str = "en",
 ) -> str:
     """Render the computation execution sheet as a full HTML document.
 
     Convenience wrapper over :func:`build_computation_sheet` returning
     the self-contained A4 HTML document (PDF-convertible through the
-    browser print path).
+    browser print path). Same boundaries as :func:`build_computation_sheet`.
     """
     return build_computation_sheet(
-        root, job_id, state_dir=state_dir, generated_at=generated_at
+        root,
+        job_id,
+        state_dir=state_dir,
+        generated_at=generated_at,
+        language=language,
     ).to_html()
 
 
@@ -404,45 +434,60 @@ def _render_sheet(
     acceptance: AcceptanceCriteria | None,
     design: StatisticalDesign | None,
     generated_at: str | None,
+    pack: TemplatePack,
 ) -> str:
     """Render the sheet body (deterministic: sorted, stable structure)."""
     sections = [
-        _render_banner(record.job_id, record.run_id),
-        _render_identity_state(record, goal),
-        _render_inputs(goal),
-        _render_command(record),
-        _render_resource_requests(record),
-        _render_outputs(record),
-        _render_validation(acceptance, design),
-        _render_footer(generated_at),
+        _render_banner(record.job_id, record.run_id, pack),
+        _render_identity_state(record, goal, pack),
+        _render_inputs(goal, pack),
+        _render_command(record, pack),
+        _render_resource_requests(record, pack),
+        _render_outputs(record, pack),
+        _render_validation(acceptance, design, pack),
+        _render_footer(generated_at, pack),
     ]
     return "\n".join(section for section in sections if section)
 
 
-def _render_banner(job_id: str, run_id: str) -> str:
+def _render_banner(job_id: str, run_id: str, pack: TemplatePack) -> str:
     """The header banner: kind, job id, run id."""
+    computation = pack.computation
     return (
         '<div class="sheet-banner">'
-        '<div class="sheet-kind">Operator execution sheet</div>'
-        "<h1>Computation Execution Sheet</h1>"
-        '<div class="banner-ids">job '
-        f"{html_escape(job_id)} &middot; run {html_escape(run_id)}"
+        f'<div class="sheet-kind">{html_escape(computation.banner_kind)}</div>'
+        f"<h1>{html_escape(computation.title)}</h1>"
+        '<div class="banner-ids">'
+        f"{html_escape(computation.banner_job)} {html_escape(job_id)}"
+        " &middot; "
+        f"{html_escape(computation.banner_run)} {html_escape(run_id)}"
         "</div></div>"
     )
+
+
+def _state_label(pack: TemplatePack, label: str) -> str:
+    """The localized label of one durable job-state row label.
+
+    The English pack maps every label to itself (byte-identical to the
+    pre-pack renderer); the translated packs carry the localized label.
+    """
+    return pack.computation.field_labels.get(label, label)
 
 
 def _render_identity_state(
     record: JobRecord | SSHJobRecord | SlurmJobRecord,
     goal: GoalContract | None,
+    pack: TemplatePack,
 ) -> str:
     """Identity and job-state table: backend, state, lifecycle
     timestamps, scheduler/external ids, failure class, errors."""
+    computation = pack.computation
     rows: list[tuple[str, str]] = [
-        ("Job", record.job_id),
-        ("Run", record.run_id),
-        ("Backend", _backend_name(record)),
-        ("State", record.state.value),
-        ("Created at", record.created_at),
+        (computation.label_job, record.job_id),
+        (computation.label_run, record.run_id),
+        (computation.label_backend, _backend_name(record)),
+        (computation.label_state, record.state.value),
+        (computation.label_created_at, record.created_at),
     ]
     for key in (
         "submitted_at",
@@ -451,92 +496,110 @@ def _render_identity_state(
         "collected_at",
     ):
         if getattr(record, key) is not None:
-            rows.append((key.replace("_", " "), str(getattr(record, key))))
+            rows.append(
+                (_state_label(pack, key.replace("_", " ")), str(getattr(record, key)))
+            )
     if hasattr(record, "external_id") and getattr(record, "external_id") is not None:
-        rows.append(("External id", str(getattr(record, "external_id"))))
+        rows.append(
+            (_state_label(pack, "External id"), str(getattr(record, "external_id")))
+        )
     if hasattr(record, "remote_pid") and getattr(record, "remote_pid") is not None:
-        rows.append(("Remote pid", str(getattr(record, "remote_pid"))))
+        rows.append(
+            (_state_label(pack, "Remote pid"), str(getattr(record, "remote_pid")))
+        )
     if hasattr(record, "scheduler_state") and getattr(
         record, "scheduler_state"
     ) is not None:
-        rows.append(("Scheduler state", str(getattr(record, "scheduler_state"))))
+        rows.append(
+            (_state_label(pack, "Scheduler state"), str(getattr(record, "scheduler_state")))
+        )
     if hasattr(record, "pid") and getattr(record, "pid") is not None:
-        rows.append(("Pid", str(getattr(record, "pid"))))
+        rows.append((_state_label(pack, "Pid"), str(getattr(record, "pid"))))
     if getattr(record, "exit_code", None) is not None:
-        rows.append(("Exit code", str(record.exit_code)))
+        rows.append((_state_label(pack, "Exit code"), str(record.exit_code)))
     if hasattr(record, "failure_class") and getattr(
         record, "failure_class"
     ) is not None:
-        rows.append(("Failure class", str(getattr(record, "failure_class"))))
+        rows.append(
+            (_state_label(pack, "Failure class"), str(getattr(record, "failure_class")))
+        )
     for key in ("error", "recovery_note"):
         value = getattr(record, key, None)
         if value is not None:
-            rows.append((key.replace("_", " "), value))
+            rows.append((_state_label(pack, key.replace("_", " ")), value))
     goal_row = (
         f"{goal.goal_id} — {goal.title}"
         if goal is not None
-        else "not registered in the project registry"
+        else pack.not_registered
     )
-    rows.append(("Goal", goal_row))
+    rows.append((computation.label_goal, goal_row))
     cells = "\n".join(
         f'<tr><td class="label">{html_escape(label)}</td>'
-        f'<td class="value">{value_html(value)}</td></tr>'
+        f'<td class="value">{value_html(value, missing_text=pack.not_recorded)}</td></tr>'
         for label, value in rows
     )
     return (
-        '<h2 class="sheet-section"><span class="section-index">1</span>'
-        "Identity and job state</h2>\n"
+        f'<h2 class="sheet-section"><span class="section-index">1</span>'
+        f"{html_escape(computation.section_identity_state)}</h2>\n"
         f'<table class="meta">{cells}</table>'
     )
 
 
-def _render_inputs(goal: GoalContract | None) -> str:
+def _render_inputs(goal: GoalContract | None, pack: TemplatePack) -> str:
     """Inputs of the computation: the registered goal context inputs
     (``GoalContract.inputs``); "not registered" when the goal is."""
+    computation = pack.computation
     if goal is None:
         return (
-            '<h2 class="sheet-section"><span class="section-index">2</span>'
-            "Inputs</h2>\n"
-            '<p><span class="missing">goal not registered — inputs not'
-            " recorded</span></p>"
+            f'<h2 class="sheet-section"><span class="section-index">2</span>'
+            f"{html_escape(computation.section_inputs)}</h2>\n"
+            f'<p><span class="missing">{html_escape(computation.goal_not_registered_inputs)}</span></p>'
         )
     items = [entry for entry in goal.inputs if isinstance(entry, Mapping)]
     if not items:
         return (
-            '<h2 class="sheet-section"><span class="section-index">2</span>'
-            "Inputs</h2>\n"
-            '<p><span class="missing">no inputs recorded</span></p>'
+            f'<h2 class="sheet-section"><span class="section-index">2</span>'
+            f"{html_escape(computation.section_inputs)}</h2>\n"
+            f'<p><span class="missing">{html_escape(computation.no_inputs_recorded)}</span></p>'
         )
     columns = sorted({key for item in items for key in item})
     header = "\n".join(f"<th>{html_escape(c)}</th>" for c in columns)
     body = "\n".join(
         "<tr>"
-        + "".join(f"<td>{value_html(item.get(c))}</td>" for c in columns)
+        + "".join(
+            f"<td>{value_html(item.get(c), missing_text=pack.not_recorded)}</td>"
+            for c in columns
+        )
         + "</tr>"
         for item in items
     )
     return (
-        '<h2 class="sheet-section"><span class="section-index">2</span>'
-        "Inputs</h2>\n"
+        f'<h2 class="sheet-section"><span class="section-index">2</span>'
+        f"{html_escape(computation.section_inputs)}</h2>\n"
         f'<table class="data"><tr>{header}</tr>{body}</table>'
     )
 
 
-def _render_command(record: JobRecord | SSHJobRecord | SlurmJobRecord) -> str:
+def _render_command(
+    record: JobRecord | SSHJobRecord | SlurmJobRecord, pack: TemplatePack
+) -> str:
     """The verbatim command (shell-joined argv via stdlib ``shlex.join``)
     and the working directory."""
+    computation = pack.computation
     command = shlex.join(record.command)
     return (
-        '<h2 class="sheet-section"><span class="section-index">3</span>'
-        "Command</h2>\n"
+        f'<h2 class="sheet-section"><span class="section-index">3</span>'
+        f"{html_escape(computation.section_command)}</h2>\n"
         f'<pre class="command">{html_escape(command)}</pre>\n'
-        '<div class="step-detail"><span class="step-label">Working'
-        f" directory</span>: {value_html(record.working_directory)}</div>"
+        f'<div class="step-detail"><span class="step-label">'
+        f"{html_escape(computation.label_working_directory)}</span>:"
+        f" {value_html(record.working_directory, missing_text=pack.not_recorded)}</div>"
     )
 
 
 def _render_resource_requests(
     record: JobRecord | SSHJobRecord | SlurmJobRecord,
+    pack: TemplatePack,
 ) -> str:
     """Resource requests: the durable Slurm/SSH parameters.
 
@@ -546,6 +609,7 @@ def _render_resource_requests(
     backends persist no resource parameters -- the sheet says so rather
     than guessing.
     """
+    computation = pack.computation
     blocks: list[str] = []
     if isinstance(record, SlurmJobRecord):
         if record.modules:
@@ -554,9 +618,9 @@ def _render_resource_requests(
                 for module in record.modules
             )
             blocks.append(
-                '<div class="step-detail"><span class="step-label">'
-                "Modules</span></div>\n"
-                f'<table class="data"><tr><th>module load</th></tr>{rows}</table>'
+                f'<div class="step-detail"><span class="step-label">'
+                f"{html_escape(computation.label_modules)}</span></div>\n"
+                f'<table class="data"><tr><th>{html_escape(computation.module_load_header)}</th></tr>{rows}</table>'
             )
         if record.environment:
             rows = "".join(
@@ -564,33 +628,30 @@ def _render_resource_requests(
                 for name, value in record.environment
             )
             blocks.append(
-                '<div class="step-detail"><span class="step-label">'
-                "Environment overrides</span></div>\n"
-                '<table class="data"><tr><th>variable</th><th>value</th>'
+                f'<div class="step-detail"><span class="step-label">'
+                f"{html_escape(computation.label_environment_overrides)}</span></div>\n"
+                f'<table class="data"><tr><th>{html_escape(computation.env_variable_header)}</th>'
+                f"<th>{html_escape(computation.env_value_header)}</th>"
                 f"</tr>{rows}</table>"
             )
         if not blocks:
             blocks.append(
-                '<p><span class="missing">no modules or environment'
-                " overrides recorded</span></p>"
+                f'<p><span class="missing">{html_escape(computation.no_modules_or_environment)}</span></p>'
             )
     elif isinstance(record, SSHJobRecord):
-        blocks.append(
-            "<p>No resource requests are persisted by the ssh backend;"
-            " the remote command is executed as recorded above.</p>"
-        )
+        blocks.append(f"<p>{html_escape(computation.ssh_no_resources)}</p>")
     else:
-        blocks.append(
-            "<p>No resource requests are persisted by the local backend;"
-            " the command runs on the local host as recorded above.</p>"
-        )
+        blocks.append(f"<p>{html_escape(computation.local_no_resources)}</p>")
     return (
-        '<h2 class="sheet-section"><span class="section-index">4</span>'
-        "Resource requests (Slurm/SSH parameters)</h2>\n" + "\n".join(blocks)
+        f'<h2 class="sheet-section"><span class="section-index">4</span>'
+        f"{html_escape(computation.section_resources)}</h2>\n"
+        + "\n".join(blocks)
     )
 
 
-def _render_outputs(record: JobRecord | SSHJobRecord | SlurmJobRecord) -> str:
+def _render_outputs(
+    record: JobRecord | SSHJobRecord | SlurmJobRecord, pack: TemplatePack
+) -> str:
     """Required outputs and artifact naming.
 
     Every declared output renders with the deterministic artifact id it
@@ -598,6 +659,7 @@ def _render_outputs(record: JobRecord | SSHJobRecord | SlurmJobRecord) -> str:
     output_name)`` -- the compute adapter's own id rule, AC-03) and the
     recorded collected artifact ids.
     """
+    computation = pack.computation
     rows = ""
     for name in sorted(record.outputs):
         artifact_id = generate_id("artifact", record.job_id, name)
@@ -608,31 +670,36 @@ def _render_outputs(record: JobRecord | SSHJobRecord | SlurmJobRecord) -> str:
     recorded = ""
     if hasattr(record, "artifact_ids") and getattr(record, "artifact_ids"):
         recorded = (
-            '<div class="step-detail"><span class="step-label">Collected'
-            f" artifacts</span>: {value_html(list(record.artifact_ids))}</div>"
+            f'<div class="step-detail"><span class="step-label">'
+            f"{html_escape(computation.label_collected_artifacts)}</span>:"
+            f" {value_html(list(record.artifact_ids), missing_text=pack.not_recorded)}</div>"
         )
     elif hasattr(record, "artifact_ids"):
         recorded = (
-            '<div class="step-detail"><span class="step-label">Collected'
-            " artifacts</span>: <span class=\"missing\">not collected"
-            " yet</span></div>"
+            f'<div class="step-detail"><span class="step-label">'
+            f"{html_escape(computation.label_collected_artifacts)}</span>:"
+            f' <span class="missing">{html_escape(computation.not_collected_yet)}</span></div>'
         )
     return (
-        '<h2 class="sheet-section"><span class="section-index">5</span>'
-        "Required outputs and artifact naming</h2>\n"
-        '<div class="step-detail"><span class="step-label">Artifact id'
-        " rule</span>: deterministic"
-        " <span class=\"step-id\">generate_id(\"artifact\", job_id,"
-        " output_name)</span> — the compute adapter's own naming"
-        " (15-ADAPTER-SPEC.md SS3, AC-03)</div>\n"
-        '<table class="data"><tr><th>output</th><th>artifact id</th>'
+        f'<h2 class="sheet-section"><span class="section-index">5</span>'
+        f"{html_escape(computation.section_outputs)}</h2>\n"
+        f'<div class="step-detail"><span class="step-label">'
+        f"{html_escape(computation.label_artifact_id_rule)}</span>:"
+        f" {html_escape(computation.artifact_id_rule_prefix)}"
+        ' <span class="step-id">generate_id("artifact", job_id,'
+        ' output_name)</span>'
+        f"{html_escape(computation.artifact_id_rule_suffix)}</div>\n"
+        f'<table class="data"><tr><th>{html_escape(computation.output_header)}</th>'
+        f"<th>{html_escape(computation.artifact_id_header)}</th>"
         f"</tr>{rows}</table>"
         f"{recorded}"
     )
 
 
 def _render_validation(
-    acceptance: AcceptanceCriteria | None, design: StatisticalDesign | None
+    acceptance: AcceptanceCriteria | None,
+    design: StatisticalDesign | None,
+    pack: TemplatePack,
 ) -> str:
     """Convergence and validation criteria (07 SS7/SS9).
 
@@ -641,18 +708,19 @@ def _render_validation(
     every absent link renders a "not registered" marker -- never
     guessed, never silently matched.
     """
+    computation = pack.computation
     blocks: list[str] = []
     if acceptance is None:
         blocks.append(
-            '<div class="step-detail"><span class="step-label">Acceptance'
-            " criteria</span>: <span class=\"missing\">not registered"
-            "</span></div>"
+            f'<div class="step-detail"><span class="step-label">'
+            f"{html_escape(computation.label_acceptance_criteria)}</span>:"
+            f' <span class="missing">{html_escape(computation.not_registered_short)}</span></div>'
         )
     else:
         rows = "".join(
             "<tr>"
             + "".join(
-                f"<td>{value_html(entry.get(column))}</td>"
+                f"<td>{value_html(entry.get(column), missing_text=pack.not_recorded)}</td>"
                 for column in sorted(entry)
             )
             + "</tr>"
@@ -668,78 +736,88 @@ def _render_validation(
             }
         )
         header = "".join(f"<th>{html_escape(c)}</th>" for c in columns)
+        frozen = (
+            computation.yes if acceptance.frozen else computation.no
+        )
         blocks.append(
-            '<div class="step-detail"><span class="step-label">Acceptance'
-            f" criteria</span>: {html_escape(acceptance.acceptance_id)}"
-            f" — decision mode {html_escape(acceptance.decision_mode.value)}"
-            f" (frozen: {html_escape('yes' if acceptance.frozen else 'no')})"
+            f'<div class="step-detail"><span class="step-label">'
+            f"{html_escape(computation.label_acceptance_criteria)}</span>:"
+            f" {html_escape(acceptance.acceptance_id)}"
+            f"{html_escape(computation.decision_mode_tpl.format(mode=acceptance.decision_mode.value))}"
+            f"{html_escape(computation.frozen_tpl.format(value=frozen))}"
             "</div>\n"
             f'<table class="data"><tr>{header}</tr>{rows}</table>'
         )
     if design is None:
         blocks.append(
-            '<div class="step-detail"><span class="step-label">Statistical'
-            " design</span>: <span class=\"missing\">not registered"
-            " (07-SS9)</span></div>"
+            f'<div class="step-detail"><span class="step-label">'
+            f"{html_escape(computation.label_statistical_design)}</span>:"
+            f' <span class="missing">{html_escape(computation.not_registered_ss9)}</span></div>'
         )
     else:
         design_rows: list[tuple[str, str]] = [
-            ("Design", design.design_id),
-            ("Primary method", design.primary_method),
-            ("Metrics", "; ".join(design.metrics)),
-            ("Margin", value_html(design.margin)),
+            (computation.label_design, design.design_id),
+            (computation.label_primary_method, design.primary_method),
+            (computation.label_metrics, "; ".join(design.metrics)),
+            (computation.label_margin, value_html(design.margin, missing_text=pack.not_recorded)),
             (
-                "Margin basis",
+                computation.label_margin_basis,
                 design.margin_basis.value
                 if design.margin_basis
-                else "not recorded",
+                else pack.not_recorded,
             ),
             (
-                "Alpha",
-                str(design.alpha) if design.alpha is not None else "not recorded",
+                computation.label_alpha,
+                str(design.alpha)
+                if design.alpha is not None
+                else pack.not_recorded,
             ),
             (
-                "Confidence level",
+                computation.label_confidence_level,
                 str(design.confidence_level)
                 if design.confidence_level is not None
-                else "not recorded",
+                else pack.not_recorded,
             ),
         ]
         if design.preprocessing_exclusion_rules:
             design_rows.append(
                 (
-                    "Preprocessing/exclusion rules",
+                    computation.label_preprocessing_rules,
                     "; ".join(design.preprocessing_exclusion_rules),
                 )
             )
         if design.outlier_rules:
-            design_rows.append(("Outlier rules", "; ".join(design.outlier_rules)))
+            design_rows.append(
+                (computation.label_outlier_rules, "; ".join(design.outlier_rules))
+            )
         if design.failed_run_handling:
-            design_rows.append(("Failed-run handling", design.failed_run_handling))
+            design_rows.append(
+                (computation.label_failed_run_handling, design.failed_run_handling)
+            )
         cells = "\n".join(
             f'<tr><td class="label">{html_escape(label)}</td>'
             f'<td class="value">{value}</td></tr>'
             for label, value in design_rows
         )
         blocks.append(
-            '<div class="step-detail"><span class="step-label">Statistical'
-            " design (07-SS9)</span></div>\n"
+            f'<div class="step-detail"><span class="step-label">'
+            f"{html_escape(computation.design_ss9_label)}</span></div>\n"
             f'<table class="meta">{cells}</table>'
         )
     return (
-        '<h2 class="sheet-section"><span class="section-index">6</span>'
-        "Convergence and validation criteria</h2>\n" + "\n".join(blocks)
+        f'<h2 class="sheet-section"><span class="section-index">6</span>'
+        f"{html_escape(computation.section_validation)}</h2>\n"
+        + "\n".join(blocks)
     )
 
 
-def _render_footer(generated_at: str | None) -> str:
+def _render_footer(generated_at: str | None, pack: TemplatePack) -> str:
     """The fixed print footer (repeats on every printed page)."""
-    stamp = generated_at if generated_at is not None else "deterministic render"
-    return (
-        f'<div class="footer">scientific-reproduction &middot;'
-        f" computation execution sheet v{COMPUTATION_SHEET_VERSION}"
-        f" &middot; {html_escape(stamp)}</div>"
+    stamp = generated_at if generated_at is not None else pack.deterministic_render
+    footer = pack.computation.footer_html_tpl.format(
+        version=COMPUTATION_SHEET_VERSION, stamp=html_escape(stamp)
     )
+    return f'<div class="footer">{footer}</div>'
 
 
 def _backend_name(record: JobRecord | SSHJobRecord | SlurmJobRecord) -> str:
@@ -761,9 +839,11 @@ def _validate_inputs(
     job_id: str,
     state_dir: str | Path | None,
     generated_at: str | None,
-) -> tuple[Path, Path, str]:
+    language: str,
+) -> tuple[Path, Path, str, TemplatePack]:
     """Validate the public-boundary types (TypeError with stable
-    messages), returning the normalized inputs."""
+    messages), resolving the language pack; return the normalized
+    inputs."""
     if not isinstance(root, (str, Path)):
         raise TypeError(
             f"root must be a str or Path, got {type(root).__name__}"
@@ -783,4 +863,5 @@ def _validate_inputs(
         raise TypeError(
             "generated_at must be a non-empty string when set"
         )
-    return Path(root), Path(state_dir) if state_dir is not None else Path(root), job_id
+    state_path = Path(state_dir) if state_dir is not None else Path(root)
+    return Path(root), state_path, job_id, resolve_pack(language)

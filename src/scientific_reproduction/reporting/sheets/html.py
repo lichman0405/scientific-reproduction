@@ -24,6 +24,10 @@ Determinism
 -----------
 Everything here is a pure function of its inputs: no wall clock, no
 randomness, no network. All output is byte-stable for identical inputs.
+Language is an explicit renderer input (issue #122): the marker strings
+and the document language tag come from the injected ``TemplatePack``,
+never from locale detection, so ``(state, language)`` still maps to
+byte-identical output.
 """
 
 from __future__ import annotations
@@ -227,20 +231,24 @@ def html_escape(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def value_html(value: Any) -> str:
+def value_html(value: Any, *, missing_text: str = "not recorded") -> str:
     """Render one JSON-ish value as escaped inline HTML text.
 
-    ``None`` renders as the house "not recorded" marker (the ``report.py``
-    ``_maybe`` discipline -- never guessed, never silently matched);
-    lists render as a ``"; "``-joined enumeration; mappings render as
-    compact canonical JSON; everything else renders as its string form.
+    ``None`` renders as the house ``missing_text`` marker (default the
+    English "not recorded"; the ``report.py`` ``_maybe`` discipline --
+    never guessed, never silently matched); lists render as a
+    ``"; "``-joined enumeration; mappings render as compact canonical
+    JSON; everything else renders as its string form. The ``missing_text``
+    is the language-pack marker (``TemplatePack.not_recorded``), escaped
+    here like any other text -- the English default stays byte-identical
+    to the pre-pack renderer.
     """
     if value is None:
-        return '<span class="missing">not recorded</span>'
+        return f'<span class="missing">{html_escape(missing_text)}</span>'
     if isinstance(value, str):
         return html_escape(value)
     if isinstance(value, list):
-        return html_escape("; ".join(_flatten_entries(value)))
+        return html_escape("; ".join(_flatten_entries(value, missing_text)))
     if isinstance(value, Mapping):
         return html_escape(
             json.dumps(value, indent=None, sort_keys=True, ensure_ascii=False)
@@ -248,18 +256,22 @@ def value_html(value: Any) -> str:
     return html_escape(str(value))
 
 
-def html_document(title: str, body: str, *, stylesheet: str | None = None) -> str:
+def html_document(
+    title: str, body: str, *, stylesheet: str | None = None, lang: str = "en"
+) -> str:
     """Wrap ``body`` into a complete, self-contained HTML document.
 
     The document carries ``SHEET_CSS`` (or ``stylesheet`` when injected)
     inline -- no external resources, so it renders offline and converts
-    to PDF through the browser print path. Returns byte-stable markup for
-    identical inputs.
+    to PDF through the browser print path. ``lang`` is the HTML document
+    language tag of the pack (``TemplatePack.html_lang``; the English
+    default keeps the pre-pack markup byte-identical). Returns
+    byte-stable markup for identical inputs.
     """
     css = SHEET_CSS if stylesheet is None else stylesheet
     return (
         "<!DOCTYPE html>\n"
-        '<html lang="en">\n'
+        f'<html lang="{html_escape(lang)}">\n'
         "<head>\n"
         '<meta charset="utf-8">\n'
         f"<title>{html_escape(title)}</title>\n"
@@ -272,12 +284,13 @@ def html_document(title: str, body: str, *, stylesheet: str | None = None) -> st
     )
 
 
-def _flatten_entries(value: list[Any]) -> list[str]:
+def _flatten_entries(value: list[Any], missing_text: str = "not recorded") -> list[str]:
     """Flatten one list level of JSON-ish entries into display strings.
 
     Nested mappings render as compact canonical JSON so their content
     stays visible and deterministic (the ``additionalProperties``-friendly
-    fidelity rule of the execution sheets).
+    fidelity rule of the execution sheets). ``None`` entries render as
+    the language-pack marker (see :func:`value_html`).
     """
     flattened: list[str] = []
     for entry in value:
@@ -288,9 +301,9 @@ def _flatten_entries(value: list[Any]) -> list[str]:
                 json.dumps(entry, indent=None, sort_keys=True, ensure_ascii=False)
             )
         elif entry is None:
-            flattened.append("not recorded")
+            flattened.append(missing_text)
         elif isinstance(entry, list):
-            flattened.extend(_flatten_entries(entry))
+            flattened.extend(_flatten_entries(entry, missing_text))
         else:
             flattened.append(str(entry))
     return flattened

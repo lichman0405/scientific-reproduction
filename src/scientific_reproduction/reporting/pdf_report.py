@@ -60,6 +60,12 @@ sorted, and the document renders through the deterministic
 ``rendering.pdf`` writer, so identical state renders byte-identical
 PDFs and canonical JSON.
 
+Language is an explicit renderer input (issue #122): every template
+string comes from the injected ``TemplatePack`` resolved from the
+``language`` key (default ``"en"``), never from locale detection, so
+``(state, language)`` maps to byte-identical output. The English pack
+reproduces the pre-pack renderer byte for byte.
+
 The renderer also writes ``reproduction-report.pdf`` and a canonical
 JSON sidecar (``reproduction-report.json``) carrying the PDF's SHA-256
 checksum, so the audit package can register the report files (the
@@ -88,7 +94,6 @@ from scientific_reproduction.core.models import (
     Criticality,
     GoalContract,
     InventoryItemType,
-    MethodReproducibility,
     Project,
     ProjectEvent,
     ReproductionRequirement,
@@ -120,6 +125,12 @@ from scientific_reproduction.reporting.audit import (
     AuditPackage,
     build_audit_package,
 )
+from scientific_reproduction.reporting.language import (
+    EN_PACK,
+    ReportPack,
+    TemplatePack,
+    resolve_pack,
+)
 from scientific_reproduction.reporting.summary import (
     OutcomeSummary,
     SummaryCorruptError,
@@ -137,17 +148,10 @@ REPORT_VERSION: Final[str] = "1.0"
 PDF_FILENAME: Final[str] = "reproduction-report.pdf"
 JSON_FILENAME: Final[str] = "reproduction-report.json"
 
-#: Section titles in render order.
-SECTION_TITLES: Final[tuple[str, ...]] = (
-    "Executive summary",
-    "Target paper identity and reproduction scope",
-    "Pipeline summary",
-    "Requirement outcomes",
-    "Core findings",
-    "Governance exercised",
-    "Audit trail",
-    "Simulation and real-data labeling",
-)
+#: Section titles in render order -- the English pack's titles, kept as
+#: a module constant for API compatibility (the renderer itself reads
+#: the resolved pack's ``section_titles``).
+SECTION_TITLES: Final[tuple[str, ...]] = EN_PACK.report.section_titles
 
 #: Decision types that record an acceptance/goal/protocol revision or
 #: rejection -- the "AC-02 collection rejections" of the governance
@@ -160,18 +164,6 @@ REVISION_DECISION_TYPES: Final[frozenset[str]] = frozenset(
         "RESEARCH_REQUEST",
     }
 )
-
-#: Recovery ladder labels (08-STRICT-RECOVERY-CLOSURE.md L1-L4, mapped
-#: per the documentation of ``reporting.summary``).
-_RECOVERY_LABELS: Final[dict[MethodReproducibility, str]] = {
-    MethodReproducibility.DIRECTLY_REPRODUCIBLE: "L1 direct",
-    MethodReproducibility.REPRODUCIBLE_WITH_MINOR_RECOVERY: "L1/L2 minor recovery",
-    MethodReproducibility.REPRODUCIBLE_WITH_METHOD_ADJUSTMENT: "L3 method adjustment",
-    MethodReproducibility.ONLY_REPRODUCIBLE_AFTER_REDESIGN: "L4 redesign",
-    MethodReproducibility.NOT_REPRODUCIBLE: "not reproducible",
-    MethodReproducibility.UNDETERMINED: "undetermined",
-    MethodReproducibility.INCONCLUSIVE: "inconclusive",
-}
 
 #: Inventory item types that represent real (non-computed) data.
 _REAL_DATA_TYPES: Final[frozenset[InventoryItemType]] = frozenset(
@@ -227,6 +219,7 @@ class PdfReport:
     current_plan_version: str
     reproduction_outcome: str
     generated_at: str
+    language: str
     sections: tuple[PdfReportSection, ...]
     pages: int
     pdf_bytes: bytes
@@ -246,6 +239,7 @@ class PdfReport:
             "current_plan_version": self.current_plan_version,
             "reproduction_outcome": self.reproduction_outcome,
             "generated_at": self.generated_at,
+            "language": self.language,
             "sections": [
                 {"title": section.title, "page_number": section.page_number}
                 for section in self.sections
@@ -286,23 +280,26 @@ def _verdict_for_outcome(outcome: str) -> str:
     return outcome  # OPEN/UNDETERMINED/unknown -> neutral via verdict_style
 
 
-def _data_label(item_types: frozenset[InventoryItemType]) -> str:
+def _data_label(
+    item_types: frozenset[InventoryItemType], report: ReportPack
+) -> str:
     """Derive the simulation/real-data label from recorded item types."""
     has_computation = InventoryItemType.COMPUTATION in item_types
     has_real = bool(item_types & _REAL_DATA_TYPES)
     if has_computation and has_real:
-        return "mixed: real experimental data and computation/simulation"
+        return report.data_label_mixed
     if has_computation:
-        return "simulation/computation"
+        return report.data_label_computation
     if has_real:
-        return "real experimental data"
-    return "no inventory recorded"
+        return report.data_label_real
+    return report.data_label_none
 
 
 def _headline_metric(
     results: Sequence[ResultRecord],
     requirements: Sequence[ReproductionRequirement],
     acceptance: Sequence[AcceptanceCriteria],
+    report: ReportPack,
 ) -> str:
     """Assemble the single most important number with its band.
 
@@ -325,13 +322,10 @@ def _headline_metric(
         key=lambda result: result.result_id,
     )
     if not hits:
-        return "No recorded analysis result references a CRITICAL requirement."
+        return report.no_critical_hit
     result = hits[0]
     if not result.metrics:
-        return (
-            f"{result.result_id}: no recorded metrics "
-            "(analysis ran without a metrics record)."
-        )
+        return report.no_metrics_tpl.format(result_id=result.result_id)
     metric = result.metrics[0]
     name = str(metric.get("metric", "metric"))
     value = _fmt_number(metric.get("value"))
@@ -340,12 +334,13 @@ def _headline_metric(
     lower = uncertainty.get("lower")
     upper = uncertainty.get("upper")
     if confidence is not None and lower is not None and upper is not None:
-        interval = (
-            f" ({_fmt_number(confidence)}% CI "
-            f"{_fmt_number(lower)} to {_fmt_number(upper)})"
+        interval = report.ci_tpl.format(
+            confidence=_fmt_number(confidence),
+            lower=_fmt_number(lower),
+            upper=_fmt_number(upper),
         )
     else:
-        interval = " (confidence interval not recorded)"
+        interval = report.ci_not_recorded
     tolerance: Any = None
     band_ref = ""
     for criteria in acceptance:
@@ -355,19 +350,23 @@ def _headline_metric(
                 tolerance = criteria.criteria[0].get("tolerance")
             break
     if tolerance is not None:
-        band = f" vs frozen acceptance band +/-{_fmt_number(tolerance)}"
+        band = report.band_tpl.format(tolerance=_fmt_number(tolerance))
         if band_ref:
-            band += f" ({band_ref})"
+            band += report.band_ref_tpl.format(band_ref=band_ref)
     else:
-        band = " (acceptance band not recorded)"
-    return (
-        f"Most important number: {name} = {value}{interval}{band} "
-        f"({result.result_id}, protocol {result.protocol_version})."
+        band = report.band_not_recorded
+    return report.headline_tpl.format(
+        name=name,
+        value=value,
+        interval=interval,
+        band=band,
+        result_id=result.result_id,
+        protocol_version=result.protocol_version,
     )
 
 
 def _finding_paragraph(
-    summary: OutcomeSummary, package: AuditPackage
+    summary: OutcomeSummary, package: AuditPackage, report: ReportPack
 ) -> str:
     """Assemble the executive-summary finding from recorded records."""
     counts: dict[str, int] = {}
@@ -380,10 +379,12 @@ def _finding_paragraph(
     runs = {"succeeded": 0, "failed": 0, "unresolved": 0}
     for run_entry in package.runs:
         runs[run_entry.status.value.lower()] += 1
-    return (
-        f"Recorded outcomes across {total} requirements: {by_outcome}. "
-        f"runs: {runs['succeeded']} succeeded, {runs['failed']} failed, "
-        f"{runs['unresolved']} unresolved."
+    return report.finding_tpl.format(
+        total=total,
+        by_outcome=by_outcome,
+        succeeded=runs["succeeded"],
+        failed=runs["failed"],
+        unresolved=runs["unresolved"],
     )
 
 
@@ -439,6 +440,7 @@ def _render_pdf(
     head: str | None,
     commits: int | None,
     generated_at: str,
+    pack: TemplatePack,
 ) -> tuple[bytes, tuple[PdfReportSection, ...], int]:
     """Render the report document and return (pdf bytes, sections, pages).
 
@@ -449,7 +451,10 @@ def _render_pdf(
     identical with or without the TOC pages, and the footers/bookmarks
     resolve against the final page order at render time.
     """
-    doc = PdfDocument(title=f"Reproduction Report - {project.project_id}")
+    report = pack.report
+    doc = PdfDocument(
+        title=report.doc_title_tpl.format(project_id=project.project_id)
+    )
     layout = FlowLayout(
         doc,
         footer_left=project.project_id,
@@ -462,66 +467,77 @@ def _render_pdf(
         laid_out.append((title, layout.headings[-1].page_index))
 
     # Cover header.
-    layout.heading("Reproduction Report", level=1)
+    layout.heading(report.title, level=1)
     layout.paragraph(
-        f"Project {project.project_id} - generated {generated_at} - "
-        f"report version {REPORT_VERSION}"
+        report.subtitle_tpl.format(
+            project_id=project.project_id,
+            generated_at=generated_at,
+            version=REPORT_VERSION,
+        )
     )
 
     # -- 1. executive summary ------------------------------------------------
-    section("Executive summary")
+    section(report.section_titles[0])
     outcome = summary.reproduction_outcome.value
-    callout_body = (
-        f"Method reproducibility: {summary.method_reproducibility.value} "
-        f"(ruleset {summary.method_ruleset_version}, rule "
-        f"{summary.method_matched_rule_id})."
+    callout_body = report.method_repro_tpl.format(
+        value=summary.method_reproducibility.value,
+        ruleset=summary.method_ruleset_version,
+        rule=summary.method_matched_rule_id,
     )
     if summary.outcome_blocking_reasons:
-        callout_body += (
-            " Blocking reasons: " + "; ".join(summary.outcome_blocking_reasons)
+        callout_body += report.blocking_reasons + "; ".join(
+            summary.outcome_blocking_reasons
         )
     layout.callout(_verdict_for_outcome(outcome), outcome, callout_body)
-    layout.paragraph(_finding_paragraph(summary, package))
-    layout.paragraph(_headline_metric(results, requirements, acceptance))
+    layout.paragraph(_finding_paragraph(summary, package, report))
+    layout.paragraph(
+        _headline_metric(results, requirements, acceptance, report)
+    )
 
     # -- 2. target paper identity and scope -----------------------------------
-    section("Target paper identity and reproduction scope")
+    section(report.section_titles[1])
     target = project.primary_target
     layout.table(
-        headers=["Identity", "Value"],
+        headers=[report.label_identity, report.label_value],
         rows=[
-            ["DOI", target.doi or "not recorded"],
-            ["Title", target.title or "not recorded"],
-            ["Source type", target.source_type.value],
-            ["Project phase", project.project_phase.value],
-            ["Current plan version", project.current_plan_version],
-            ["Project id", project.project_id],
+            [report.label_doi, target.doi or pack.not_recorded],
+            [report.label_title, target.title or pack.not_recorded],
+            [report.label_source_type, target.source_type.value],
+            [report.label_project_phase, project.project_phase.value],
+            [report.label_current_plan_version, project.current_plan_version],
+            [report.label_project_id, project.project_id],
         ],
         widths=[200.0, 287.28],
     )
-    layout.paragraph("Reproduction scope:", font=FONT_BOLD)
+    layout.paragraph(report.scope_label, font=FONT_BOLD)
     layout.table(
-        headers=["Record", "Count"],
+        headers=[report.label_record, report.label_count],
         rows=[
-            ["Goals", str(len(goals))],
-            ["Requirements", str(len(requirements))],
-            ["Inventory items", str(len(inventory))],
-            ["Acceptance criteria", str(len(acceptance))],
-            ["Analysis protocols", str(len(protocols))],
-            ["Statistical designs", str(len(designs))],
-            ["Closure contracts", str(len(closures))],
+            [report.label_goals, str(len(goals))],
+            [report.label_requirements, str(len(requirements))],
+            [report.label_inventory_items, str(len(inventory))],
+            [report.label_acceptance_criteria, str(len(acceptance))],
+            [report.label_analysis_protocols, str(len(protocols))],
+            [report.label_statistical_designs, str(len(designs))],
+            [report.label_closure_contracts, str(len(closures))],
         ],
         widths=[200.0, 287.28],
     )
-    layout.paragraph("Frozen acceptance criteria:", font=FONT_BOLD)
+    layout.paragraph(report.frozen_acceptance_label, font=FONT_BOLD)
     if acceptance:
         layout.table(
-            headers=["Acceptance", "Goal", "Frozen", "Mode", "Tolerance"],
+            headers=[
+                report.label_acceptance,
+                report.label_goal,
+                report.label_frozen,
+                report.label_mode,
+                report.label_tolerance,
+            ],
             rows=[
                 [
                     criteria.acceptance_id,
                     criteria.goal_id,
-                    "yes" if criteria.frozen else "no",
+                    report.yes if criteria.frozen else report.no,
                     criteria.decision_mode.value,
                     (
                         _fmt_number(criteria.criteria[0].get("tolerance"))
@@ -535,38 +551,69 @@ def _render_pdf(
             widths=[90.0, 70.0, 50.0, 100.0, 177.28],
         )
     else:
-        layout.paragraph("no recorded acceptance criteria.")
+        layout.paragraph(report.no_acceptance)
 
     # -- 3. pipeline summary ---------------------------------------------------
-    section("Pipeline summary")
+    section(report.section_titles[2])
     succeeded = sum(1 for entry in package.runs if entry.status.value == "succeeded")
     failed = sum(1 for entry in package.runs if entry.status.value == "failed")
     unresolved = len(package.runs) - succeeded - failed
     layout.table(
-        headers=["Stage", "Recorded state"],
+        headers=[report.label_stage, report.label_recorded_state],
         rows=[
-            ["Research", f"{len(sources)} sources, {len(evidence)} evidence records"],
-            ["Inventory", f"{len(inventory)} items, {len(requirements)} requirements"],
             [
-                "Planning",
-                f"{len(goals)} goals, {len(acceptance)} acceptance criteria, "
-                f"{len(protocols)} protocols, {len(designs)} designs, "
-                f"{len(closures)} closure contracts",
+                report.label_stage_research,
+                report.pipeline_research_tpl.format(
+                    sources=len(sources), evidence=len(evidence)
+                ),
             ],
             [
-                "Execution",
-                f"{len(package.runs)} runs "
-                f"({succeeded} succeeded, {failed} failed, {unresolved} unresolved)",
+                report.label_stage_inventory,
+                report.pipeline_inventory_tpl.format(
+                    items=len(inventory), requirements=len(requirements)
+                ),
             ],
-            ["Analysis", f"{len(results)} result packages"],
-            ["Artifacts", f"{len(manifests)} manifests"],
+            [
+                report.label_stage_planning,
+                report.pipeline_planning_tpl.format(
+                    goals=len(goals),
+                    acceptance=len(acceptance),
+                    protocols=len(protocols),
+                    designs=len(designs),
+                    closures=len(closures),
+                ),
+            ],
+            [
+                report.label_stage_execution,
+                report.pipeline_execution_tpl.format(
+                    runs=len(package.runs),
+                    succeeded=succeeded,
+                    failed=failed,
+                    unresolved=unresolved,
+                ),
+            ],
+            [
+                report.label_stage_analysis,
+                report.pipeline_analysis_tpl.format(results=len(results)),
+            ],
+            [
+                report.label_stage_artifacts,
+                report.pipeline_artifacts_tpl.format(manifests=len(manifests)),
+            ],
         ],
         widths=[110.0, 377.28],
     )
-    layout.paragraph("Runs:", font=FONT_BOLD)
+    layout.paragraph(report.label_runs, font=FONT_BOLD)
     if package.runs:
         layout.table(
-            headers=["Run", "Goal", "Type", "Lifecycle", "Review", "Status"],
+            headers=[
+                report.label_run,
+                report.label_goal,
+                report.label_type,
+                report.label_lifecycle,
+                report.label_review,
+                report.label_status,
+            ],
             rows=[
                 [
                     entry.run.run_id,
@@ -581,13 +628,19 @@ def _render_pdf(
             widths=[60.0, 70.0, 90.0, 90.0, 90.0, 87.28],
         )
     else:
-        layout.paragraph("no recorded runs.")
+        layout.paragraph(report.no_runs)
 
     # -- 4. requirement outcomes ------------------------------------------------
-    section("Requirement outcomes")
+    section(report.section_titles[3])
     if requirements:
         layout.table(
-            headers=["Requirement", "Statement", "Criticality", "Outcome", "Method"],
+            headers=[
+                report.label_requirement,
+                report.label_statement,
+                report.label_criticality,
+                report.label_outcome,
+                report.label_method,
+            ],
             rows=[
                 [
                     requirement.requirement_id,
@@ -605,24 +658,31 @@ def _render_pdf(
             widths=[70.0, 157.28, 60.0, 90.0, 110.0],
         )
     else:
-        layout.paragraph("no recorded requirements.")
+        layout.paragraph(report.no_requirements)
     layout.paragraph(
-        f"runs ({len(package.runs)} total): {succeeded} succeeded, "
-        f"{failed} failed, {unresolved} unresolved."
+        report.runs_summary_tpl.format(
+            total=len(package.runs),
+            succeeded=succeeded,
+            failed=failed,
+            unresolved=unresolved,
+        )
     )
 
     # -- 5. core findings (per CRITICAL requirement) -----------------------------
-    section("Core findings")
+    section(report.section_titles[4])
     critical = [
         requirement
         for requirement in requirements
         if requirement.criticality is Criticality.CRITICAL
     ]
     if not critical:
-        layout.paragraph("No CRITICAL requirements recorded.")
+        layout.paragraph(report.no_critical)
     for requirement in critical:
         layout.heading(
-            f"{requirement.requirement_id} - {requirement.outcome.value}",
+            report.critical_heading_tpl.format(
+                requirement_id=requirement.requirement_id,
+                outcome=requirement.outcome.value,
+            ),
             level=2,
         )
         layout.callout(
@@ -630,7 +690,7 @@ def _render_pdf(
             requirement.outcome.value,
             requirement.statement,
         )
-        layout.paragraph("Analysis results:", font=FONT_BOLD)
+        layout.paragraph(report.analysis_results_label, font=FONT_BOLD)
         requirement_results = [
             result
             for result in results
@@ -638,7 +698,13 @@ def _render_pdf(
         ]
         if requirement_results:
             layout.table(
-                headers=["Result", "Analysis", "Protocol", "Metric", "Value"],
+                headers=[
+                    report.label_result,
+                    report.label_analysis,
+                    report.label_protocol,
+                    report.label_metric,
+                    report.label_value,
+                ],
                 rows=[
                     [
                         result.result_id,
@@ -656,8 +722,8 @@ def _render_pdf(
                 widths=[60.0, 70.0, 70.0, 140.0, 147.28],
             )
         else:
-            layout.paragraph("no recorded analysis results.")
-        layout.paragraph("Evidence records:", font=FONT_BOLD)
+            layout.paragraph(report.no_results)
+        layout.paragraph(report.evidence_records_label, font=FONT_BOLD)
         evidence_records = [
             record
             for record in evidence
@@ -665,7 +731,7 @@ def _render_pdf(
         ]
         if evidence_records:
             layout.table(
-                headers=["Evidence", "Finding"],
+                headers=[report.label_evidence, report.label_finding],
                 rows=[
                     [record.evidence_id, record.finding]
                     for record in evidence_records
@@ -673,8 +739,8 @@ def _render_pdf(
                 widths=[80.0, 407.28],
             )
         else:
-            layout.paragraph("no recorded evidence records.")
-        layout.paragraph("Decisions:", font=FONT_BOLD)
+            layout.paragraph(report.no_evidence)
+        layout.paragraph(report.decisions_label, font=FONT_BOLD)
         requirement_decisions = [
             decision
             for decision in decisions
@@ -682,7 +748,11 @@ def _render_pdf(
         ]
         if requirement_decisions:
             layout.table(
-                headers=["Decision", "Type", "Rationale"],
+                headers=[
+                    report.label_decision,
+                    report.label_type,
+                    report.label_rationale,
+                ],
                 rows=[
                     [
                         decision.decision_id,
@@ -694,37 +764,48 @@ def _render_pdf(
                 widths=[80.0, 130.0, 277.28],
             )
         else:
-            layout.paragraph("no recorded decisions.")
+            layout.paragraph(report.no_decisions)
 
     # -- 6. governance exercised -------------------------------------------------
-    section("Governance exercised")
-    layout.paragraph("Recovery ladder:", font=FONT_BOLD)
+    section(report.section_titles[5])
+    layout.paragraph(report.recovery_ladder_label, font=FONT_BOLD)
     layout.paragraph(
-        f"Recorded method reproducibility: {summary.method_reproducibility.value} "
-        f"-> {_RECOVERY_LABELS.get(summary.method_reproducibility, 'undetermined')} "
-        f"(ruleset {summary.method_ruleset_version})."
+        report.recovery_tpl.format(
+            value=summary.method_reproducibility.value,
+            label=report.recovery_labels.get(
+                summary.method_reproducibility.value,
+                report.recovery_labels["UNDETERMINED"],
+            ),
+            ruleset=summary.method_ruleset_version,
+        )
     )
     recovery = summary.recovery
     layout.paragraph(
-        f"Recovered requirements: "
-        f"{', '.join(recovery.recovered_requirements) or 'none'}. "
-        f"Recovery goals: {', '.join(recovery.recovery_goals) or 'none'}. "
-        f"Method redesign goals: "
-        f"{', '.join(recovery.method_redesign_goals) or 'none'}."
+        report.recovered_tpl.format(
+            requirements=", ".join(recovery.recovered_requirements)
+            or report.none,
+            goals=", ".join(recovery.recovery_goals) or report.none,
+            redesign=", ".join(recovery.method_redesign_goals) or report.none,
+        )
     )
-    layout.paragraph("Closure contracts:", font=FONT_BOLD)
+    layout.paragraph(report.closure_contracts_label, font=FONT_BOLD)
     if closures:
         layout.table(
-            headers=["Closure", "Frozen", "Allowed", "Recovery progress"],
+            headers=[
+                report.label_closure,
+                report.label_frozen,
+                report.label_allowed,
+                report.label_recovery_progress,
+            ],
             rows=[
                 [
                     closure.closure_id,
-                    "yes" if closure.frozen else "no",
-                    "yes" if closure.closure_allowed else "no",
-                    (
-                        f"eligible {closure.recovery.eligible_hypotheses_total}, "
-                        f"tested or ruled out {closure.recovery.tested_or_ruled_out}, "
-                        f"remaining {closure.recovery.remaining}"
+                    report.yes if closure.frozen else report.no,
+                    report.yes if closure.closure_allowed else report.no,
+                    report.closure_progress_tpl.format(
+                        eligible=closure.recovery.eligible_hypotheses_total,
+                        tested=closure.recovery.tested_or_ruled_out,
+                        remaining=closure.recovery.remaining,
                     ),
                 ]
                 for closure in closures
@@ -732,11 +813,18 @@ def _render_pdf(
             widths=[90.0, 40.0, 40.0, 317.28],
         )
     else:
-        layout.paragraph("no recorded closure contracts.")
-    layout.paragraph("Statistical designs (recorded n/margin decisions):", font=FONT_BOLD)
+        layout.paragraph(report.no_closures)
+    layout.paragraph(report.designs_label, font=FONT_BOLD)
     if designs:
         layout.table(
-            headers=["Design", "Metrics", "n policy", "Margin", "Basis", "Alpha"],
+            headers=[
+                report.label_design,
+                report.label_metrics,
+                report.label_n_policy,
+                report.label_margin,
+                report.label_basis,
+                report.label_alpha,
+            ],
             rows=[
                 [
                     design.design_id,
@@ -753,11 +841,15 @@ def _render_pdf(
             widths=[60.0, 90.0, 100.0, 60.0, 80.0, 97.28],
         )
     else:
-        layout.paragraph("no recorded statistical designs.")
-    layout.paragraph("Supervisor decisions:", font=FONT_BOLD)
+        layout.paragraph(report.no_designs)
+    layout.paragraph(report.supervisor_decisions_label, font=FONT_BOLD)
     if decisions:
         layout.table(
-            headers=["Decision", "Type", "Rationale"],
+            headers=[
+                report.label_decision,
+                report.label_type,
+                report.label_rationale,
+            ],
             rows=[
                 [decision.decision_id, decision.decision_type.value, decision.rationale]
                 for decision in decisions
@@ -765,8 +857,8 @@ def _render_pdf(
             widths=[80.0, 130.0, 277.28],
         )
     else:
-        layout.paragraph("No recorded supervisor decisions.")
-    layout.paragraph("AC-02 collection rejections:", font=FONT_BOLD)
+        layout.paragraph(report.no_supervisor_decisions)
+    layout.paragraph(report.ac02_label, font=FONT_BOLD)
     revisions = [
         decision
         for decision in decisions
@@ -774,19 +866,26 @@ def _render_pdf(
     ]
     if revisions:
         layout.paragraph(
-            f"{len(revisions)} recorded revision/rejection decisions: "
-            + ", ".join(decision.decision_id for decision in revisions)
-            + "."
+            report.revisions_tpl.format(
+                count=len(revisions),
+                ids=", ".join(decision.decision_id for decision in revisions),
+            )
         )
     else:
-        layout.paragraph("no recorded collection rejections.")
-    layout.paragraph("Monitor reconciliations:", font=FONT_BOLD)
+        layout.paragraph(report.no_revisions)
+    layout.paragraph(report.reconciliations_label, font=FONT_BOLD)
     reconciliations = [
         event for event in events if event.event_type == EXTERNAL_STATUS_CHANGE_EVENT_TYPE
     ]
     if reconciliations:
         layout.table(
-            headers=["Event", "Timestamp", "Actor", "Transition", "Reason"],
+            headers=[
+                report.label_event,
+                report.label_timestamp,
+                report.label_actor,
+                report.label_transition,
+                report.label_reason,
+            ],
             rows=[
                 [
                     event.event_id,
@@ -800,27 +899,30 @@ def _render_pdf(
             widths=[60.0, 100.0, 80.0, 100.0, 147.28],
         )
     else:
-        layout.paragraph("No recorded reconciliation events.")
+        layout.paragraph(report.no_reconciliations)
 
     # -- 7. audit trail -----------------------------------------------------------
-    section("Audit trail")
-    layout.paragraph("Git state:", font=FONT_BOLD)
+    section(report.section_titles[6])
+    layout.paragraph(report.git_state_label, font=FONT_BOLD)
     if head is not None:
-        layout.paragraph(f"HEAD {head}, {commits} commits.")
+        layout.paragraph(report.git_state_tpl.format(head=head, commits=commits))
     else:
-        layout.paragraph(
-            "Git state not recorded (workspace is not a git repository)."
-        )
-    layout.paragraph("Frozen plan refs:", font=FONT_BOLD)
+        layout.paragraph(report.git_not_recorded)
+    layout.paragraph(report.frozen_plan_refs_label, font=FONT_BOLD)
     if plans:
         layout.table(
-            headers=["Version", "Status", "Frozen at", "Frozen commit"],
+            headers=[
+                report.label_version,
+                report.label_status,
+                report.label_frozen_at,
+                report.label_frozen_commit,
+            ],
             rows=[
                 [
                     plan.version,
                     getattr(plan, "status", "-"),
-                    plan.frozen_at or "not frozen",
-                    plan.frozen_commit or "not recorded",
+                    plan.frozen_at or report.not_frozen,
+                    plan.frozen_commit or pack.not_recorded,
                 ]
                 for plan in plans
             ],
@@ -829,11 +931,18 @@ def _render_pdf(
             widths=[60.0, 90.0, 120.0, 217.28],
         )
     else:
-        layout.paragraph("no recorded plans.")
-    layout.paragraph("Checkpoint events:", font=FONT_BOLD)
+        layout.paragraph(report.no_plans)
+    layout.paragraph(report.checkpoint_label, font=FONT_BOLD)
     if events:
         layout.table(
-            headers=["Event", "Timestamp", "Actor", "Type", "Object", "Checkpoint"],
+            headers=[
+                report.label_event,
+                report.label_timestamp,
+                report.label_actor,
+                report.label_type,
+                report.label_object,
+                report.label_checkpoint,
+            ],
             rows=[
                 [
                     event.event_id,
@@ -848,11 +957,18 @@ def _render_pdf(
             widths=[55.0, 90.0, 70.0, 115.0, 65.0, 92.28],
         )
     else:
-        layout.paragraph("no recorded events.")
-    layout.paragraph("Artifact manifests:", font=FONT_BOLD)
+        layout.paragraph(report.no_events)
+    layout.paragraph(report.artifacts_label, font=FONT_BOLD)
     if manifests:
         layout.table(
-            headers=["Artifact", "SHA-256", "Size", "Run", "Analysis", "Producer"],
+            headers=[
+                report.label_artifact,
+                report.label_sha256,
+                report.label_size,
+                report.label_run,
+                report.label_analysis,
+                report.label_producer,
+            ],
             rows=[
                 [
                     manifest.artifact_id,
@@ -867,29 +983,31 @@ def _render_pdf(
             widths=[65.0, 150.0, 45.0, 70.0, 70.0, 87.28],
         )
     else:
-        layout.paragraph("no recorded artifact manifests.")
+        layout.paragraph(report.no_manifests)
 
     # -- 8. simulation / real-data labeling -----------------------------------------
-    section("Simulation and real-data labeling")
+    section(report.section_titles[7])
     item_types = frozenset(item.item_type for item in inventory)
-    layout.paragraph(f"Label: {_data_label(item_types)}")
+    layout.paragraph(f"{report.label_label} {_data_label(item_types, report)}")
     if item_types:
         layout.paragraph(
-            "Recorded inventory item types: "
-            + ", ".join(sorted(item_type.value for item_type in item_types))
-            + "."
+            report.recorded_types_tpl.format(
+                types=", ".join(
+                    sorted(item_type.value for item_type in item_types)
+                )
+            )
         )
     if inventory:
         layout.paragraph(
-            "Recorded inventory items: "
-            + ", ".join(item.inventory_id for item in inventory)
-            + "."
+            report.recorded_items_tpl.format(
+                items=", ".join(item.inventory_id for item in inventory)
+            )
         )
 
     # -- table of contents (laid out last, moved to the front) ----------------------
     layout.page_break()
     toc_start = len(doc.pages)
-    layout.paragraph("Table of contents", font=FONT_BOLD, size=HEADING_SIZES[1])
+    layout.paragraph(report.toc_title, font=FONT_BOLD, size=HEADING_SIZES[1])
     toc_pages = layout.toc_page_count(len(laid_out))
     for index, (title, page_index) in enumerate(laid_out, 1):
         layout.toc_entry(index, title, toc_pages + page_index + 1)
@@ -911,6 +1029,7 @@ def build_pdf_report(
     key_claims: list[str] | tuple[str, ...] = (),
     *,
     generated_at: str,
+    language: str = "en",
     out_dir: str | Path | None = None,
 ) -> PdfReport:
     """Render the final reproduction report PDF from the project state.
@@ -924,6 +1043,10 @@ def build_pdf_report(
         generated_at: the generation timestamp, **injected** -- the
             renderer never consults the wall clock, so identical state
             renders byte-identical output.
+        language: the explicit render language key (default ``"en"``);
+            resolves to the matching :class:`TemplatePack` -- never
+            locale-detected, so ``(state, language)`` maps to
+            byte-identical output.
         out_dir: optional directory to write ``reproduction-report.pdf``
             and ``reproduction-report.json`` (the JSON sidecar carries
             the PDF's SHA-256 so the audit package can register the
@@ -931,6 +1054,8 @@ def build_pdf_report(
 
     Raises:
         TypeError: a boundary argument has the wrong type.
+        ValueError: ``language`` has no shipped pack (stable message
+            listing the available languages).
         PdfReportNotInitializedError: the workspace has no project state.
         PdfReportCorruptError: a stored record is corrupt.
     """
@@ -951,6 +1076,7 @@ def build_pdf_report(
             "generated_at must be a string (the injected generation "
             f"timestamp), got {type(generated_at).__name__}"
         )
+    pack = resolve_pack(language)
     root_path = Path(root)
     evidence = evidence or EvidenceRegistry()
 
@@ -1029,6 +1155,7 @@ def build_pdf_report(
         head=head,
         commits=commits,
         generated_at=generated_at,
+        pack=pack,
     )
 
     sha256 = hashlib.sha256(pdf_bytes).hexdigest()
@@ -1041,6 +1168,7 @@ def build_pdf_report(
         current_plan_version=project.current_plan_version,
         reproduction_outcome=summary.reproduction_outcome.value,
         generated_at=generated_at,
+        language=pack.language,
         sections=sections,
         pages=pages,
         pdf_bytes=pdf_bytes,
