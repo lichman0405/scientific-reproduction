@@ -34,6 +34,13 @@ subdirectory, ``protocols/versions/<analysis_id>@<protocol_version>.json``:
 
 * the id-keyed draft file keeps its DEV-M4-G04 meaning (the initial
   ``v1-draft`` record, ``frozen`` False) and is never rewritten here;
+  the plan freeze (``planning/freeze.py``) formalizes it in place
+  (formal ``protocol_version``, ``frozen`` True), and
+  :func:`read_protocol_version` bridges the two registries by resolving
+  the id-keyed file at its stored ``protocol_version`` -- a project that
+  froze its protocols with ``freeze_plan`` reads them as registered
+  versions here (and registers analysis results against them) without
+  re-registration;
 * versioned records are one file per protocol version, mirroring the
   plan registry's version-keyed ``plans/<version>.json`` storage;
 * the subdirectory keeps versioned files invisible to
@@ -1259,11 +1266,19 @@ def read_protocol_version(
     """Read one registered protocol version as a typed record.
 
     The versioned registry path (``protocols/versions/<id>@<version>.json``)
-    for every version except the initial draft, which is the DEV-M4-G04
-    id-keyed file (``protocols/<id>.json``, read at version ``"v1-draft"``
-    only). The returned record is the exact stored record (bytes -> model);
-    stored files are never rewritten by revision, so this read is stable
-    across ``revise_protocol`` calls (AC-03: the old record is preserved
+    for every version except the DEV-M4-G04 id-keyed file
+    (``protocols/<id>.json``), which resolves when its stored
+    ``protocol_version`` matches the requested version -- the initial
+    ``v1-draft`` draft before the plan freeze, the frozen formal version
+    after it. That exact-match fallback is the goal-contract/versioned
+    bridge: a project that registered protocols through
+    ``planning.plan.register_analysis_protocol`` and froze them with
+    ``planning.freeze.freeze_plan`` (the frozen record is persisted in
+    place at the id-keyed path, formal ``protocol_version``, ``frozen``
+    True) resolves them here without re-registration. The returned record
+    is the exact stored record (bytes -> model); stored files are never
+    rewritten by revision, so this read is stable across
+    ``revise_protocol`` calls (AC-03: the old record is preserved
     untouched).
 
     Raises:
@@ -1291,12 +1306,9 @@ def read_protocol_version(
     versioned = _read_versioned(project_root, analysis_id, version)
     if versioned is not None:
         return versioned
-    if version == "v1-draft":
-        draft = _read_id_keyed(project_root, analysis_id)
-        if draft is not None:
-            return ProtocolVersion(
-                record=draft, metadata=ProtocolVersionMetadata()
-            )
+    draft = _read_id_keyed(project_root, analysis_id)
+    if draft is not None and draft.protocol_version == version:
+        return ProtocolVersion(record=draft, metadata=ProtocolVersionMetadata())
     raise ProtocolNotFoundError(
         f"no analysis protocol version {version!r} of {analysis_id!r} is"
         f" registered at {project_root}"

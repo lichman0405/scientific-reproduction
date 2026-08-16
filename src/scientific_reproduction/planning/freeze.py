@@ -257,9 +257,15 @@ def freeze_plan(
     repository) is persisted at ``plans/<formal-version>.json`` and the
     frozen goal-contract family is persisted in place at its registry
     paths and returned (:class:`PlanFreezeResult`); the draft is written
-    when absent and never clobbered. No Git commit is created here (the
-    ``plan.freeze`` checkpoint is owned by the Supervisor flow,
-    ``14-STATE-GIT-ARTIFACTS.md`` SS5).
+    when absent and never clobbered. The frozen analysis protocols also
+    resolve through the analysis-subsystem versioned registry
+    (``analysis.protocols.read_protocol_version`` -- and with it
+    ``analysis.results.register_result``): its id-keyed fallback reads
+    the goal-contract record at its stored ``protocol_version``, so a
+    project that froze its protocols here needs no re-registration to
+    register analysis results against the frozen versions. No Git commit
+    is created here (the ``plan.freeze`` checkpoint is owned by the
+    Supervisor flow, ``14-STATE-GIT-ARTIFACTS.md`` SS5).
 
     Args:
         root: the initialized workspace root.

@@ -31,12 +31,22 @@ from pathlib import Path
 import pytest
 from inventory_helpers import init_project, make_item, make_requirement
 
+from scientific_reproduction.analysis.protocols import (
+    ProtocolNotFoundError,
+    assert_acceptance_eligible,
+    list_protocol_versions,
+    protocol_lineage,
+    read_protocol_version,
+)
+from scientific_reproduction.analysis.results import ResultRecord, register_result
+from scientific_reproduction.artifacts.registry import ArtifactRegistry
 from scientific_reproduction.audit.git import current_head
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
     AnalysisKind,
     AnalysisProfile,
     AnalysisProtocolOrResult,
+    ArtifactManifest,
     AuditStatus,
     ClosureContract,
     ClosureLiterature,
@@ -583,6 +593,68 @@ def test_freeze_ac02_freeze_persists_the_whole_frozen_goal_family(tmp_path):
         (root / "closure" / "CLS-1.json").read_text(encoding="utf-8")
     )
     assert raw["frozen"] is True
+
+
+def test_freeze_ac02_frozen_analysis_protocol_bridges_into_analysis_registry(
+    tmp_path,
+):
+    """The plan freeze bridges the goal-contract protocols into the
+    analysis-subsystem versioned registry (public APIs only).
+
+    A protocol registered via ``planning.plan.register_analysis_protocol``
+    and frozen by ``freeze_plan`` (formal ``protocol_version``, ``frozen``
+    True, persisted in place at ``protocols/<id>.json``) is resolvable by
+    ``analysis.protocols.read_protocol_version`` at its stored version and
+    by ``analysis.results.register_result`` -- no re-registration through
+    the analysis registry is needed (issue: no bridge between the
+    goal-contract protocol registry and the analysis protocol version
+    registry).
+    """
+    root = build_complete_workspace(tmp_path)
+    result = freeze_complete(root)
+    protocol = result.analysis_protocols[0]
+    assert protocol.protocol_version == "v1"
+
+    # The versioned read resolves the id-keyed goal-contract record at its
+    # stored protocol_version; the draft version no longer exists after
+    # the plan freeze formalized the family in place.
+    stored = read_protocol_version(root, "ANL-1", "v1")
+    assert stored.record == protocol
+    assert stored.record.frozen is True
+    assert [v.record.protocol_version for v in list_protocol_versions(root, "ANL-1")] == [
+        "v1"
+    ]
+    assert protocol_lineage(root, "ANL-1")[0].status is PlanStatus.FROZEN
+    with pytest.raises(ProtocolNotFoundError):
+        read_protocol_version(root, "ANL-1", "v1-draft")
+    assert_acceptance_eligible(root, "ANL-1")
+
+    # register_result resolves the referenced protocol version through the
+    # versioned registry; the artifact/acceptance refs resolve to a
+    # registered manifest and the frozen acceptance record.
+    ArtifactRegistry(root / "manifests").register(
+        ArtifactManifest(
+            artifact_id="ART-001",
+            uri="file:///raw/ART-001.csv",
+            sha256="a" * 64,
+            size_bytes=1024,
+            created_at="2026-01-01T00:00:00Z",
+            run_id="RUN-001",
+        )
+    )
+    record = register_result(
+        root,
+        ResultRecord(
+            result_id="RES-1",
+            analysis_id="ANL-1",
+            protocol_version="v1",
+            run_ref="RUN-001",
+            input_artifact_ids=["ART-001"],
+            primary_or_exploratory=PrimaryOrExploratory.PRIMARY,
+            acceptance_ref="ACC-1",
+        ),
+    )
+    assert record.protocol_version == "v1"
 
 
 def test_freeze_ac02_register_api_stays_exactly_once_after_freeze(tmp_path):

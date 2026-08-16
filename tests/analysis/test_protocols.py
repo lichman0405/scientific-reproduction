@@ -764,6 +764,35 @@ def test_protocol_read_roundtrip_and_deterministic_order(tmp_path):
     ]
 
 
+def test_protocol_read_resolves_id_keyed_record_at_its_stored_version(tmp_path):
+    """The DEV-M4-G04 id-keyed file resolves at its stored version (bridge).
+
+    The plan freeze (``planning.freeze.freeze_plan``) formalizes the
+    id-keyed draft in place (formal ``protocol_version``, ``frozen``
+    True); ``read_protocol_version`` resolves that goal-contract record
+    at the stored version -- so a project frozen through the plan-freeze
+    flow needs no re-registration to register analysis results -- and
+    rejects any other version (the draft version no longer exists).
+    """
+    root = init_project(tmp_path)
+    register_analysis_record(root, make_protocol("ANL-1"))
+    # Simulate the state the plan freeze leaves behind: the id-keyed
+    # record replaced in place by its frozen formal variant (the same
+    # canonical writer the goal-family transition uses).
+    frozen = replace(make_protocol("ANL-1"), protocol_version="v1", frozen=True)
+    (root / "protocols" / "ANL-1.json").write_text(
+        _canonical(frozen.to_dict()), encoding="utf-8"
+    )
+
+    stored = read_protocol_version(root, "ANL-1", "v1")
+    assert stored.record == frozen
+    assert stored.metadata == ProtocolVersionMetadata()
+    with pytest.raises(ProtocolNotFoundError):
+        read_protocol_version(root, "ANL-1", "v1-draft")
+    with pytest.raises(ProtocolNotFoundError):
+        read_protocol_version(root, "ANL-1", "v2")
+
+
 def test_protocol_versioned_records_invisible_to_planning_registry(tmp_path):
     root = build_primary_workspace(tmp_path)
     freeze_primary(root)
