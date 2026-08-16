@@ -61,6 +61,11 @@ import pytest
 #: The frozen scenario suite directory (mirrors the verification command).
 SCENARIOS_DIR = Path(__file__).resolve().parents[2] / "tests" / "scenarios"
 
+#: Non-FDM-201 scenario files that legitimately live alongside the FDM-201
+#: fixture in tests/scenarios/ (declared explicitly so the directory stays
+#: exactly covered by the union used in the no-extra-files acceptance).
+NON_FDM_SCENARIO_FILES: frozenset[str] = frozenset({"test_K_skill_update_flow.py"})
+
 #: The ten scenario files of the FDM-201 acceptance fixture (A-J).
 SCENARIO_FILES: tuple[tuple[str, str], ...] = (
     ("A", "test_A_fdm201_strict_success.py"),
@@ -150,18 +155,16 @@ def test_fdm201_all_ten_scenario_files_exist():
 
 
 def test_fdm201_no_extra_scenario_files():
-    # The suite directory contains exactly the ten frozen scenario files
-    # (plus the benchmark acceptance files of this goal). Scenario files
-    # outside the FDM-201 fixture (e.g. the skill-update-flow scenario K)
-    # carry no ``_fdm201_`` infix and are not governed by this acceptance;
-    # any *additional* FDM-201-named scenario would be a fixture drift and
-    # is rejected.
-    frozen = {filename for _, filename in SCENARIO_FILES}
+    # The suite directory contains exactly the ten frozen FDM-201 scenario
+    # files (plus the benchmark acceptance files of this goal) and the
+    # declared non-FDM-201 scenario files that share the directory (the
+    # skill-update-flow scenario K). The directory stays fully covered by
+    # the union below: any undeclared file is a drift and is rejected.
+    declared = NON_FDM_SCENARIO_FILES | {filename for _, filename in SCENARIO_FILES}
     found = {p.name for p in SCENARIOS_DIR.glob("test_*.py")}
-    fdm_named = {name for name in found if "_fdm201_" in name}
-    assert frozen == fdm_named, (
-        "FDM-201 scenario fixture drifted: frozen files are"
-        f" {sorted(frozen)}, found FDM-201-named files {sorted(fdm_named)}"
+    assert found == declared, (
+        "scenario directory drifted: declared files are"
+        f" {sorted(declared)}, found {sorted(found)}"
     )
 
 
