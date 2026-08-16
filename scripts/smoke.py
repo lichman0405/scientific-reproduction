@@ -89,6 +89,8 @@ def _check_structure() -> str | None:
         return "frozen schemas missing: schemas/"
     if not (SKILL_ROOT / "agent-contracts").is_dir():
         return "role contracts missing: agent-contracts/"
+    if not (SKILL_ROOT / "scripts" / "check-update.py").is_file():
+        return "pre-flight update check missing: scripts/check-update.py"
     return None
 
 

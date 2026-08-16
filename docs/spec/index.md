@@ -42,6 +42,7 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 |---|---|
 | [`SKILL.md`](../../SKILL.md) | Skill manifest and entry instructions (Claude Code, WorkBuddy and any Agent-Skills-standard platform). |
 | [`AGENTS.md`](../../AGENTS.md) | Agent entry instructions for Codex. |
+| [`scripts/check-update.py`](../../scripts/check-update.py) | Pre-flight skill update check (local checkout vs the remote release branch; exit 0/1/2 = up to date / update available / cannot check). |
 | [`scripts/reproduce.py`](../../scripts/reproduce.py) | Zero-install `/reproduce` CLI wrapper (no pip install required). |
 | [`scripts/smoke.py`](../../scripts/smoke.py) | Platform-independent smoke verification (skill structure + `reproduce init`). |
 | [`scripts/verify.py`](../../scripts/verify.py) | Canonical repository verification entry point (pytest + ruff + mypy). |

@@ -4,6 +4,28 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ## [Unreleased]
 
+### Added
+
+- **Pre-flight skill update check** (issue #117) — the skill directory
+  is a git clone of the release branch, so any push to it makes every
+  installed copy outdated; `scripts/check-update.py` now surfaces that
+  signal before a reproduction starts. The deterministic, read-only
+  script (no working-tree mutation) fetches
+  `origin/release/skill-v0.2.0`, prints the local version, the latest
+  available version and the N-behind commit count, and exits `0` (up to
+  date), `1` (update available, with apply instructions) or `2`
+  (cannot check: offline / not a clone / missing origin or release
+  branch / unreadable version). `SKILL.md`,
+  `templates/SKILL.md.template` and `AGENTS.md` carry the Pre-flight
+  step: agents run the check before `/reproduce`, report an available
+  update to the user, and apply it only after explicit confirmation via
+  `git merge --ff-only` (refused on a dirty worktree, never forced),
+  gated by `python scripts/smoke.py` (`[smoke] PASS`). The reproduction
+  path itself stays network-free; the check is covered by exit-code
+  contract tests (`tests/scripts/`) and demonstrated end to end in
+  scenario K (`tests/scenarios/test_K_skill_update_flow.py`), and
+  `scripts/smoke.py` asserts the script is part of the skill structure.
+
 ## [0.2.1] - 2026-08-15
 
 Issue-resolution release: every open issue is now resolved — the state tree
