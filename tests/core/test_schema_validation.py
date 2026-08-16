@@ -168,6 +168,13 @@ INVALID_CASES: dict[str, tuple[str, dict, str]] = {
          "run_type": 42, "lifecycle_state": "CREATED"},
         "run_type",
     ),
+    "wrong_type_goal_version": (
+        "lab-execution-package",
+        {"package_id": "P1", "project_id": "PR", "goal_id": "G1",
+         "run_id": "R1", "objective": "o", "procedure": [{}],
+         "required_return": ["d"], "goal_version": 7},
+        "goal_version",
+    ),
     "min_items_metrics_empty": (
         "statistical-design",
         {"design_id": "SD1", "goal_id": "G1", "version": "v1", "frozen": False,
@@ -197,6 +204,19 @@ def test_schema_invalid_objects_are_rejected(
     errors = validate_object(obj_type, doc)
     assert errors, f"{obj_type}: invalid document was accepted"
     assert any(expected_fragment in error for error in errors), errors
+
+
+def test_lab_execution_package_goal_version_optional_backwards_compatible() -> None:
+    # The frozen Goal version (10-EXPERIMENT-SUBSYSTEM.md SS3) is a schema
+    # property but stays optional: a manifest carrying it validates, and a
+    # manifest written before the field existed (without goal_version)
+    # keeps validating unchanged.
+    doc = copy.deepcopy(VALID_DOCS["lab-execution-package"])
+    assert validate_object("lab-execution-package", doc) == []
+    assert "goal_version" in load_schema("lab-execution-package")["properties"]
+    assert "goal_version" not in load_schema("lab-execution-package")["required"]
+    del doc["goal_version"]
+    assert validate_object("lab-execution-package", doc) == []
 
 
 def test_validate_and_reject_raises_for_invalid_object() -> None:

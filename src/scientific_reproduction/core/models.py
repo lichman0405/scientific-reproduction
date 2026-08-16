@@ -788,6 +788,10 @@ class LabExecutionPackage(CoreModel):
     procedure: list[dict[str, Any]]
     required_return: list[str]
     track: GoalTrack | None = None
+    #: The frozen Goal version the package executes (10-EXPERIMENT-SUBSYSTEM
+    #: SS3: "track and frozen Goal version"); None on packages built before
+    #: the field existed (serialized omitted, never null).
+    goal_version: str | None = None
     reagents: list[dict[str, Any]] = field(default_factory=list)
     instruments: list[dict[str, Any]] = field(default_factory=list)
     critical_control_variables: list[dict[str, Any]] = field(default_factory=list)

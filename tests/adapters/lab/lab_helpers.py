@@ -37,11 +37,17 @@ def make_package(
     package_id: str = PACKAGE_ID,
     project_id: str = PROJECT_ID,
     goal_id: str = GOAL_ID,
+    goal_version: str | None = None,
     objective: str = "synthesize the target compound per the frozen protocol",
     required_return: tuple[str, ...] = DEFAULT_RETURNS,
 ) -> dict[str, Any]:
-    """A minimal schema-valid ``lab-execution-package`` mapping."""
-    return {
+    """A minimal schema-valid ``lab-execution-package`` mapping.
+
+    ``goal_version`` (the frozen Goal version, 10-EXPERIMENT-SUBSYSTEM
+    SS3) is included only when set, so the default mapping stays a valid
+    pre-goal_version manifest.
+    """
+    data: dict[str, Any] = {
         "package_id": package_id,
         "project_id": project_id,
         "goal_id": goal_id,
@@ -50,6 +56,9 @@ def make_package(
         "procedure": [{"step": 1, "action": "weigh the precursor"}],
         "required_return": list(required_return),
     }
+    if goal_version is not None:
+        data["goal_version"] = goal_version
+    return data
 
 
 def make_result_manifest(

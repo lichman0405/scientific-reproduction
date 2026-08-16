@@ -199,6 +199,39 @@ def test_dispatch_ac01_accepts_typed_lab_execution_package(handoff):
     assert stored["required_return"] == ["raw-data.csv"]
 
 
+def test_dispatch_ac01_surfaces_goal_version_in_manifest(handoff):
+    # AC-01 + 10-EXPERIMENT-SUBSYSTEM SS3: the frozen Goal version the
+    # package carries is surfaced in the written execution manifest
+    # (both the typed model and a raw mapping path).
+    base, adapter = handoff
+    package = make_package(goal_version="v1")
+    adapter.dispatch(package)
+    stored = read_json(base / "outgoing" / RUN_ID / EXECUTION_MANIFEST_FILENAME)
+    assert stored["goal_version"] == "v1"
+    model = LabExecutionPackage.from_dict(
+        make_package(goal_version="v1", run_id="sr_run_goal_version_0001")
+    )
+    adapter.dispatch(model)
+    stored_model = read_json(
+        base / "outgoing" / "sr_run_goal_version_0001" / EXECUTION_MANIFEST_FILENAME
+    )
+    assert stored_model["goal_version"] == "v1"
+    assert stored_model == model.to_dict()
+
+
+def test_dispatch_ac01_manifest_without_goal_version_still_dispatchable(handoff):
+    # Backwards compatibility: a package written before the goal_version
+    # field existed (no goal_version key) passes the schema gate and is
+    # written unchanged -- the field stays optional.
+    base, adapter = handoff
+    package = make_package()
+    assert "goal_version" not in package
+    adapter.dispatch(package)
+    stored = read_json(base / "outgoing" / RUN_ID / EXECUTION_MANIFEST_FILENAME)
+    assert stored == package
+    assert "goal_version" not in stored
+
+
 def test_dispatch_ac01_writes_only_within_injected_paths(tmp_path):
     # The adapter derives every path from the injected base_dir; nothing
     # is created next to it.
