@@ -151,9 +151,18 @@ def test_fdm201_all_ten_scenario_files_exist():
 
 def test_fdm201_no_extra_scenario_files():
     # The suite directory contains exactly the ten frozen scenario files
-    # (plus the benchmark acceptance files of this goal).
+    # (plus the benchmark acceptance files of this goal). Scenario files
+    # outside the FDM-201 fixture (e.g. the skill-update-flow scenario K)
+    # carry no ``_fdm201_`` infix and are not governed by this acceptance;
+    # any *additional* FDM-201-named scenario would be a fixture drift and
+    # is rejected.
+    frozen = {filename for _, filename in SCENARIO_FILES}
     found = {p.name for p in SCENARIOS_DIR.glob("test_*.py")}
-    assert found == {filename for _, filename in SCENARIO_FILES}
+    fdm_named = {name for name in found if "_fdm201_" in name}
+    assert frozen == fdm_named, (
+        "FDM-201 scenario fixture drifted: frozen files are"
+        f" {sorted(frozen)}, found FDM-201-named files {sorted(fdm_named)}"
+    )
 
 
 # ---------------------------------------------------------------------------
