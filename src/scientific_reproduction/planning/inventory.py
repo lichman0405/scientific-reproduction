@@ -888,9 +888,9 @@ class RequirementClosure:
     ``REQUIREMENT_OUTCOME_RULES`` -- the enforced closure rules; its
     ``matched_rule_id`` is recorded in the event payload);
     ``event_record`` is the appended ``requirement.outcome.updated``
-    event (None when no event log was given); ``replayed`` marks a
-    crash-window convergence (the record was already at the requested
-    outcome and only the missing event was appended).
+    event; ``replayed`` marks a crash-window convergence (the record
+    was already at the requested outcome and only the missing event was
+    appended).
     """
 
     requirement: ReproductionRequirement
@@ -948,8 +948,9 @@ def close_requirement(
     write landed but event append did not; the missing event is then
     appended idempotently (``from`` = the outcome of the last recorded
     closure event of the requirement, or ``OPEN`` when none) and the
-    call returns ``replayed=True``. Without an event log no convergence
-    is possible and the no-op guard always wins.
+    call returns ``replayed=True``. A no-op closure is always rejected:
+    the no-op guard wins whenever the recorded state already matches
+    the requested closure.
 
     Args:
         root: the initialized workspace root.
@@ -964,7 +965,8 @@ def close_requirement(
         at: the injected deterministic closure timestamp.
         reason: the stable closure reason (the event's ``reason``).
         event_log: the append-only event log to audit through (default:
-            no event is appended).
+            a ``ProjectEventLog`` bound to the workspace ``events/``
+            directory).
 
     Returns:
         The :class:`RequirementClosure` (updated record, enforced
@@ -1010,6 +1012,7 @@ def close_requirement(
     _require_closure_args(actor, at, reason)
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     _validate_registry_id("requirement", requirement_id)
     stored = read_requirement(project_root, requirement_id)
     # Closure rules: classify the new outcome through the normative rule
@@ -1156,19 +1159,31 @@ def _outcome_updated_event(
     )
 
 
+def _resolve_event_log(
+    project_root: Path, event_log: ProjectEventLog | None
+) -> ProjectEventLog:
+    """Resolve the event log to audit through (default: workspace-bound).
+
+    ``close_requirement`` declares ``event_log: ProjectEventLog | None
+    = None`` with the documented default "a ProjectEventLog bound to
+    the workspace events/ directory". None must therefore never
+    silently skip the audit append: the default call path audits
+    through a ``ProjectEventLog`` over the workspace root (records at
+    ``events/<event_id>.json`` -- the same canonical log
+    ``planning.init`` and the monitoring engines append to).
+    """
+    if event_log is not None:
+        return event_log
+    return ProjectEventLog(project_root)
+
+
 def _append_event(
-    event_log: ProjectEventLog | None,
+    event_log: ProjectEventLog,
     event: ProjectEvent,
     *,
     idempotency_key: str,
-) -> EventRecord | None:
-    """Append ``event`` to ``event_log`` under ``idempotency_key``.
-
-    Returns None when no event log was given (persist-only mode), so
-    callers can treat the audit append as optional without branching.
-    """
-    if event_log is None:
-        return None
+) -> EventRecord:
+    """Append ``event`` to ``event_log`` under ``idempotency_key``."""
     return event_log.append(event, idempotency_key=idempotency_key)
 
 
@@ -1202,7 +1217,7 @@ def _converge_closure(
     actor: str,
     at: str,
     reason: str,
-    event_log: ProjectEventLog | None,
+    event_log: ProjectEventLog,
 ) -> RequirementClosure:
     """Converge a re-submitted closure with the recorded state.
 
@@ -1217,11 +1232,6 @@ def _converge_closure(
     ``from`` of the healed event is the outcome of the last recorded
     closure event of the requirement (or ``OPEN`` when none).
     """
-    if event_log is None:
-        raise RequirementClosureError(
-            f"requirement {stored.requirement_id!r} is already closed with"
-            f" outcome {outcome.value!r}; nothing to do"
-        )
     last = _last_recorded_closure_event(event_log, stored.requirement_id)
     recorded_rating: str | None = None
     if last is not None and last.payload:

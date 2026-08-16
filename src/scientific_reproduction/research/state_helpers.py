@@ -94,7 +94,6 @@ from scientific_reproduction.research.evidence import (
 from scientific_reproduction.research.requests import (
     IllegalRequestTransitionError,
     RequestIssuanceError,
-    RequestLinkageError,
     ResearchRequestError,
     ResultLinkageRecord,
     apply_request_transition,
@@ -266,10 +265,10 @@ class SourceRegistration:
     ``source`` is the frozen record persisted at
     ``sources/<source_id>.json``; ``identity`` is the canonical
     mirror identity derived by ``research.sources.canonical_identity``;
-    ``event_record`` is the appended ``source.recorded`` event (None
-    when no event log was given); ``replayed`` is True when the
-    registration converged an earlier interrupted registration (the
-    record already existed and only the missing event was appended).
+    ``event_record`` is the appended ``source.recorded`` event;
+    ``replayed`` is True when the registration converged an earlier
+    interrupted registration (the record already existed and only the
+    missing event was appended).
     """
 
     source: ResearchSource
@@ -284,8 +283,8 @@ class EvidenceRegistration:
 
     ``evidence`` is the frozen record persisted at
     ``evidence/<evidence_id>.json``; ``event_record`` is the
-    appended ``evidence.recorded`` event (None without an event log);
-    ``replayed`` marks a converged earlier registration.
+    appended ``evidence.recorded`` event; ``replayed`` marks a
+    converged earlier registration.
     """
 
     evidence: ClaimSpecificEvidence
@@ -299,9 +298,8 @@ class RequestRegistration:
 
     ``request`` is the frozen record persisted at
     ``research-requests/research-request/<request_id>.json``;
-    ``event_record`` is the appended ``research-request.recorded`` event
-    (None without an event log); ``replayed`` marks a converged earlier
-    registration.
+    ``event_record`` is the appended ``research-request.recorded`` event;
+    ``replayed`` marks a converged earlier registration.
     """
 
     request: ResearchRequest
@@ -363,9 +361,10 @@ def register_source(
     The research role's source authoring entry: the record is
     schema-shaped (``schemas/source.schema.yaml``), canonical-JSON
     persisted through the atomic state backend, and audited with one
-    ``source.recorded`` event (when an event log is given). The
-    canonical mirror identity (``research.sources.canonical_identity``)
-    is derived at authoring time -- a malformed DOI is surfaced loudly
+    ``source.recorded`` event under the deterministic key
+    ``source.recorded:<source_id>``. The canonical mirror identity
+    (``research.sources.canonical_identity``) is derived at authoring
+    time -- a malformed DOI is surfaced loudly
     (``SourceNormalizationError``) -- and a record whose identity
     collides with an already-registered source is rejected with
     ``DuplicateSourceError`` (06-EVIDENCE-SYSTEM.md section 7: mirrors
@@ -374,10 +373,10 @@ def register_source(
     Registration is exactly once per ``source_id``: source records are
     immutable, and a re-registration of the same id -- even with
     different content -- is rejected with ``DuplicateSourceError`` and
-    the original file is never rewritten. With an event log, a re-run
-    after a crash between the record write and the event append
-    converges instead: the missing deterministic event is appended
-    (``replayed=True``) and the original record stays untouched.
+    the original file is never rewritten. A re-run after a crash
+    between the record write and the event append converges instead:
+    the missing deterministic event is appended (``replayed=True``) and
+    the original record stays untouched.
 
     Args:
         root: the initialized workspace root.
@@ -412,15 +411,15 @@ def register_source(
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     model = _coerce_source(source)
     _require_actor_stamp(actor, recorded_at)
     store = _source_store(project_root)
     event_id = generate_id("event", SOURCE_RECORDED_EVENT_TYPE, model.source_id)
     if store.exists("source", model.source_id):
-        if event_log is None or event_log.get(event_id) is not None:
-            # Record and its deterministic event both present (or no log
-            # to prove either way): a true duplicate -- never a silent
-            # re-registration.
+        if event_log.get(event_id) is not None:
+            # Record and its deterministic event both present: a true
+            # duplicate -- never a silent re-registration.
             raise DuplicateSourceError(
                 f"source {model.source_id!r} is already registered; source"
                 " records are immutable and each source_id is written"
@@ -469,13 +468,14 @@ def register_evidence(
     ids/claim/finding, A/R/D axes within the 0-4 rubric, non-empty
     ``reliability_checklist_ref``, non-empty ``used_by`` entries),
     schema-validated and canonical-JSON persisted through the atomic
-    state backend, and audited with one ``evidence.recorded`` event.
+    state backend, and audited with one ``evidence.recorded`` event
+    under the deterministic key ``evidence.recorded:<evidence_id>``.
 
     Registration is exactly once per ``evidence_id`` (immutable
     records; a duplicate raises ``EvidenceDuplicateError``, reusing the
-    in-memory registry's duplicate family); with an event log, a
-    re-run after a crash between the write and the event append
-    converges (``replayed=True``).
+    in-memory registry's duplicate family); a re-run after a crash
+    between the write and the event append converges
+    (``replayed=True``).
 
     Args:
         root: the initialized workspace root.
@@ -509,16 +509,16 @@ def register_evidence(
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     model = _coerce_evidence(evidence)
     validate_evidence_record(model)
     _require_actor_stamp(actor, recorded_at)
     store = _evidence_store(project_root)
     event_id = generate_id("event", EVIDENCE_RECORDED_EVENT_TYPE, model.evidence_id)
     if store.exists("evidence", model.evidence_id):
-        if event_log is None or event_log.get(event_id) is not None:
-            # Record and its deterministic event both present (or no log
-            # to prove either way): a true duplicate -- never a silent
-            # re-registration.
+        if event_log.get(event_id) is not None:
+            # Record and its deterministic event both present: a true
+            # duplicate -- never a silent re-registration.
             raise EvidenceDuplicateError(
                 f"evidence {model.evidence_id!r} is already registered;"
                 " evidence records are immutable and each evidence_id is"
@@ -562,12 +562,14 @@ def register_research_request(
     and ``status == OPEN`` -- so a record can never bypass the
     lifecycle rule table into a later status. The record is
     schema-validated, canonical-JSON persisted through the atomic state
-    backend, and audited with one ``research-request.recorded`` event.
+    backend, and audited with one ``research-request.recorded`` event
+    under the deterministic key
+    ``research-request.recorded:<request_id>``.
 
     Registration is exactly once per ``request_id`` (immutable
-    records; a duplicate raises ``DuplicateRequestError``); with an
-    event log, a re-run after a crash between the write and the event
-    append converges (``replayed=True``).
+    records; a duplicate raises ``DuplicateRequestError``); a re-run
+    after a crash between the write and the event append converges
+    (``replayed=True``).
 
     Args:
         root: the initialized workspace root.
@@ -602,6 +604,7 @@ def register_research_request(
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     model = _coerce_request(request)
     if model.requested_by != "supervisor":
         raise RequestIssuanceError(
@@ -620,10 +623,9 @@ def register_research_request(
         "event", RESEARCH_REQUEST_RECORDED_EVENT_TYPE, model.request_id
     )
     if store.exists("research-request", model.request_id):
-        if event_log is None or event_log.get(event_id) is not None:
-            # Record and its deterministic event both present (or no log
-            # to prove either way): a true duplicate -- never a silent
-            # re-registration.
+        if event_log.get(event_id) is not None:
+            # Record and its deterministic event both present: a true
+            # duplicate -- never a silent re-registration.
             raise DuplicateRequestError(
                 f"research request {model.request_id!r} is already"
                 " registered; research-request records are immutable and"
@@ -686,8 +688,9 @@ def advance_research_request(
     ``to_status`` is missing from the log, which proves an earlier
     interrupted call (the record write landed, the event append did
     not); the missing event is then appended idempotently and the call
-    returns ``replayed=True``. Without an event log no convergence is
-    possible and the no-op guard always wins.
+    returns ``replayed=True``. States without a unique predecessor (the
+    initial status) have no reconstructible arc: the no-op guard always
+    wins there.
 
     Args:
         root: the initialized workspace root.
@@ -734,11 +737,10 @@ def advance_research_request(
     _require_transition_args(actor, reason, at)
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     store = _request_store(project_root)
     current = _read_request(store, project_root, request_id)
     if current.status == to_status:
-        if event_log is None:
-            raise IllegalRequestTransitionError(current.status, to_status)
         predecessor = REQUEST_PREDECESSOR_STATUS[to_status]
         if predecessor is None:
             raise IllegalRequestTransitionError(current.status, to_status)
@@ -793,10 +795,9 @@ def link_result_to_request(
 
     The link is idempotent on (request, evidence): a re-run that finds
     ``evidence_id`` already linked re-resolves the original event
-    (``replayed=True``) when an event log is given -- including after a
-    crash between the record write and the event append -- and raises
-    ``RequestLinkageError`` (R-LINK-D1) when no event log can prove the
-    earlier link.
+    (``replayed=True``) -- including after a crash between the record
+    write and the event append, whose missing deterministic event is
+    then appended (healed convergence).
 
     Args:
         root: the initialized workspace root.
@@ -839,16 +840,10 @@ def link_result_to_request(
         _require_nonempty(value, name)
     project_root = Path(root).resolve()
     _require_initialized(project_root)
+    event_log = _resolve_event_log(project_root, event_log)
     store = _request_store(project_root)
     current = _read_request(store, project_root, request_id)
     if evidence_id in current.result_evidence_ids:
-        if event_log is None:
-            raise RequestLinkageError(
-                f"link_result_to_request: cannot link evidence"
-                f" {evidence_id!r} to request {request_id!r}: rule"
-                " R-LINK-D1 rejected the linkage (an evidence id may only"
-                " be linked once)"
-            )
         # The deterministic re-append resolves the original event
         # (``replayed=True``); the link's audit record is reconstructed
         # from the event alone.
@@ -1226,15 +1221,31 @@ def _read_request(
     return _read_request_record(store, request_id)
 
 
+def _resolve_event_log(
+    project_root: Path, event_log: ProjectEventLog | None
+) -> ProjectEventLog:
+    """Resolve the event log to audit through (default: workspace-bound).
+
+    Every public API declares ``event_log: ProjectEventLog | None =
+    None`` with the documented default "a ProjectEventLog bound to the
+    workspace events/ directory". None must therefore never silently
+    skip the audit append: the default call path audits through a
+    ``ProjectEventLog`` over the workspace root (records at
+    ``events/<event_id>.json`` -- the same canonical log
+    ``planning.init`` and the monitoring engines append to).
+    """
+    if event_log is not None:
+        return event_log
+    return ProjectEventLog(project_root)
+
+
 def _append(
-    event_log: ProjectEventLog | None,
+    event_log: ProjectEventLog,
     event: ProjectEvent,
     *,
     idempotency_key: str,
-) -> EventRecord | None:
-    """Append ``event`` idempotently; None when no event log is given."""
-    if event_log is None:
-        return None
+) -> EventRecord:
+    """Append ``event`` idempotently through the resolved event log."""
     return event_log.append(event, idempotency_key=idempotency_key)
 
 

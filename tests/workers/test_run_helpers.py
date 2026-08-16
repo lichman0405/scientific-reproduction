@@ -125,7 +125,11 @@ def test_register_run_persists_canonical_record_and_audits(tmp_path):
     )
     assert registration.run == make_run()
     assert registration.replayed is False
-    assert registration.event_record is None
+    # The default call audits through the workspace-bound log.
+    record = registration.event_record
+    assert record is not None and record.replayed is False
+    assert record.event.event_type == RUN_RECORDED_EVENT_TYPE
+    assert event_log(root).get(record.event.event_id) is not None
     stored = json.loads(
         (root / RUNS_STATE_DIR / "RUN-1.json").read_text(encoding="utf-8")
     )
@@ -202,6 +206,51 @@ def test_register_run_crash_window_converges_exactly_once(tmp_path):
             event_log=log,
         )
     assert len(run_flow_events(root)) == 1
+
+
+def test_default_event_log_is_workspace_bound_and_ordered(tmp_path):
+    root = init_project(tmp_path)
+    # No explicit event log anywhere: every call audits through the
+    # workspace-bound log (records at events/) in append order.
+    register_run(root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT)
+    transition_run(
+        root, "RUN-1", LifecycleState.READY,
+        actor=ACTOR, reason="run queued", at="2026-01-03T00:00:00Z",
+    )
+    records = run_flow_events(root)
+    assert [record.event.event_type for record in records] == [
+        RUN_RECORDED_EVENT_TYPE,
+        RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+    ]
+    assert [record.event.object_id for record in records] == ["RUN-1", "RUN-1"]
+    # The append-only order invariants hold over the shared canonical
+    # log: strictly increasing, unique sequence numbers, every event
+    # readable back from the workspace log.
+    sequences = [record.sequence for record in records]
+    assert sequences == sorted(sequences)
+    assert len(set(sequences)) == len(sequences)
+    assert all(
+        event_log(root).get(record.event.event_id) is not None for record in records
+    )
+
+
+def test_explicit_event_log_overrides_workspace_default(tmp_path):
+    root = init_project(tmp_path)
+    other = init_project(tmp_path / "other")
+    registration = register_run(
+        root,
+        make_run(),
+        actor=ACTOR,
+        recorded_at=RECORDED_AT,
+        event_log=event_log(other),
+    )
+    record = registration.event_record
+    assert record is not None
+    assert record.event.event_type == RUN_RECORDED_EVENT_TYPE
+    # The event went to the explicitly given log, never the workspace one.
+    assert run_flow_events(root) == []
+    assert event_log(other).get(record.event.event_id) is not None
+    assert len(run_flow_events(other)) == 1
 
 
 def test_register_run_requires_initialized_project(tmp_path):
@@ -324,7 +373,7 @@ def test_transition_run_rejects_illegal_pairs(tmp_path):
             actor=ACTOR, reason="skip", at="2026-01-03T00:00:00Z",
         )
     # A no-op (CREATED -> CREATED) is never legal and never enters the
-    # audit record, with or without an event log.
+    # audit record (default or explicit log).
     with pytest.raises(IllegalTransitionError, match="CREATED.*CREATED"):
         transition_run(
             root, "RUN-1", LifecycleState.CREATED,
@@ -336,7 +385,9 @@ def test_transition_run_rejects_illegal_pairs(tmp_path):
             actor=ACTOR, reason="noop", at="2026-01-03T00:00:00Z",
             event_log=event_log(root),
         )
-    assert run_flow_events(root) == []
+    assert [r.event.event_type for r in run_flow_events(root)] == [
+        RUN_RECORDED_EVENT_TYPE
+    ]
     assert read_run(root, "RUN-1").lifecycle_state is LifecycleState.CREATED
 
 
@@ -410,7 +461,9 @@ def test_transition_run_multi_predecessor_no_convergence(tmp_path):
             actor=ACTOR, reason="cancel", at="2026-01-03T00:00:00Z",
             event_log=event_log(root),
         )
-    assert run_flow_events(root) == []
+    assert [r.event.event_type for r in run_flow_events(root)] == [
+        RUN_RECORDED_EVENT_TYPE
+    ]
 
 
 def test_transition_run_unknown_run_and_type_errors(tmp_path):
