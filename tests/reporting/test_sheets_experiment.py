@@ -347,6 +347,63 @@ def test_sheets_experiment_errors_type_error_boundaries(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# language packs: explicit language input (issue #122)
+# ---------------------------------------------------------------------------
+
+
+def test_sheets_experiment_language_zh_renders_chinese(tmp_path):
+    # The zh pack renders the template strings in Chinese; the manifest
+    # content (reagent names, step titles, tokens) is data and stays
+    # verbatim.
+    root = init_project(tmp_path)
+    _install_goal(root)
+    run_id = _dispatch(root)
+    html = build_experiment_sheet(root, run_id, language="zh").to_html()
+
+    assert "实验执行单" in html
+    assert "操作员执行单" in html
+    assert f"运行 {run_id}" in html
+    assert "操作步骤" in html and "步骤 1" in html
+    assert "身份" in html and "项目" in html and "轨道" in html
+    assert "目标说明" in html and "试剂" in html and "仪器" in html
+    assert "关键控制变量" in html
+    assert "禁止变更" in html and "严格复现轨道" in html
+    assert "安全须知" in html
+    assert "操作员记录" in html and "必需返回项" in html
+    assert "操作员签名" in html and "主管签名" in html
+    assert 'lang="zh"' in html
+    # Manifest data is never translated.
+    assert "precursor A" in html
+    assert "raw-data" in html and "batch-log" in html
+    assert "Reproduce the FDM-201 batch-level uptake" in html
+
+
+def test_sheets_experiment_language_default_is_english_byte_identical(tmp_path):
+    # ``language="en"`` is the explicit default and renders byte-identical
+    # to the implicit default (the pre-pack renderer).
+    root = init_project(tmp_path)
+    _install_goal(root)
+    run_id = _dispatch(root)
+    default = build_experiment_sheet(root, run_id)
+    explicit = build_experiment_sheet(root, run_id, language="en")
+    assert default.to_html() == explicit.to_html()
+    assert default.to_canonical_json() == explicit.to_canonical_json()
+    assert render_experiment_sheet(root, run_id, language="en") == default.to_html()
+
+
+def test_sheets_experiment_language_unknown_raises_stable_error(tmp_path):
+    # Unknown languages and non-string inputs raise the stable boundary
+    # errors of ``resolve_pack`` (never silently fall back).
+    root = init_project(tmp_path)
+    _install_goal(root)
+    run_id = _dispatch(root)
+    with pytest.raises(ValueError, match="available languages: en, zh"):
+        build_experiment_sheet(root, run_id, language="fr")
+    with pytest.raises(TypeError, match="language must be a non-empty string"):
+        build_experiment_sheet(root, run_id, language=123)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
 # the structured sheet surface
 # ---------------------------------------------------------------------------
 
