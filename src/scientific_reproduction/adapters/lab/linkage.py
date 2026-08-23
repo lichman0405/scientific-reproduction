@@ -23,6 +23,15 @@ already-external run with the same dispatch id is an idempotent no-op
 after a crash without error). All timestamps come from the injected
 clock (``now``); no wall clock in the tested path.
 
+Every arc actually performed is audited in the project event log as one
+deterministic ``run.lifecycle_change`` event (the transition vocabulary
+of ``workers.run_helpers``, under the same deterministic idempotency
+key), appended **before** the record write: a run starting at ``READY``
+appends both mainline arcs, a stale ``DISPATCHED`` run the second, and
+an idempotent re-link appends none -- the record write stays the commit
+point and the existing crash / idempotent-re-link convergence is
+preserved exactly.
+
 Errors follow the house paradigm: ``TypeError`` at type boundaries,
 ``LabAdapterDataError`` (a ``ValueError`` subclass) for linkage
 conflicts with stable messages, and the real
@@ -42,13 +51,18 @@ from scientific_reproduction.adapters.lab.base import (
     DispatchRecord,
     LabAdapterDataError,
 )
+from scientific_reproduction.core.events import ProjectEvent, ProjectEventLog
+from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import LifecycleState, Run, RunExternal
 from scientific_reproduction.core.state_backend import StateBackend
 from scientific_reproduction.core.transitions import transition
 
 __all__ = [
+    "DISPATCH_LINKAGE_REASON",
     "FILESYSTEM_BACKEND_NAME",
+    "LINKAGE_ACTOR",
     "LinkageClock",
+    "RUN_LIFECYCLE_CHANGE_EVENT_TYPE",
     "link_run_to_dispatch",
 ]
 
@@ -56,6 +70,22 @@ __all__ = [
 #: adapter (recorded as ``run.external.backend`` by the linkage helper
 #: when no other backend is named; matches ``FilesystemLabAdapter.adapter_id``).
 FILESYSTEM_BACKEND_NAME: str = "filesystem"
+
+#: Event type of a run lifecycle transition, idempotency key
+#: ``run.lifecycle_change:<run_id>:<from>:<to>`` -- the same transition
+#: vocabulary ``workers.run_helpers.transition_run`` appends for the
+#: same arcs (``RUN_LIFECYCLE_CHANGE_EVENT_TYPE`` there); the linkage
+#: audits one such event per arc it actually performs, so the
+#: external-dispatch phase stays visible in the project event log.
+RUN_LIFECYCLE_CHANGE_EVENT_TYPE: str = "run.lifecycle_change"
+
+#: The stable actor stamped on the linkage's lifecycle events: the
+#: dispatching orchestrator (the Experiment Worker of
+#: 10-EXPERIMENT-SUBSYSTEM.md SS1) that owns the Run-record linkage.
+LINKAGE_ACTOR: str = "experiment-worker"
+
+#: The stable reason stamped on every linkage lifecycle event.
+DISPATCH_LINKAGE_REASON: str = "external dispatch linkage"
 
 #: The injectable clock of the linkage helper: a callable producing a
 #: timestamp string (mirrors the adapters' caller-injected timestamps).
@@ -68,12 +98,45 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _lifecycle_change_event(
+    run_id: str,
+    from_state: LifecycleState,
+    to_state: LifecycleState,
+    at: str,
+) -> ProjectEvent:
+    """The deterministic transition event of one linkage arc.
+
+    Mirrors ``workers.run_helpers._lifecycle_change_event``: the event
+    id is a pure function of (run id, from, to) -- a crash-window
+    re-link re-appends the same event under the same idempotency key
+    and resolves to the single original record (exactly-once).
+    """
+    return ProjectEvent(
+        event_id=generate_id(
+            "event",
+            RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+            run_id,
+            from_state.value,
+            to_state.value,
+        ),
+        timestamp=at,
+        actor=LINKAGE_ACTOR,
+        event_type=RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+        object_id=run_id,
+        run_id=run_id,
+        from_=from_state.value,
+        to=to_state.value,
+        reason=DISPATCH_LINKAGE_REASON,
+    )
+
+
 def link_run_to_dispatch(
     run_store: StateBackend,
     dispatch: DispatchRecord,
     *,
     backend: str = FILESYSTEM_BACKEND_NAME,
     now: LinkageClock | None = None,
+    event_log: ProjectEventLog | None = None,
 ) -> Run:
     """Link one dispatch to its Run record and persist the linkage.
 
@@ -88,9 +151,16 @@ def link_run_to_dispatch(
     external identity records the dispatch (``backend`` + the
     ``DispatchRecord.dispatch_id``, preserving any existing ``job_id`` /
     ``working_directory``), and the updated record is persisted through
-    the store's real ``run`` schema gate. A run whose external identity
-    already names a **different** dispatch is refused loudly, never
-    silently re-linked; a run whose lifecycle cannot carry the dispatch
+    the store's real ``run`` schema gate. Every arc actually performed
+    is audited in the event log as one deterministic
+    ``run.lifecycle_change`` event under its stable idempotency key
+    (the transition vocabulary of ``workers.run_helpers``) -- appended
+    **before** the record write, so the record write stays the commit
+    point and a crash-window re-link converges exactly: re-performed
+    arcs re-append the same events idempotently, and an idempotent
+    re-link appends none. A run whose external identity already names
+    a **different** dispatch is refused loudly, never silently
+    re-linked; a run whose lifecycle cannot carry the dispatch
     (result-bearing or terminal) is refused by the transition machinery.
 
     Args:
@@ -105,13 +175,19 @@ def link_run_to_dispatch(
             :data:`FILESYSTEM_BACKEND_NAME`, the v0.1 reference adapter).
         now: injectable clock producing the ``updated_at`` stamp
             (default: ``_utc_now`` -- tests inject a fixed clock).
+        event_log: the append-only event log to audit through (default:
+            a :class:`ProjectEventLog` over the run store's
+            ``base_dir`` -- the workspace root, whose canonical log
+            lives at ``events/``; the same default ``register_run`` and
+            ``transition_run`` use).
 
     Returns:
         The updated :class:`Run` (the persisted record).
 
     Raises:
         TypeError: ``run_store`` is not a ``StateBackend``, ``dispatch``
-            is not a ``DispatchRecord``, or ``now`` is not callable.
+            is not a ``DispatchRecord``, ``now`` is not callable, or
+            ``event_log`` is not a ``ProjectEventLog``.
         LabAdapterDataError: ``backend`` is not a non-empty string, or
             the Run record's external identity already names a different
             ``dispatch_id`` (the run is linked to another dispatch).
@@ -137,6 +213,19 @@ def link_run_to_dispatch(
         )
     if now is not None and not callable(now):
         raise TypeError(f"now must be callable, got {type(now).__name__}")
+    if event_log is not None and not isinstance(event_log, ProjectEventLog):
+        raise TypeError(
+            "event_log must be a ProjectEventLog, got"
+            f" {type(event_log).__name__}"
+        )
+    if event_log is None:
+        # Default audit target: a ProjectEventLog over the run store's
+        # ``base_dir`` -- the workspace root of the v0.1 filesystem
+        # backend, whose canonical log lives at ``events/`` (mirrors
+        # workers.run_helpers._resolve_event_log). ``base_dir`` is
+        # public on the concrete backend, not on the abstract
+        # ``StateBackend`` interface.
+        event_log = ProjectEventLog(getattr(run_store, "base_dir"))
     stamp = (now if now is not None else _utc_now)()
 
     run = Run.from_dict(run_store.read("run", dispatch.run_id))
@@ -155,13 +244,34 @@ def link_run_to_dispatch(
     # mainline walks READY -> DISPATCHED -> RUNNING_EXTERNAL (a direct
     # READY -> RUNNING_EXTERNAL jump is not a legal transition), an
     # already-external run re-links idempotently, and any state that
-    # cannot carry the dispatch is refused loudly.
+    # cannot carry the dispatch is refused loudly. ``arcs`` collects
+    # the moves actually performed (an idempotent re-link: none).
+    arcs: list[tuple[LifecycleState, LifecycleState]] = []
     if run.lifecycle_state is LifecycleState.READY:
         transition(run.lifecycle_state, LifecycleState.DISPATCHED)
+        arcs = [
+            (LifecycleState.READY, LifecycleState.DISPATCHED),
+            (LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL),
+        ]
     elif run.lifecycle_state is LifecycleState.DISPATCHED:
         transition(run.lifecycle_state, LifecycleState.RUNNING_EXTERNAL)
+        arcs = [(LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL)]
     elif run.lifecycle_state is not LifecycleState.RUNNING_EXTERNAL:
         transition(run.lifecycle_state, LifecycleState.RUNNING_EXTERNAL)
+
+    # One deterministic audit event per arc, appended under the stable
+    # idempotency key BEFORE the record write: a crash between the
+    # appends and the write leaves the record stale, and the re-link
+    # re-performs the same arcs and re-appends the same events (the
+    # log converges to the single original records -- no duplicates).
+    for from_state, to_state in arcs:
+        event_log.append(
+            _lifecycle_change_event(run.run_id, from_state, to_state, stamp),
+            idempotency_key=(
+                f"{RUN_LIFECYCLE_CHANGE_EVENT_TYPE}:{run.run_id}:"
+                f"{from_state.value}:{to_state.value}"
+            ),
+        )
 
     external = RunExternal(
         backend=backend,

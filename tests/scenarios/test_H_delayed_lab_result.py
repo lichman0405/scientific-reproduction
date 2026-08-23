@@ -50,7 +50,10 @@ from scientific_reproduction.adapters.lab.base import (
     DispatchState,
 )
 from scientific_reproduction.adapters.lab.filesystem import FilesystemLabAdapter
-from scientific_reproduction.adapters.lab.linkage import link_run_to_dispatch
+from scientific_reproduction.adapters.lab.linkage import (
+    RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+    link_run_to_dispatch,
+)
 from scientific_reproduction.adapters.lab.manifest import (
     RESULT_MANIFEST_VERSION,
     LabResultManifest,
@@ -327,6 +330,30 @@ def completion_event_id() -> str:
     )
 
 
+def linkage_event_ids() -> tuple[str, str]:
+    """The deterministic ids of the two linkage lifecycle events the
+    worker's dispatch appends to the project event log (the issue-146
+    audit trail): one ``run.lifecycle_change`` event per arc the linkage
+    actually performs on the READY run (``READY -> DISPATCHED`` and
+    ``DISPATCHED -> RUNNING_EXTERNAL``)."""
+    return (
+        generate_id(
+            "event",
+            RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+            RUN_ID,
+            LifecycleState.READY.value,
+            LifecycleState.DISPATCHED.value,
+        ),
+        generate_id(
+            "event",
+            RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+            RUN_ID,
+            LifecycleState.DISPATCHED.value,
+            LifecycleState.RUNNING_EXTERNAL.value,
+        ),
+    )
+
+
 @dataclass(frozen=True)
 class ScenarioHResult:
     """The frozen, auditable evidence trail of one executed scenario."""
@@ -466,7 +493,8 @@ def test_H_ac02_before_result_no_detection_no_trigger(tmp_path: Path) -> None:
     """Before the lab result returns, the Monitor detects nothing: the
     probe reports running, the run stays ``RUNNING_EXTERNAL`` and the
     trigger scan observes and ignores the run -- never triggered, never
-    fabricated, no trigger record and no hook call."""
+    fabricated, no trigger record and no hook call, and the event log
+    holds only the worker's two linkage audit events (no completion)."""
     root = tmp_path / "scenario-h"
     handoff = root / "lab"
     monitor_state = root / "monitor"
@@ -503,7 +531,12 @@ def test_H_ac02_before_result_no_detection_no_trigger(tmp_path: Path) -> None:
     assert scan.record is None
     assert followup.calls == []
     assert trigger_files(monitor_state) == []
-    assert event_files(events_dir) == []
+    # The worker's dispatch linkage audited its two lifecycle arcs in
+    # the project event log; the Monitor leg fabricated nothing -- the
+    # trail holds exactly those two linkage events, no completion event.
+    assert sorted(p.stem for p in event_files(events_dir)) == sorted(
+        linkage_event_ids()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -527,9 +560,17 @@ def test_H_ac03_monitor_detects_incoming_package_and_reconciles(
     assert result.reconcile_outcome.completed
     assert result.reconcile_outcome.observed_state == EXTERNAL_STATE_RESULT_AVAILABLE
 
+    # The full trail: the two linkage lifecycle events the worker's
+    # dispatch audited plus the single Monitor completion event.
     events = event_files(root / "events")
-    assert len(events) == 1
-    event = json.loads(events[0].read_text(encoding="utf-8"))
+    assert sorted(p.stem for p in events) == sorted(
+        (*linkage_event_ids(), completion_event_id())
+    )
+    event = json.loads(
+        (root / "events" / f"{completion_event_id()}.json").read_text(
+            encoding="utf-8"
+        )
+    )
     assert event["event_id"] == completion_event_id()
     assert event["event_type"] == EXTERNAL_STATUS_CHANGE_EVENT_TYPE
     assert event["run_id"] == RUN_ID
@@ -674,7 +715,11 @@ def test_H_ac02_completion_event_recorded_exactly_once(tmp_path: Path) -> None:
     root = tmp_path / "scenario-h"
     result = execute_scenario_h(root)
 
-    assert len(event_files(root / "events")) == 1
+    # The full trail: the two linkage lifecycle events of the worker's
+    # dispatch plus the single Monitor completion event -- exactly once
+    # each, under their deterministic ids.
+    assert len(event_files(root / "events")) == 3
+    assert (root / "events" / f"{completion_event_id()}.json").is_file()
     assert result.reconcile_outcome.completed
 
     clock = FakeClock()
@@ -688,7 +733,7 @@ def test_H_ac02_completion_event_recorded_exactly_once(tmp_path: Path) -> None:
     )
     again = engine.reconcile(RUN_ID)
     assert not again.completed
-    assert len(event_files(root / "events")) == 1
+    assert len(event_files(root / "events")) == 3
 
 
 # ---------------------------------------------------------------------------

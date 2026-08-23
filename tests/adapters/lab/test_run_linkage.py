@@ -26,7 +26,10 @@ The tests prove that linking
   real transition machinery (``IllegalTransitionError``, nothing
   persisted),
 * preserves unrelated external fields (``job_id``, ``working_directory``),
-* is deterministic under the injected clock, and
+* is deterministic under the injected clock,
+* audits every arc actually performed as one deterministic
+  ``run.lifecycle_change`` event in the project event log (the
+  external-dispatch phase is structurally visible), and
 * composes with the real ``dispatch``: dispatch -> link leaves the run
   addressable by a fresh adapter instance and by the Monitor's
   watch-entry invariant.
@@ -39,6 +42,7 @@ tree.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -51,9 +55,13 @@ from scientific_reproduction.adapters.lab.filesystem import (
     FilesystemLabAdapter,
 )
 from scientific_reproduction.adapters.lab.linkage import (
+    DISPATCH_LINKAGE_REASON,
     FILESYSTEM_BACKEND_NAME,
+    LINKAGE_ACTOR,
+    RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
     link_run_to_dispatch,
 )
+from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     LifecycleState,
@@ -419,3 +427,216 @@ def test_linkage_persisted_record_is_schema_valid(tmp_path) -> None:
         "dispatch_id": DISPATCH_ID,
     }
     assert raw["worker_session_ref"] == WORKER_SESSION
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle audit events (the dispatch phase is visible in the event log)
+# ---------------------------------------------------------------------------
+
+
+def flow_events(run_store: FilesystemStateBackend) -> list[EventRecord]:
+    """Event records of the default audit log bound over the run store's
+    base dir (the canonical workspace ``events/`` tree)."""
+    return ProjectEventLog(run_store.base_dir).list_events()
+
+
+def lifecycle_event_id(
+    run_id: str, from_state: LifecycleState, to_state: LifecycleState
+) -> str:
+    """The deterministic event id of one lifecycle arc (the transition
+    vocabulary pattern: a pure function of run id, from, to)."""
+    return generate_id(
+        "event",
+        RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+        run_id,
+        from_state.value,
+        to_state.value,
+    )
+
+
+def tree_bytes(directory: Path) -> dict[str, bytes]:
+    """The persisted bytes of every file under ``directory``, keyed by
+    its relative path (determinism assertions)."""
+    return {
+        str(path.relative_to(directory)): path.read_bytes()
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+    }
+
+
+def test_linkage_ready_run_audits_both_arcs_as_lifecycle_events(tmp_path) -> None:
+    # A run starting at READY walks both mainline arcs, and each arc is
+    # audited as one deterministic ``run.lifecycle_change`` event in the
+    # default log (the canonical workspace ``events/`` tree over the run
+    # store's base dir): the external-dispatch phase is structurally
+    # visible in the audit trail -- the drift of the issue.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(store, make_run(LifecycleState.READY))
+
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+
+    records = flow_events(store)
+    assert [record.event.event_id for record in records] == [
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.READY, LifecycleState.DISPATCHED
+        ),
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL
+        ),
+    ]
+    for record, from_state, to_state in zip(
+        records,
+        (LifecycleState.READY, LifecycleState.DISPATCHED),
+        (
+            LifecycleState.DISPATCHED,
+            LifecycleState.RUNNING_EXTERNAL,
+        ),
+    ):
+        event = record.event
+        assert event.event_type == RUN_LIFECYCLE_CHANGE_EVENT_TYPE
+        assert event.object_id == RUN_ID
+        assert event.run_id == RUN_ID
+        assert event.from_ == from_state.value
+        assert event.to == to_state.value
+        assert event.actor == LINKAGE_ACTOR
+        assert event.reason == DISPATCH_LINKAGE_REASON
+        assert event.timestamp == FIXED_STAMP
+    # A fresh log instance over the same base dir reads the same records
+    # (the durable audit trail the reporting subsystem consumes).
+    fresh = ProjectEventLog(store.base_dir)
+    assert [r.event.event_id for r in fresh.list_events()] == [
+        r.event.event_id for r in records
+    ]
+
+
+def test_linkage_dispatched_run_audits_the_single_arc(tmp_path) -> None:
+    # A stale DISPATCHED run performs exactly one arc, and exactly one
+    # lifecycle event is appended -- never a fabricated READY arc.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(store, make_run(LifecycleState.DISPATCHED))
+
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+
+    records = flow_events(store)
+    assert len(records) == 1
+    event = records[0].event
+    assert event.event_id == lifecycle_event_id(
+        RUN_ID, LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL
+    )
+    assert event.from_ == LifecycleState.DISPATCHED.value
+    assert event.to == LifecycleState.RUNNING_EXTERNAL.value
+
+
+def test_linkage_external_run_relink_appends_no_events(tmp_path) -> None:
+    # The idempotent re-link performs no arc, so it audits nothing:
+    # re-issuing the linkage for an already-linked run never appends a
+    # duplicate lifecycle event.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(
+        store,
+        make_run(
+            LifecycleState.RUNNING_EXTERNAL,
+            external=RunExternal(
+                backend=FILESYSTEM_BACKEND_NAME, dispatch_id=DISPATCH_ID
+            ),
+        ),
+    )
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+
+    assert flow_events(store) == []
+
+
+def test_linkage_relink_after_successful_linkage_appends_no_duplicates(
+    tmp_path,
+) -> None:
+    # The recovery discipline end to end: a completed linkage followed
+    # by a crash-window re-link leaves the audit trail untouched -- the
+    # same two original records, no duplicates.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(store, make_run(LifecycleState.READY))
+
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    before = [(r.event.event_id, r.sequence) for r in flow_events(store)]
+    assert len(before) == 2
+
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+
+    assert [(r.event.event_id, r.sequence) for r in flow_events(store)] == before
+
+
+def test_linkage_crash_between_event_append_and_record_write_converges(
+    tmp_path,
+) -> None:
+    # The events are appended BEFORE the record write, so a crash after
+    # the appends leaves the record stale while the events survive. The
+    # re-link re-performs the same arcs and re-appends the same events
+    # under the same idempotency keys: the log converges to the single
+    # original records (exactly-once) and the record converges.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(store, make_run(LifecycleState.READY))
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    before = [r.event.event_id for r in flow_events(store)]
+
+    # Simulate the crash: the record write never landed -- the record
+    # is back at its pre-linkage state while the events stay.
+    write_run(store, make_run(LifecycleState.READY))
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+
+    assert read_run(store).lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    assert [r.event.event_id for r in flow_events(store)] == before
+
+
+def test_linkage_event_log_is_injected(tmp_path) -> None:
+    # The injected event log wins: the events land wherever the caller
+    # bound the log, never under the run store's base dir.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    log = ProjectEventLog(tmp_path / "audit")
+    write_run(store, make_run(LifecycleState.READY))
+
+    link_run_to_dispatch(
+        store, make_dispatch(), now=FakeClock(), event_log=log
+    )
+
+    assert len(log.list_events()) == 2
+    assert flow_events(store) == []
+
+
+def test_linkage_refusals_append_no_events(tmp_path) -> None:
+    # Refused linkages persist nothing -- and audit nothing: no event
+    # may claim a lifecycle advance that never happened.
+    other = FilesystemStateBackend(tmp_path / "other")
+    write_run(
+        other,
+        make_run(
+            LifecycleState.RUNNING_EXTERNAL,
+            external=RunExternal(
+                backend=FILESYSTEM_BACKEND_NAME, dispatch_id=OTHER_DISPATCH_ID
+            ),
+        ),
+    )
+    with pytest.raises(LabAdapterDataError):
+        link_run_to_dispatch(other, make_dispatch(), now=FakeClock())
+
+    closed = FilesystemStateBackend(tmp_path / "closed")
+    write_run(closed, make_run(LifecycleState.CLOSED))
+    with pytest.raises(IllegalTransitionError):
+        link_run_to_dispatch(closed, make_dispatch(), now=FakeClock())
+
+    assert flow_events(other) == []
+    assert flow_events(closed) == []
+
+
+def test_linkage_audit_trail_deterministic_identical_bytes(tmp_path) -> None:
+    # Identical inputs -> identical audit trails: two independent stores
+    # linked under the fixed clock produce byte-identical event trees
+    # (records, sequence counter, and idempotency claims).
+    first = FilesystemStateBackend(tmp_path / "a")
+    second = FilesystemStateBackend(tmp_path / "b")
+    for store in (first, second):
+        write_run(store, make_run(LifecycleState.READY))
+        link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+
+    assert tree_bytes(first.base_dir / "events") == tree_bytes(
+        second.base_dir / "events"
+    )
