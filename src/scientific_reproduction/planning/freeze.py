@@ -43,6 +43,21 @@ derivation) are rejected with ``PlanStateMismatchError`` naming the
 divergent fields -- a frozen plan can never persist lists that diverge
 from the state its audit was recomputed from.
 
+Since issue #142 the freeze also verifies dependency closure: every
+registered goal's ``dependencies[].goal_id`` must resolve to a
+registered goal contract (``UnresolvedContractReferenceError`` naming
+the goal and the unresolved id), and the hard-gate dependency edges
+must be acyclic -- a hard-gate cycle makes the frozen plan formally
+unexecutable (on the execution axis no goal of the cycle can ever
+start; on the acceptance axis no goal of the cycle can ever close).
+The cycle check reuses the plan DAG layer's Kahn pass
+(``planning/dag.py`` -- the same pass ``build_plan_dag`` runs to report
+``cyclic_goal_ids``) instead of duplicating graph logic, and rejects
+with ``HardGateDependencyCycleError`` naming the cyclic goal ids. Soft
+and informational dependency semantics stay execution-time facts
+(``core/rules/dependencies.py``); only referential and acyclicity
+closure of the frozen contract is enforced here.
+
 AC-02 -- frozen contracts
 -------------------------
 On success, ``freeze_plan`` produces the frozen ``Plan``
@@ -107,6 +122,7 @@ from scientific_reproduction.core.models import (
     AcceptanceCriteria,
     AnalysisProtocolOrResult,
     ClosureContract,
+    DependencyType,
     GoalContract,
     Plan,
     PlanStatus,
@@ -115,6 +131,11 @@ from scientific_reproduction.core.models import (
 )
 from scientific_reproduction.core.rules.lifecycle import PROJECT_PHASE_MAINLINE
 from scientific_reproduction.planning.audit import audit_inventory_registry
+from scientific_reproduction.planning.dag import (
+    DAGEdge,
+    _topological_sort,
+    classify_gate_kind,
+)
 from scientific_reproduction.planning.init import PlanningError, read_project_state
 from scientific_reproduction.planning.inventory import list_requirements
 from scientific_reproduction.planning.plan import (
@@ -144,6 +165,7 @@ __all__ = [
     "FreezeError",
     "FreezeProhibitedError",
     "GoalFamilyNotDraftError",
+    "HardGateDependencyCycleError",
     "OrphanGoalContractError",
     "PlanAlreadyFrozenError",
     "PlanFreezeResult",
@@ -219,6 +241,10 @@ class UnresolvedContractReferenceError(FreezeError, ValueError):
     statistical design, ``07-STATISTICS-AND-ACCEPTANCE.md`` SS9) -- to
     resolve to registered records (the goal-contract family is part of
     the frozen contract, ``01-PRODUCT-REQUIREMENTS.md`` SS5 step 7-8).
+    Since issue #142 the same gate covers every registered goal's
+    ``dependencies[].goal_id``: a dependency naming a goal id with no
+    registered contract raises this error naming the goal and the
+    unresolved id.
     """
 
 
@@ -237,6 +263,24 @@ class OrphanGoalContractError(FreezeError, ValueError):
     dispatch; the gate surfaces the orphan ids instead of freezing a
     contract no run will ever exercise. The message names the orphan
     goal ids (deterministic, sorted by goal id).
+    """
+
+
+class HardGateDependencyCycleError(FreezeError, ValueError):
+    """Raised when hard-gate goal dependencies form a cycle.
+
+    A cycle through ``hard_gate`` dependency edges makes the frozen plan
+    formally unexecutable: on the execution axis no goal of the cycle
+    can ever start (each waits for an upstream of the same cycle), and
+    on the acceptance axis no goal of the cycle can ever close. The
+    freeze gate runs the plan DAG layer's Kahn pass over the registered
+    goals' hard-gate edges (``planning/dag.py`` -- the same pass
+    ``build_plan_dag`` uses to report ``cyclic_goal_ids``) and rejects
+    the cycle instead of freezing a contract that can only deadlock
+    (issue #142). The message names the cyclic goal ids (deterministic,
+    sorted by goal id). Soft and informational dependencies never feed
+    this check: their semantics stay execution-time facts
+    (``core/rules/dependencies.py``).
     """
 
 
@@ -313,7 +357,13 @@ def freeze_plan(
     (``UnresolvedContractReferenceError``); and every registered goal
     must be referenced by at least one registered requirement -- a goal
     no requirement maps is an orphan family record and blocks the freeze
-    (``OrphanGoalContractError``, issue #141).
+    (``OrphanGoalContractError``, issue #141). Since issue #142 the gate
+    also resolves every registered goal's ``dependencies[].goal_id``
+    against the registered goals (``UnresolvedContractReferenceError``
+    naming the goal and the unresolved id) and rejects hard-gate
+    dependency cycles through the plan DAG layer's Kahn pass
+    (``HardGateDependencyCycleError`` naming the cyclic goal ids); soft
+    and informational dependency semantics stay execution-time facts.
 
     On success, the frozen ``Plan`` (``PlanStatus.FROZEN``, ``frozen_at``,
     ``frozen_commit`` = pre-freeze ``git HEAD`` or ``None`` outside a Git
@@ -361,11 +411,14 @@ def freeze_plan(
             the completeness audit fails (message names the offending
             item ids for audit failures).
         UnresolvedContractReferenceError: a goal-family reference is
-            unresolvable.
+            unresolvable (including a goal dependency naming a goal id
+            with no registered contract).
         GoalFamilyNotDraftError: a goal-family record is already frozen.
         OrphanGoalContractError: a registered goal contract is not
             referenced by any registered requirement (an orphan family
             record; the message names the orphan goal ids).
+        HardGateDependencyCycleError: the hard-gate goal dependencies
+            form a cycle (the message names the cyclic goal ids).
         ValueError: a stored registry record is corrupt.
     """
     if not isinstance(root, (str, Path)):
@@ -677,6 +730,13 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
     ``OrphanGoalContractError`` naming the orphan goal ids instead of
     being stamped frozen silently. The gate surfaces the inconsistency;
     it never folds orphans into the plan.
+
+    Finally, dependency closure is verified (issue #142): every
+    registered goal's ``dependencies[].goal_id`` must resolve to a
+    registered goal contract, and the hard-gate dependency edges must be
+    acyclic (the plan DAG layer's Kahn pass) -- a dangling or cyclic
+    hard gate freezes a formally unexecutable plan. See
+    ``_verify_goal_dependency_closure``.
     """
     goals = list_goals(project_root)
     registered_goal_ids = {g.goal_id for g in goals}
@@ -758,6 +818,74 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
             "registered goal contract(s) are not referenced by any"
             " registered requirement (orphan family records):"
             f" {', '.join(orphan_goal_ids)}"
+        )
+
+    # Dependency closure (issue #142): every registered goal's dependency
+    # goal ids must resolve to registered contracts, and the hard-gate
+    # dependency edges must be acyclic. Runs last so the earlier family
+    # checks keep their established error precedence.
+    _verify_goal_dependency_closure(goals)
+
+
+def _verify_goal_dependency_closure(goals: tuple[GoalContract, ...]) -> None:
+    """Verify dependency referential and acyclicity closure (issue #142).
+
+    Every registered goal's ``dependencies[].goal_id`` must resolve to a
+    registered goal contract -- a dangling dependency edge would freeze a
+    formally unexecutable plan whose deadlock only surfaces at execution
+    time (``UnresolvedContractReferenceError`` naming the goal and the
+    unresolved id). The hard-gate dependency edges must be acyclic: a
+    hard-gate cycle means no goal of the cycle can ever start (execution
+    axis) or ever close (acceptance axis), so the freeze rejects it with
+    ``HardGateDependencyCycleError`` naming the cyclic goal ids. Soft and
+    informational edges never feed the cycle check -- their semantics are
+    execution-time facts (``core/rules/dependencies.py``, BLOCKER_RULES
+    territory); only the frozen contract's referential and acyclicity
+    closure is enforced here.
+
+    The graph logic is not duplicated: the edges are classified and built
+    exactly as ``build_plan_dag`` builds them, and the acyclicity verdict
+    comes from the DAG layer's own Kahn pass
+    (``planning/dag.py`` ``classify_gate_kind`` / ``_topological_sort`` --
+    the same pass that reports ``cyclic_goal_ids``). The node set is every
+    registered goal: all of them are frozen together, so every registered
+    dependency edge must be closed, not only the plan-covered ones.
+    """
+    registered_goal_ids = {goal.goal_id for goal in goals}
+    hard_edges: list[DAGEdge] = []
+    for goal in goals:
+        for dependency in goal.dependencies:
+            if dependency.goal_id not in registered_goal_ids:
+                raise UnresolvedContractReferenceError(
+                    f"goal contract {goal.goal_id!r} declares a dependency"
+                    f" on goal {dependency.goal_id!r} which is not registered"
+                )
+            if dependency.type is DependencyType.HARD_GATE:
+                assessment = classify_gate_kind(
+                    dependency.type,
+                    dependency.execution_gate,
+                    dependency.acceptance_gate,
+                )
+                hard_edges.append(
+                    DAGEdge(
+                        dependency_goal_id=dependency.goal_id,
+                        dependent_goal_id=goal.goal_id,
+                        dependency_type=dependency.type,
+                        execution_gate=dependency.execution_gate,
+                        acceptance_gate=dependency.acceptance_gate,
+                        gate_kind=assessment.gate_kind,
+                        gate_kind_assessment=assessment,
+                    )
+                )
+
+    _, cyclic_ids = _topological_sort(
+        tuple(sorted(registered_goal_ids)), tuple(hard_edges)
+    )
+    if cyclic_ids:
+        raise HardGateDependencyCycleError(
+            "goal dependency cycle detected through hard-gate dependencies:"
+            " cyclic goal ids:"
+            f" {', '.join(cyclic_ids)}"
         )
 
 
