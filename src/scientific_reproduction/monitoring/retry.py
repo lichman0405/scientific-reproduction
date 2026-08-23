@@ -58,8 +58,10 @@ onto the decision vocabulary:
   injected hook -- same run identity, same external identity semantics
   (the same backend; the hook returns the fresh external id of the
   resubmission), no parameter change of any kind -- the dispatcher
-  never writes the Run record and under no circumstance mutates run
-  parameters.
+  never mutates run parameters under any circumstance. The only Run
+  record write an authorized decision performs is the retry-aftermath
+  **history update** of issue #150 (see below): the retry record and
+  the identity advance, never a parameter.
 * a ``supervisor_required_changes`` entry or a scientific-change
   vocabulary match (``R-RET-S1``/``R-RET-V1``) decides a
   Supervisor-required change: observed and recorded, never
@@ -99,8 +101,8 @@ identity, so each of the ``max_identical_retries`` resubmissions is
 recorded exactly once and the log's sequence never advances twice for
 the same decision.
 
-Exactly-once resubmission and restart replay
---------------------------------------------
+Exactly-once resubmission, the aftermath, and restart replay
+------------------------------------------------------------
 The recorded decision is the durable "retry was performed" fact: the
 dispatcher resolves the recorded history *before* touching the
 resubmission hook. A recorded decision replays when it is the decision
@@ -115,6 +117,34 @@ append of the decision record re-invokes the hook when the same
 decision is re-issued; once the record exists, re-deciding is a pure
 idempotent replay.
 
+The aftermath (issue #150): an authorized decision persists its
+consequences through the same injected stores, so the shipped readers
+observe the retry instead of polling the dead job. The event append is
+the exactly-once decision fact; after it, the dispatcher updates, under
+the bounded per-run authoring lease (``core.leases`` -- the issue #145
+discipline, TTL :data:`RETRY_AFTERMATH_LEASE_TTL`):
+
+* the Run record: append the retry record to
+  ``Run.engineering_retries`` (mirroring the decision payload plus the
+  decision's event id -- a **history update, never a parameter
+  mutation**: no parameter, plan or lifecycle field is touched) and
+  advance the Run record's ``external`` identity to the resubmitted
+  identity;
+* the watch entry: advance its external identity to the resubmitted
+  identity, so reconciliation probes the resubmitted job.
+
+The Run record is written before the watch entry: a crash between the
+two converges on replay (the recorded decision still matches the
+unadvanced watch entry), while the reverse order would brick the next
+decision on the identity contract. A replay of a recorded authorized
+decision heals a missing aftermath idempotently (the entry is keyed by
+the decision's event id) -- pre-#150 state converges on the next pass;
+a converged state heals nothing, so replayed decisions keep the
+byte-stability of the durable state. A ``LeaseHeldError`` during the
+aftermath fails the decision loudly (recorded per-run by
+``decide_all``): another principal holds the per-run lease and the
+recorded decision replays and heals on the next pass.
+
 Determinism and discipline
 --------------------------
 All timestamps come from the injected clock (``now``); ids are
@@ -123,15 +153,19 @@ reason, the event type and the idempotency-key prefix are stable
 documented constants; the payload is plain JSON-able data persisted as
 canonical sorted JSON through the real event log. The dispatcher
 persists nothing itself: every write goes through the injected
-registry, run store and event log, and the dispatcher **never writes
-the run store** (no parameter mutation, ever). Errors follow the house
+registry, run store and event log. The retry-aftermath writes of issue
+#150 are a **history update, not a parameter mutation**: they append to
+``Run.engineering_retries`` and advance the run's external identity --
+the run's parameters, plan and lifecycle fields are never mutated by a
+retry decision under any circumstance. Errors follow the house
 paradigm: ``TypeError`` at public type boundaries, stable
 ``MonitoringError`` subclasses otherwise (``RetryContractError`` for
 lifecycle/identity contract violations, ``CorruptRetryStateError`` for
 corrupt retry state -- including an unreadable goal or retry-policy
-record). No credentials are ever persisted: transient classifier
-failures are recorded as unclassified refusals and their messages
-never reach durable bytes.
+record); a ``LeaseHeldError`` on the aftermath lease fails the decision
+loudly (issue #145 concurrency discipline). No credentials are ever
+persisted: transient classifier failures are recorded as unclassified
+refusals and their messages never reach durable bytes.
 
 The pass-level :meth:`RetryDispatcher.decide_all` isolates per-run
 errors (issue #152): only ``RUNNING_EXTERNAL`` runs are eligible for a
@@ -145,12 +179,13 @@ state (an unreadable watch set) still fails the pass loudly.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, TypeAlias
 
 from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id, is_valid_id
+from scientific_reproduction.core.leases import LeaseHeldError, LeaseStore
 from scientific_reproduction.core.models import (
     AutomaticRetryPolicy,
     GoalContract,
@@ -200,6 +235,7 @@ __all__ = [
     "RETRY_DECISION_REFUSED",
     "RETRY_DECISION_SUPERVISOR_REQUIRED",
     "RETRY_DECISIONS",
+    "RETRY_AFTERMATH_LEASE_TTL",
     "RETRY_FAILURE_CLASS_UNCLASSIFIED",
     "RETRY_INVALIDATED_REASON",
     "RETRY_REFUSED_REASON",
@@ -343,6 +379,14 @@ _DECISION_REASONS: dict[str, str] = {
 #: decision (AC-01) while the ``max_identical_retries`` ceiling stays
 #: enforceable.
 RETRY_DECISION_KEY_PREFIX: str = "retry.decision"
+
+#: TTL (seconds) of the bounded per-run authoring lease guarding the
+#: aftermath writes of an authorized retry decision (issue #150): the
+#: retry-history append and the external-identity updates of the Run
+#: record and the watch entry happen under the same per-run lease
+#: discipline as the reconciliation completion of issue #145
+#: (``monitoring.reconcile.RECONCILE_LEASE_TTL``).
+RETRY_AFTERMATH_LEASE_TTL: float = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -625,15 +669,17 @@ class RetryFailure:
 
     ``decide_all`` records a run whose decision raises a stable per-run
     ``RetryError`` (``RetryContractError`` or ``CorruptRetryStateError``)
-    here instead of aborting the pass (issue #152): the failing entry is
+    -- or whose aftermath lease is held by another principal
+    (``LeaseHeldError``, the issue #145 concurrency discipline) -- here
+    instead of aborting the pass (issue #152): the failing entry is
     skipped and the remaining watched runs still get decided. Corrupt
     project-level state (an unreadable watch set) still fails the pass
     loudly.
 
     Attributes:
         run_id: the run whose decision failed.
-        error: the stable error class name (``RetryContractError`` or
-            ``CorruptRetryStateError``).
+        error: the stable error class name (``RetryContractError``,
+            ``CorruptRetryStateError`` or ``LeaseHeldError``).
         message: the error message (diagnostics for the operator; never
             persisted).
     """
@@ -785,20 +831,26 @@ class RetryDispatcher:
     * AC-01: a failure kind the policy whitelists triggers an
       IDENTICAL resubmission through the injected resubmission hook --
       same run identity, same external identity semantics (same
-      backend), no parameter change -- and one
+      backend), no parameter change of any kind -- and one
       ``engineering_retry_decision`` event is appended under a
-      deterministic attempt-indexed idempotency key. Re-deciding the
-      same failure generation resolves to the recorded decision and
-      never re-invokes the hook (exactly-once per recorded decision).
+      deterministic attempt-indexed idempotency key. The decision's
+      aftermath (issue #150) is then persisted under the per-run
+      authoring lease: the retry record is appended to the Run's
+      ``engineering_retries`` history (never a parameter mutation), and
+      the Run record's and the watch entry's external identities are
+      advanced to the resubmitted identity. Re-deciding the same
+      failure generation resolves to the recorded decision, never
+      re-invokes the hook, and heals a missing aftermath (exactly-once
+      per recorded decision).
     * AC-02: a scientific compute failure -- any failure kind no
       policy entry authorizes (``FAILURE_CLASS_JOB``, ``None``, an
       unrecognized string, a Goal with no policy) -- is observed and
       recorded as a refused decision: the hook is never invoked and no
-      run parameter is ever mutated (the dispatcher never writes the
-      run store). ``invalidate_run_on`` kinds decide an invalidation,
-      ``supervisor_required_changes`` kinds a Supervisor-required
-      change -- both recorded, never resubmitted. With no classifier
-      injected, the default configuration can never authorize a retry.
+      run parameter is ever mutated. ``invalidate_run_on`` kinds decide
+      an invalidation, ``supervisor_required_changes`` kinds a
+      Supervisor-required change -- both recorded, never resubmitted.
+      With no classifier injected, the default configuration can never
+      authorize a retry.
     * AC-03: a fresh dispatcher over the same state directory, run
       store and event log reconstructs the retry history from the
       recorded events alone; re-deciding the same failures yields
@@ -957,8 +1009,17 @@ class RetryDispatcher:
         decision is recorded through the real event log under the
         deterministic attempt-indexed idempotency key; re-deciding a
         recorded decision of the current failure generation returns the
-        recorded history (``replayed=True``) and never re-invokes the
-        hook (AC-01 exactly-once / AC-03 replay).
+        recorded history (``replayed=True``), heals a missing aftermath
+        and never re-invokes the hook (AC-01 exactly-once / AC-03
+        replay).
+
+        An authorized decision persists its aftermath (issue #150)
+        after the event append, under the bounded per-run authoring
+        lease: the retry record is appended to the Run's
+        ``engineering_retries`` history -- a history update, never a
+        parameter mutation -- and the Run record's and the watch
+        entry's external identities advance to the resubmitted
+        identity.
 
         Args:
             run_id: the watched run to decide.
@@ -986,6 +1047,11 @@ class RetryDispatcher:
                 log is malformed.
             RetryError: no resubmission hook is injected and the
                 decision is authorized (the loud default hook).
+            LeaseHeldError: another principal holds the per-run
+                authoring lease during the aftermath (or the replay
+                heal) of an authorized decision -- the decision fails
+                loudly (issue #145 concurrency discipline) and the
+                recorded event replays and heals on the next pass.
         """
         if not isinstance(run_id, str):
             raise TypeError(
@@ -1017,10 +1083,12 @@ class RetryDispatcher:
             watch = self._registry.get(run_id)
         except WatchNotFoundError:
             if records:
+                self._heal_aftermath(run_id, records[-1], watch=None)
                 return self._replay_outcome(run_id, records[-1])
             raise
         matching = self._matching_record(run_id, records, watch.external)
         if matching is not None:
+            self._heal_aftermath(run_id, matching, watch=watch)
             return self._replay_outcome(run_id, matching)
 
         run = self._read_run(run_id)
@@ -1130,6 +1198,16 @@ class RetryDispatcher:
             idempotency_key=f"{RETRY_DECISION_KEY_PREFIX}:{run_id}:"
             f"{normalized}:attempt-{attempt}",
         )
+        # The event append is the exactly-once decision fact; the
+        # aftermath (issue #150) persists its consequences after it --
+        # the history update of the Run record and the identity advances
+        # -- under the per-run authoring lease. A lease conflict here
+        # fails the decision loudly: the recorded event replays and
+        # heals the aftermath on the next pass.
+        if resubmitted is not None:
+            self._persist_aftermath(
+                run_id, resubmitted, stamp, event_id, payload
+            )
         return RetryOutcome(
             run_id=run_id,
             failure_class=failure_class,
@@ -1157,13 +1235,17 @@ class RetryDispatcher:
         is recorded as skipped (``skipped``) -- never aborted -- and
         the classifier is not invoked for it. A run whose decision
         raises a stable per-run ``RetryError`` (``RetryContractError``
-        or ``CorruptRetryStateError``) is recorded as a per-run failed
-        outcome (``failures``) with the stable error, and the pass
-        continues with the remaining runs. Corrupt project-level state
-        (an unreadable watch set), a classifier/type contract violation
-        or the loud default hook (no resubmission hook for an
-        authorized decision) still fails the whole pass loudly
-        (deterministic sorted order, deterministic error)."""
+        or ``CorruptRetryStateError``), or whose aftermath lease is
+        held by another principal (the ``LeaseHeldError`` of the issue
+        #145 concurrency discipline -- the decision event is already
+        recorded and the aftermath replays and heals on the next pass),
+        is recorded as a per-run failed outcome (``failures``) with the
+        stable error, and the pass continues with the remaining runs.
+        Corrupt project-level state (an unreadable watch set), a
+        classifier/type contract violation or the loud default hook (no
+        resubmission hook for an authorized decision) still fails the
+        whole pass loudly (deterministic sorted order, deterministic
+        error)."""
         outcomes: list[RetryOutcome] = []
         skipped: list[RetrySkipped] = []
         failures: list[RetryFailure] = []
@@ -1193,7 +1275,11 @@ class RetryDispatcher:
                 outcomes.append(
                     self.decide(run_id, self._classify(record.external))
                 )
-            except (RetryContractError, CorruptRetryStateError) as exc:
+            except (
+                RetryContractError,
+                CorruptRetryStateError,
+                LeaseHeldError,
+            ) as exc:
                 failures.append(
                     RetryFailure(
                         run_id=run_id,
@@ -1500,6 +1586,154 @@ class RetryDispatcher:
             matched_rule_id=matched_rule_id,
             reasoning_ids=tuple(reasoning_ids),
         )
+
+    def _persist_aftermath(
+        self,
+        run_id: str,
+        resubmitted: RunExternal,
+        stamp: str,
+        event_id: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Persist the aftermath of an authorized retry decision
+        (issue #150) under the bounded per-run authoring lease (the
+        issue #145 discipline, TTL :data:`RETRY_AFTERMATH_LEASE_TTL`).
+
+        The event append above is the exactly-once decision fact; the
+        aftermath updates the durable state the shipped readers observe
+        the retry through:
+
+        * the Run record's ``engineering_retries`` history gains the
+          retry record (the decision payload plus the decision's event
+          id as the convergence key) -- a HISTORY update, never a
+          parameter mutation: no parameter, plan or lifecycle field of
+          the run is touched;
+        * the Run record's ``external`` identity advances to the
+          resubmitted identity;
+        * the watch entry's external identity advances to the
+          resubmitted identity, so the shipped reconciliation probes
+          the resubmitted job instead of the dead one.
+
+        The whole read-validate-write sequence runs under the lease
+        with a fresh Run-record read; a ``LeaseHeldError`` (another
+        principal mid-critical-section on this run) propagates loudly
+        and nothing is persisted here -- the recorded decision replays
+        and heals the aftermath on the next pass. The Run record is
+        written before the watch entry: a crash between the two
+        converges on replay (the recorded decision still matches the
+        unadvanced watch entry), while the reverse order would brick
+        the next decision on the identity contract.
+
+        Raises:
+            LeaseHeldError: another principal holds the per-run lease.
+            CorruptRetryStateError: the run record became unreadable
+                between the decision and the aftermath.
+            WatchRecordError: the watch entry vanished or the
+                resubmitted identity violates the watch-entry contract.
+        """
+        leases = LeaseStore(getattr(self._run_store, "base_dir"))
+        lease = leases.acquire(
+            "run", run_id, self._monitor_id, RETRY_AFTERMATH_LEASE_TTL
+        )
+        try:
+            run = self._read_run(run_id)
+            entry = {**payload, "event_id": event_id}
+            updated_run = replace(
+                run,
+                engineering_retries=[*run.engineering_retries, entry],
+                external=resubmitted,
+                updated_at=stamp,
+            )
+            self._run_store.write("run", run_id, updated_run.to_dict())
+            self._registry.update_external(run_id, resubmitted)
+        finally:
+            leases.release(lease)
+
+    def _heal_aftermath(
+        self,
+        run_id: str,
+        event: ProjectEvent,
+        watch: WatchedRunRecord | None,
+    ) -> None:
+        """Converge the aftermath of a recorded authorized decision
+        (issue #150 replay-heal).
+
+        A recorded authorized decision replays; if its aftermath was
+        never persisted -- a crash between the event append and the
+        aftermath, or pre-#150 state -- the replay heals it
+        idempotently under the bounded per-run authoring lease: the
+        retry-history entry keyed by the decision's event id, the Run
+        record's external identity and the watch entry's external
+        identity all converge to the recorded resubmission receipt. A
+        converged state heals nothing (no writes -- replayed decisions
+        keep the byte-stability of the durable state), and the heal
+        never re-stamps ``updated_at`` (replay stays clock-free).
+        Non-authorized decisions have no aftermath and heal nothing.
+
+        With ``watch=None`` (the run is no longer watched) the heal is
+        best-effort on the Run record only: when the Run record is
+        unreadable too, the recorded history alone stays authoritative
+        (AC-03) and the replay proceeds without healing.
+
+        Raises:
+            LeaseHeldError: another principal holds the per-run lease.
+            CorruptRetryStateError: the recorded decision is malformed
+                (validated by the replay rebuild) or, with a watch
+                entry, the run record is unreadable.
+            WatchRecordError: the resubmitted identity violates the
+                watch-entry contract.
+        """
+        outcome = self._replay_outcome(run_id, event)
+        if outcome.resubmitted_external is None:
+            return  # a non-authorized decision has no aftermath
+        resubmitted = outcome.resubmitted_external
+        resubmitted_dict = resubmitted.to_dict()
+        leases = LeaseStore(getattr(self._run_store, "base_dir"))
+        lease = leases.acquire(
+            "run", run_id, self._monitor_id, RETRY_AFTERMATH_LEASE_TTL
+        )
+        try:
+            try:
+                run = self._read_run(run_id)
+            except CorruptRetryStateError:
+                if watch is None:
+                    return  # nothing to heal: no watch entry, no
+                    # readable run record -- the recorded history alone
+                    # is authoritative (AC-03)
+                raise
+            has_entry = any(
+                isinstance(item, Mapping)
+                and item.get("event_id") == event.event_id
+                for item in run.engineering_retries
+            )
+            run_external = (
+                None
+                if run.external is None
+                else run.external.to_dict()
+            )
+            run_converged = has_entry and run_external == resubmitted_dict
+            if not run_converged:
+                updated_run = replace(
+                    run,
+                    engineering_retries=(
+                        run.engineering_retries
+                        if has_entry
+                        else [
+                            *run.engineering_retries,
+                            {**event.payload, "event_id": event.event_id},
+                        ]
+                    ),
+                    external=resubmitted,
+                )
+                self._run_store.write(
+                    "run", run_id, updated_run.to_dict()
+                )
+            if watch is not None and watch.external.to_dict() != (
+                resubmitted_dict
+            ):
+                self._registry.update_external(run_id, resubmitted)
+        finally:
+            leases.release(lease)
 
     def _decision_event(
         self,

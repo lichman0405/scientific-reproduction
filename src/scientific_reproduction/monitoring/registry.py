@@ -121,7 +121,8 @@ class DuplicateWatchError(MonitoringError):
     """Raised when a run is watched again with a different external
     identity than the persisted entry (re-watching the identical entry
     is an idempotent no-op; changing the identity of a watched run
-    requires ``unwatch`` first)."""
+    requires ``unwatch`` first, or the sanctioned identity advance
+    ``WatchedRunRegistry.update_external``)."""
 
 
 #: The injectable clock of the monitoring subsystem: a callable
@@ -566,5 +567,41 @@ class WatchedRunRegistry:
         """
         record = self.get(run_id)
         updated = replace(record, last_heartbeat_at=self._now_fn())
+        self._write_entry(updated)
+        return updated
+
+    def update_external(
+        self, run_id: str, external: RunExternal
+    ) -> WatchedRunRecord:
+        """Advance the external identity of a watched run to ``external``
+        and persist the updated entry (issue #150: the sanctioned
+        identity advance of an authorized engineering retry -- the watch
+        entry names the resubmitted identity, so the shipped
+        reconciliation probes the resubmitted job instead of the dead
+        one).
+
+        The single atomic entry replace mirrors :meth:`heartbeat` (the
+        fresh identity is validated before it is written, since
+        ``dataclasses.replace`` skips ``__post_init__``); no
+        unwatch/re-watch gap exists in which a reader could observe the
+        run unwatched. Watch metadata (``watched_at``,
+        ``last_heartbeat_at``) is preserved.
+
+        Raises:
+            TypeError: ``run_id`` is not a str, or ``external`` is not
+                a ``RunExternal``.
+            WatchRecordError: ``run_id`` is not a valid run id, or
+                ``external`` does not carry the minimal reconciliation
+                vocabulary (backend and at least one external id).
+            WatchNotFoundError: the run is not watched.
+        """
+        if not isinstance(external, RunExternal):
+            raise TypeError(
+                "external must be a RunExternal, got"
+                f" {type(external).__name__}"
+            )
+        validate_external_identity(external, error=WatchRecordError)
+        record = self.get(run_id)
+        updated = replace(record, external=external)
         self._write_entry(updated)
         return updated
