@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -51,6 +52,7 @@ from reporting_helpers import (
     make_requirement,
 )
 
+from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
     ClosureContract,
@@ -66,11 +68,17 @@ from scientific_reproduction.core.models import (
     InventoryItemType,
     MappingStatus,
     MarginBasis,
+    ProjectPhase,
     ReproductionInventoryItem,
     StatisticalDesign,
 )
+from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.freeze import freeze_plan
-from scientific_reproduction.planning.init import INITIAL_PLAN_VERSION
+from scientific_reproduction.planning.init import (
+    INITIAL_PLAN_VERSION,
+    PROJECT_STATE_FILENAME,
+    read_project_state,
+)
 from scientific_reproduction.planning.inventory import (
     register_inventory_item,
     register_requirement,
@@ -207,6 +215,29 @@ def make_closure(closure_id: str = "CLOS-001") -> ClosureContract:
     )
 
 
+def author_project_phase(root: Path, phase: ProjectPhase) -> None:
+    """Author ``phase`` on the registered project state record.
+
+    The registry has no phase-authoring API (phase transitions are a
+    supervisor-flow operation, out of scope), so tests author the phase
+    by writing the project record in place with the registry's canonical
+    serialization. ``updated_at`` is preserved: deterministic fixtures
+    pin every timestamp.
+
+    Local to this module: ``reporting_helpers.init_project`` keeps the
+    workspace at ``INITIALIZING`` because the reporting-suite summary
+    tests assert that initial phase, so this suite authors the
+    freeze-eligible phase only where a plan is actually frozen.
+    """
+    project = read_project_state(root)
+    updated = replace(project, project_phase=phase)
+    validate_and_reject("project", updated.to_dict())
+    atomic_write(
+        root / PROJECT_STATE_FILENAME,
+        json.dumps(updated.to_dict(), indent=2, sort_keys=True) + "\n",
+    )
+
+
 def install_plan_workspace(
     root: Path,
     *,
@@ -224,9 +255,12 @@ def install_plan_workspace(
     execution + acceptance gates, the FDM-201 pattern), their acceptance
     criteria, then the Plan v1 draft via ``build_plan_v1`` +
     ``register_plan`` and freezes it through the real audit gate with the
-    fixed ``FROZEN_AT`` stamp.
+    fixed ``FROZEN_AT`` stamp. The registered phase is authored at
+    ``REPRODUCTION_INVENTORY`` (the freeze gate of issue #137 requires
+    the phase to have reached the inventory phase).
     """
     init_project(root)
+    author_project_phase(root, ProjectPhase.REPRODUCTION_INVENTORY)
     register_inventory_item(root, make_mapped_item(requirement_ids=["REQ-001"]))
     register_inventory_item(
         root,

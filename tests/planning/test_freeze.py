@@ -6,7 +6,11 @@ map one-to-one to the acceptance criteria of DEV-M4-G04:
 
 * ``ac01`` -- the freeze is prohibited unless the completeness audit
   (evaluated from the *registered state at freeze time*) passes, and the
-  prohibition names the offending item ids;
+  prohibition names the offending item ids; since issue #137 the freeze
+  also requires the registered project phase to have reached
+  ``REPRODUCTION_INVENTORY`` and at least one formally reported
+  inventory item -- violations raise ``FreezeProhibitedError`` and
+  write nothing;
 * ``ac02`` -- the frozen Plan and the frozen Goal/Acceptance/Analysis/
   Closure contracts are frozen dataclasses rejecting direct mutation,
   with freeze metadata and an immutable, no-clobber registry;
@@ -29,7 +33,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from inventory_helpers import init_project, make_item, make_requirement
+from inventory_helpers import (
+    author_project_phase,
+    init_project,
+    make_item,
+    make_requirement,
+)
 
 from scientific_reproduction.analysis.protocols import (
     ProtocolNotFoundError,
@@ -61,6 +70,7 @@ from scientific_reproduction.core.models import (
     PlanInventoryAudit,
     PlanStatus,
     PrimaryOrExploratory,
+    ProjectPhase,
     StatisticalDesign,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
@@ -381,17 +391,74 @@ def test_freeze_ac01_frozen_plan_embeds_recomputed_inventory_audit(tmp_path):
     assert result.frozen_plan.inventory_audit.mapped_items == 2
 
 
-def test_freeze_ac01_empty_inventory_freezes_vacuously(tmp_path):
+def test_freeze_ac01_empty_inventory_blocks_freeze(tmp_path):
+    # Issue #137: the freeze is prohibited when the registered inventory
+    # holds zero formally reported items. The audit's vacuous PASS on an
+    # empty inventory is an audit-API property, not a freeze
+    # precondition -- the gate itself requires the inventory to be
+    # reachable (phase) and non-empty (counts recomputed at freeze
+    # time). Nothing is written.
+    root = init_project(tmp_path)  # phase REPRODUCTION_INVENTORY, no items
+    with pytest.raises(FreezeProhibitedError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "formally reported" in str(exc.value)
+    assert exc.value.offending_item_ids == ()
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_ac01_nonformal_only_inventory_blocks_freeze(tmp_path):
+    # Only *formally reported* items satisfy the freeze precondition: a
+    # registered non-formal item is outside the coverage obligation and
+    # does not make the inventory non-empty for the gate.
     root = init_project(tmp_path)
-    result = freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    register_inventory_item(root, make_item("ITEM-1", formal_report=False))
+    with pytest.raises(FreezeProhibitedError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "formally reported" in str(exc.value)
+    assert exc.value.offending_item_ids == ()
+    assert not (root / "plans" / "v1.json").exists()
+
+
+@pytest.mark.parametrize(
+    "phase",
+    [
+        ProjectPhase.INITIALIZING,
+        ProjectPhase.SOURCE_ACQUISITION,
+        ProjectPhase.PAUSED,  # off-mainline: never reaches the threshold
+    ],
+)
+def test_freeze_ac01_phase_before_inventory_blocks_freeze(tmp_path, phase):
+    # Issue #137: the freeze is prohibited unless the registered project
+    # phase has reached REPRODUCTION_INVENTORY on the normative mainline
+    # (PROJECT_PHASE_MAINLINE ordering -- not the StrEnum lexicographic
+    # order). The inventory itself is freeze-eligible (one mapped formal
+    # item), so the phase precondition alone blocks; nothing is written.
+    root = init_project(tmp_path)
+    author_project_phase(root, phase)
+    register_inventory_item(root, make_item("ITEM-1", requirement_ids=("REQ-1",)))
+    register_requirement(
+        root,
+        make_requirement(
+            "REQ-1", inventory_items=("ITEM-1",), goal_ids=("GOAL-1",)
+        ),
+    )
+    with pytest.raises(FreezeProhibitedError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "project phase" in str(exc.value)
+    assert exc.value.offending_item_ids == ()
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_ac01_phase_at_inventory_threshold_allows_freeze(tmp_path):
+    # At exactly REPRODUCTION_INVENTORY with a complete mapped inventory
+    # the freeze is allowed: the phase threshold is inclusive
+    # (``build_complete_workspace`` authors the threshold phase).
+    root = build_complete_workspace(tmp_path)
+    result = freeze_complete(root)
     assert result.frozen_plan.status is PlanStatus.FROZEN
-    assert result.frozen_plan.goal_ids == []
-    assert result.frozen_plan.requirement_ids == []
-    assert result.goals == ()
-    assert result.acceptance == ()
-    assert result.statistical_designs == ()
-    assert result.analysis_protocols == ()
-    assert result.closure_contracts == ()
+    assert result.frozen_plan.version == "v1"
 
 
 # ---------------------------------------------------------------------------
