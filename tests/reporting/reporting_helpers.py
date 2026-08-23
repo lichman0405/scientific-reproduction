@@ -354,6 +354,7 @@ def install_valid_chain(
     *,
     claim_id: str = CLAIM_ID,
     acceptance: AcceptanceCriteria | None = None,
+    goal: GoalContract | None = None,
     run: Run | None = None,
     manifest: ArtifactManifest | None = None,
     result: ResultRecord | None = None,
@@ -379,7 +380,7 @@ def install_valid_chain(
     protocol = make_protocol()
     register_analysis_record(root, protocol)
     freeze_primary_protocol(root, protocol, timestamp=FROZEN_AT)
-    register_goal(root, make_goal())
+    register_goal(root, goal or make_goal())
     register_acceptance(root, acceptance or make_acceptance())
     register_inventory_item(root, make_inventory_item())
     register_requirement(root, requirement or make_requirement())

@@ -26,6 +26,7 @@ identities/timestamps (``FROZEN_AT``), so all records are deterministic.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,7 @@ from reporting_helpers import (
     RUN_ID,
     install_chain_with_failed_run,
     install_valid_chain,
+    make_goal,
     make_result_record,
     make_run,
 )
@@ -176,7 +178,12 @@ def test_audit_handoff_sheet_files_registered_with_checksums(
     directory (issue #157) are registered in the package with SHA-256
     checksums and sizes, sorted by name -- the dispatch-time sheet the
     adapter rendered from the real handoff state."""
-    evidence = install_valid_chain(tmp_path)
+    # Issue #159: dispatch verifies the package's goal reference against
+    # the registered frozen goal; the chain's goal is installed frozen
+    # at v1 to match the dispatched package (goal_version "v1").
+    evidence = install_valid_chain(
+        tmp_path, goal=replace(make_goal(), frozen=True, version="v1")
+    )
     # A workspace with no dispatch directories registers no sheet files.
     assert build_audit_package(tmp_path, evidence, [CLAIM_ID]).report_files == ()
 

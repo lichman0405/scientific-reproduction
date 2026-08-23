@@ -39,7 +39,16 @@ Outgoing flow (AC-01)
 ``dispatch`` writes the package to ``outgoing/<RUN_ID>/`` **after** the
 real schema gate (``core.schema_validation.validate_and_reject`` against
 ``schemas/lab-execution-package.schema.yaml``) accepts it: a malformed
-package is refused loudly and nothing is written. The dispatch is
+package is refused loudly and nothing is written. With the workspace
+root injected (``workspace_root``), ``dispatch`` additionally resolves
+the package's ``goal_id`` against the registered goal store through
+``planning.plan.read_goal`` (issue #159): a package referencing a
+nonexistent goal, a draft (unfrozen) goal or a goal version that
+mismatches the frozen record is refused with a stable typed
+``PackageGoal*Error`` before anything is written. Without the workspace
+root the adapter has no goal store in scope and performs no goal
+verification (the adapter stays decoupled from the workspace; the
+workspace-coupled dispatch injects the root). The dispatch is
 exactly-once (a second dispatch of the same package is refused) and the
 ``dispatch_id`` is a deterministic pure function of the package identity.
 ``dispatched_at`` is caller-injected; no wall clock. With the workspace
@@ -96,6 +105,9 @@ from scientific_reproduction.adapters.lab.base import (
     LabAdapterDataError,
     LabExecutionPackageInput,
     MissingResultRequest,
+    PackageGoalNotFoundError,
+    PackageGoalNotFrozenError,
+    PackageGoalVersionMismatchError,
     ResultNotAvailableError,
     is_safe_path_segment,
 )
@@ -108,6 +120,7 @@ from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import LabExecutionPackage
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.core.state_backend import SCHEMA_TO_STATE_DIR
+from scientific_reproduction.planning.plan import GoalNotFoundError, read_goal
 
 __all__ = [
     "DISPATCH_RECORD_FILENAME",
@@ -215,6 +228,17 @@ class FilesystemLabAdapter(LabAdapter):
         against ``schemas/lab-execution-package.schema.yaml`` (the real
         schema validation API); a malformed package raises
         ``SchemaValidationError`` loudly and **nothing** is written.
+        With ``workspace_root`` set, the package's Goal reference is then
+        verified against the registered goal store before anything is
+        written (issue #159): the referenced goal must be registered
+        (``planning.plan.read_goal``), frozen, and -- when the package
+        carries ``goal_version`` -- that version must equal the frozen
+        record's formal version exactly. A package without
+        ``goal_version`` (a manifest written before the field existed)
+        is verified for goal existence and frozenness only: the
+        documented backward-compatibility rule (the schema keeps the
+        field optional). Without ``workspace_root`` the adapter has no
+        goal store in scope and performs no goal verification.
         The dispatch directory is ``<base_dir>/<outgoing>/<RUN_ID>/``
         with the dispatch record, the execution manifest and the optional
         artifact files, all written via ``core.atomic.atomic_write``.
@@ -258,6 +282,21 @@ class FilesystemLabAdapter(LabAdapter):
                 renderer reads.
             SchemaValidationError: the package fails the real
                 lab-execution-package schema (nothing is written).
+            PackageGoalNotFoundError: ``workspace_root`` is set and the
+                package's ``goal_id`` is not registered in the workspace
+                goal store (nothing is written).
+            PackageGoalNotFrozenError: ``workspace_root`` is set and the
+                referenced goal is a draft (``frozen`` False; nothing is
+                written).
+            PackageGoalVersionMismatchError: ``workspace_root`` is set,
+                the package carries ``goal_version`` and it does not
+                match the frozen record's formal version (nothing is
+                written).
+            ProjectNotInitializedError / InvalidRecordIdError:
+                ``workspace_root`` is set but carries no project state
+                record, or the package's ``goal_id`` is not a safe goal
+                registry id (both propagated from ``read_goal``; nothing
+                is written).
             DuplicateDispatchError: the package was already dispatched.
             SheetNotInitializedError / SheetNotFoundError /
                 SheetCorruptError: ``workspace_root`` is set and the
@@ -296,6 +335,15 @@ class FilesystemLabAdapter(LabAdapter):
         # AC-01: the real schema gate on the way out -- a malformed
         # package is refused loudly before anything is written.
         validate_and_reject("lab-execution-package", data)
+        if workspace_root is not None:
+            # Issue #159: the package's Goal reference is verified against
+            # the registered goal store before anything is written -- a
+            # nonexistent, draft or version-mismatched goal refuses the
+            # dispatch loudly (nothing is written, not even the handoff
+            # directory).
+            _verify_package_goal(
+                workspace_root, data["goal_id"], data.get("goal_version")
+            )
         package_id = data["package_id"]
         project_id = data["project_id"]
         goal_id = data["goal_id"]
@@ -618,6 +666,43 @@ def _read_json_object(path: Path, kind: str) -> dict[str, Any]:
 def _canonical_json(data: dict[str, Any]) -> str:
     """Canonical JSON text: sorted keys, 2-space indent, trailing newline."""
     return json.dumps(data, indent=_JSON_INDENT, sort_keys=True) + "\n"
+
+
+def _verify_package_goal(
+    root: str | Path, goal_id: str, goal_version: str | None
+) -> None:
+    """Verify the package's Goal reference against the registered store.
+
+    Issue #159: the dispatch refuses the package unless its ``goal_id``
+    resolves to a registered, frozen Goal Contract and -- when the
+    package carries ``goal_version`` -- that version equals the frozen
+    record's formal version exactly. A package without ``goal_version``
+    (a manifest written before the field existed) is verified for goal
+    existence and frozenness only -- the documented
+    backward-compatibility rule. The caller writes nothing on any
+    rejection.
+    """
+    try:
+        goal = read_goal(root, goal_id)
+    except GoalNotFoundError as exc:
+        raise PackageGoalNotFoundError(
+            f"execution package references goal {goal_id!r} which is not"
+            " registered in the workspace goal store; only registered"
+            " frozen goals can be dispatched"
+        ) from exc
+    if not goal.frozen:
+        raise PackageGoalNotFrozenError(
+            f"execution package references goal {goal_id!r} which is not"
+            f" frozen (frozen={goal.frozen!r}, version={goal.version!r});"
+            " only frozen goals can be dispatched"
+        )
+    if goal_version is not None and goal_version != goal.version:
+        raise PackageGoalVersionMismatchError(
+            f"execution package goal_version {goal_version!r} does not"
+            f" match the frozen version {goal.version!r} of goal"
+            f" {goal_id!r}; the package must reference the exact frozen"
+            " goal version"
+        )
 
 
 def _require_canonical_handoff_layout(
