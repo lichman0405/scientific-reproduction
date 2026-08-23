@@ -44,6 +44,20 @@ under ``<state_dir>/manifests/``, carry a real SHA-256 and byte size
 adapter's producer stamp. Collection is exactly-once with verified
 idempotent re-collection.
 
+Runtime execution package gate (issue #161)
+-------------------------------------------
+``prepare`` consumes the validated ``core.models.ComputeExecutionPackage``
+that carries the frozen Goal's scientific parameters (force field,
+k-point mesh, cutoffs, convergence criteria, ...), the input-file
+creation instructions, the declared outputs, the software/environment
+declarations and the resource requirements. The package is schema-gated
+(``adapters.compute.package.validate_compute_execution_package``)
+**before** anything is written, refused loudly when malformed, and
+persisted durably at ``<state_dir>/packages/<package_id>.json``
+(canonical JSON via ``atomic_write``, like the job records; idempotent
+for identical content, a different package under an already-staged
+package id is rejected).
+
 Determinism and injectable surfaces
 -----------------------------------
 Everything a session can vary is injected: the command and working
@@ -76,6 +90,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Mapping, Sequence
 
+from scientific_reproduction.adapters.compute.package import (
+    ComputeExecutionPackageDataError,
+    validate_compute_execution_package,
+)
 from scientific_reproduction.artifacts.checksum import compute_sha256
 from scientific_reproduction.artifacts.exceptions import (
     ArtifactExistsError,
@@ -85,7 +103,10 @@ from scientific_reproduction.artifacts.exceptions import (
 from scientific_reproduction.artifacts.registry import ArtifactRegistry
 from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.ids import generate_id, is_valid_id
-from scientific_reproduction.core.models import ArtifactManifest
+from scientific_reproduction.core.models import (
+    ArtifactManifest,
+    ComputeExecutionPackage,
+)
 
 __all__ = [
     "ADAPTER_ID",
@@ -93,6 +114,7 @@ __all__ = [
     "BACKEND_NAME",
     "EXIT_CODE_UNAVAILABLE_NOTE",
     "JOBS_STATE_DIR",
+    "PACKAGES_STATE_DIR",
     "ARTIFACTS_STATE_DIR",
     "JOB_RECORD_VERSION",
     "TERMINATE_PENDING_NOTE",
@@ -105,6 +127,8 @@ __all__ = [
     "ComputeJobNotFoundError",
     "ComputeJobRecordError",
     "ComputeJobStateError",
+    "ComputePackageConflictError",
+    "ComputePackageRecordError",
     "JobRecord",
     "JobState",
     "JobStatus",
@@ -145,6 +169,11 @@ JOB_RECORD_VERSION: str = "1.0"
 #: Registry directory of the durable job records, relative to the
 #: injected state directory (``<state_dir>/jobs/<job_id>.json``).
 JOBS_STATE_DIR: str = "jobs"
+
+#: Registry directory of the staged runtime execution packages (issue
+#: #161), relative to the injected state directory
+#: (``<state_dir>/packages/<package_id>.json``).
+PACKAGES_STATE_DIR: str = "packages"
 
 #: The artifact registry base directory of a compute state directory
 #: (``14-STATE-GIT-ARTIFACTS.md`` SS6: manifests live under
@@ -201,6 +230,20 @@ class ComputeJobStateError(ComputeAdapterError):
 class ComputeJobRecordError(ComputeAdapterError):
     """Raised when a durable job record is corrupt or violates the
     documented :class:`JobRecord` contract."""
+
+
+class ComputePackageRecordError(ComputeAdapterError):
+    """Raised when a staged execution-package record is corrupt or
+    unreadable."""
+
+
+class ComputePackageConflictError(ComputeAdapterError):
+    """Raised when a package id is already staged with different content.
+
+    A package id is staged exactly once: re-handing-off with an identical
+    package is idempotent, a different package under an already-staged
+    package id is rejected (mirrors the prepared-job restage rule).
+    """
 
 
 class ComputeJobLaunchError(ComputeAdapterError):
@@ -1010,10 +1053,11 @@ class LocalComputeAdapter:
 
     Args:
         state_dir: the injected state directory. Durable job records
-            live at ``<state_dir>/jobs/<job_id>.json`` and collected
-            artifact manifests at ``<state_dir>/manifests/``. A fresh
-            adapter instance over the same state directory recovers the
-            same jobs (AC-02).
+            live at ``<state_dir>/jobs/<job_id>.json``, staged execution
+            packages at ``<state_dir>/packages/`` (issue #161), and
+            collected artifact manifests at ``<state_dir>/manifests/``.
+            A fresh adapter instance over the same state directory
+            recovers the same jobs (AC-02).
         launcher: the process boundary (default
             :class:`SubprocessLauncher`); inject a scripted fake in
             tests. May be a ``str`` or ``Path``.
@@ -1033,6 +1077,7 @@ class LocalComputeAdapter:
         self._launcher = launcher if launcher is not None else SubprocessLauncher()
         self._now_fn = now if now is not None else utc_now
         self._jobs_dir = self._state_dir / JOBS_STATE_DIR
+        self._packages_dir = self._state_dir / PACKAGES_STATE_DIR
         self._registry = ArtifactRegistry(self._state_dir / ARTIFACTS_STATE_DIR)
 
     # -- identity and persistence -----------------------------------------
@@ -1075,6 +1120,56 @@ class LocalComputeAdapter:
 
     def _write_record(self, record: JobRecord) -> None:
         atomic_write(self._job_path(record.job_id), self._canonical(record.to_dict()))
+
+    def _stage_package(
+        self, package: ComputeExecutionPackage | Mapping[str, Any]
+    ) -> None:
+        """Schema-gate and persist the runtime execution package (issue #161).
+
+        The handoff gate of ``prepare``: the package is validated against
+        ``schemas/compute-execution-package.schema.yaml`` **before**
+        anything is written, then persisted as a durable record at
+        ``<state_dir>/packages/<package_id>.json`` (canonical JSON via
+        ``atomic_write``, like the job records). Idempotent for an
+        identical package; a different package under an already-staged
+        package id is rejected.
+
+        Raises:
+            TypeError: ``package`` is neither a
+                ``ComputeExecutionPackage`` nor a mapping.
+            SchemaValidationError: the package fails its schema -- loud,
+                nothing is written.
+            ComputeExecutionPackageDataError: blank or unsafe
+                ``package_id`` (the record file stem).
+            ComputePackageRecordError: an existing package record is
+                corrupt or unreadable.
+            ComputePackageConflictError: the package id is already
+                staged with different content.
+        """
+        data = validate_compute_execution_package(package)
+        package_id = data["package_id"]
+        if not _is_safe_output_name(package_id):
+            raise ComputeExecutionPackageDataError(
+                f"unsafe package id {package_id!r}: expected a safe relative"
+                " path segment (no separators, no glob metacharacters)"
+            )
+        content = self._canonical(data)
+        path = self._packages_dir / f"{package_id}.json"
+        if path.is_file():
+            try:
+                existing = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                raise ComputePackageRecordError(
+                    f"corrupt execution-package record at {path}: {exc}"
+                ) from exc
+            if existing != content:
+                raise ComputePackageConflictError(
+                    f"package {package_id!r} is already staged with"
+                    " different content; a package id is staged exactly"
+                    " once"
+                )
+            return
+        atomic_write(path, content)
 
     def _try_read(self, job_id: str) -> JobRecord | None:
         """Return the durable record, or None when absent."""
@@ -1208,22 +1303,49 @@ class LocalComputeAdapter:
 
     # -- the ComputeAdapter interface (15-ADAPTER-SPEC.md section 3) ------
 
-    def prepare(self, run_context: RunContext) -> PreparedJob:
-        """Stage the run: create the durable record and the working
-        directory, returning the prepared record (AC-01).
+    def prepare(
+        self,
+        run_context: RunContext,
+        *,
+        package: ComputeExecutionPackage | Mapping[str, Any] | None = None,
+    ) -> PreparedJob:
+        """Stage the run: gate and persist the execution package, then
+        create the durable record and the working directory, returning
+        the prepared record (AC-01).
+
+        The optional ``package`` is the runtime execution package (issue
+        #161) that carries the frozen Goal's scientific parameters: it is
+        schema-gated before anything is written (a malformed package is
+        refused loudly and nothing is persisted), then stored at
+        ``<state_dir>/packages/<package_id>.json``. The package record is
+        written before the job staging, so a refused job stage still
+        leaves a valid, identical package record behind -- a retry with
+        the same package is idempotent.
 
         Idempotent for an identical stage; re-staging the same run with
         different content is rejected (job identity is a pure function of
         the run id).
 
         Raises:
-            TypeError: ``run_context`` is not a ``RunContext``.
+            TypeError: ``run_context`` is not a ``RunContext``; or
+                ``package`` is neither a ``ComputeExecutionPackage`` nor
+                a mapping.
             ComputeJobIdentityError: malformed run id or unsafe declared
                 output name.
             ComputeJobStateError: the run's job already left the prepared
                 state, or is prepared with different content.
+            SchemaValidationError: the package fails its schema -- loud,
+                nothing is written.
+            ComputeExecutionPackageDataError: blank or unsafe
+                ``package_id``.
+            ComputePackageRecordError: an existing package record is
+                corrupt or unreadable.
+            ComputePackageConflictError: the package id is already
+                staged with different content.
         """
         self._validate_context(run_context)
+        if package is not None:
+            self._stage_package(package)
         job_id = self._job_id_for(run_context)
         record = self._try_read(job_id)
         if record is None:

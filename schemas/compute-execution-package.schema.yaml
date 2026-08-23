@@ -1,0 +1,41 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ComputeExecutionPackage
+type: object
+required:
+  [
+    package_id,
+    project_id,
+    goal_id,
+    goal_version,
+    run_id,
+    objective,
+    scientific_parameters,
+    input_files,
+    declared_outputs,
+    software_environment,
+    resource_requirements,
+  ]
+properties:
+  package_id: {type: string}
+  project_id: {type: string}
+  goal_id: {type: string}
+  # The frozen Goal version the package executes (11-COMPUTATION-SUBSYSTEM
+  # SS4: "track and frozen Goal version"). Required: a runtime compute
+  # execution package only exists for a frozen Goal, and the version links
+  # the package to the exact frozen contract it materializes.
+  goal_version: {type: string}
+  run_id: {type: string}
+  track: {enum: [STRICT_REPRODUCTION, RECOVERY, METHOD_REDESIGN]}
+  objective: {type: string}
+  # Scientific parameters materialized verbatim from the frozen Goal's
+  # inputs (force field, k-point mesh, cutoffs, convergence criteria,
+  # ...) -- the recorded translation from the frozen computation design
+  # to the input files.
+  scientific_parameters: {type: array, items: {type: object}}
+  # Input-file creation instructions, one per frozen input: what each
+  # file materializes and how the worker must create it.
+  input_files: {type: array, items: {type: object}}
+  declared_outputs: {type: array, items: {type: object}}
+  software_environment: {type: object}
+  resource_requirements: {type: object}
+additionalProperties: true
