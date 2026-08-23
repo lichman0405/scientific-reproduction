@@ -190,6 +190,7 @@ __all__ = [
     "FreezeProhibitedError",
     "GoalFamilyNotDraftError",
     "GoalNotFrozenError",
+    "GoalRequirementBackReferenceError",
     "GoalStateMismatchError",
     "HardGateDependencyCycleError",
     "OrphanGoalContractError",
@@ -315,6 +316,28 @@ class OrphanGoalContractError(FreezeError, ValueError):
     """
 
 
+class GoalRequirementBackReferenceError(FreezeError, ValueError):
+    """Raised when a goal's declared requirement coverage is not mirrored
+    by the registered requirements' goal mapping (issue #136 part 3).
+
+    Freezing requires bidirectional goal<->requirement agreement: every
+    requirement id a registered goal declares in ``requirement_ids`` must
+    be a registered requirement whose ``goal_ids`` include the goal. The
+    requirement -> goal direction alone is only transitive (the plan
+    unions requirement ``goal_ids``), so a goal claiming coverage the
+    requirement records do not back-reference would freeze two divergent
+    views of one contract -- the report prints ``goal.requirement_ids``
+    while mapping resolution walks ``requirement.goal_ids``. Umbrella
+    goals whose ``unit_process_type`` is ``audit`` or ``integration``
+    (e.g. GOAL-AUD-001 / GOAL-EXE-90) are exempt: their
+    ``requirement_ids`` is a whole-inventory coverage declaration, not
+    per-item ownership, and reload/plan semantics handle them without
+    item-level ``requirement -> goal`` edges. The message names the goal
+    and the offending requirement ids (deterministic, sorted by
+    requirement id).
+    """
+
+
 class HardGateDependencyCycleError(FreezeError, ValueError):
     """Raised when hard-gate goal dependencies form a cycle.
 
@@ -406,7 +429,16 @@ def freeze_plan(
     (``UnresolvedContractReferenceError``); and every registered goal
     must be referenced by at least one registered requirement -- a goal
     no requirement maps is an orphan family record and blocks the freeze
-    (``OrphanGoalContractError``, issue #141). Since issue #142 the gate
+    (``OrphanGoalContractError``, issue #141). Since issue #136 part 3
+    the gate also verifies the reverse goal -> requirement direction:
+    every requirement id a registered goal declares must be a registered
+    requirement whose ``goal_ids`` include the goal
+    (``GoalRequirementBackReferenceError`` naming the goal and the
+    offending requirement ids, sorted); umbrella goals whose
+    ``unit_process_type`` is ``audit`` or ``integration`` (the frozen
+    benchmark's GOAL-AUD-001 / GOAL-EXE-90) are exempt -- their
+    ``requirement_ids`` is a whole-inventory coverage declaration, not
+    per-item ownership. Since issue #142 the gate
     also resolves every registered goal's ``dependencies[].goal_id``
     against the registered goals (``UnresolvedContractReferenceError``
     naming the goal and the unresolved id) and rejects hard-gate
@@ -466,6 +498,13 @@ def freeze_plan(
         OrphanGoalContractError: a registered goal contract is not
             referenced by any registered requirement (an orphan family
             record; the message names the orphan goal ids).
+        GoalRequirementBackReferenceError: a registered goal declares a
+            requirement id that is not registered or whose ``goal_ids``
+            do not include the goal (bidirectional goal<->requirement
+            agreement; the message names the goal and the offending
+            requirement ids, sorted). Umbrella goals
+            (``unit_process_type`` ``audit`` / ``integration``) are
+            exempt.
         HardGateDependencyCycleError: the hard-gate goal dependencies
             form a cycle (the message names the cyclic goal ids).
         ValueError: a stored registry record is corrupt.
@@ -851,6 +890,17 @@ def revise_goal(root: str | Path, goal: GoalContract) -> GoalContract:
 # ---------------------------------------------------------------------------
 
 
+#: ``GoalContract.unit_process_type`` values that declare umbrella goal
+#: coverage. An umbrella goal's ``requirement_ids`` lists the whole
+#: inventory as a coverage declaration (a completeness audit re-covers
+#: every item; a final integration closes every item), not per-item
+#: ownership -- the reload/plan semantics handle them without item-level
+#: ``requirement -> goal`` edges. The freeze's bidirectional
+#: goal<->requirement check therefore exempts them from the
+#: requirement-back-reference requirement (issue #136 part 3).
+_UMBRELLA_GOAL_TYPES: frozenset[str] = frozenset({"audit", "integration"})
+
+
 #: Mainline rank of every normative project phase: the declaration order
 #: of ``core/rules/lifecycle.py`` ``PROJECT_PHASE_MAINLINE`` -- the only
 #: phase ordering of the frozen state model. The ``StrEnum`` lexicographic
@@ -926,6 +976,22 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
     ``OrphanGoalContractError`` naming the orphan goal ids instead of
     being stamped frozen silently. The gate surfaces the inconsistency;
     it never folds orphans into the plan.
+
+    Bidirectional goal<->requirement agreement is verified next (issue
+    #136 part 3): every requirement id a registered goal declares in
+    ``requirement_ids`` must be a registered requirement whose
+    ``goal_ids`` include the goal. The requirement -> goal direction
+    alone is only transitive (the plan unions requirement ``goal_ids``),
+    so a goal claiming coverage the requirement records do not
+    back-reference would freeze two divergent views of one contract and
+    raises ``GoalRequirementBackReferenceError`` naming the goal and the
+    offending requirement ids (sorted). Umbrella goals --
+    ``unit_process_type`` ``audit`` or ``integration`` (the frozen
+    benchmark's GOAL-AUD-001 / GOAL-EXE-90) -- are exempt: their
+    ``requirement_ids`` is a whole-inventory coverage declaration, not
+    per-item ownership, and the reload/plan semantics handle them
+    without item-level edges (the reload locks that they carry no item
+    mapping).
 
     Finally, dependency closure is verified (issue #142): every
     registered goal's ``dependencies[].goal_id`` must resolve to a
@@ -1015,6 +1081,34 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
             " registered requirement (orphan family records):"
             f" {', '.join(orphan_goal_ids)}"
         )
+
+    # Bidirectional goal<->requirement agreement (issue #136 part 3): the
+    # goal -> requirement direction mirroring the orphan direction above.
+    # Computed from the registered requirements at freeze time (stored
+    # snapshots are never trusted): every requirement id a goal declares
+    # must be a registered requirement whose goal_ids include the goal.
+    # Umbrella goals (unit_process_type audit / integration) declare
+    # whole-inventory coverage, not per-item ownership, and are exempt.
+    requirement_by_id = {
+        requirement.requirement_id: requirement
+        for requirement in list_requirements(project_root)
+    }
+    for goal in goals:
+        if goal.unit_process_type in _UMBRELLA_GOAL_TYPES:
+            continue
+        non_backreferencing = sorted(
+            requirement_id
+            for requirement_id in goal.requirement_ids
+            if requirement_id not in requirement_by_id
+            or goal.goal_id not in requirement_by_id[requirement_id].goal_ids
+        )
+        if non_backreferencing:
+            raise GoalRequirementBackReferenceError(
+                f"goal contract {goal.goal_id!r} declares requirement id(s)"
+                " that are not registered requirements or whose goal_ids do"
+                " not include the goal (bidirectional goal<->requirement"
+                f" agreement): {', '.join(non_backreferencing)}"
+            )
 
     # Dependency closure (issue #142): every registered goal's dependency
     # goal ids must resolve to registered contracts, and the hard-gate

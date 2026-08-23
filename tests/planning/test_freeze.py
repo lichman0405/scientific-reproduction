@@ -85,6 +85,7 @@ from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
     FreezeProhibitedError,
     GoalFamilyNotDraftError,
+    GoalRequirementBackReferenceError,
     HardGateDependencyCycleError,
     OrphanGoalContractError,
     PlanAlreadyFrozenError,
@@ -160,12 +161,13 @@ def make_goal(
     analysis_id: str = "ANL-1",
     closure_id: str | None = "CLS-1",
     dependencies: tuple[GoalDependency, ...] = (),
+    unit_process_type: str = "gas_adsorption_isotherm",
 ) -> GoalContract:
     """Build a schema-valid draft goal contract (version ``v1-draft``)."""
     return GoalContract(
         goal_id=goal_id,
         title=f"Reproduce the reported isotherm ({goal_id}).",
-        unit_process_type="gas_adsorption_isotherm",
+        unit_process_type=unit_process_type,
         track=GoalTrack.STRICT_REPRODUCTION,
         objective="Reproduce the formally reported isotherm dataset.",
         requirement_ids=list(requirement_ids),
@@ -1471,6 +1473,157 @@ def test_freeze_plan_orphan_goal_error_is_stable_and_sorted(tmp_path):
     assert "GOAL-2" in messages[0]
     assert "GOAL-3" in messages[0]
     assert messages[0].index("GOAL-2") < messages[0].index("GOAL-3")
+
+
+# ---------------------------------------------------------------------------
+# Issue #136 part 3: bidirectional goal<->requirement agreement at freeze
+# ---------------------------------------------------------------------------
+
+
+def _register_mapped_goal_136(
+    root: Path,
+    goal_id: str,
+    *,
+    item_id: str,
+    requirement_id: str,
+    unit_process_type: str = "gas_adsorption_isotherm",
+    goal_requirement_ids: tuple[str, ...] | None = None,
+) -> None:
+    """Register a requirement-mapped goal (item -> requirement -> goal).
+
+    The fresh chain keeps the completeness audit mapped and the goal
+    non-orphan, so the freeze reaches the bidirectional gate instead of
+    stopping earlier; ``unit_process_type`` authors umbrella-type goals
+    for the exemption tests, and ``goal_requirement_ids`` overrides the
+    goal's declared requirement coverage (defaults to the mapping
+    requirement).
+    """
+    register_inventory_item(
+        root, make_item(item_id, requirement_ids=(requirement_id,))
+    )
+    register_requirement(
+        root,
+        make_requirement(
+            requirement_id, inventory_items=(item_id,), goal_ids=(goal_id,)
+        ),
+    )
+    register_goal(
+        root,
+        make_goal(
+            goal_id,
+            requirement_ids=(
+                goal_requirement_ids
+                if goal_requirement_ids is not None
+                else (requirement_id,)
+            ),
+            unit_process_type=unit_process_type,
+        ),
+    )
+
+
+def test_freeze_136_unbackreferenced_requirement_blocks_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2 is requirement-mapped through REQ-3 (not an orphan), but its
+    # requirement_ids also declares REQ-1, whose goal_ids map only
+    # GOAL-1: the goal -> requirement direction diverges from the
+    # requirement -> goal direction and must block the freeze.
+    _register_mapped_goal_136(
+        root,
+        "GOAL-2",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        goal_requirement_ids=("REQ-1", "REQ-3"),
+    )
+    with pytest.raises(GoalRequirementBackReferenceError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "GOAL-2" in str(exc.value)
+    assert "REQ-1" in str(exc.value)
+    assert "REQ-3" not in str(exc.value)
+    # Nothing is written: no draft, no frozen plan, and the goal family
+    # stays in its draft state.
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+    assert read_goal(root, "GOAL-1").frozen is False
+    assert read_goal(root, "GOAL-2").frozen is False
+
+
+def test_freeze_136_back_reference_error_is_stable_and_sorted(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2 declares two requirements whose records map only GOAL-1; the
+    # offending ids must be reported in deterministic sorted order.
+    _register_mapped_goal_136(
+        root,
+        "GOAL-2",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        goal_requirement_ids=("REQ-2", "REQ-1"),
+    )
+    messages = []
+    for _ in range(2):
+        with pytest.raises(GoalRequirementBackReferenceError) as exc:
+            freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+        messages.append(str(exc.value))
+    # Stable: identical message on every attempt, naming the goal and
+    # every offending requirement id in sorted order.
+    assert messages[0] == messages[1]
+    assert "GOAL-2" in messages[0]
+    assert "REQ-1" in messages[0]
+    assert "REQ-2" in messages[0]
+    assert messages[0].index("REQ-1") < messages[0].index("REQ-2")
+
+
+def test_freeze_136_unregistered_requirement_id_blocks_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2 declares a requirement id with no registered requirement
+    # record at all: same gate, same error, same sorted reporting.
+    _register_mapped_goal_136(
+        root,
+        "GOAL-2",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        goal_requirement_ids=("REQ-2", "REQ-MISSING"),
+    )
+    with pytest.raises(GoalRequirementBackReferenceError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "GOAL-2" in str(exc.value)
+    assert "REQ-MISSING" in str(exc.value)
+    assert "REQ-2" in str(exc.value)
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+
+
+@pytest.mark.parametrize("unit_process_type", ["audit", "integration"])
+def test_freeze_136_umbrella_goal_exempt_from_back_reference_check(
+    tmp_path, unit_process_type
+):
+    root = build_complete_workspace(tmp_path)
+    # An umbrella goal declares the whole requirement set as a coverage
+    # declaration (audit/integration re-cover every item) without
+    # per-item ownership: REQ-1/REQ-2 do not back-reference it. The
+    # bidirectional check exempts umbrella unit-process types -- the
+    # orphan direction is NOT exempted, so the umbrella goal carries its
+    # own coverage requirement edge (REQ-3).
+    _register_mapped_goal_136(
+        root,
+        "GOAL-AUD",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        unit_process_type=unit_process_type,
+        goal_requirement_ids=("REQ-1", "REQ-2"),
+    )
+    result = freeze_complete(root)
+    assert "GOAL-AUD" in result.frozen_plan.goal_ids
+    assert result.frozen_plan.status is PlanStatus.FROZEN
+
+
+def test_freeze_136_valid_bidirectional_family_freezes(tmp_path):
+    # The complete workspace's bidirectional agreement: GOAL-1 declares
+    # exactly the requirements whose records map it back, so the freeze
+    # passes through the new gate unchanged.
+    root = build_complete_workspace(tmp_path)
+    result = freeze_complete(root)
+    assert result.frozen_plan.status is PlanStatus.FROZEN
+    assert read_goal(root, "GOAL-1").frozen is True
 
 
 # ---------------------------------------------------------------------------
