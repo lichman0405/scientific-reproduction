@@ -77,6 +77,11 @@ from scientific_reproduction.adapters.compute.ssh import (
 from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id, is_valid_id
 from scientific_reproduction.core.models import (
+    AutomaticRetryPolicy,
+    GoalAcceptance,
+    GoalContract,
+    GoalReplication,
+    GoalTrack,
     LifecycleState,
     Run,
     RunExternal,
@@ -88,7 +93,8 @@ from scientific_reproduction.monitoring.registry import (
     WatchedRunRegistry,
 )
 from scientific_reproduction.monitoring.retry import (
-    ENGINEERING_RETRY_WHITELIST,
+    FAILURE_CLASS_TO_FAILURE_KIND,
+    FAILURE_KIND_SSH_CONNECTION_LOST,
     RETRY_ACTOR,
     RETRY_AUTHORIZED_REASON,
     RETRY_DECISION_AUTHORIZED,
@@ -99,6 +105,7 @@ from scientific_reproduction.monitoring.retry import (
     RetryError,
     RetryOutcome,
     RetrySummary,
+    failure_class_to_failure_kind,
 )
 
 FIXED_STAMP = "2026-08-14T00:00:00+00:00"
@@ -106,6 +113,7 @@ FIXED_STAMP = "2026-08-14T00:00:00+00:00"
 MONITOR_ID = generate_id("monitor", "scenario-e", "session-1")
 RUN_ID = generate_id("run", "goal-1", "seq-1")
 GOAL_ID = generate_id("goal", "goal-1")
+POLICY_ID = generate_id("policy", "scenario-e")
 JOB_ID = generate_id("job", RUN_ID)
 
 DEFAULT_CREDENTIALS = SSHCredentials(host="slurm-cluster.example.edu", username="alice")
@@ -364,6 +372,49 @@ def write_run(run_store: FilesystemStateBackend, run: Run) -> None:
     run_store.write("run", run.run_id, run.to_dict())
 
 
+def write_goal_and_policy(run_store: FilesystemStateBackend) -> None:
+    """Scenario E's frozen Goal referencing its frozen automatic retry
+    policy, and the policy record itself: the policy whitelists exactly
+    the kind the ``"transport"`` failure class bridges to (the
+    scheduler/node failure of S4) -- the dispatcher's authorization
+    contract."""
+    run_store.write(
+        "goal",
+        GOAL_ID,
+        GoalContract(
+            goal_id=GOAL_ID,
+            title="Scenario E GCMC replicate",
+            unit_process_type="gcmc",
+            track=GoalTrack.STRICT_REPRODUCTION,
+            objective="reproduce the reported GCMC result",
+            requirement_ids=[generate_id("requirement", GOAL_ID)],
+            dependencies=[],
+            acceptance=GoalAcceptance(
+                criteria_ref=generate_id("acceptance", GOAL_ID),
+                frozen=True,
+            ),
+            analysis_protocol_ref=generate_id("analysis", GOAL_ID),
+            replication=GoalReplication(
+                independent_required=True, planned_n_policy="fixed"
+            ),
+            version="1.0",
+            frozen=True,
+            automatic_retry_policy_ref=POLICY_ID,
+            frozen_at=FIXED_STAMP,
+            frozen_commit="abcdef0",
+        ).to_dict(),
+    )
+    run_store.write(
+        "retry-policy",
+        POLICY_ID,
+        AutomaticRetryPolicy(
+            policy_id=POLICY_ID,
+            allowed_engineering_failures=[FAILURE_KIND_SSH_CONNECTION_LOST],
+            supervisor_required_changes=[],
+        ).to_dict(),
+    )
+
+
 def tree_bytes(root: Path) -> bytes:
     """The byte-identical snapshot of the durable state tree."""
     return b"\n".join(
@@ -467,6 +518,7 @@ def execute_scenario_e(
     watch = make_watch_record(external)
     run_store = FilesystemStateBackend(root)
     write_run(run_store, run)
+    write_goal_and_policy(run_store)
     WatchedRunRegistry(state_dir, now=clock, monitor_id=MONITOR_ID).watch(watch)
     run_bytes_before = run_file_bytes(runs_dir)
 
@@ -578,6 +630,10 @@ def test_E_ac01_transport_failure_authorizes_identical_resubmission(
     assert not outcome.replayed
     assert result.summary.authorized_count == 1
     assert result.summary.refused_count == 0
+    # the frozen policy of the Goal authorized this decision
+    assert outcome.failure_kind == FAILURE_KIND_SSH_CONNECTION_LOST
+    assert outcome.policy_id == POLICY_ID
+    assert outcome.matched_rule_id == "R-RET-A1"
 
     resubmitted = outcome.resubmitted_external
     assert resubmitted is not None
@@ -647,6 +703,8 @@ def test_E_ac01_engineering_recovery_only_no_supervisor_replan(
     assert events[0]["reason"] == RETRY_AUTHORIZED_REASON
     assert events[0]["payload"]["decision"] == RETRY_DECISION_AUTHORIZED
     assert events[0]["payload"]["failure_class"] == FAILURE_CLASS_TRANSPORT
+    assert events[0]["payload"]["failure_kind"] == FAILURE_KIND_SSH_CONNECTION_LOST
+    assert events[0]["payload"]["policy_id"] == POLICY_ID
     assert events[0]["payload"]["resubmitted_external"]["backend"] == SSH_BACKEND_NAME
 
 
@@ -709,6 +767,10 @@ def test_E_ac02_scientific_failure_refused_no_resubmission(tmp_path: Path) -> No
     assert outcome.decided_at == FIXED_STAMP
     assert result.summary.authorized_count == 0
     assert result.summary.refused_count == 1
+    # the same frozen policy was consulted and refused this class
+    assert outcome.failure_kind == FAILURE_CLASS_JOB
+    assert outcome.policy_id == POLICY_ID
+    assert outcome.matched_rule_id == "R-RET-D1"
 
     # the run record is byte-identical and the resubmission hook was
     # never invoked (no scheduler resubmission, no new job)
@@ -747,13 +809,20 @@ def test_E_ac02_unclassified_failure_refused(tmp_path: Path) -> None:
 
 
 def test_E_ac02_whitelist_is_engineering_only() -> None:
-    """AC-02: the engineering whitelist admits exactly the transport
-    class -- the job class (scientific compute failures) is never on
-    it."""
-    assert ENGINEERING_RETRY_WHITELIST == frozenset({FAILURE_CLASS_TRANSPORT})
+    """AC-02: the retry authorization is exactly the Goal's frozen
+    policy whitelist -- scenario E's policy whitelists only the kind
+    the transport class bridges to (the scheduler/node failure of S4),
+    never the scientific compute failure class."""
+    assert FAILURE_CLASS_TO_FAILURE_KIND == {
+        FAILURE_CLASS_TRANSPORT: FAILURE_KIND_SSH_CONNECTION_LOST
+    }
+    assert failure_class_to_failure_kind(FAILURE_CLASS_TRANSPORT) == (
+        FAILURE_KIND_SSH_CONNECTION_LOST
+    )
+    assert failure_class_to_failure_kind(FAILURE_CLASS_JOB) == FAILURE_CLASS_JOB
     assert FAILURE_CLASS_TRANSPORT == "transport"
     assert FAILURE_CLASS_JOB == "job"
-    assert FAILURE_CLASS_JOB not in ENGINEERING_RETRY_WHITELIST
+    assert FAILURE_CLASS_JOB not in FAILURE_CLASS_TO_FAILURE_KIND
 
 
 # ---------------------------------------------------------------------------
@@ -826,8 +895,11 @@ def test_E_scenario_uses_safe_ids_only() -> None:
         MONITOR_ID,
         RUN_ID,
         GOAL_ID,
+        POLICY_ID,
         JOB_ID,
-        generate_id("event", RETRY_DECISION_EVENT_TYPE, RUN_ID, "transport"),
+        generate_id(
+            "event", RETRY_DECISION_EVENT_TYPE, RUN_ID, "transport", "attempt-0"
+        ),
         generate_id("job", "resubmit-1"),
     )
     for value in ids:
@@ -855,7 +927,11 @@ def test_E_outcomes_are_frozen_and_validate_their_contract() -> None:
             working_directory=WORK_DIR,
         ),
         event_id=generate_id(
-            "event", RETRY_DECISION_EVENT_TYPE, RUN_ID, FAILURE_CLASS_TRANSPORT
+            "event",
+            RETRY_DECISION_EVENT_TYPE,
+            RUN_ID,
+            FAILURE_CLASS_TRANSPORT,
+            "attempt-0",
         ),
     )
     with pytest.raises(FrozenInstanceError):

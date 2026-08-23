@@ -100,18 +100,26 @@ restart.
 
 ### 3.4 Engineering retry (`monitoring/retry.py`, DEV-M8-G03)
 
-The Monitor may perform **identical resubmission** for failures whose
-adapter-recorded class is on `ENGINEERING_RETRY_WHITELIST` — today exactly
-`"transport"` (connection-level: unreachable scheduler/node), the class
-recorded by the ssh/slurm_ssh adapters (`adapters/compute/ssh.py`,
-`adapters/compute/slurm_ssh.py`). A `"job"` class, an unclassified `None` or
-any unrecognized string is a scientific compute failure: it is observed and
-recorded as a refused decision and **never** resubmitted (safe by
-construction). Every decision — authorized and refused — is appended as an
-`engineering_retry_decision` event (actor `execution-monitor`, stable reasons
-`engineering_failure_retry_authorized` / `scientific_failure_retry_refused`),
-under an idempotency key, so a Monitor restart reconstructs the full retry
-history from durable state alone and never resubmits twice.
+The Monitor may perform **identical resubmission** for failures the Goal's
+frozen automatic retry policy authorizes: the dispatcher resolves the policy
+through the Goal's `automatic_retry_policy_ref` and evaluates the failure
+through the frozen ordered rule table in `workers/retry.py`. The adapter
+failure class bridges to a policy failure-kind deterministically
+(`"transport"` -> `"ssh_connection_lost"`; other classes pass through
+verbatim; an unclassified `None` collapses to `"unclassified"`).
+`allowed_engineering_failures` authorizes an identical resubmission;
+`supervisor_required_changes` kinds decide a Supervisor-required change;
+`invalidate_run_on` kinds decide a run invalidation; `max_identical_retries`
+caps the identical resubmissions of one failure (attempt-indexed); every
+other kind is refused by the policy's default rule, and a Goal with no
+policy ref never authorizes a retry (safe by construction). Every decision —
+authorized, refused, invalidation and Supervisor-required — is appended as
+an `engineering_retry_decision` event (actor `execution-monitor`, stable
+reasons `engineering_failure_retry_authorized` /
+`scientific_failure_retry_refused` / `engineering_failure_run_invalidated` /
+`scientific_change_supervisor_required`), under an attempt-indexed
+idempotency key, so a Monitor restart reconstructs the full retry history
+from durable state alone and never resubmits twice.
 
 ### 3.5 Follow-up triggers (`monitoring/triggers.py`, DEV-M8-G05)
 

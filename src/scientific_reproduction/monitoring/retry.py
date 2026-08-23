@@ -9,11 +9,12 @@ watched-Run registry and the durable Run store of DEV-M8-G01/G02), the
 append-only event log and injected hooks, it decides for each failed
 external Run whether an identical resubmission is authorized, performs
 it through an injected resubmission hook, and records every decision
-(authorized and refused) as an auditable event through the real event
-log with deterministic ids -- so a Monitor restart reconstructs the
-full retry history from the durable state alone.
+(authorized, refused, invalidated and supervisor-routed) as an
+auditable event through the real event log with deterministic ids -- so
+a Monitor restart reconstructs the full retry history from the durable
+state alone.
 
-Failure-class vocabulary (mirrored, never imported)
+Failure-class vocabulary and the policy-kind bridge
 ---------------------------------------------------
 The engineering-vs-scientific classification of a failure lives in the
 compute adapters (``adapters/compute/ssh.py`` and
@@ -27,48 +28,92 @@ package (locked by ``tests/monitoring/test_monitoring_surface.py``):
 :data:`FAILURE_CLASS_TRANSPORT` and :data:`FAILURE_CLASS_JOB`, and the
 classifier / resubmission hook are injected callables.
 
-Whitelist semantics (AC-01/AC-02)
----------------------------------
-:data:`ENGINEERING_RETRY_WHITELIST` is the authorized failure-class
-set (the engineering classes: ``FAILURE_CLASS_TRANSPORT`` and its
-adapter variants -- today exactly ``"transport"``). A failure whose
-adapter-recorded class is on the whitelist may trigger an **identical
-resubmission**: the same Run identity, the same external identity
-semantics (the same backend; the hook returns the fresh external id of
-the resubmission), no parameter change of any kind -- the dispatcher
-never writes the Run record and under no circumstance mutates run
-parameters. Anything not on the whitelist -- the ``"job"`` class, an
-unclassified ``None``, or any unrecognized string -- is a SCIENTIFIC
-compute failure: it is observed and recorded as a refused decision and
-never resubmits (safe-by-construction: the refusal is the default for
-every class outside the whitelist).
+The frozen ``AutomaticRetryPolicy`` contract speaks a different,
+policy-level vocabulary -- the failure kinds of ``workers/retry.py``
+(``"ssh_connection_lost"``, ``"scheduler_node_failure"``,
+``"checkpoint_continuation"``, ...). :func:`failure_class_to_failure_kind`
+is the deterministic bridge between the two vocabularies: the mirrored
+adapter class ``"transport"`` maps to the policy kind
+``"ssh_connection_lost"``, every other failure class passes through
+verbatim (so a classifier may already report a policy kind directly),
+and a failure the adapter never classified maps to
+:data:`RETRY_FAILURE_CLASS_UNCLASSIFIED`. The bridge is a pure function
+of the failure class -- the dispatcher never imports the adapters.
+
+Automatic retry policy semantics (AC-01/AC-02)
+----------------------------------------------
+Every retry decision consults the Goal's frozen automatic retry
+policy: the dispatcher resolves ``goal.automatic_retry_policy_ref``
+through the injected run store (the ``retry-policy`` record) and
+routes the authorization decision through the frozen
+``workers/retry.py`` evaluator (``evaluate_automatic_retry`` over the
+ordered ``RETRY_DECISION_RULES`` table -- first match wins, the
+whitelist is the contract). The dispatcher reimplements none of the
+policy semantics; it only maps the evaluator's verdict and routing
+onto the decision vocabulary:
+
+* a whitelisted engineering failure (``R-RET-A1``) or an identical
+  checkpoint continuation within ``max_identical_retries``
+  (``R-RET-C1``) authorizes an IDENTICAL resubmission through the
+  injected hook -- same run identity, same external identity semantics
+  (the same backend; the hook returns the fresh external id of the
+  resubmission), no parameter change of any kind -- the dispatcher
+  never writes the Run record and under no circumstance mutates run
+  parameters.
+* a ``supervisor_required_changes`` entry or a scientific-change
+  vocabulary match (``R-RET-S1``/``R-RET-V1``) decides a
+  Supervisor-required change: observed and recorded, never
+  resubmitted.
+* an ``invalidate_run_on`` entry (``R-RET-I1``) decides an
+  invalidation: observed and recorded, never resubmitted.
+* anything else (``R-RET-D1``) -- the ``"job"`` class, an unclassified
+  ``None``, an unrecognized string, or a Goal with no retry policy ref
+  at all -- is a scientific compute failure: observed and recorded as
+  a refused decision and never resubmitted (safe-by-construction: the
+  refusal is the default for every failure no policy entry
+  authorizes).
+
+The identical-retry ceiling (``max_identical_retries``) is enforced
+through an attempt-indexed decision identity: the dispatcher counts
+the recorded authorized decisions of the same (run, failure class) as
+the ``identical_retry_count`` the frozen evaluator gates checkpoint
+continuation with, so the ceiling can actually reject the N+1th
+identical resubmission instead of the idempotency key capping retries
+at one per failure class.
 
 Retry-decision event vocabulary (AC-03, auditable history)
 ----------------------------------------------------------
-Every decision -- an authorized retry AND a refused retry -- is
-appended through the real append-only ``ProjectEventLog`` as an
-``engineering_retry_decision`` event (actor ``execution-monitor``,
-object/run the decided Run, stable reason per decision:
-``engineering_failure_retry_authorized`` /
-``scientific_failure_retry_refused``), carrying the failure class, the
-decision and the resubmitted external identity (when authorized) in
-the payload. The event id is a pure function of the decision inputs
+Every decision is appended through the real append-only
+``ProjectEventLog`` as an ``engineering_retry_decision`` event (actor
+``execution-monitor``, object/run the decided Run, stable reason per
+decision), carrying the failure class, the bridged failure kind, the
+consulted policy id, the attempt index, the decision, the evaluator
+routing, the matched rule id and reasoning ids, the decided external
+identity and -- when authorized -- the resubmitted external identity
+in the payload. The event id is a pure function of the decision inputs
 (``generate_id("event", "engineering_retry_decision", <run_id>,
-<failure class>)``) and the append uses the deterministic idempotency
-key ``retry.decision:<run_id>:<failure class>``, so re-deciding the
-same failure resolves to the single original record and the log's
-sequence never advances twice for the same decision.
+<failure class>, "attempt-<n>")``) and the append uses the
+deterministic idempotency key ``retry.decision:<run_id>:<failure
+class>:attempt-<n>``: the attempt index is part of the decision
+identity, so each of the ``max_identical_retries`` resubmissions is
+recorded exactly once and the log's sequence never advances twice for
+the same decision.
 
-Exactly-once resubmission
--------------------------
+Exactly-once resubmission and restart replay
+--------------------------------------------
 The recorded decision is the durable "retry was performed" fact: the
-dispatcher resolves the decision record *before* touching the
-resubmission hook, so a re-decided (or restart-replayed) decision
-returns the recorded history and never re-invokes the hook -- the
-resubmission happens at most once per recorded decision. A crash
-between the resubmission and the append of the decision record
-re-invokes the hook when the same decision is re-issued; once the
-record exists, re-deciding is a pure idempotent replay.
+dispatcher resolves the recorded history *before* touching the
+resubmission hook. A recorded decision replays when it is the decision
+of the current failure generation -- the recorded ``external``
+identity matches the watch entry's (a record predating the field
+matches any generation) -- so a re-decided (or restart-replayed)
+decision returns the recorded history and never re-invokes the hook,
+while a genuinely new failure generation (a fresh external identity --
+e.g. the resubmission itself failing again) advances to the next
+attempt and a fresh decision. A crash between the resubmission and the
+append of the decision record re-invokes the hook when the same
+decision is re-issued; once the record exists, re-deciding is a pure
+idempotent replay.
 
 Determinism and discipline
 --------------------------
@@ -83,9 +128,10 @@ the run store** (no parameter mutation, ever). Errors follow the house
 paradigm: ``TypeError`` at public type boundaries, stable
 ``MonitoringError`` subclasses otherwise (``RetryContractError`` for
 lifecycle/identity contract violations, ``CorruptRetryStateError`` for
-corrupt retry state). No credentials are ever persisted: transient
-classifier failures are recorded as unclassified refusals and their
-messages never reach durable bytes.
+corrupt retry state -- including an unreadable goal or retry-policy
+record). No credentials are ever persisted: transient classifier
+failures are recorded as unclassified refusals and their messages
+never reach durable bytes.
 
 The pass-level :meth:`RetryDispatcher.decide_all` isolates per-run
 errors (issue #152): only ``RUNNING_EXTERNAL`` runs are eligible for a
@@ -106,6 +152,8 @@ from typing import Any, TypeAlias
 from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id, is_valid_id
 from scientific_reproduction.core.models import (
+    AutomaticRetryPolicy,
+    GoalContract,
     LifecycleState,
     ProjectEvent,
     Run,
@@ -121,24 +169,41 @@ from scientific_reproduction.monitoring.registry import (
     MonitoringError,
     WatchedRunRecord,
     WatchedRunRegistry,
+    WatchNotFoundError,
     utc_now,
     validate_external_identity,
+)
+from scientific_reproduction.workers.retry import (
+    CHECKPOINT_CONTINUATION_KIND,
+    REASON_INVALIDATE_RUN,
+    REASON_NO_POLICY_ENTRY,
+    RetryAuthorization,
+    RetryEvaluationInput,
+    RetryPolicyError,
+    RetryRouting,
+    evaluate_automatic_retry,
 )
 
 __all__ = [
     "CorruptRetryStateError",
-    "ENGINEERING_RETRY_WHITELIST",
     "FAILURE_CLASS_JOB",
+    "FAILURE_CLASS_TO_FAILURE_KIND",
     "FAILURE_CLASS_TRANSPORT",
+    "FAILURE_KIND_SSH_CONNECTION_LOST",
     "FailureClassifier",
     "RETRY_ACTOR",
     "RETRY_AUTHORIZED_REASON",
     "RETRY_DECISION_AUTHORIZED",
     "RETRY_DECISION_EVENT_TYPE",
+    "RETRY_DECISION_INVALIDATED",
     "RETRY_DECISION_KEY_PREFIX",
     "RETRY_DECISION_REFUSED",
+    "RETRY_DECISION_SUPERVISOR_REQUIRED",
+    "RETRY_DECISIONS",
     "RETRY_FAILURE_CLASS_UNCLASSIFIED",
+    "RETRY_INVALIDATED_REASON",
     "RETRY_REFUSED_REASON",
+    "RETRY_SUPERVISOR_REASON",
     "ResubmitHook",
     "RetryContractError",
     "RetryDispatcher",
@@ -147,6 +212,7 @@ __all__ = [
     "RetryOutcome",
     "RetrySkipped",
     "RetrySummary",
+    "failure_class_to_failure_kind",
 ]
 
 # ---------------------------------------------------------------------------
@@ -172,15 +238,37 @@ FAILURE_CLASS_JOB: str = "job"
 #: still carries ``null``).
 RETRY_FAILURE_CLASS_UNCLASSIFIED: str = "unclassified"
 
-#: The engineering retry whitelist (AC-01): the authorized failure
-#: classes that may trigger an identical resubmission. Every failure
-#: class outside this set -- ``FAILURE_CLASS_JOB``, ``None``
-#: (unclassified) or any unrecognized string -- is a scientific
-#: compute failure and is refused (AC-02): refusal is the
-#: safe-by-construction default.
-ENGINEERING_RETRY_WHITELIST: frozenset[str] = frozenset(
-    {FAILURE_CLASS_TRANSPORT}
-)
+#: The canonical failure kind the mirrored ``"transport"`` class
+#: bridges to: a connection-level loss on the SSH transport boundary
+#: (unreachable host, dropped connection, timeout -- an engineering
+#: failure; the ``workers/retry.py`` SS5 failure-kind vocabulary).
+FAILURE_KIND_SSH_CONNECTION_LOST: str = "ssh_connection_lost"
+
+#: The deterministic adapter-class -> policy-kind bridge table: the
+#: mirrored adapter failure-class vocabulary maps onto the frozen
+#: failure-kind vocabulary of the automatic retry policy. A class not
+#: in the table passes through verbatim (a classifier may already
+#: report a policy kind directly).
+FAILURE_CLASS_TO_FAILURE_KIND: dict[str, str] = {
+    FAILURE_CLASS_TRANSPORT: FAILURE_KIND_SSH_CONNECTION_LOST,
+}
+
+
+def failure_class_to_failure_kind(failure_class: str | None) -> str:
+    """Bridge an adapter-recorded failure class to a policy failure kind.
+
+    The deterministic bridge between the two vocabularies: a mirrored
+    adapter class maps through :data:`FAILURE_CLASS_TO_FAILURE_KIND`
+    (``"transport"`` -> ``"ssh_connection_lost"``); any other
+    non-blank string passes through verbatim (a classifier may already
+    report a policy kind such as ``"scheduler_node_failure"``); an
+    unclassified failure (``None`` or blank) maps to
+    :data:`RETRY_FAILURE_CLASS_UNCLASSIFIED`.
+    """
+    if failure_class is None or not failure_class.strip():
+        return RETRY_FAILURE_CLASS_UNCLASSIFIED
+    return FAILURE_CLASS_TO_FAILURE_KIND.get(failure_class, failure_class)
+
 
 # ---------------------------------------------------------------------------
 # The retry-decision event vocabulary (AC-03, auditable history)
@@ -190,17 +278,41 @@ ENGINEERING_RETRY_WHITELIST: frozenset[str] = frozenset(
 #: Execution Monitor (the same actor as reconciliation).
 RETRY_ACTOR: str = "execution-monitor"
 
-#: Event type of a retry decision record: one event per decision
-#: (authorized retry AND refused retry), carrying the failure class,
-#: the decision and -- when authorized -- the resubmitted external
+#: Event type of a retry decision record: one event per decision,
+#: carrying the failure class, the failure kind, the consulted policy,
+#: the attempt index, the decision, the routing and reasoning of the
+#: frozen evaluator and -- when authorized -- the resubmitted external
 #: identity in the payload.
 RETRY_DECISION_EVENT_TYPE: str = "engineering_retry_decision"
 
 #: The decision vocabulary: the retry was authorized and performed.
 RETRY_DECISION_AUTHORIZED: str = "retry_authorized"
 
-#: The decision vocabulary: the retry was refused (scientific failure).
+#: The decision vocabulary: the retry was refused (no policy entry
+#: authorizes the failure).
 RETRY_DECISION_REFUSED: str = "retry_refused"
+
+#: The decision vocabulary: the failure invalidates the run (the
+#: policy's ``invalidate_run_on``) -- an invalidation decision, never
+#: a resubmission.
+RETRY_DECISION_INVALIDATED: str = "run_invalidated"
+
+#: The decision vocabulary: the failure is a scientific change the
+#: policy routes to the Supervisor (``supervisor_required_changes`` /
+#: the scientific-change vocabulary) -- a Supervisor-required change
+#: decision, never a resubmission.
+RETRY_DECISION_SUPERVISOR_REQUIRED: str = "supervisor_required_change"
+
+#: The complete decision vocabulary (every value a decision record may
+#: carry).
+RETRY_DECISIONS: frozenset[str] = frozenset(
+    {
+        RETRY_DECISION_AUTHORIZED,
+        RETRY_DECISION_REFUSED,
+        RETRY_DECISION_INVALIDATED,
+        RETRY_DECISION_SUPERVISOR_REQUIRED,
+    }
+)
 
 #: Stable reason of an authorized retry decision record.
 RETRY_AUTHORIZED_REASON: str = "engineering_failure_retry_authorized"
@@ -208,12 +320,28 @@ RETRY_AUTHORIZED_REASON: str = "engineering_failure_retry_authorized"
 #: Stable reason of a refused retry decision record.
 RETRY_REFUSED_REASON: str = "scientific_failure_retry_refused"
 
+#: Stable reason of an invalidation decision record.
+RETRY_INVALIDATED_REASON: str = "engineering_failure_run_invalidated"
+
+#: Stable reason of a Supervisor-required change decision record.
+RETRY_SUPERVISOR_REASON: str = "scientific_change_supervisor_required"
+
+#: The stable event reason per decision (the auditable
+#: reason-vocabulary of the decision records).
+_DECISION_REASONS: dict[str, str] = {
+    RETRY_DECISION_AUTHORIZED: RETRY_AUTHORIZED_REASON,
+    RETRY_DECISION_REFUSED: RETRY_REFUSED_REASON,
+    RETRY_DECISION_INVALIDATED: RETRY_INVALIDATED_REASON,
+    RETRY_DECISION_SUPERVISOR_REQUIRED: RETRY_SUPERVISOR_REASON,
+}
+
 #: Prefix of the deterministic idempotency key under which a decision
-#: record is appended (``retry.decision:<run_id>:<failure class>``):
-#: the event log resolves re-submissions of the same decision to the
-#: single original record, so a decision is recorded exactly once
-#: (AC-03) and the resubmission is performed at most once per recorded
-#: decision (AC-01).
+#: record is appended (``retry.decision:<run_id>:<failure
+#: class>:attempt-<n>``): the attempt index is part of the decision
+#: identity, so each identical retry is recorded exactly once (AC-03)
+#: and the resubmission is performed at most once per recorded
+#: decision (AC-01) while the ``max_identical_retries`` ceiling stays
+#: enforceable.
 RETRY_DECISION_KEY_PREFIX: str = "retry.decision"
 
 
@@ -243,8 +371,10 @@ class RetryContractError(RetryError):
 class CorruptRetryStateError(RetryError):
     """Raised when retry state is corrupt: the watch entry references a
     run with no run record in the run store, the stored run record
-    cannot be read/parsed, or a recorded retry decision in the event
-    log is malformed. Corrupt persisted state fails loudly, never
+    cannot be read/parsed, the run's goal record or the referenced
+    automatic retry policy record cannot be read/parsed (or the policy
+    cannot serve as a contract), or a recorded retry decision in the
+    event log is malformed. Corrupt persisted state fails loudly, never
     silently."""
 
 
@@ -255,11 +385,12 @@ class CorruptRetryStateError(RetryError):
 #: The injected failure classifier: a callable taking the external
 #: identity (a ``RunExternal``) of a watched run and returning the
 #: adapter-recorded failure class of its failed job -- the mirrored
-#: vocabulary ``"transport"`` | ``"job"`` | ``None`` (any other string
-#: is treated as an unrecognized class and refused). A classifier
-#: raising an exception is a transient classification failure: it is
-#: treated as unclassified (refused and recorded); the exception
-#: message itself is never persisted.
+#: vocabulary ``"transport"`` | ``"job"`` | ``None``, or a policy
+#: failure-kind string directly (any other string passes through the
+#: bridge verbatim and is refused unless the policy whitelists it). A
+#: classifier raising an exception is a transient classification
+#: failure: it is treated as unclassified (refused and recorded); the
+#: exception message itself is never persisted.
 FailureClassifier: TypeAlias = Callable[[RunExternal], str | None]
 
 #: The injected resubmission hook: a callable taking the external
@@ -310,17 +441,32 @@ class RetryOutcome:
         run_id: the decided run.
         failure_class: the adapter-recorded failure class of the
             failed external job (``None`` when unclassified).
-        decision: ``RETRY_DECISION_AUTHORIZED`` or
-            ``RETRY_DECISION_REFUSED``.
+        decision: one of :data:`RETRY_DECISIONS`
+            (``retry_authorized`` / ``retry_refused`` /
+            ``run_invalidated`` / ``supervisor_required_change``).
         decided_at: the injected clock stamp of the decision.
         resubmitted_external: the resubmitted external identity (the
             receipt of the resubmission hook) for an authorized
-            decision; always None for a refused decision.
+            decision; always None for any other decision.
         replayed: True iff this pass resolved an already-recorded
             decision (the recorded history is authoritative; nothing
             was performed this pass and the hook was not invoked).
         event_id: the deterministic id of the decision record in the
             event log.
+        failure_kind: the policy failure kind the failure class
+            bridged to (``""`` for records predating the policy
+            vocabulary).
+        policy_id: the consulted automatic retry policy (``None`` when
+            the goal references no policy).
+        attempt: the identical-retry index of this decision (0-based;
+            the count of recorded authorized decisions of the same
+            (run, failure class) before this one).
+        routing: the frozen evaluator's routing (``"AUTOMATIC"`` /
+            ``"SUPERVISOR"``; ``""`` for records predating the policy
+            vocabulary).
+        matched_rule_id: the frozen rule-table rule that decided
+            (``None`` when the goal references no policy).
+        reasoning_ids: the frozen reasoning ids of the decision.
     """
 
     run_id: str
@@ -330,6 +476,12 @@ class RetryOutcome:
     resubmitted_external: RunExternal | None = None
     replayed: bool = False
     event_id: str = ""
+    failure_kind: str = ""
+    policy_id: str | None = None
+    attempt: int = 0
+    routing: str = ""
+    matched_rule_id: str | None = None
+    reasoning_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.run_id, str):
@@ -344,14 +496,10 @@ class RetryOutcome:
                 "RetryOutcome.failure_class must be a str or None, got"
                 f" {type(self.failure_class).__name__}"
             )
-        if self.decision not in (
-            RETRY_DECISION_AUTHORIZED,
-            RETRY_DECISION_REFUSED,
-        ):
+        if self.decision not in RETRY_DECISIONS:
             raise RetryError(
                 f"RetryOutcome.decision {self.decision!r} is not one of"
-                f" {RETRY_DECISION_AUTHORIZED!r},"
-                f" {RETRY_DECISION_REFUSED!r}"
+                f" {', '.join(sorted(RETRY_DECISIONS))!r}"
             )
         if not isinstance(self.decided_at, str) or not self.decided_at:
             raise RetryError(
@@ -378,13 +526,51 @@ class RetryOutcome:
                 f"RetryOutcome.event_id {self.event_id!r} is not a valid"
                 " event id (sr_event_<32 hex chars>)"
             )
+        if not isinstance(self.failure_kind, str):
+            raise TypeError(
+                "RetryOutcome.failure_kind must be a str, got"
+                f" {type(self.failure_kind).__name__}"
+            )
+        if self.policy_id is not None and not isinstance(self.policy_id, str):
+            raise TypeError(
+                "RetryOutcome.policy_id must be a str or None, got"
+                f" {type(self.policy_id).__name__}"
+            )
+        if isinstance(self.attempt, bool) or not isinstance(self.attempt, int):
+            raise TypeError(
+                "RetryOutcome.attempt must be an int, got"
+                f" {type(self.attempt).__name__}"
+            )
+        if self.attempt < 0:
+            raise RetryError(
+                f"RetryOutcome.attempt must be >= 0, got {self.attempt}"
+            )
+        if not isinstance(self.routing, str):
+            raise TypeError(
+                "RetryOutcome.routing must be a str, got"
+                f" {type(self.routing).__name__}"
+            )
+        if self.matched_rule_id is not None and not isinstance(
+            self.matched_rule_id, str
+        ):
+            raise TypeError(
+                "RetryOutcome.matched_rule_id must be a str or None, got"
+                f" {type(self.matched_rule_id).__name__}"
+            )
+        if not isinstance(self.reasoning_ids, tuple) or not all(
+            isinstance(reason, str) for reason in self.reasoning_ids
+        ):
+            raise TypeError(
+                "RetryOutcome.reasoning_ids must be a tuple of str, got"
+                f" {type(self.reasoning_ids).__name__}"
+            )
         if (self.decision == RETRY_DECISION_AUTHORIZED) != (
             self.resubmitted_external is not None
         ):
             raise RetryError(
                 "RetryOutcome invariant violation: an authorized decision"
-                " always carries the resubmitted external identity, a"
-                " refused decision never does"
+                " always carries the resubmitted external identity, any"
+                " other decision never does"
             )
 
 
@@ -479,11 +665,12 @@ class RetrySummary:
     """The outcome of deciding the full watch set.
 
     ``outcomes`` is the per-run outcomes in sorted run-id order
-    (deterministic); ``authorized_count`` / ``refused_count`` count the
-    decisions of this pass; ``skipped`` is the per-run skipped outcomes
-    (runs whose lifecycle cannot carry a retry) and ``failures`` the
-    per-run failed outcomes (issue #152 error isolation), both in
-    sorted run-id order.
+    (deterministic); ``authorized_count`` counts the authorized
+    decisions of this pass, ``refused_count`` every non-authorized
+    decision (refused, invalidated and supervisor-routed); ``skipped``
+    is the per-run skipped outcomes (runs whose lifecycle cannot carry
+    a retry) and ``failures`` the per-run failed outcomes (issue #152
+    error isolation), both in sorted run-id order.
     """
 
     monitor_id: str
@@ -539,11 +726,11 @@ class RetrySummary:
                 " authorized outcomes"
             )
         if self.refused_count != sum(
-            1 for o in self.outcomes if o.decision == RETRY_DECISION_REFUSED
+            1 for o in self.outcomes if o.decision != RETRY_DECISION_AUTHORIZED
         ):
             raise RetryError(
                 "RetrySummary.refused_count must equal the number of"
-                " refused outcomes"
+                " non-authorized outcomes"
             )
         for name, record_type in (
             ("skipped", RetrySkipped),
@@ -589,23 +776,28 @@ class RetryDispatcher:
     """Deterministic engineering retry decisions for watched Runs.
 
     Decides each failed external Run of the watched-Run registry
-    (DEV-M8-G01) against the engineering retry whitelist, using the
-    durable Run store and the append-only event log, and records every
-    decision as an auditable event (DEV-M8-G03):
+    (DEV-M8-G01) against the Goal's frozen automatic retry policy --
+    resolved through ``goal.automatic_retry_policy_ref`` and the frozen
+    ``workers/retry.py`` evaluator -- using the durable Run store and
+    the append-only event log, and records every decision as an
+    auditable event (DEV-M8-G03):
 
-    * AC-01: a failure class on :data:`ENGINEERING_RETRY_WHITELIST`
-      triggers an IDENTICAL resubmission through the injected
-      resubmission hook -- same run identity, same external identity
-      semantics (same backend), no parameter change -- and one
+    * AC-01: a failure kind the policy whitelists triggers an
+      IDENTICAL resubmission through the injected resubmission hook --
+      same run identity, same external identity semantics (same
+      backend), no parameter change -- and one
       ``engineering_retry_decision`` event is appended under a
-      deterministic idempotency key. Re-deciding the same failure
-      resolves to the recorded decision and never re-invokes the hook
-      (exactly-once per recorded decision).
-    * AC-02: a scientific compute failure -- any failure class outside
-      the whitelist (``FAILURE_CLASS_JOB``, ``None``, an unrecognized
-      string) -- is observed and recorded as a refused decision: the
-      hook is never invoked and no run parameter is ever mutated (the
-      dispatcher never writes the run store). With no classifier
+      deterministic attempt-indexed idempotency key. Re-deciding the
+      same failure generation resolves to the recorded decision and
+      never re-invokes the hook (exactly-once per recorded decision).
+    * AC-02: a scientific compute failure -- any failure kind no
+      policy entry authorizes (``FAILURE_CLASS_JOB``, ``None``, an
+      unrecognized string, a Goal with no policy) -- is observed and
+      recorded as a refused decision: the hook is never invoked and no
+      run parameter is ever mutated (the dispatcher never writes the
+      run store). ``invalidate_run_on`` kinds decide an invalidation,
+      ``supervisor_required_changes`` kinds a Supervisor-required
+      change -- both recorded, never resubmitted. With no classifier
       injected, the default configuration can never authorize a retry.
     * AC-03: a fresh dispatcher over the same state directory, run
       store and event log reconstructs the retry history from the
@@ -630,10 +822,10 @@ class RetryDispatcher:
             identical resubmission (default: a hook that raises
             loudly -- the default never silently drops a
             resubmission).
-        run_store: the durable Run store the dispatcher reads Run
-            records through (default: ``FilesystemStateBackend(
-            state_dir)`` -- runs at ``<state_dir>/runs/``, the canonical
-            tree directory).
+        run_store: the durable Run store the dispatcher reads Run,
+            Goal and retry-policy records through (default:
+            ``FilesystemStateBackend(state_dir)`` -- the canonical tree
+            directories).
         event_log: the append-only event log the dispatcher appends
             decision records to (default: ``ProjectEventLog(state_dir)``
             -- events at ``<state_dir>/events/``, the canonical tree
@@ -755,23 +947,25 @@ class RetryDispatcher:
     def decide(self, run_id: str, failure_class: str | None) -> RetryOutcome:
         """Decide one failed external Run and record the decision.
 
-        A failure class on :data:`ENGINEERING_RETRY_WHITELIST`
-        (``FAILURE_CLASS_TRANSPORT``) authorizes an identical
+        The decision consults the Goal's frozen automatic retry policy
+        (resolved through ``goal.automatic_retry_policy_ref``) and is
+        routed through the frozen ``workers/retry.py`` evaluator: a
+        failure kind the policy authorizes triggers an identical
         resubmission through the injected resubmission hook (AC-01);
-        every other failure class is a scientific compute failure and
-        is refused: observed and recorded, never resubmitted, never
-        mutating any run parameter (AC-02). The decision is recorded
-        through the real event log under the deterministic idempotency
-        key; re-deciding a recorded decision returns the recorded
-        history (``replayed=True``) and never re-invokes the hook
-        (AC-01 exactly-once / AC-03 replay).
+        every other failure is recorded as a refused, invalidated or
+        Supervisor-routed decision and never resubmitted (AC-02). The
+        decision is recorded through the real event log under the
+        deterministic attempt-indexed idempotency key; re-deciding a
+        recorded decision of the current failure generation returns the
+        recorded history (``replayed=True``) and never re-invokes the
+        hook (AC-01 exactly-once / AC-03 replay).
 
         Args:
             run_id: the watched run to decide.
             failure_class: the adapter-recorded failure class of the
                 failed external job -- the mirrored vocabulary
-                ``"transport"`` | ``"job"`` | ``None`` (any other
-                string is unrecognized and refused).
+                ``"transport"`` | ``"job"`` | ``None``, or a policy
+                failure-kind string directly.
 
         Returns:
             The :class:`RetryOutcome` of this decision.
@@ -786,8 +980,10 @@ class RetryDispatcher:
                 the resubmission hook returns an identity that is not
                 an identical resubmission.
             CorruptRetryStateError: the run record is missing or
-                corrupt, or the recorded decision in the event log is
-                malformed.
+                corrupt, the run's goal record or the referenced
+                automatic retry policy cannot be read or cannot serve
+                as a contract, or the recorded decision in the event
+                log is malformed.
             RetryError: no resubmission hook is injected and the
                 decision is authorized (the loud default hook).
         """
@@ -805,26 +1001,28 @@ class RetryDispatcher:
             if failure_class is not None
             else RETRY_FAILURE_CLASS_UNCLASSIFIED
         )
-        authorized = failure_class in ENGINEERING_RETRY_WHITELIST
-        decision = (
-            RETRY_DECISION_AUTHORIZED
-            if authorized
-            else RETRY_DECISION_REFUSED
-        )
-        event_id = generate_id(
-            "event", RETRY_DECISION_EVENT_TYPE, run_id, normalized
-        )
+        failure_kind = failure_class_to_failure_kind(failure_class)
 
         # Exactly-once: the recorded decision is the durable "retry was
-        # performed" fact. Resolve it BEFORE touching the resubmission
-        # hook, so re-deciding (or restart-replaying) the same failure
-        # returns the recorded history and never re-executes (AC-01/
-        # AC-03).
-        recorded = self._event_log.get(event_id)
-        if recorded is not None:
-            return self._replay_outcome(run_id, event_id, recorded.event)
+        # performed" fact. Resolve the recorded history BEFORE touching
+        # the resubmission hook or the run store, so re-deciding (or
+        # restart-replaying) the same failure generation returns the
+        # recorded decision and never re-executes (AC-01/AC-03). A
+        # decision belongs to the generation it was decided for -- the
+        # recorded ``external`` identity; a fresh external identity
+        # (e.g. the resubmission itself failing again) advances to the
+        # next attempt.
+        records = self._recorded_decisions(run_id, failure_class)
+        try:
+            watch = self._registry.get(run_id)
+        except WatchNotFoundError:
+            if records:
+                return self._replay_outcome(run_id, records[-1])
+            raise
+        matching = self._matching_record(run_id, records, watch.external)
+        if matching is not None:
+            return self._replay_outcome(run_id, matching)
 
-        watch = self._registry.get(run_id)
         run = self._read_run(run_id)
         self._check_external_identity(watch, run)
         if run.lifecycle_state is not LifecycleState.RUNNING_EXTERNAL:
@@ -835,10 +1033,61 @@ class RetryDispatcher:
                 " external job can be retried); the decision is refused"
                 " as a contract violation"
             )
+        attempt = _count_authorized_decisions(records)
+        event_id = generate_id(
+            "event",
+            RETRY_DECISION_EVENT_TYPE,
+            run_id,
+            normalized,
+            f"attempt-{attempt}",
+        )
+
+        # The automatic retry policy decision (AC-01/AC-02): the frozen
+        # evaluator decides; the dispatcher maps its verdict/routing
+        # onto the decision vocabulary (never reimplements the policy
+        # semantics). A Goal with no retry policy ref authorizes
+        # nothing (the refusal default).
+        policy = self._resolve_policy(run_id, run)
+        reasoning_ids: tuple[str, ...]
+        if policy is None:
+            decision = RETRY_DECISION_REFUSED
+            routing = RetryRouting.AUTOMATIC.value
+            matched_rule_id = None
+            reasoning_ids = (REASON_NO_POLICY_ENTRY,)
+        else:
+            try:
+                assessment = evaluate_automatic_retry(
+                    RetryEvaluationInput(
+                        policy=policy,
+                        failure_kind=failure_kind,
+                        identical_retry_count=attempt,
+                        checkpoint_continuation=(
+                            failure_kind == CHECKPOINT_CONTINUATION_KIND
+                        ),
+                    )
+                )
+            except RetryPolicyError as exc:
+                raise CorruptRetryStateError(
+                    f"corrupt retry state for run {run_id!r}: the frozen"
+                    f" automatic retry policy {policy.policy_id!r} cannot"
+                    f" be evaluated: {exc}"
+                ) from exc
+            routing = assessment.routing.value
+            matched_rule_id = assessment.matched_rule_id
+            reasoning_ids = assessment.reasoning_ids
+            if assessment.verdict is RetryAuthorization.AUTHORIZED:
+                decision = RETRY_DECISION_AUTHORIZED
+            elif assessment.routing is RetryRouting.SUPERVISOR:
+                decision = RETRY_DECISION_SUPERVISOR_REQUIRED
+            elif REASON_INVALIDATE_RUN in assessment.reasoning_ids:
+                decision = RETRY_DECISION_INVALIDATED
+            else:
+                decision = RETRY_DECISION_REFUSED
+
         stamp = self._now_fn()
 
         resubmitted: RunExternal | None = None
-        if authorized:
+        if decision == RETRY_DECISION_AUTHORIZED:
             resubmitted = self._resubmit_fn(watch.external)
             if not isinstance(resubmitted, RunExternal):
                 raise TypeError(
@@ -862,12 +1111,24 @@ class RetryDispatcher:
                     f"run {run_id!r} resubmission is not addressable: {exc}"
                 ) from exc
 
+        policy_id = policy.policy_id if policy is not None else None
+        payload: dict[str, Any] = {
+            "failure_class": failure_class,
+            "failure_kind": failure_kind,
+            "policy_id": policy_id,
+            "attempt": attempt,
+            "decision": decision,
+            "routing": routing,
+            "matched_rule_id": matched_rule_id,
+            "reasoning_ids": list(reasoning_ids),
+            "external": watch.external.to_dict(),
+        }
+        if resubmitted is not None:
+            payload["resubmitted_external"] = resubmitted.to_dict()
         self._event_log.append(
-            self._decision_event(
-                event_id, run_id, stamp, failure_class, decision, resubmitted
-            ),
+            self._decision_event(event_id, run_id, stamp, decision, payload),
             idempotency_key=f"{RETRY_DECISION_KEY_PREFIX}:{run_id}:"
-            f"{normalized}",
+            f"{normalized}:attempt-{attempt}",
         )
         return RetryOutcome(
             run_id=run_id,
@@ -877,6 +1138,12 @@ class RetryDispatcher:
             resubmitted_external=resubmitted,
             replayed=False,
             event_id=event_id,
+            failure_kind=failure_kind,
+            policy_id=policy_id,
+            attempt=attempt,
+            routing=routing,
+            matched_rule_id=matched_rule_id,
+            reasoning_ids=reasoning_ids,
         )
 
     def decide_all(self) -> RetrySummary:
@@ -944,7 +1211,7 @@ class RetryDispatcher:
                 if o.decision == RETRY_DECISION_AUTHORIZED
             ),
             refused_count=sum(
-                1 for o in outcomes if o.decision == RETRY_DECISION_REFUSED
+                1 for o in outcomes if o.decision != RETRY_DECISION_AUTHORIZED
             ),
             skipped=tuple(skipped),
             failures=tuple(failures),
@@ -990,6 +1257,103 @@ class RetryDispatcher:
                 f" references a run record that cannot be read: {exc}"
             ) from exc
 
+    def _read_goal(self, run_id: str, run: Run) -> GoalContract:
+        """Read the durable Goal record of the run through the injected
+        run store (the goal the frozen retry policy is resolved from).
+
+        Raises:
+            CorruptRetryStateError: the goal record is missing or
+                corrupt.
+        """
+        try:
+            data = self._run_store.read("goal", run.goal_id)
+            return GoalContract.from_dict(data)
+        except (FileNotFoundError, ValueError) as exc:
+            raise CorruptRetryStateError(
+                f"corrupt retry state for run {run_id!r}: the run's goal"
+                f" record {run.goal_id!r} cannot be read: {exc}"
+            ) from exc
+
+    def _resolve_policy(
+        self, run_id: str, run: Run
+    ) -> AutomaticRetryPolicy | None:
+        """Resolve the run's frozen automatic retry policy record.
+
+        The goal's ``automatic_retry_policy_ref`` names the policy in
+        the retry-policy registry; a goal without a ref has no policy
+        (the refusal default -- nothing is ever authorized without a
+        contract).
+
+        Raises:
+            CorruptRetryStateError: the referenced retry-policy record
+                is missing, corrupt, or does not carry the referenced
+                policy id.
+        """
+        goal = self._read_goal(run_id, run)
+        ref = goal.automatic_retry_policy_ref
+        if ref is None:
+            return None
+        try:
+            data = self._run_store.read("retry-policy", ref)
+            policy = AutomaticRetryPolicy.from_dict(data)
+        except (FileNotFoundError, ValueError) as exc:
+            raise CorruptRetryStateError(
+                f"corrupt retry state for run {run_id!r}: the goal's"
+                f" automatic retry policy ref {ref!r} resolves to a"
+                f" retry-policy record that cannot be read: {exc}"
+            ) from exc
+        if policy.policy_id != ref:
+            raise CorruptRetryStateError(
+                f"corrupt retry state for run {run_id!r}: the retry-policy"
+                f" record {ref!r} carries policy_id {policy.policy_id!r}"
+                " (a record's identity must match its ref)"
+            )
+        return policy
+
+    def _recorded_decisions(
+        self, run_id: str, failure_class: str | None
+    ) -> list[ProjectEvent]:
+        """The recorded decision history of this (run, failure class)
+        in append order -- every recorded decision of the failure,
+        whatever the attempt."""
+        return [
+            record.event
+            for record in self._event_log.list_events()
+            if record.event.event_type == RETRY_DECISION_EVENT_TYPE
+            and record.event.run_id == run_id
+            and record.event.payload.get("failure_class") == failure_class
+        ]
+
+    def _matching_record(
+        self,
+        run_id: str,
+        records: list[ProjectEvent],
+        external: RunExternal,
+    ) -> ProjectEvent | None:
+        """The latest recorded decision of the current failure
+        generation: the decision whose recorded ``external`` identity
+        equals the watch entry's (a record predating the field matches
+        any generation -- recorded history stays authoritative).
+
+        Raises:
+            CorruptRetryStateError: a recorded decision carries a
+                malformed external identity.
+        """
+        current = external.to_dict()
+        for event in reversed(records):
+            payload = event.payload
+            if "external" not in payload:
+                return event
+            recorded = payload["external"]
+            if not isinstance(recorded, Mapping):
+                raise CorruptRetryStateError(
+                    f"recorded retry decision {event.event_id!r} for run"
+                    f" {run_id!r} carries a malformed external identity"
+                )
+            if recorded == current:
+                return event
+        return None
+
     def _check_external_identity(
         self, watch: WatchedRunRecord, run: Run
     ) -> None:
@@ -1032,36 +1396,78 @@ class RetryDispatcher:
                 f" {watch_external.dispatch_id!r}"
             )
 
-    def _replay_outcome(
-        self, run_id: str, event_id: str, event: ProjectEvent
-    ) -> RetryOutcome:
+    def _replay_outcome(self, run_id: str, event: ProjectEvent) -> RetryOutcome:
         """Rebuild the :class:`RetryOutcome` of an already-recorded
         decision from the event log record alone (AC-03): the recorded
         history is authoritative -- the original stamp and the recorded
         resubmission receipt -- and nothing is performed this pass.
+        Payload fields of the policy vocabulary are validated only when
+        present (records predating them stay replayable).
 
         Raises:
             CorruptRetryStateError: the recorded decision is malformed
-                (an unknown decision, a mistyped failure class or a
+                (an unknown decision, a mistyped payload field or a
                 malformed resubmitted identity).
         """
+        event_id = event.event_id
         payload = event.payload
         decision = payload.get("decision")
-        if decision not in (
-            RETRY_DECISION_AUTHORIZED,
-            RETRY_DECISION_REFUSED,
-        ):
+        if decision not in RETRY_DECISIONS:
             raise CorruptRetryStateError(
                 f"recorded retry decision {event_id!r} for run {run_id!r}"
-                f" carries an unknown decision {decision!r}; expected"
-                f" {RETRY_DECISION_AUTHORIZED!r} or"
-                f" {RETRY_DECISION_REFUSED!r}"
+                f" carries an unknown decision {decision!r}; expected one"
+                f" of {', '.join(sorted(RETRY_DECISIONS))!r}"
             )
         failure_class = payload.get("failure_class")
         if failure_class is not None and not isinstance(failure_class, str):
             raise CorruptRetryStateError(
                 f"recorded retry decision {event_id!r} for run {run_id!r}"
                 f" carries a mistyped failure_class {failure_class!r}"
+            )
+        failure_kind = payload.get("failure_kind", "")
+        if not isinstance(failure_kind, str):
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries a mistyped failure_kind {failure_kind!r}"
+            )
+        policy_id = payload.get("policy_id")
+        if policy_id is not None and not isinstance(policy_id, str):
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries a mistyped policy_id {policy_id!r}"
+            )
+        attempt = payload.get("attempt", 0)
+        if isinstance(attempt, bool) or not isinstance(attempt, int):
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries a mistyped attempt {attempt!r}"
+            )
+        if attempt < 0:
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries a negative attempt {attempt}"
+            )
+        routing = payload.get("routing", "")
+        if not isinstance(routing, str):
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries a mistyped routing {routing!r}"
+            )
+        matched_rule_id = payload.get("matched_rule_id")
+        if matched_rule_id is not None and not isinstance(
+            matched_rule_id, str
+        ):
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries a mistyped matched_rule_id {matched_rule_id!r}"
+            )
+        reasoning_ids = payload.get("reasoning_ids", [])
+        if not isinstance(reasoning_ids, list) or not all(
+            isinstance(reason, str) for reason in reasoning_ids
+        ):
+            raise CorruptRetryStateError(
+                f"recorded retry decision {event_id!r} for run {run_id!r}"
+                f" carries mistyped reasoning_ids {reasoning_ids!r}"
             )
         resubmitted_raw = payload.get("resubmitted_external")
         resubmitted: RunExternal | None = None
@@ -1087,6 +1493,12 @@ class RetryDispatcher:
             resubmitted_external=resubmitted,
             replayed=True,
             event_id=event_id,
+            failure_kind=failure_kind,
+            policy_id=policy_id,
+            attempt=attempt,
+            routing=routing,
+            matched_rule_id=matched_rule_id,
+            reasoning_ids=tuple(reasoning_ids),
         )
 
     def _decision_event(
@@ -1094,21 +1506,16 @@ class RetryDispatcher:
         event_id: str,
         run_id: str,
         stamp: str,
-        failure_class: str | None,
         decision: str,
-        resubmitted: RunExternal | None,
+        payload: dict[str, Any],
     ) -> ProjectEvent:
         """The deterministic decision record (AC-03, auditable
         history): event type ``engineering_retry_decision``, actor
         ``execution-monitor``, the stable reason per decision, and the
-        payload carrying the failure class, the decision and -- when
-        authorized -- the resubmitted external identity."""
-        payload: dict[str, Any] = {
-            "failure_class": failure_class,
-            "decision": decision,
-        }
-        if resubmitted is not None:
-            payload["resubmitted_external"] = resubmitted.to_dict()
+        payload carrying the failure class and kind, the consulted
+        policy, the attempt index, the decision, the routing and
+        reasoning and the decided external identity (plus the
+        resubmitted external identity when authorized)."""
         return ProjectEvent(
             event_id=event_id,
             timestamp=stamp,
@@ -1116,10 +1523,19 @@ class RetryDispatcher:
             event_type=RETRY_DECISION_EVENT_TYPE,
             object_id=run_id,
             run_id=run_id,
-            reason=(
-                RETRY_AUTHORIZED_REASON
-                if decision == RETRY_DECISION_AUTHORIZED
-                else RETRY_REFUSED_REASON
-            ),
+            reason=_DECISION_REASONS[decision],
             payload=payload,
         )
+
+
+def _count_authorized_decisions(records: list[ProjectEvent]) -> int:
+    """The identical-retry index of a recorded decision history: how
+    many authorized decisions this (run, failure class) already
+    performed -- the ``identical_retry_count`` the frozen evaluator
+    gates identical checkpoint continuation with (attempt 0 is the
+    first retry). Refusals never advance the index."""
+    return sum(
+        1
+        for event in records
+        if event.payload.get("decision") == RETRY_DECISION_AUTHORIZED
+    )
