@@ -14,11 +14,11 @@ frozen models and the registered M4-G02/G03 state, grounded in:
 * ``core/models.py``: ``Plan`` (plan_id, version, status, inventory_audit,
   goal_ids, requirement_ids, parent_plan_version, work_packages,
   resource_ids, frozen_at, frozen_commit), ``PlanStatus``
-  (DRAFT/UNDER_AUDIT/FROZEN/SUPERSEDED), ``PlanInventoryAudit``, and the
+  (DRAFT/FROZEN/SUPERSEDED), ``PlanInventoryAudit``, and the
   goal-contract family ``GoalContract`` / ``AcceptanceCriteria`` /
   ``AnalysisProtocolOrResult`` / ``ClosureContract`` / ``GoalAcceptance``;
 * ``schemas/plan.schema.yaml``: the plan object shape (``inventory_audit``
-  sub-object, ``status`` enum DRAFT/UNDER_AUDIT/FROZEN/SUPERSEDED,
+  sub-object, ``status`` enum DRAFT/FROZEN/SUPERSEDED,
   ``parent_plan_version`` / ``frozen_at`` / ``frozen_commit`` nullable);
 * ``planning/audit.py`` (DEV-M4-G03): ``audit_inventory_registry`` /
   ``evaluate_completeness_audit`` and the ``plan_inventory_audit()`` view

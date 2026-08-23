@@ -171,7 +171,6 @@ class ScientificReview(StrEnum):
 
 class PlanStatus(StrEnum):
     DRAFT = "DRAFT"
-    UNDER_AUDIT = "UNDER_AUDIT"
     FROZEN = "FROZEN"
     SUPERSEDED = "SUPERSEDED"
 

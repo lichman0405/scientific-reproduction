@@ -5,7 +5,7 @@ required: [plan_id, version, status, inventory_audit, goal_ids, requirement_ids]
 properties:
   plan_id: {type: string}
   version: {type: string}
-  status: {enum: [DRAFT, UNDER_AUDIT, FROZEN, SUPERSEDED]}
+  status: {enum: [DRAFT, FROZEN, SUPERSEDED]}
   parent_plan_version: {type: [string, "null"]}
   requirement_ids: {type: array, items: {type: string}}
   goal_ids: {type: array, items: {type: string}}
