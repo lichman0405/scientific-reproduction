@@ -50,6 +50,7 @@ from scientific_reproduction.core.models import (
     ReproductionRequirement,
     ResearchSource,
     SourceType,
+    ValueStatus,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.init import ProjectNotInitializedError
@@ -468,6 +469,105 @@ def test_inventory_registered_records_validate_against_frozen_schema(
     validate_and_reject("inventory-item", stored_item.to_dict())
     stored_req = read_requirement(root, "REQ-ADS-001")
     validate_and_reject("requirement", stored_req.to_dict())
+
+
+def test_inventory_fidelity_fields_persist_through_registration(
+    tmp_path: Path,
+) -> None:
+    # Issue #139: the value-fidelity axis (value_status / missing_reason /
+    # resolves_in) is first-class on the frozen inventory-item model: an
+    # explicit fidelity state survives registration and persistence
+    # (mapping_status is the only rule-computed field), the stored record
+    # carries it, and it round-trips through the typed read path.
+    root = init_project(tmp_path / "project")
+    missing_reason = (
+        "Reported value is an abstract-level seed fact; revalidated against"
+        " the primary source during benchmark execution."
+    )
+    stored = register_inventory_item(
+        root,
+        make_item(
+            "INV-NON-FINAL-001",
+            value_status=ValueStatus.REPORTED_NON_FINAL,
+            missing_reason=missing_reason,
+            resolves_in="GOAL-INV-001",
+        ),
+    )
+    assert stored.value_status is ValueStatus.REPORTED_NON_FINAL
+    assert stored.missing_reason == missing_reason
+    assert stored.resolves_in == "GOAL-INV-001"
+    record = json.loads(
+        (
+            root / INVENTORY_STATE_DIR / "INV-NON-FINAL-001.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert record["value_status"] == "REPORTED_NON_FINAL"
+    assert record["missing_reason"] == missing_reason
+    assert record["resolves_in"] == "GOAL-INV-001"
+    reread = read_inventory_item(root, "INV-NON-FINAL-001")
+    assert reread == stored
+    assert reread.value_status is ValueStatus.REPORTED_NON_FINAL
+    assert reread.missing_reason == missing_reason
+    assert reread.resolves_in == "GOAL-INV-001"
+    validate_and_reject("inventory-item", reread.to_dict())
+    # A VERIFIED fidelity state persists identically (the full enum
+    # round-trips, not just the non-final member).
+    verified = register_inventory_item(
+        root,
+        make_item("INV-VERIFIED-001", value_status=ValueStatus.VERIFIED),
+    )
+    assert verified.value_status is ValueStatus.VERIFIED
+    assert read_inventory_item(root, "INV-VERIFIED-001") == verified
+    assert (
+        read_inventory_item(root, "INV-VERIFIED-001").value_status
+        is ValueStatus.VERIFIED
+    )
+
+
+def test_inventory_fidelity_defaults_preserve_legacy_registrations(
+    tmp_path: Path,
+) -> None:
+    # Issue #139: registrations without the fidelity fields load with the
+    # verified-unknown-safe defaults (value_status UNKNOWN; missing_reason
+    # / resolves_in None) and re-serialize unchanged -- the stored record
+    # carries no fidelity keys, exactly as a pre-fidelity registration
+    # would.
+    legacy_dict = {
+        "inventory_id": "INV-LEGACY-001",
+        "source_id": "SRC-TARGET-PAPER",
+        "item_type": "experiment",
+        "formal_report": True,
+        "description": "Legacy isotherm item.",
+        "mapping_status": "UNMAPPED",
+        "source_location": "legacy figure",
+        "conditions": {},
+        "linked_inventory_ids": [],
+        "requirement_ids": [],
+    }
+    item = ReproductionInventoryItem.from_dict(legacy_dict)
+    assert item.value_status is ValueStatus.UNKNOWN
+    assert item.missing_reason is None
+    assert item.resolves_in is None
+    # The UNKNOWN default serializes as an absent key: the legacy record
+    # round-trips key-identically.
+    assert item.to_dict() == legacy_dict
+    root = init_project(tmp_path / "project")
+    stored = register_inventory_item(root, legacy_dict)
+    assert stored.value_status is ValueStatus.UNKNOWN
+    assert stored.missing_reason is None
+    assert stored.resolves_in is None
+    record = json.loads(
+        (
+            root / INVENTORY_STATE_DIR / "INV-LEGACY-001.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "value_status" not in record
+    assert "missing_reason" not in record
+    assert "resolves_in" not in record
+    # The stored record is exactly the legacy shape plus the rule-computed
+    # mapping fields (the registration contract): no fidelity keys.
+    assert record == legacy_dict
+    assert read_inventory_item(root, "INV-LEGACY-001") == stored
 
 
 def test_inventory_state_bytes_identical_across_registrations(

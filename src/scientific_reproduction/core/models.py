@@ -61,6 +61,7 @@ __all__ = [
     "StrictStatusEffect",
     "InventoryItemType",
     "MappingStatus",
+    "ValueStatus",
     "ResourceType",
     "AvailabilityState",
     "SourceType",
@@ -225,6 +226,26 @@ class MappingStatus(StrEnum):
     MAPPED = "MAPPED"
     AMBIGUOUS = "AMBIGUOUS"
     EXCLUDED_NONFORMAL = "EXCLUDED_NONFORMAL"
+
+
+class ValueStatus(StrEnum):
+    """Value-verification fidelity of an inventory item's reported values.
+
+    The fidelity axis is orthogonal to ``MappingStatus`` (mapping
+    coverage): a MAPPED item can still carry non-final reported values.
+    ``VERIFIED`` marks values verified against the primary source;
+    ``REPORTED_NON_FINAL`` marks values reported from accessible material
+    but not yet revalidated (the FDM-201 register's NON-FINAL state);
+    ``UNKNOWN`` makes no fidelity claim and is the verified-unknown-safe
+    default -- records written before the field existed load as
+    ``UNKNOWN``, and the default serializes as an absent key (see
+    ``ReproductionInventoryItem.to_dict``) so legacy registrations
+    re-serialize unchanged.
+    """
+
+    VERIFIED = "VERIFIED"
+    REPORTED_NON_FINAL = "REPORTED_NON_FINAL"
+    UNKNOWN = "UNKNOWN"
 
 
 class ResourceType(StrEnum):
@@ -753,6 +774,37 @@ class ReproductionInventoryItem(CoreModel):
     linked_inventory_ids: list[str] = field(default_factory=list)
     requirement_ids: list[str] = field(default_factory=list)
     ambiguity_notes: str | None = None
+    #: Value-verification fidelity of the item's reported values (issue
+    #: #139), orthogonal to ``mapping_status``: ``REPORTED_NON_FINAL``
+    #: marks values reported from accessible material but not yet
+    #: revalidated against the primary source; ``VERIFIED`` marks
+    #: revalidated values; ``UNKNOWN`` (the default) makes no fidelity
+    #: claim. The ``UNKNOWN`` default serializes as an absent key (see
+    #: ``to_dict``) so records written before the field existed
+    #: re-serialize unchanged.
+    value_status: ValueStatus = ValueStatus.UNKNOWN
+    #: Why the item's reported values are missing / not yet established
+    #: (the FDM-201 register's ``missing_reason``; prose detail, never
+    #: free-form only -- it always names what is unknown and why).
+    missing_reason: str | None = None
+    #: The goal id that revalidates the item's values during execution
+    #: (the FDM-201 register's ``resolves_in``; a single goal id per
+    #: item).
+    resolves_in: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialized schema-key form; the ``UNKNOWN`` default is omitted.
+
+        ``UNKNOWN`` is exactly the state legacy records already meant
+        (no fidelity claim), so the default serializes as an absent key:
+        records written before the fidelity fields existed re-serialize
+        unchanged, and every explicit fidelity state (``VERIFIED`` /
+        ``REPORTED_NON_FINAL``) is emitted.
+        """
+        data = super().to_dict()
+        if data.get("value_status") == ValueStatus.UNKNOWN.value:
+            del data["value_status"]
+        return data
 
 
 @dataclass(frozen=True)

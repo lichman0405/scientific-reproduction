@@ -13,7 +13,9 @@ state:
    the full 82-item / 82-requirement inventory reloads through the real
    registry APIs (``register_inventory_item`` /
    ``register_requirement``; sources first, then items -- the provenance
-   contract of ``register_inventory_item``);
+   contract of ``register_inventory_item``), carrying the frozen
+   per-item value-fidelity axis (``value_status`` / ``missing_reason`` /
+   ``resolves_in``, issue #139) instead of flattening it;
 2. the real completeness audit over the reloaded state re-derives the
    frozen verdict: **PASS (R-AUD-P1), 82/82 mapped, coverage 1.0**, the
    exact counts of the frozen ``mapping_audit.yaml`` / ``plan_v1.yaml``
@@ -85,6 +87,7 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ValueStatus,
 )
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
@@ -96,6 +99,7 @@ from scientific_reproduction.planning.init import (
     initialize_project,
 )
 from scientific_reproduction.planning.inventory import (
+    read_inventory_item,
     register_inventory_item,
     register_requirement,
 )
@@ -167,6 +171,23 @@ CATEGORY_ITEM_TYPE = {
     "g": InventoryItemType.EXPERIMENT,
 }
 
+#: Frozen register ``value_status`` vocabulary -> runtime ``ValueStatus``
+#: (issue #139). The runtime fidelity enum has exactly VERIFIED /
+#: REPORTED_NON_FINAL / UNKNOWN (supervisor ruling, no new members); the
+#: register's richer vocabulary folds onto it deterministically:
+#: ESTABLISHED (values established from accessible material) reads
+#: VERIFIED; REPORTED-NON-FINAL carries over verbatim (its exact runtime
+#: counterpart); EXISTENCE-ONLY, MISSING and NOT-APPLICABLE carry no
+#: assessable reported value and read UNKNOWN -- the
+#: verified-unknown-safe state.
+VALUE_STATUS_MAP: dict[str, ValueStatus] = {
+    "ESTABLISHED": ValueStatus.VERIFIED,
+    "REPORTED-NON-FINAL": ValueStatus.REPORTED_NON_FINAL,
+    "EXISTENCE-ONLY": ValueStatus.UNKNOWN,
+    "MISSING": ValueStatus.UNKNOWN,
+    "NOT-APPLICABLE": ValueStatus.UNKNOWN,
+}
+
 
 # ---------------------------------------------------------------------------
 # Deterministic helpers
@@ -214,8 +235,18 @@ def init_project(root: Path) -> Path:
 
 
 def make_item(frozen: dict) -> ReproductionInventoryItem:
-    """Rebuild one frozen inventory item as a registry inventory item."""
+    """Rebuild one frozen inventory item as a registry inventory item.
+
+    Carries the frozen per-item value-fidelity axis (issue #139):
+    ``value_status`` (register vocabulary mapped through
+    ``VALUE_STATUS_MAP``), ``missing_reason`` verbatim, and
+    ``resolves_in``. The runtime ``resolves_in`` is a single goal id; a
+    frozen multi-goal ``resolves_in`` list records its first entry (the
+    register's canonical order), asserted against the register in the
+    fidelity test below.
+    """
     source_ids = (frozen.get("provenance") or {}).get("source_ids") or []
+    resolves_in = frozen.get("resolves_in") or []
     return ReproductionInventoryItem(
         inventory_id=frozen["item_id"],
         source_id=source_ids[0] if source_ids else "SRC-TARGET-PAPER",
@@ -228,6 +259,9 @@ def make_item(frozen: dict) -> ReproductionInventoryItem:
         source_location="benchmarks/fdm201/inventory/INVENTORY.yaml",
         mapping_status=MappingStatus.UNMAPPED,  # recomputed by registration
         requirement_ids=[frozen["item_id"]],
+        value_status=VALUE_STATUS_MAP[frozen["value_status"]],
+        missing_reason=frozen.get("missing_reason"),
+        resolves_in=resolves_in[0] if resolves_in else None,
     )
 
 
@@ -490,6 +524,51 @@ def test_fdm201_reload_audit_view_equals_frozen_audit_counts(tmp_path):
     assert view.coverage == frozen_plan["coverage"]
     assert view.status is AuditStatus.PASS
     assert view.status.value == frozen_audit["status"] == frozen_plan["status"]
+
+
+def test_fdm201_reload_inventory_carries_per_item_fidelity(tmp_path):
+    # Issue #139: the reload carries the frozen per-item value-fidelity
+    # axis through the registry records instead of flattening it to plain
+    # MAPPED: every reloaded item's value_status equals the register's
+    # value (vocabulary-mapped through VALUE_STATUS_MAP), missing_reason
+    # reloads verbatim, and resolves_in records the register's resolving
+    # goal. A value_status that reads UNKNOWN serializes as an absent key
+    # (the verified-unknown-safe default); absence reads back as UNKNOWN.
+    root = init_project(tmp_path)
+    reload_full_inventory(root)
+    frozen = _frozen_inventory()
+    reported_non_final = 0
+    verified = 0
+    for frozen_item in frozen["items"]:
+        stored = _load_yaml(root / "inventory" / f"{frozen_item['item_id']}.json")
+        mapped = VALUE_STATUS_MAP[frozen_item["value_status"]]
+        assert (
+            stored.get("value_status", ValueStatus.UNKNOWN.value) == mapped.value
+        ), f"item {frozen_item['item_id']} value_status fidelity lost"
+        assert stored.get("missing_reason") == frozen_item.get("missing_reason")
+        expected_resolves = frozen_item.get("resolves_in") or []
+        if expected_resolves:
+            # The runtime field is a single goal id: the frozen list's
+            # first entry (register order) is the recorded one.
+            assert stored["resolves_in"] == expected_resolves[0]
+            assert stored["resolves_in"] in expected_resolves
+        else:
+            assert "resolves_in" not in stored
+        # The typed read path reproduces the fidelity -- never a default.
+        item = read_inventory_item(root, frozen_item["item_id"])
+        assert item.value_status is mapped
+        assert item.missing_reason == frozen_item.get("missing_reason")
+        assert item.resolves_in == (expected_resolves[0] if expected_resolves else None)
+        if mapped is ValueStatus.REPORTED_NON_FINAL:
+            reported_non_final += 1
+        elif mapped is ValueStatus.VERIFIED:
+            verified += 1
+    # The reloaded fidelity counts reproduce the frozen register exactly:
+    # the 14 NON-FINAL seed-fact/abstract values (the frozen summary's
+    # reported_non_final_items) and the single ESTABLISHED (verified)
+    # value.
+    assert reported_non_final == frozen["summary"]["reported_non_final_items"]
+    assert verified == 1
 
 
 def test_fdm201_reload_covers_the_frozen_goal_and_requirement_ids(tmp_path):
