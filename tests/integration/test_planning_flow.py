@@ -76,8 +76,10 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ResearchSource,
     Resource,
     ResourceType,
+    SourceType,
 )
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.dag import (
@@ -112,6 +114,7 @@ from scientific_reproduction.planning.plan import (
     register_plan,
 )
 from scientific_reproduction.planning.resources import register_resource
+from scientific_reproduction.research.state_helpers import register_source
 
 #: Deterministic author/committer identity used by every init behind the
 #: planning fixtures (mirrors ``tests/planning/inventory_helpers.py``).
@@ -140,6 +143,20 @@ DOI = "10.1039/D5TA00771B"
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root``; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    # The helper-built items reference SRC-TARGET-PAPER; the source must
+    # be registered before the first item registers.
+    register_source(
+        root,
+        ResearchSource(
+            source_id="SRC-TARGET-PAPER",
+            source_type=SourceType.TARGET_PAPER,
+            title="Planning-flow provenance source (deterministic fixture)",
+            provenance="test fixture",
+            doi=DOI,
+        ),
+        actor="research",
+        recorded_at="2026-01-02T00:00:00Z",
+    )
     return root
 
 

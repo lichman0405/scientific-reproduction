@@ -68,6 +68,7 @@ from scientific_reproduction.planning.inventory import (
     register_inventory_item,
     register_requirement,
 )
+from scientific_reproduction.research.state_helpers import register_source
 
 #: The frozen FDM-201 benchmark register (read live, never copied).
 BENCHMARK_ROOT = Path(__file__).resolve().parents[2] / "benchmarks" / "fdm201"
@@ -227,7 +228,25 @@ def run_gate(script: Path) -> subprocess.CompletedProcess[str]:
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root``; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    register_benchmark_sources(root)
     return root
+
+
+def register_benchmark_sources(root: Path) -> None:
+    """Register the 13 frozen benchmark source records before any item.
+
+    The re-derivation items reference the frozen provenance ``source_id``
+    of their benchmark records, and ``register_inventory_item`` resolves
+    every ``source_id`` against the workspace source registry -- sources
+    first, items later (the real authoring order).
+    """
+    for path in sorted((BENCHMARK_ROOT / "sources" / "records").glob("*.yaml")):
+        register_source(
+            root,
+            _load_yaml(path),
+            actor="research",
+            recorded_at=FROZEN_TIMESTAMP,
+        )
 
 
 def make_item(item_id: str, frozen_items: list[dict]) -> ReproductionInventoryItem:

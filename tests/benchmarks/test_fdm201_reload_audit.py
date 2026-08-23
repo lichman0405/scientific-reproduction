@@ -8,9 +8,12 @@ state:
 
 1. the frozen project record reloads into a fresh workspace through the
    real ``initialize_project`` API (fixed identity and the frozen
-   ``2026-08-14T00:00:00Z`` timestamp), and the full 82-item /
-   82-requirement inventory reloads through the real registry APIs
-   (``register_inventory_item`` / ``register_requirement``, items first);
+   ``2026-08-14T00:00:00Z`` timestamp), the 13 frozen source records
+   reload through the real research-layer ``register_source`` API, and
+   the full 82-item / 82-requirement inventory reloads through the real
+   registry APIs (``register_inventory_item`` /
+   ``register_requirement``; sources first, then items -- the provenance
+   contract of ``register_inventory_item``);
 2. the real completeness audit over the reloaded state re-derives the
    frozen verdict: **PASS (R-AUD-P1), 82/82 mapped, coverage 1.0**, the
    exact counts of the frozen ``mapping_audit.yaml`` / ``plan_v1.yaml``
@@ -104,6 +107,7 @@ from scientific_reproduction.planning.plan import (
     register_closure_contract,
     register_goal,
 )
+from scientific_reproduction.research.state_helpers import register_source
 
 #: The frozen FDM-201 benchmark register (read live, never copied).
 BENCHMARK_ROOT = Path(__file__).resolve().parents[2] / "benchmarks" / "fdm201"
@@ -115,6 +119,7 @@ PLAN_V1_YAML = BENCHMARK_ROOT / "plans" / "plan_v1.yaml"
 ANALYSIS_PLAN_YAML = BENCHMARK_ROOT / "plans" / "analysis_plan.yaml"
 CLOSURE_YAML = BENCHMARK_ROOT / "plans" / "closure.yaml"
 PROJECT_YAML = BENCHMARK_ROOT / "project" / "project.yaml"
+SOURCES_RECORDS_DIR = BENCHMARK_ROOT / "sources" / "records"
 
 #: Deterministic author/committer identity (mirrors the scenario suites).
 IDENTITY = AuditIdentity(name="Audit Bot", email="audit@example.org")
@@ -134,6 +139,11 @@ FROZEN_PROJECT_ID = "sr_project_c0e2b9a52c011ab5acd33a4feb732b4d"
 
 #: The frozen benchmark timestamp (every frozen register file).
 FROZEN_TIMESTAMP = "2026-08-14T00:00:00Z"
+
+#: Deterministic recording actor of the source reload -- the research
+#: role agent identity (mirrors the research suite; the frozen
+#: acquisition log records no actor).
+SOURCE_ACTOR = "research"
 
 #: The representative goal whose family values are spot-asserted.
 GOAL_ID = "GOAL-EXE-50"
@@ -238,10 +248,27 @@ def make_requirement(frozen: dict) -> ReproductionRequirement:
     )
 
 
+def reload_sources(root: Path) -> None:
+    """Register the 13 frozen benchmark source records (records/*.yaml,
+    each the serialization of a frozen ``ResearchSource``) through the
+    real research-layer ``register_source`` API, with the frozen
+    recording timestamp. Every inventory item's ``source_id`` must
+    resolve against this registry before the item can register."""
+    for path in sorted(SOURCES_RECORDS_DIR.glob("*.yaml")):
+        register_source(
+            root,
+            _load_yaml(path),
+            actor=SOURCE_ACTOR,
+            recorded_at=FROZEN_TIMESTAMP,
+        )
+
+
 def reload_full_inventory(root: Path) -> None:
-    """Reload the full frozen 82-item / 82-requirement inventory into the
-    workspace through the real registry APIs (items first, per the
-    registry contract)."""
+    """Reload the full frozen state inventory into the workspace through
+    the real registry APIs: the 13 source records first, then the
+    82-item / 82-requirement inventory (sources first, items before
+    requirements, per the registry provenance contract)."""
+    reload_sources(root)
     for frozen in _frozen_inventory()["items"]:
         register_inventory_item(root, make_item(frozen))
     for frozen in _frozen_inventory()["items"]:
@@ -403,6 +430,21 @@ def tree_bytes(root: Path) -> bytes:
 # ---------------------------------------------------------------------------
 # AC-03 (a): the full frozen inventory reloads and re-audits to PASS
 # ---------------------------------------------------------------------------
+
+
+def test_fdm201_reload_registers_the_frozen_sources_first(tmp_path):
+    # The 13 frozen benchmark source records register through the real
+    # research-layer register_source (sources first -- every inventory
+    # item's provenance source_id resolves against this registry).
+    root = init_project(tmp_path)
+    reload_sources(root)
+    stored = sorted(p.stem for p in (root / "sources").glob("*.json"))
+    frozen_ids = sorted(
+        _load_yaml(path)["source_id"]
+        for path in sorted(SOURCES_RECORDS_DIR.glob("*.yaml"))
+    )
+    assert stored == frozen_ids
+    assert len(stored) == _load_yaml(PROJECT_YAML)["source_set"]["record_count"]
 
 
 def test_fdm201_reload_full_inventory_audit_matches_frozen(tmp_path):

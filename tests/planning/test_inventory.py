@@ -34,6 +34,8 @@ from pathlib import Path
 
 import pytest
 from inventory_helpers import (
+    ACTOR,
+    RECORDED_AT,
     init_project,
     make_item,
     make_requirement,
@@ -46,6 +48,8 @@ from scientific_reproduction.core.models import (
     MappingStatus,
     ReproductionInventoryItem,
     ReproductionRequirement,
+    ResearchSource,
+    SourceType,
 )
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.init import ProjectNotInitializedError
@@ -65,7 +69,9 @@ from scientific_reproduction.planning.inventory import (
     ItemMappingRule,
     ItemMappingRuleDecision,
     RequirementNotFoundError,
+    UnresolvedItemLinkError,
     UnresolvedItemReferenceError,
+    UnresolvedSourceReferenceError,
     evaluate_item_mapping,
     list_inventory_items,
     list_requirements,
@@ -79,6 +85,7 @@ from scientific_reproduction.planning.inventory import (
     summarize_inventory,
     unresolved_requirement_ids,
 )
+from scientific_reproduction.research.state_helpers import register_source
 
 # ---------------------------------------------------------------------------
 # Registry: registration and persistence
@@ -211,6 +218,94 @@ def test_inventory_duplicate_detection_is_deterministic_for_generated_ids(
     # registration is the same item and is rejected deterministically.
     with pytest.raises(DuplicateInventoryItemError, match="already registered"):
         register_inventory_item(root, item_dict)
+
+
+def test_inventory_rejects_unregistered_source_and_writes_nothing(
+    tmp_path: Path,
+) -> None:
+    root = init_project(tmp_path / "project")
+    with pytest.raises(UnresolvedSourceReferenceError) as excinfo:
+        register_inventory_item(root, make_item("INV-NO-SRC", source_id="SRC-MISSING"))
+    message = str(excinfo.value)
+    assert "SRC-MISSING" in message
+    assert "not registered" in message
+    assert "INV-NO-SRC" in message
+    # The rejection happened before any write: no record for the item.
+    assert not (root / INVENTORY_STATE_DIR / "INV-NO-SRC.json").exists()
+    assert list_inventory_items(root) == ()
+    # Stable error: the same attempt on another initialized root yields the
+    # identical message.
+    root2 = init_project(tmp_path / "project-2")
+    with pytest.raises(UnresolvedSourceReferenceError) as excinfo2:
+        register_inventory_item(root2, make_item("INV-NO-SRC", source_id="SRC-MISSING"))
+    assert str(excinfo2.value) == message
+
+
+def test_inventory_accepts_item_once_source_is_registered(tmp_path: Path) -> None:
+    root = init_project(tmp_path / "project")
+    item = make_item("INV-LATE-SRC", source_id="SRC-REGISTERED-LATER")
+    with pytest.raises(UnresolvedSourceReferenceError):
+        register_inventory_item(root, item)
+    # The check resolves against the live registry: once the source is
+    # registered, the same item passes.
+    register_source(
+        root,
+        ResearchSource(
+            source_id="SRC-REGISTERED-LATER",
+            source_type=SourceType.TARGET_PAPER,
+            title="Source registered after the first attempt.",
+            provenance="test fixture",
+        ),
+        actor=ACTOR,
+        recorded_at=RECORDED_AT,
+    )
+    stored = register_inventory_item(root, item)
+    assert read_inventory_item(root, "INV-LATE-SRC") == stored
+
+
+def test_inventory_rejects_dangling_linked_item_and_writes_nothing(
+    tmp_path: Path,
+) -> None:
+    root = init_project(tmp_path / "project")
+    with pytest.raises(UnresolvedItemLinkError) as excinfo:
+        register_inventory_item(
+            root,
+            make_item(
+                "INV-DANGLING",
+                linked_inventory_ids=["INV-ABSENT", "INV-ALSO-MISSING"],
+            ),
+        )
+    message = str(excinfo.value)
+    assert "INV-DANGLING" in message
+    assert "INV-ABSENT" in message
+    assert "INV-ALSO-MISSING" in message
+    # The rejection happened before any write: no record for the item.
+    assert not (root / INVENTORY_STATE_DIR / "INV-DANGLING.json").exists()
+    assert list_inventory_items(root) == ()
+    # Stable error: the same attempt on another initialized root yields the
+    # identical message.
+    root2 = init_project(tmp_path / "project-2")
+    with pytest.raises(UnresolvedItemLinkError) as excinfo2:
+        register_inventory_item(
+            root2,
+            make_item(
+                "INV-DANGLING",
+                linked_inventory_ids=["INV-ABSENT", "INV-ALSO-MISSING"],
+            ),
+        )
+    assert str(excinfo2.value) == message
+
+
+def test_inventory_accepts_links_to_registered_items(tmp_path: Path) -> None:
+    root = init_project(tmp_path / "project")
+    register_inventory_item(root, make_item("INV-FIRST"))
+    stored = register_inventory_item(
+        root,
+        make_item("INV-LINKED", linked_inventory_ids=["INV-FIRST"]),
+    )
+    # The link resolves against already-registered items and round-trips.
+    assert stored.linked_inventory_ids == ["INV-FIRST"]
+    assert read_inventory_item(root, "INV-LINKED") == stored
 
 
 def test_inventory_registration_requires_initialized_project(tmp_path: Path) -> None:

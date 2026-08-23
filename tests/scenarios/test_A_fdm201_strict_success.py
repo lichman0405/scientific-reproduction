@@ -144,6 +144,7 @@ from scientific_reproduction.planning.plan import (
     register_closure_contract,
     register_goal,
 )
+from scientific_reproduction.research.state_helpers import register_source
 
 # ---------------------------------------------------------------------------
 # Frozen benchmark grounding (parsed from the benchmark files, never
@@ -469,7 +470,21 @@ def init_project(root: Path) -> str:
     """Initialize a deterministic one-paper project at ``root``; return the
     persisted project id (the lab packages must reference it)."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    register_benchmark_source(root)
     return read_project_state(root).project_id
+
+
+def register_benchmark_source(root: Path) -> None:
+    """Register the primary-paper benchmark source record before any item.
+
+    The scenario's inventory item (INV-0301) references the primary
+    paper's frozen source record as its provenance, and
+    ``register_inventory_item`` resolves every ``source_id`` against the
+    workspace source registry -- sources first, items later (the real
+    authoring order).
+    """
+    record = _load_yaml("sources/records/01_primary_paper.yaml")
+    register_source(root, record, actor="research", recorded_at=FIXED_STAMP)
 
 
 class BatchExecutor:

@@ -21,8 +21,11 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ResearchSource,
+    SourceType,
 )
 from scientific_reproduction.planning.init import initialize_project
+from scientific_reproduction.research.state_helpers import register_source
 
 #: Deterministic author/committer identity used by every init behind the
 #: inventory tests.
@@ -35,10 +38,42 @@ TIMESTAMP = datetime(2026, 1, 1, tzinfo=timezone.utc)
 #: (``17-FDM201-REFERENCE-CASE.md``).
 DOI = "10.1039/D5TA00771B"
 
+#: Injected actor and recording stamps for the source registration
+#: (no wall clock anywhere; mirrors the research suite).
+ACTOR = "research"
+RECORDED_AT = "2026-01-02T00:00:00Z"
+
+#: The default provenance source id every helper-built item references.
+SOURCE_ID = "SRC-TARGET-PAPER"
+
+
+def register_default_source(root: Path) -> Path:
+    """Register the default provenance source of the helper-built items.
+
+    ``register_inventory_item`` resolves every item's ``source_id``
+    against the workspace source registry, so the deterministic
+    ``SRC-TARGET-PAPER`` record must be registered before the first item
+    (items first, sources earlier -- the real authoring order).
+    """
+    register_source(
+        root,
+        ResearchSource(
+            source_id=SOURCE_ID,
+            source_type=SourceType.TARGET_PAPER,
+            title="FDM-201 target paper (deterministic test provenance source)",
+            provenance="test fixture",
+            doi=DOI,
+        ),
+        actor=ACTOR,
+        recorded_at=RECORDED_AT,
+    )
+    return root
+
 
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root``; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    register_default_source(root)
     return root
 
 

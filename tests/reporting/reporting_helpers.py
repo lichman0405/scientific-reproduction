@@ -50,9 +50,11 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ResearchSource,
     Run,
     RunType,
     ScientificReview,
+    SourceType,
 )
 from scientific_reproduction.core.state_backend import FilesystemStateBackend
 from scientific_reproduction.planning.init import (
@@ -68,6 +70,7 @@ from scientific_reproduction.planning.plan import (
     register_goal,
 )
 from scientific_reproduction.research.evidence import EvidenceRegistry
+from scientific_reproduction.research.state_helpers import register_source
 
 #: Deterministic author/committer identity used by every init behind the
 #: reporting tests.
@@ -105,7 +108,30 @@ INVENTORY_ID: str = "INV-001"
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root``; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    _register_default_source(root)
     return root
+
+
+def _register_default_source(root: Path) -> None:
+    """Register the fixture provenance source (``SRC-001``).
+
+    ``register_inventory_item`` resolves every item's ``source_id``
+    against the workspace source registry, so the source must be
+    registered before the first item (sources first, items later -- the
+    real authoring order).
+    """
+    register_source(
+        root,
+        ResearchSource(
+            source_id=SOURCE_ID,
+            source_type=SourceType.TARGET_PAPER,
+            title="Reporting-chain provenance source (deterministic fixture)",
+            provenance="test fixture",
+            doi=DOI,
+        ),
+        actor="research",
+        recorded_at="2026-01-02T00:00:00Z",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -337,18 +363,19 @@ def install_valid_chain(
     """Install a fully linked, valid SS7 report-traceability chain at ``root``.
 
     Registers, through the real registration APIs in authoring order: the
-    project, the PRIMARY analysis protocol (``v1-draft`` registered, then
-    frozen to ``v1`` with the fixed ``FROZEN_AT`` stamp), the goal
-    contract, the acceptance criteria, the inventory item and the
-    requirement, the run record (``runs/RUN-001.json``), the raw
-    artifact manifest (``manifests/ART-001.json``) and the analysis
-    result package linking run/artifact/acceptance/requirement. The
-    returned evidence registry backs ``claim_id`` with one
+    project (and its provenance source ``SRC-001``, which the inventory
+    item references), the PRIMARY analysis protocol (``v1-draft``
+    registered, then frozen to ``v1`` with the fixed ``FROZEN_AT``
+    stamp), the goal contract, the acceptance criteria, the inventory
+    item and the requirement, the run record (``runs/RUN-001.json``),
+    the raw artifact manifest (``manifests/ART-001.json``) and the
+    analysis result package linking run/artifact/acceptance/requirement.
+    The returned evidence registry backs ``claim_id`` with one
     ``ClaimSpecificEvidence`` record whose ``used_by`` links the goal
     and the requirement. Every override argument replaces the
     corresponding default record.
     """
-    initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    init_project(root)
     protocol = make_protocol()
     register_analysis_record(root, protocol)
     freeze_primary_protocol(root, protocol, timestamp=FROZEN_AT)
