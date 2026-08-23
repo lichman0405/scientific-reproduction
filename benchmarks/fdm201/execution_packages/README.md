@@ -55,7 +55,12 @@ execution_packages/
   only the context the worker of one goal needs: goal id/version,
   allowed/forbidden actions, environment, required outputs, and the
   goal/assumption/parameter/protocol references for that goal. They
-  reference their execution package via `execution_package_refs`.
+  reference their execution package via `execution_package_refs` -- a
+  first-class schema property (issue #160): every entry must resolve
+  to a declared execution package id, and the runtime context
+  generator (`workers/context.py`) emits the link and fingerprints
+  each linked package's procedure into `context_hash`, so a modified
+  linked protocol changes the hash.
 
 ## Validation
 
@@ -68,7 +73,8 @@ when every package validates, 1 otherwise. It checks:
 
 - **AC-01** schema conformance (required keys, enums, element types;
   compute packages require `compute.scheduler == slurm` and `#SBATCH`
-  in every step script).
+  in every step script; worker-context packages require a non-empty
+  `execution_package_refs` list of strings).
 - **AC-02** traceability: every id referenced under a `*_refs` key (and
   `plan_ref`) resolves to an id existing in the frozen benchmark data
   (INVENTORY, evidence, assumptions, resources, analysis plan, goals,

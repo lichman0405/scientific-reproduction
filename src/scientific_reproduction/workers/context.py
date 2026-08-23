@@ -67,11 +67,34 @@ records whose frozen model declares no version field (``ResearchSource``,
 ``ClaimSpecificEvidence``, ``Resource``, ``AutomaticRetryPolicy``). The
 package's reference lists are derived **from the manifest** (the manifest
 is authoritative): ``source_refs`` / ``evidence_refs`` /
-``upstream_result_refs`` / ``protocol_refs`` / ``resource_refs`` are the
-manifest references of the corresponding kinds. ``context_hash`` is the
-SHA-256 of the manifest's canonical JSON (sorted keys, 2-space indent,
-trailing newline) -- a deterministic fingerprint of exactly what the
-worker was exposed to.
+``upstream_result_refs`` / ``protocol_refs`` / ``resource_refs`` /
+``execution_package_refs`` are the manifest references (and linked
+execution-package entries) of the corresponding kinds. ``context_hash``
+is the SHA-256 of the manifest's canonical JSON (sorted keys, 2-space
+indent, trailing newline) -- a deterministic fingerprint of exactly what
+the worker was exposed to.
+
+Execution packages (issue #160)
+-------------------------------
+``execution_package_refs`` binds the worker context to the stored
+execution package(s) the worker executes -- a first-class schema
+property (``schemas/worker-context.schema.yaml``), no longer an
+``additionalProperties`` pass-through. The generator resolves every
+provided ref against the workspace execution-package state dirs
+(``lab/`` then ``compute/`` -- the canonical storage of
+``LabExecutionPackage`` / ``ComputeExecutionPackage`` records); a ref
+that resolves to nothing raises ``ExecutionPackageNotFoundError`` and
+nothing is emitted. Refs must be plain package id stems (the backend
+rejects path separators and ``.``/``..`` on read; the resolver refuses
+them first with its own stable message), and a worker context may only
+bind the execution packages of its **own goal**: a stored record whose
+``goal_id`` differs from the context goal's is refused (the worker
+executes exactly one bounded Goal context). Each linked package
+contributes a manifest entry carrying the SHA-256 fingerprint of the
+stored package's linked protocol (its ``procedure``; records without a
+``procedure`` key -- compute packages -- are fingerprinted whole), so
+``context_hash`` moves when the linked protocol moves (the AC-03
+context-isolation intent).
 
 Upstream outputs (locked reading)
 ---------------------------------
@@ -137,6 +160,10 @@ from scientific_reproduction.core.models import (
     ResearchSource,
     WorkerRole,
 )
+from scientific_reproduction.core.state_backend import (
+    SCHEMA_TO_STATE_DIR,
+    FilesystemStateBackend,
+)
 from scientific_reproduction.planning.init import (
     PROJECT_STATE_FILENAME,
     ProjectNotInitializedError,
@@ -158,6 +185,8 @@ __all__ = [
     "ContextManifest",
     "ContextPackageResult",
     "ContextReference",
+    "ExecutionPackageNotFoundError",
+    "ExecutionPackageReference",
     "ExplicitReferences",
     "GoalNotFrozenError",
     "PolicyMismatchError",
@@ -171,8 +200,9 @@ __all__ = [
 ]
 
 #: Version of the persisted context-manifest schema (``manifest_version``
-#: key of :class:`ContextManifest`).
-CONTEXT_MANIFEST_VERSION: str = "1.0"
+#: key of :class:`ContextManifest`). Bumped to 1.1 when the manifest
+#: gained the ``execution_packages`` entries (issue #160).
+CONTEXT_MANIFEST_VERSION: str = "1.1"
 
 #: Version of the relevance-reference filter rule table; recorded in every
 #: assessment.
@@ -228,6 +258,16 @@ class PolicyMismatchError(ContextError):
     its ``policy_id`` differs from ``automatic_retry_policy_ref`` -- a
     caller error that would otherwise expose the wrong policy to the
     worker.
+    """
+
+
+class ExecutionPackageNotFoundError(ContextError):
+    """Raised when the context references an unregistered execution package.
+
+    Issue #160: every ``execution_package_refs`` entry must resolve to a
+    stored ``LabExecutionPackage`` / ``ComputeExecutionPackage`` record
+    in one of the workspace execution-package state dirs; a ref that
+    resolves to nothing is refused before anything is emitted.
     """
 
 
@@ -480,15 +520,42 @@ class ContextReference:
 
 
 @dataclass(frozen=True)
+class ExecutionPackageReference:
+    """One linked execution package of a context package (issue #160).
+
+    ``package_id`` is the stored execution-package record id (state-tree
+    stem); ``procedure_hash`` is the SHA-256 fingerprint of the stored
+    package's linked protocol -- its ``procedure`` when the record
+    carries one, the whole stored record otherwise (compute packages
+    declare no ``procedure`` key). Because the manifest's canonical JSON
+    includes this fingerprint, a modified linked protocol moves
+    ``context_hash``.
+    """
+
+    package_id: str
+    procedure_hash: str
+
+    def to_dict(self) -> dict[str, str]:
+        """Plain dict of the entry (manifest serialization)."""
+        return {
+            "package_id": self.package_id,
+            "procedure_hash": self.procedure_hash,
+        }
+
+
+@dataclass(frozen=True)
 class ContextManifest:
     """The deterministic reference manifest of one context package (AC-03).
 
     The manifest records **exactly** which references were exposed, as
-    ``(kind, ref_id, version)`` entries sorted by ``(kind, ref_id)``; it
-    is authoritative -- the package's reference lists are derived from it.
-    ``context_hash()`` fingerprints the manifest's canonical JSON, so the
-    hash changes iff the exposed reference set changes (unrelated registry
-    documents do not move it).
+    ``(kind, ref_id, version)`` entries sorted by ``(kind, ref_id)``, and
+    which execution packages the context links (``execution_packages``,
+    sorted by package id, each carrying the linked protocol fingerprint);
+    it is authoritative -- the package's reference lists are derived from
+    it. ``context_hash()`` fingerprints the manifest's canonical JSON, so
+    the hash changes iff the exposed reference set or any linked
+    execution package's protocol changes (unrelated registry documents do
+    not move it).
     """
 
     manifest_version: str
@@ -496,6 +563,10 @@ class ContextManifest:
     goal_version: str
     worker_role: WorkerRole
     references: tuple[ContextReference, ...]
+    #: The linked execution packages (issue #160): each entry records the
+    #: stored package id and the SHA-256 of its linked protocol, so the
+    #: context hash binds the exact protocol the worker executes.
+    execution_packages: tuple[ExecutionPackageReference, ...] = ()
 
     def references_for(
         self, kind: ReferenceKind
@@ -519,6 +590,9 @@ class ContextManifest:
             "goal_version": self.goal_version,
             "worker_role": self.worker_role.value,
             "references": [r.to_dict() for r in self.references],
+            "execution_packages": [
+                entry.to_dict() for entry in self.execution_packages
+            ],
         }
 
     def to_canonical_json(self) -> str:
@@ -526,7 +600,12 @@ class ContextManifest:
         return json.dumps(self.to_dict(), indent=_JSON_INDENT, sort_keys=True) + "\n"
 
     def context_hash(self) -> str:
-        """SHA-256 hex digest of the manifest's canonical JSON (deterministic)."""
+        """SHA-256 hex digest of the manifest's canonical JSON (deterministic).
+
+        The canonical JSON includes every linked execution package's
+        procedure fingerprint, so a modified linked protocol changes the
+        hash (issue #160).
+        """
         return hashlib.sha256(
             self.to_canonical_json().encode("utf-8")
         ).hexdigest()
@@ -572,6 +651,7 @@ def generate_goal_context(
     sources: Mapping[str, ResearchSource] | None = None,
     retry_policy: AutomaticRetryPolicy | None = None,
     environment: Mapping[str, Any] | None = None,
+    execution_package_refs: Sequence[str] = (),
 ) -> ContextPackageResult:
     """Generate the Goal Execution Context Package for one frozen goal.
 
@@ -583,7 +663,11 @@ def generate_goal_context(
     (AC-01); sources/evidence/upstream outputs are decided by the
     relevance-reference filter from the candidate registries (AC-02); the
     manifest records exactly which references were exposed and the package
-    reference lists are derived from it (AC-03).
+    reference lists are derived from it (AC-03). Every provided
+    ``execution_package_refs`` entry is resolved against the workspace
+    execution-package state dirs (own-goal records only) and recorded in
+    the manifest with its linked-protocol fingerprint, so the context
+    hash binds the linked protocol (issue #160).
 
     Args:
         root: the initialized workspace root.
@@ -607,6 +691,11 @@ def generate_goal_context(
         environment: injectable execution environment (default empty);
             execution-time configuration lives in project/user
             configuration, not Goal contracts (``15-ADAPTER-SPEC.md`` SS2).
+        execution_package_refs: the stored execution package record ids
+            the context links (``LabExecutionPackage`` /
+            ``ComputeExecutionPackage`` state records); every entry must
+            resolve to a stored record of the context goal. Default
+            empty.
 
     Returns:
         The :class:`ContextPackageResult` with the worker package and the
@@ -618,22 +707,31 @@ def generate_goal_context(
             ``evidence_registry`` is neither an ``EvidenceRegistry`` nor
             None, ``sources`` is neither a mapping nor None,
             ``retry_policy`` is neither an ``AutomaticRetryPolicy`` nor
-            None, or ``environment`` is neither a mapping nor None.
+            None, ``environment`` is neither a mapping nor None, or
+            ``execution_package_refs`` is not a sequence of strings.
         ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
         GoalNotFrozenError: ``goal`` is not the frozen Goal Contract
             (AC-01); stable message.
-        ContextBuildError: the frozen goal carries no formal version, or
-            the goal references an automatic retry policy but no matching
-            policy record was provided; stable messages.
+        ContextBuildError: the frozen goal carries no formal version, the
+            goal references an automatic retry policy but no matching
+            policy record was provided, an ``execution_package_refs``
+            entry is blank or not a plain package id stem, a referenced
+            execution package belongs to another goal, or a stored
+            execution-package record carries no list ``procedure``;
+            stable messages.
         PolicyMismatchError: the provided policy's ``policy_id`` does not
             match the goal's ``automatic_retry_policy_ref``, or a policy
             is provided for a goal that references none; stable messages.
+        ExecutionPackageNotFoundError: an ``execution_package_refs`` entry
+            resolves to no stored execution package in the workspace
+            state dirs; stable message (issue #160).
         GoalNotFoundError: a dependency goal has no registered contract at
             ``root`` (the frozen plan guarantees registration; raised
             loudly, never silently dropped).
         AnalysisProtocolNotFoundError: ``goal.analysis_protocol_ref`` has
             no registered record at ``root``.
-        ValueError: a stored registry record is corrupt.
+        ValueError: a stored registry record or execution-package record
+            is corrupt.
     """
     if not isinstance(root, (str, Path)):
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
@@ -663,11 +761,27 @@ def generate_goal_context(
         raise TypeError(
             f"environment must be a mapping or None, got {type(environment).__name__}"
         )
+    if not isinstance(execution_package_refs, Sequence) or isinstance(
+        execution_package_refs, (str, bytes)
+    ):
+        raise TypeError(
+            "execution_package_refs must be a sequence of strings, got"
+            f" {type(execution_package_refs).__name__}"
+        )
+    for index, ref in enumerate(execution_package_refs):
+        if not isinstance(ref, str):
+            raise TypeError(
+                f"execution_package_refs entry {index} must be a str, got"
+                f" {type(ref).__name__}"
+            )
 
     project_root = Path(root).resolve()
     _require_initialized(project_root)
     _require_frozen_goal(goal)
     policy = _resolve_policy(goal, retry_policy)
+    linked_packages = _resolve_execution_package_refs(
+        project_root, goal.goal_id, execution_package_refs
+    )
 
     registry = evidence_registry if evidence_registry is not None else EvidenceRegistry()
     sources_map = dict(sources) if sources is not None else {}
@@ -774,6 +888,7 @@ def generate_goal_context(
         references=tuple(
             sorted(references, key=lambda r: (r.kind.value, r.ref_id))
         ),
+        execution_packages=linked_packages,
     )
     package = _package_from_manifest(
         goal, worker_role, manifest, policy, environment
@@ -821,10 +936,128 @@ def _package_from_manifest(
         upstream_result_refs=list(refs_by_kind[ReferenceKind.UPSTREAM_OUTPUT]),
         protocol_refs=list(refs_by_kind[ReferenceKind.PROTOCOL]),
         resource_refs=list(refs_by_kind[ReferenceKind.RESOURCE]),
+        execution_package_refs=[
+            entry.package_id for entry in manifest.execution_packages
+        ],
         environment=dict(environment) if environment is not None else {},
         required_outputs=list(_output_names(goal.outputs)),
         context_hash=manifest.context_hash(),
     )
+
+
+def _resolve_execution_package_refs(
+    root: Path, goal_id: str, refs: Sequence[str]
+) -> tuple[ExecutionPackageReference, ...]:
+    """Resolve the provided execution-package refs to stored records.
+
+    Issue #160: every ref must resolve to a stored execution package in
+    one of the workspace execution-package state dirs (``lab/``,
+    ``compute/`` -- the canonical storage of ``LabExecutionPackage`` and
+    ``ComputeExecutionPackage`` records, written through the state
+    backend). A worker context may only bind the execution packages of
+    its own goal: a stored record whose ``goal_id`` differs from the
+    context goal's is refused (the worker executes exactly one bounded
+    Goal context). Refs must be plain package id stems; the backend
+    rejects path separators and ``.``/``..`` on read, and the resolver
+    refuses such ids first with its own stable message. Each resolved
+    entry carries the SHA-256 fingerprint of the stored package's linked
+    protocol, so the context hash binds the exact protocol the worker
+    executes. Sorted and distinct -- the manifest order is deterministic
+    regardless of the caller's order.
+    """
+    backend = FilesystemStateBackend(root)
+    entries: list[ExecutionPackageReference] = []
+    for package_id in sorted(set(refs)):
+        if not package_id.strip():
+            raise ContextBuildError(
+                "execution_package_refs entries must be non-empty strings,"
+                f" got {package_id!r}"
+            )
+        if any(c in package_id for c in ("/", "\\", "\x00")) or package_id in (
+            ".",
+            "..",
+        ):
+            raise ContextBuildError(
+                "execution_package_refs entries must be plain package id"
+                " stems (no path separators, no '.', no '..'), got"
+                f" {package_id!r}"
+            )
+        obj_type, record = _read_stored_execution_package(backend, package_id)
+        record_goal_id = record.get("goal_id")
+        if record_goal_id != goal_id:
+            raise ContextBuildError(
+                f"execution package {package_id!r} belongs to goal"
+                f" {record_goal_id!r}, not the context goal {goal_id!r}; a"
+                " worker context may only bind the execution packages of"
+                " its own goal (issue #160)"
+            )
+        entries.append(
+            ExecutionPackageReference(
+                package_id=package_id,
+                procedure_hash=_procedure_fingerprint(
+                    obj_type, package_id, record
+                ),
+            )
+        )
+    return tuple(entries)
+
+
+def _read_stored_execution_package(
+    backend: FilesystemStateBackend, package_id: str
+) -> tuple[str, dict[str, Any]]:
+    """Read one stored execution-package record by id.
+
+    Returns the resolving object type (the schema name) together with
+    the record, so the caller can enforce kind-specific contracts.
+
+    Resolution order: the lab state dir (``lab/``), then the compute
+    state dir (``compute/``) -- the canonical storage of the two
+    execution-package kinds. A ref that resolves in neither raises
+    ``ExecutionPackageNotFoundError``; a corrupt stored record
+    propagates the backend's stable ``ValueError``.
+    """
+    for obj_type in (
+        "lab-execution-package",
+        "compute-execution-package",
+    ):
+        try:
+            return obj_type, backend.read(obj_type, package_id)
+        except FileNotFoundError:
+            continue
+    raise ExecutionPackageNotFoundError(
+        f"context references execution package {package_id!r} which is"
+        " not stored in the workspace execution-package state dirs"
+        f" ({SCHEMA_TO_STATE_DIR['lab-execution-package']}/ or"
+        f" {SCHEMA_TO_STATE_DIR['compute-execution-package']}/); only"
+        " stored execution packages can be referenced"
+    )
+
+
+def _procedure_fingerprint(
+    obj_type: str, package_id: str, record: Mapping[str, Any]
+) -> str:
+    """SHA-256 of the stored package's linked protocol.
+
+    The linked protocol of a lab record is its ``procedure`` -- the
+    schema-required key of the lab-execution-package schema -- and a
+    stored lab record without a list ``procedure`` is corrupt: refused
+    with a stable message naming the package id. Compute packages
+    declare no ``procedure`` property, so a stored compute record is
+    fingerprinted whole (the record's canonical JSON).
+    """
+    if obj_type == "lab-execution-package":
+        procedure = record.get("procedure")
+        if not isinstance(procedure, list):
+            raise ContextBuildError(
+                f"stored execution package {package_id!r} is corrupt:"
+                " missing list 'procedure'"
+            )
+        canonical = (
+            json.dumps(procedure, indent=_JSON_INDENT, sort_keys=True) + "\n"
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    canonical = json.dumps(dict(record), indent=_JSON_INDENT, sort_keys=True) + "\n"
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _output_names(outputs: Sequence[Any]) -> tuple[str, ...]:

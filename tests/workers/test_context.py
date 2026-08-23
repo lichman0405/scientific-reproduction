@@ -31,6 +31,7 @@ import hashlib
 import json
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 from context_helpers import (
@@ -51,6 +52,7 @@ from context_helpers import (
 
 from scientific_reproduction.core.models import GoalContract, WorkerRole
 from scientific_reproduction.core.schema_validation import validate_and_reject
+from scientific_reproduction.core.state_backend import FilesystemStateBackend
 from scientific_reproduction.planning.init import ProjectNotInitializedError
 from scientific_reproduction.planning.inventory import (
     register_inventory_item,
@@ -71,6 +73,7 @@ from scientific_reproduction.workers.context import (
     ContextBuildError,
     ContextPackageResult,
     ContextReference,
+    ExecutionPackageNotFoundError,
     ExplicitReferences,
     GoalNotFrozenError,
     PolicyMismatchError,
@@ -112,6 +115,57 @@ def standard_sources() -> dict[str, object]:
 
 #: Sentinel distinguishing "no policy passed" from an explicit None.
 _POLICY_UNSET = object()
+
+
+def store_lab_package(
+    root: Path, package_id: str, *, procedure: list[dict[str, Any]]
+) -> None:
+    """Store a minimal schema-valid lab execution package record.
+
+    Written through the real state backend (the storage the merged #158
+    generator's packages land in): the record is the file
+    ``<root>/lab/<package_id>.json`` and the write is schema-gated.
+    """
+    FilesystemStateBackend(root).write(
+        "lab-execution-package",
+        package_id,
+        {
+            "package_id": package_id,
+            "project_id": "sr_project_fixture",
+            "goal_id": "GOAL-1",
+            "run_id": "RUN-1",
+            "objective": "Reproduce the reported isotherm.",
+            "procedure": procedure,
+            "required_return": ["analysis_input_manifest"],
+        },
+    )
+
+
+def store_compute_package(
+    root: Path, package_id: str, *, parameters: list[dict[str, str]]
+) -> None:
+    """Store a minimal schema-valid compute execution package record.
+
+    Compute packages declare no ``procedure`` key (the compute schema has
+    no such property): the stored record is the package's full content.
+    """
+    FilesystemStateBackend(root).write(
+        "compute-execution-package",
+        package_id,
+        {
+            "package_id": package_id,
+            "project_id": "sr_project_fixture",
+            "goal_id": "GOAL-1",
+            "goal_version": "v1",
+            "run_id": "RUN-1",
+            "objective": "Reproduce the reported isotherm.",
+            "scientific_parameters": parameters,
+            "input_files": [],
+            "declared_outputs": [],
+            "software_environment": {},
+            "resource_requirements": {},
+        },
+    )
 
 
 def generate_context(
@@ -507,6 +561,184 @@ def test_context_ac03_manifest_serialization_is_canonical(tmp_path):
     text = result.manifest.to_canonical_json()
     assert text.endswith("\n")
     assert "  \"kind\": \"evidence\"" in text
+
+
+# ---------------------------------------------------------------------------
+# Issue #160: the context binds its execution packages (refs + fingerprint)
+# ---------------------------------------------------------------------------
+
+
+def test_context_execution_package_refs_are_emitted(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    store_lab_package(
+        root,
+        "PKG-1",
+        procedure=[
+            {"action": "Weigh 0.25 g of FDM-201.", "inputs": [], "outputs": []}
+        ],
+    )
+    result = generate_context(root, goal, execution_package_refs=["PKG-1"])
+    # The package emits the link; the manifest records the resolved entry
+    # with the linked-procedure fingerprint (a 64-char SHA-256), and the
+    # result still validates against the real worker-context schema.
+    assert result.package.execution_package_refs == ["PKG-1"]
+    entries = result.manifest.execution_packages
+    assert [entry.package_id for entry in entries] == ["PKG-1"]
+    assert all(len(entry.procedure_hash) == 64 for entry in entries)
+    validate_and_reject("worker-context", result.package.to_dict())
+
+
+def test_context_execution_package_ref_to_unstored_package_fails(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    # AC: a context package referencing a nonexistent execution package
+    # fails validation -- loud, before anything is emitted.
+    with pytest.raises(ExecutionPackageNotFoundError) as exc:
+        generate_context(root, goal, execution_package_refs=["PKG-MISSING"])
+    assert "PKG-MISSING" in str(exc.value)
+    assert "not stored" in str(exc.value)
+
+
+def test_context_hash_changes_when_the_linked_protocol_changes(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    store_lab_package(
+        root, "PKG-1", procedure=[{"action": "Record the isotherm at 298 K."}]
+    )
+    baseline = generate_context(root, goal, execution_package_refs=["PKG-1"])
+    # Overwrite the stored package with a modified protocol: the exposed
+    # reference set is unchanged, but the context hash must move (the
+    # manifest fingerprints the linked procedure).
+    store_lab_package(
+        root, "PKG-1", procedure=[{"action": "Record the isotherm at 273 K."}]
+    )
+    changed = generate_context(root, goal, execution_package_refs=["PKG-1"])
+    assert (
+        changed.package.execution_package_refs
+        == baseline.package.execution_package_refs
+    )
+    assert changed.package.context_hash != baseline.package.context_hash
+    assert (
+        changed.manifest.execution_packages[0].procedure_hash
+        != baseline.manifest.execution_packages[0].procedure_hash
+    )
+    # The hash remains the real SHA-256 of the manifest's canonical JSON.
+    expected = hashlib.sha256(
+        baseline.manifest.to_canonical_json().encode("utf-8")
+    ).hexdigest()
+    assert baseline.package.context_hash == expected
+
+
+def test_context_execution_package_refs_are_sorted_and_distinct(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    for package_id in ("PKG-1", "PKG-2"):
+        store_lab_package(root, package_id, procedure=[{"action": "Weigh sample."}])
+    result = generate_context(
+        root, goal, execution_package_refs=["PKG-2", "PKG-1", "PKG-1"]
+    )
+    # Deterministic regardless of caller order/duplicates: sorted, distinct.
+    assert result.package.execution_package_refs == ["PKG-1", "PKG-2"]
+    assert [e.package_id for e in result.manifest.execution_packages] == [
+        "PKG-1",
+        "PKG-2",
+    ]
+
+
+def test_context_execution_package_refs_resolve_in_the_compute_dir(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    # Compute packages declare no procedure key (the compute schema has no
+    # such property): the stored record is fingerprinted whole, so any
+    # modification of the linked package still moves the hash.
+    store_compute_package(
+        root, "CPKG-1", parameters=[{"name": "cutoff", "value": "500"}]
+    )
+    baseline = generate_context(root, goal, execution_package_refs=["CPKG-1"])
+    assert baseline.package.execution_package_refs == ["CPKG-1"]
+    store_compute_package(
+        root, "CPKG-1", parameters=[{"name": "cutoff", "value": "600"}]
+    )
+    changed = generate_context(root, goal, execution_package_refs=["CPKG-1"])
+    assert changed.package.context_hash != baseline.package.context_hash
+
+
+def test_context_execution_package_refs_default_empty(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    result = generate_context(root, goal)
+    assert result.package.execution_package_refs == []
+    assert result.manifest.execution_packages == ()
+    validate_and_reject("worker-context", result.package.to_dict())
+
+
+def test_context_execution_package_blank_ref_rejected(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    with pytest.raises(ContextBuildError, match="non-empty"):
+        generate_context(root, goal, execution_package_refs=[""])
+
+
+def test_context_stored_package_without_procedure_rejected(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    # Simulate corrupt stored state (the write gate would refuse this
+    # record): a lab package whose record lost its schema-required
+    # procedure key. The link is refused with a stable message.
+    (root / "lab").mkdir(exist_ok=True)
+    (root / "lab" / "BAD-1.json").write_text(
+        json.dumps({"package_id": "BAD-1", "goal_id": "GOAL-1"}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ContextBuildError, match="missing list 'procedure'"):
+        generate_context(root, goal, execution_package_refs=["BAD-1"])
+
+
+def test_context_execution_package_ref_to_other_goals_package_fails(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    store_lab_package(
+        root, "PKG-1", procedure=[{"action": "Weigh 0.25 g of FDM-201."}]
+    )
+    # A worker context may only bind the execution packages of its own
+    # goal: a stored record of another goal is refused before anything
+    # is emitted (the worker executes exactly one bounded Goal context).
+    other_goal = replace(goal, goal_id="GOAL-2")
+    with pytest.raises(ContextBuildError, match="belongs to goal 'GOAL-1'"):
+        generate_context(root, other_goal, execution_package_refs=["PKG-1"])
+
+
+def test_context_execution_package_ref_with_path_separator_rejected(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    # Refs become file stems inside the state dirs: an id that could
+    # escape the object path is refused with a stable message before
+    # the backend is ever consulted.
+    with pytest.raises(ContextBuildError, match="plain package id"):
+        generate_context(root, goal, execution_package_refs=["../PKG-1"])
+
+
+def test_context_execution_package_refs_type_error_boundaries(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    goal = frozen_goal(root)
+    with pytest.raises(
+        TypeError, match="execution_package_refs must be a sequence"
+    ):
+        generate_goal_context(  # type: ignore[call-overload]
+            root,
+            goal,
+            worker_role=ROLE,
+            execution_package_refs="PKG-1",
+        )
+    with pytest.raises(TypeError, match="entry 1 must be a str"):
+        generate_goal_context(  # type: ignore[call-overload]
+            root,
+            goal,
+            worker_role=ROLE,
+            retry_policy=make_retry_policy(),
+            execution_package_refs=["PKG-1", 42],  # type: ignore[list-item]
+        )
 
 
 # ---------------------------------------------------------------------------

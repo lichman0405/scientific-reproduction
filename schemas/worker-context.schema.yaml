@@ -13,6 +13,13 @@ properties:
   upstream_result_refs: {type: array, items: {type: string}}
   protocol_refs: {type: array, items: {type: string}}
   resource_refs: {type: array, items: {type: string}}
+  # The execution packages the worker executes (issue #160): the stored
+  # LabExecutionPackage / ComputeExecutionPackage record ids. A
+  # first-class link between the worker context and the protocol's
+  # execution package; the context generator resolves every entry
+  # against the workspace execution-package state dirs and refuses
+  # unknown ids.
+  execution_package_refs: {type: array, items: {type: string}}
   environment: {type: object}
   required_outputs: {type: array, items: {type: string}}
   allowed_actions: {type: array, items: {type: string}}
