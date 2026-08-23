@@ -290,6 +290,28 @@ class ReportPack:
     #: the audit trail (one shared field).
     label_status: str
     no_runs: str
+    #: Research process (issue #135) -- the research narrative rendered
+    #: from research state only (sources, research requests, decisions).
+    no_research_recorded: str
+    research_acquisition_label: str
+    research_acquisition_tpl: str
+    research_bootstrap_label: str
+    label_step: str
+    label_category: str
+    label_sources: str
+    research_unavailable_label: str
+    label_source: str
+    label_detail: str
+    research_no_unavailable: str
+    research_requests_label: str
+    label_request: str
+    label_question: str
+    label_transitions: str
+    research_saturation_tpl: str
+    research_no_requests: str
+    research_decisions_label: str
+    label_refers_to: str
+    research_no_exclusion_decisions: str
     #: Requirement outcomes.
     label_requirement: str
     label_statement: str
@@ -553,6 +575,7 @@ EN_PACK: Final[TemplatePack] = TemplatePack(
             "Executive summary",
             "Target paper identity and reproduction scope",
             "Pipeline summary",
+            "Research process",
             "Requirement outcomes",
             "Core findings",
             "Governance exercised",
@@ -654,6 +677,36 @@ EN_PACK: Final[TemplatePack] = TemplatePack(
         label_review="Review",
         label_status="Status",
         no_runs="no recorded runs.",
+        no_research_recorded=(
+            "No research recorded in the project state (no registered"
+            " sources or research requests)."
+        ),
+        research_acquisition_label="Acquisition summary:",
+        research_acquisition_tpl=(
+            "{sources} recorded sources: {obtained} obtained, {registered}"
+            " identity-only registered, {partial} partial, {unavailable}"
+            " unavailable; {evidence} evidence records."
+        ),
+        research_bootstrap_label="Bootstrap workflow coverage (BOOTSTRAP_WORKFLOW):",
+        label_step="Step",
+        label_category="Category",
+        label_sources="Acquired sources",
+        research_unavailable_label="Unavailable or partially obtained sources:",
+        label_source="Source",
+        label_detail="Detail",
+        research_no_unavailable="no unavailable sources recorded.",
+        research_requests_label="Research requests:",
+        label_request="Request",
+        label_question="Question",
+        label_transitions="Transitions",
+        research_saturation_tpl=(
+            "Search saturation: {complete} request(s) concluded COMPLETE,"
+            " {exhausted} concluded EXHAUSTED, {open} still open."
+        ),
+        research_no_requests="no research requests recorded.",
+        research_decisions_label="Research exclusion decisions (decision timeline):",
+        label_refers_to="Refers to",
+        research_no_exclusion_decisions="no exclusion decisions recorded.",
         label_requirement="Requirement",
         label_statement="Statement",
         label_criticality="Criticality",
@@ -890,6 +943,7 @@ ZH_PACK: Final[TemplatePack] = TemplatePack(
             "执行摘要",
             "目标论文身份与复现范围",
             "流水线摘要",
+            "研究过程",
             "需求结果",
             "核心发现",
             "治理行使",
@@ -980,6 +1034,32 @@ ZH_PACK: Final[TemplatePack] = TemplatePack(
         label_review="评审",
         label_status="状态",
         no_runs="未记录运行.",
+        no_research_recorded="项目状态中未记录研究过程 (未注册来源或研究请求).",
+        research_acquisition_label="获取摘要:",
+        research_acquisition_tpl=(
+            "记录来源 {sources} 个: 已获取 {obtained}, 仅注册身份 {registered},"
+            " 部分获取 {partial}, 不可用 {unavailable}; 证据记录 {evidence} 条."
+        ),
+        research_bootstrap_label="Bootstrap 工作流覆盖 (BOOTSTRAP_WORKFLOW):",
+        label_step="步骤",
+        label_category="类别",
+        label_sources="已获取来源",
+        research_unavailable_label="不可用或部分获取的来源:",
+        label_source="来源",
+        label_detail="详情",
+        research_no_unavailable="未记录不可用来源.",
+        research_requests_label="研究请求:",
+        label_request="请求",
+        label_question="问题",
+        label_transitions="状态转换",
+        research_saturation_tpl=(
+            "搜索饱和: {complete} 个请求得出 COMPLETE, {exhausted} 个得出"
+            " EXHAUSTED, {open} 个仍未结束."
+        ),
+        research_no_requests="未记录研究请求.",
+        research_decisions_label="研究排除决策 (决策时间线):",
+        label_refers_to="涉及",
+        research_no_exclusion_decisions="未记录排除决策.",
         label_requirement="需求",
         label_statement="陈述",
         label_criticality="关键度",

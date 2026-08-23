@@ -22,6 +22,17 @@ read-through -- never from free text:
   recorded confidence interval and the frozen acceptance band
   (``AcceptanceCriteria.criteria`` tolerance), falling back to an
   explicit "not recorded" line;
+* the **research process** -- the research narrative rendered from
+  research state only (issue #135): the per-category acquisition
+  summary through the frozen ``BOOTSTRAP_WORKFLOW`` mapping
+  (``research.workflows``), the registered / obtained / unavailable
+  source counts and the failure story (the #134
+  ``acquisition_status`` field), the research-request transition
+  chains and saturation conclusions (request records plus the
+  ``research-request.transition`` events of the log), and the
+  exclusion-decision timeline with rationale excerpts -- every item
+  cites source / evidence / decision ids; an empty research state
+  renders an explicit "no research recorded" line;
 * the **scope / pipeline / requirement outcome** sections -- counts and
   tables from the planning/inventory registries (``list_goals``,
   ``list_acceptance``, ``list_analysis_protocols``,
@@ -90,6 +101,7 @@ from scientific_reproduction.audit.git import (
 from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
+    AcquisitionStatus,
     ClosureContract,
     Criticality,
     GoalContract,
@@ -97,6 +109,9 @@ from scientific_reproduction.core.models import (
     Project,
     ProjectEvent,
     ReproductionRequirement,
+    ResearchRequest,
+    ResearchRequestStatus,
+    ResearchSource,
     StatisticalDesign,
     SupervisorDecision,
 )
@@ -138,6 +153,15 @@ from scientific_reproduction.reporting.summary import (
     build_summary,
 )
 from scientific_reproduction.research.evidence import EvidenceRegistry
+from scientific_reproduction.research.state_helpers import (
+    RESEARCH_REQUEST_TRANSITION_EVENT_TYPE,
+    list_research_requests,
+    list_sources,
+)
+from scientific_reproduction.research.workflows import (
+    BOOTSTRAP_WORKFLOW,
+    bootstrap_category_for_source_type,
+)
 
 #: Version of the rendered report document (independent of the markdown
 #: report's ``REPORT_VERSION``).
@@ -164,6 +188,11 @@ REVISION_DECISION_TYPES: Final[frozenset[str]] = frozenset(
         "RESEARCH_REQUEST",
     }
 )
+
+#: Decision types of the research-process decision timeline: the frozen
+#: ``RESEARCH_REQUEST`` decisions (which sources were excluded or
+#: selected -- the research-scoped collection decisions).
+RESEARCH_DECISION_TYPES: Final[frozenset[str]] = frozenset({"RESEARCH_REQUEST"})
 
 #: Inventory item types that represent real (non-computed) data.
 _REAL_DATA_TYPES: Final[frozenset[InventoryItemType]] = frozenset(
@@ -413,6 +442,46 @@ def _events_in_order(root: Path) -> tuple[ProjectEvent, ...]:
     )
 
 
+def _research_status_counts(
+    sources: Sequence[ResearchSource],
+) -> dict[str, int]:
+    """Count the sources per acquisition status (frozen vocabulary)."""
+    counts: dict[str, int] = {}
+    for source in sources:
+        value = source.acquisition_status.value
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def _sources_cell(sources: Sequence[ResearchSource]) -> str:
+    """One bootstrap-table cell: each source cited by id and acquisition
+    status (deterministic, sorted by source id)."""
+    return ", ".join(
+        f"{source.source_id} ({source.acquisition_status.value})"
+        for source in sorted(sources, key=lambda source: source.source_id)
+    )
+
+
+def _request_transitions_cell(
+    request: ResearchRequest, events: Sequence[ProjectEvent]
+) -> str:
+    """The transition chain of one request from the event log (in log
+    order), with the recorded transition reasons and the linked evidence
+    ids -- the request's saturation conclusion lives in the terminal
+    transition's reason."""
+    parts = [
+        f"{event.from_} -> {event.to} ({event.reason})"
+        for event in events
+        if event.event_type == RESEARCH_REQUEST_TRANSITION_EVENT_TYPE
+        and event.object_id == request.request_id
+    ]
+    if request.result_evidence_ids:
+        parts.append(
+            f"linked evidence: {', '.join(request.result_evidence_ids)}"
+        )
+    return "; ".join(parts) if parts else "-"
+
+
 # ---------------------------------------------------------------------------
 # the renderer
 # ---------------------------------------------------------------------------
@@ -437,6 +506,8 @@ def _render_pdf(
     events: Sequence[ProjectEvent],
     evidence: EvidenceRegistry,
     sources: Sequence[str],
+    source_records: Sequence[ResearchSource],
+    requests: Sequence[ResearchRequest],
     head: str | None,
     commits: int | None,
     generated_at: str,
@@ -630,8 +701,160 @@ def _render_pdf(
     else:
         layout.paragraph(report.no_runs)
 
-    # -- 4. requirement outcomes ------------------------------------------------
+    # -- 4. research process ---------------------------------------------------
     section(report.section_titles[3])
+    exclusion_decisions = tuple(
+        sorted(
+            (
+                decision
+                for decision in decisions
+                if decision.decision_type.value in RESEARCH_DECISION_TYPES
+            ),
+            key=lambda decision: (decision.timestamp, decision.decision_id),
+        )
+    )
+    if not source_records and not requests and not exclusion_decisions:
+        # Explicit degradation: never a crash, never a silent omission.
+        layout.paragraph(report.no_research_recorded)
+    else:
+        status_counts = _research_status_counts(source_records)
+        layout.paragraph(report.research_acquisition_label, font=FONT_BOLD)
+        layout.paragraph(
+            report.research_acquisition_tpl.format(
+                sources=len(source_records),
+                obtained=status_counts.get("OBTAINED", 0),
+                registered=status_counts.get("REGISTERED", 0),
+                partial=status_counts.get("PARTIAL", 0),
+                unavailable=status_counts.get("UNAVAILABLE", 0),
+                evidence=len(evidence),
+            )
+        )
+        layout.paragraph(report.research_bootstrap_label, font=FONT_BOLD)
+        by_category: dict[str, list[ResearchSource]] = {}
+        for source in source_records:
+            category = bootstrap_category_for_source_type(
+                source.source_type
+            ).value
+            by_category.setdefault(category, []).append(source)
+        layout.table(
+            headers=[
+                report.label_step,
+                report.label_category,
+                report.label_sources,
+            ],
+            rows=[
+                [
+                    step.step_id,
+                    step.category.value,
+                    _sources_cell(
+                        by_category.get(step.category.value, ())
+                    )
+                    or report.none,
+                ]
+                for step in BOOTSTRAP_WORKFLOW
+            ],
+            widths=[60.0, 90.0, 337.28],
+        )
+        layout.paragraph(report.research_unavailable_label, font=FONT_BOLD)
+        unavailable_sources = [
+            source
+            for source in sorted(
+                source_records, key=lambda source: source.source_id
+            )
+            if source.acquisition_status
+            in (AcquisitionStatus.UNAVAILABLE, AcquisitionStatus.PARTIAL)
+        ]
+        if unavailable_sources:
+            layout.table(
+                headers=[
+                    report.label_source,
+                    report.label_status,
+                    report.label_reason,
+                    report.label_detail,
+                ],
+                rows=[
+                    [
+                        source.source_id,
+                        source.acquisition_status.value,
+                        (
+                            source.unavailability_reason.value
+                            if source.unavailability_reason is not None
+                            else "-"
+                        ),
+                        source.unavailability_detail or "-",
+                    ]
+                    for source in unavailable_sources
+                ],
+                widths=[60.0, 70.0, 90.0, 267.28],
+            )
+        else:
+            layout.paragraph(report.research_no_unavailable)
+        layout.paragraph(report.research_requests_label, font=FONT_BOLD)
+        if requests:
+            layout.table(
+                headers=[
+                    report.label_request,
+                    report.label_question,
+                    report.label_status,
+                    report.label_transitions,
+                ],
+                rows=[
+                    [
+                        request.request_id,
+                        request.question,
+                        request.status.value,
+                        _request_transitions_cell(request, events),
+                    ]
+                    for request in requests
+                ],
+                widths=[60.0, 200.0, 60.0, 167.28],
+            )
+            concluded_complete = sum(
+                1
+                for request in requests
+                if request.status is ResearchRequestStatus.COMPLETE
+            )
+            concluded_exhausted = sum(
+                1
+                for request in requests
+                if request.status is ResearchRequestStatus.EXHAUSTED
+            )
+            layout.paragraph(
+                report.research_saturation_tpl.format(
+                    complete=concluded_complete,
+                    exhausted=concluded_exhausted,
+                    open=len(requests)
+                    - concluded_complete
+                    - concluded_exhausted,
+                )
+            )
+        else:
+            layout.paragraph(report.research_no_requests)
+        layout.paragraph(report.research_decisions_label, font=FONT_BOLD)
+        if exclusion_decisions:
+            layout.table(
+                headers=[
+                    report.label_decision,
+                    report.label_timestamp,
+                    report.label_refers_to,
+                    report.label_rationale,
+                ],
+                rows=[
+                    [
+                        decision.decision_id,
+                        decision.timestamp,
+                        ", ".join(decision.affected_refs) or "-",
+                        decision.rationale,
+                    ]
+                    for decision in exclusion_decisions
+                ],
+                widths=[60.0, 100.0, 100.0, 227.28],
+            )
+        else:
+            layout.paragraph(report.research_no_exclusion_decisions)
+
+    # -- 5. requirement outcomes ------------------------------------------------
+    section(report.section_titles[4])
     if requirements:
         layout.table(
             headers=[
@@ -668,8 +891,8 @@ def _render_pdf(
         )
     )
 
-    # -- 5. core findings (per CRITICAL requirement) -----------------------------
-    section(report.section_titles[4])
+    # -- 6. core findings (per CRITICAL requirement) -----------------------------
+    section(report.section_titles[5])
     critical = [
         requirement
         for requirement in requirements
@@ -766,8 +989,8 @@ def _render_pdf(
         else:
             layout.paragraph(report.no_decisions)
 
-    # -- 6. governance exercised -------------------------------------------------
-    section(report.section_titles[5])
+    # -- 7. governance exercised -------------------------------------------------
+    section(report.section_titles[6])
     layout.paragraph(report.recovery_ladder_label, font=FONT_BOLD)
     layout.paragraph(
         report.recovery_tpl.format(
@@ -901,8 +1124,8 @@ def _render_pdf(
     else:
         layout.paragraph(report.no_reconciliations)
 
-    # -- 7. audit trail -----------------------------------------------------------
-    section(report.section_titles[6])
+    # -- 8. audit trail -----------------------------------------------------------
+    section(report.section_titles[7])
     layout.paragraph(report.git_state_label, font=FONT_BOLD)
     if head is not None:
         layout.paragraph(report.git_state_tpl.format(head=head, commits=commits))
@@ -985,8 +1208,8 @@ def _render_pdf(
     else:
         layout.paragraph(report.no_manifests)
 
-    # -- 8. simulation / real-data labeling -----------------------------------------
-    section(report.section_titles[7])
+    # -- 9. simulation / real-data labeling -----------------------------------------
+    section(report.section_titles[8])
     item_types = frozenset(item.item_type for item in inventory)
     layout.paragraph(f"{report.label_label} {_data_label(item_types, report)}")
     if item_types:
@@ -1126,6 +1349,15 @@ def build_pdf_report(
     sources = tuple(
         sorted(FilesystemStateBackend(root_path).list_ids("source"))
     )
+    source_records = tuple(
+        sorted(list_sources(root_path), key=lambda source: source.source_id)
+    )
+    requests = tuple(
+        sorted(
+            list_research_requests(root_path),
+            key=lambda request: request.request_id,
+        )
+    )
 
     try:
         head = current_head(root_path)
@@ -1152,6 +1384,8 @@ def build_pdf_report(
         events=events,
         evidence=evidence,
         sources=sources,
+        source_records=source_records,
+        requests=requests,
         head=head,
         commits=commits,
         generated_at=generated_at,
