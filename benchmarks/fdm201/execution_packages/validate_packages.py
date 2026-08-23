@@ -26,6 +26,52 @@ benchmark data (Plan v1 and its companion files):
   the worker-context packages each cover exactly the ten execution
   goals GOAL-EXE-10..82, once each, and every package id is unique.
 
+Scope (issue #162)
+------------------
+This gate is **benchmark-only**: it validates the frozen DEV-M12-G04
+milestone corpus under ``benchmarks/fdm201/execution_packages/**``
+against the frozen FDM-201 benchmark data. It is not part of the
+runtime dispatch path and enforces nothing on real
+reproduction-project handoffs; the runtime primitives below cover the
+same acceptance concerns there:
+
+* AC-01 (schema conformance) -- runtime schema gates on every package:
+  ``workers.lab_package.generate_lab_execution_package`` (issue #158)
+  and ``adapters.lab.filesystem.FilesystemLabAdapter.dispatch`` gate
+  the lab package through the real ``lab-execution-package`` schema;
+  ``adapters.compute.package`` (issue #161) builds and validates the
+  compute package against the real ``compute-execution-package``
+  schema and ``adapters.compute.local.LocalComputeAdapter.prepare``
+  runs that gate before persisting anything.
+* AC-02 (traceability to the frozen Goal) -- runtime packages are
+  derived only from the frozen Goal Contract (a non-frozen goal is
+  refused, ``GoalNotFrozenError``), and the dispatch path verifies the
+  package's goal reference against the registered goal store before
+  anything is written: the goal must be registered, frozen, and its
+  formal version must match the package's ``goal_version`` (issue
+  #159); ``workers.run_helpers.register_run`` resolves the goal the
+  same way at run registration. The corpus-wide reference scan below
+  has no runtime counterpart by design: the runtime constructs
+  references from registered state instead of scanning hand-authored
+  text.
+* AC-03 (context isolation) -- ``workers.context.generate_goal_context``
+  exposes only the minimum necessary context: the relevance-reference
+  filter excludes every registry document the goal does not explicitly
+  reference, and the context manifest records exactly which references
+  were exposed (``context_hash`` fingerprints the set). The raw-text
+  forbidden-pattern scan below is the benchmark-corpus mechanism; the
+  runtime enforces the same substance constructively.
+
+What remains benchmark-corpus-only here: the frozen-corpus integrity
+checks (coverage of GOAL-EXE-10..82 exactly once per package family,
+unique package ids, the frozen ``benchmark_id`` / ``plan_id`` /
+``goal_version`` constants, the directory layout) and the checks
+against the frozen benchmark registers themselves. One runtime piece is
+still missing and not claimed: the worker-context to execution-package
+binding (the benchmark's ``execution_package_refs``) has no runtime
+field or gate; it is the open context-linkage issue (#160), out of
+scope here.
+
 No wall clock, no randomness, no network. Run from anywhere:
 
     python benchmarks/fdm201/execution_packages/validate_packages.py
