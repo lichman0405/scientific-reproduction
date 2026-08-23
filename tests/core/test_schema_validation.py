@@ -175,6 +175,19 @@ INVALID_CASES: dict[str, tuple[str, dict, str]] = {
          "required_return": ["d"], "goal_version": 7},
         "goal_version",
     ),
+    "bad_enum_acquisition_status": (
+        "source",
+        {"source_id": "S1", "source_type": "target_paper", "title": "t",
+         "provenance": "p", "acquisition_status": "BOGUS_STATUS"},
+        "acquisition_status",
+    ),
+    "bad_enum_unavailability_reason": (
+        "source",
+        {"source_id": "S1", "source_type": "target_paper", "title": "t",
+         "provenance": "p", "acquisition_status": "UNAVAILABLE",
+         "unavailability_reason": "bogus_reason"},
+        "unavailability_reason",
+    ),
     "min_items_metrics_empty": (
         "statistical-design",
         {"design_id": "SD1", "goal_id": "G1", "version": "v1", "frozen": False,
@@ -217,6 +230,40 @@ def test_lab_execution_package_goal_version_optional_backwards_compatible() -> N
     assert "goal_version" not in load_schema("lab-execution-package")["required"]
     del doc["goal_version"]
     assert validate_object("lab-execution-package", doc) == []
+
+
+def test_source_acquisition_status_optional_backwards_compatible() -> None:
+    # The acquisition fields (issue #134) are schema properties but stay
+    # optional: a record carrying every outcome validates, and a record
+    # written before the fields existed (without them) keeps validating
+    # unchanged (absent acquisition_status means REGISTERED, identity only).
+    doc = copy.deepcopy(VALID_DOCS["source"])
+    properties = load_schema("source")["properties"]
+    assert properties["acquisition_status"]["enum"] == [
+        "REGISTERED",
+        "OBTAINED",
+        "PARTIAL",
+        "UNAVAILABLE",
+    ]
+    assert properties["unavailability_reason"]["enum"] == [
+        "paywall",
+        "bot_block",
+        "not_found",
+        "access_gate_eligible",
+    ]
+    assert "acquisition_status" not in load_schema("source")["required"]
+    assert "unavailability_reason" not in load_schema("source")["required"]
+    assert "unavailability_detail" not in load_schema("source")["required"]
+    # Pre-field record keeps validating unchanged.
+    assert validate_object("source", doc) == []
+    # Every acquisition outcome validates.
+    for status in ("REGISTERED", "OBTAINED", "PARTIAL", "UNAVAILABLE"):
+        full = copy.deepcopy(doc)
+        full["acquisition_status"] = status
+        if status == "UNAVAILABLE":
+            full["unavailability_reason"] = "paywall"
+            full["unavailability_detail"] = "publisher page requires subscription"
+        assert validate_object("source", full) == []
 
 
 def test_validate_and_reject_raises_for_invalid_object() -> None:
