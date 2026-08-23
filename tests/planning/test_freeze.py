@@ -17,7 +17,12 @@ map one-to-one to the acceptance criteria of DEV-M4-G04:
 * ``ac03`` -- the versioned revision creates the next version with
   ``parent_plan_version``, preserves the old record untouched, and
   reports the old version ``SUPERSEDED`` via the versioned rule table
-  (a computed lineage status, never a stored mutation).
+  (a computed lineage status, never a stored mutation);
+* ``140`` -- issue #140: both freeze branches reject a plan whose
+  ``goal_ids`` / ``requirement_ids`` diverge from the registry-derived
+  content (stable error naming the divergent fields), ``revise_plan``
+  re-derives the content from the registered state, and the v2 freeze
+  cannot persist stale lists when the registry has grown.
 
 The deterministic path mirrors ``inventory_helpers``: every fixture uses
 fixed identities/timestamps (``FROZEN_AT``) so all freeze records are
@@ -944,8 +949,11 @@ def test_freeze_ac03_revision_recomputes_audit_from_state(tmp_path):
     revised = revise_plan(root, frozen)
     assert revised.inventory_audit.mapped_items == 3
     assert revised.inventory_audit.status is AuditStatus.PASS
-    # Content baseline is copied from the frozen plan.
-    assert revised.requirement_ids == ["REQ-1", "REQ-2"]
+    # Issue #140: the plan content is re-derived from the registered
+    # state -- the grown registry is reflected in the revised lists, so
+    # the v2 freeze cannot persist the stale v1 requirement list.
+    assert revised.requirement_ids == ["REQ-1", "REQ-2", "REQ-3"]
+    assert revised.goal_ids == ["GOAL-1"]
 
 
 def test_freeze_ac03_revision_rejects_duplicate_next_version(tmp_path):
@@ -965,6 +973,143 @@ def test_freeze_ac03_frozen_plan_deterministic_across_workspaces(tmp_path):
     assert frozen_a == frozen_b
     assert frozen_a.frozen_commit == frozen_b.frozen_commit
     assert frozen_a.to_dict() == frozen_b.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Issue #140: freeze rejects plan content diverging from the registry
+# ---------------------------------------------------------------------------
+
+
+def test_freeze_140_registered_draft_divergent_goal_ids_rejected(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    draft = build_plan_v1(root)
+    register_plan(root, replace(draft, goal_ids=["GOAL-9"]))
+    with pytest.raises(PlanStateMismatchError) as exc:
+        freeze_plan(root, read_plan(root, "v1-draft"), timestamp=FROZEN_AT)
+    assert "goal_ids" in str(exc.value)
+    assert "requirement_ids" not in str(exc.value)
+    assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_140_registered_draft_divergent_requirement_ids_rejected(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    draft = build_plan_v1(root)
+    register_plan(root, replace(draft, requirement_ids=["REQ-1"]))
+    with pytest.raises(PlanStateMismatchError) as exc:
+        freeze_plan(root, read_plan(root, "v1-draft"), timestamp=FROZEN_AT)
+    assert "requirement_ids" in str(exc.value)
+    assert "goal_ids" not in str(exc.value)
+    assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_140_registered_draft_both_fields_divergent_named(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    draft = build_plan_v1(root)
+    register_plan(
+        root, replace(draft, goal_ids=["GOAL-9"], requirement_ids=["REQ-9"])
+    )
+    with pytest.raises(PlanStateMismatchError) as exc:
+        freeze_plan(root, read_plan(root, "v1-draft"), timestamp=FROZEN_AT)
+    assert "goal_ids" in str(exc.value)
+    assert "requirement_ids" in str(exc.value)
+
+
+def test_freeze_140_unregistered_plan_divergent_content_rejected(tmp_path):
+    # Both freeze branches validate the content: with no draft registered
+    # yet, divergent lists are rejected naming the fields, nothing written.
+    root = build_complete_workspace(tmp_path)
+    divergent = replace(
+        build_plan_v1(root), goal_ids=["GOAL-9"], requirement_ids=[]
+    )
+    with pytest.raises(PlanStateMismatchError) as exc:
+        freeze_plan(root, divergent, timestamp=FROZEN_AT)
+    assert "goal_ids" in str(exc.value)
+    assert "requirement_ids" in str(exc.value)
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_140_divergence_error_message_stable(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    draft = build_plan_v1(root)
+    register_plan(root, replace(draft, requirement_ids=["REQ-1"]))
+    messages = []
+    for _ in range(2):
+        with pytest.raises(PlanStateMismatchError) as exc:
+            freeze_plan(root, read_plan(root, "v1-draft"), timestamp=FROZEN_AT)
+        messages.append(str(exc.value))
+    assert messages[0] == messages[1]
+
+
+def test_freeze_140_revision_refresh_v2_freeze_not_stale(tmp_path):
+    # The sanctioned revision flow: after v1 is frozen the registry grows
+    # (ITEM-3/REQ-3); revise_plan re-derives the content and the v2
+    # freeze persists the grown lists next to the recomputed audit
+    # (mapped_items == 3) -- no stale requirement_ids.
+    root = build_complete_workspace(tmp_path)
+    v1 = freeze_complete(root).frozen_plan
+    assert v1.requirement_ids == ["REQ-1", "REQ-2"]
+    register_inventory_item(root, make_item("ITEM-3", requirement_ids=("REQ-3",)))
+    register_requirement(
+        root,
+        make_requirement(
+            "REQ-3", inventory_items=("ITEM-3",), goal_ids=("GOAL-1",)
+        ),
+    )
+    v2_draft = revise_plan(root, v1)
+    assert v2_draft.requirement_ids == ["REQ-1", "REQ-2", "REQ-3"]
+    v2 = freeze_plan(root, v2_draft, timestamp=FROZEN_AT).frozen_plan
+    assert v2.version == "v2"
+    assert v2.requirement_ids == ["REQ-1", "REQ-2", "REQ-3"]
+    assert v2.goal_ids == ["GOAL-1"]
+    assert v2.inventory_audit.mapped_items == 3
+
+
+def test_freeze_140_stale_v2_draft_rejected_at_freeze(tmp_path):
+    # The rejection backstop: a v2-draft whose content was NOT refreshed
+    # after the registry grew is rejected at freeze (stable error naming
+    # the divergent field) instead of persisting stale lists.
+    root = build_complete_workspace(tmp_path)
+    v1 = freeze_complete(root).frozen_plan
+    register_inventory_item(root, make_item("ITEM-3", requirement_ids=("REQ-3",)))
+    register_requirement(
+        root,
+        make_requirement(
+            "REQ-3", inventory_items=("ITEM-3",), goal_ids=("GOAL-1",)
+        ),
+    )
+    stale = replace(
+        v1,
+        version="v2-draft",
+        status=PlanStatus.DRAFT,
+        parent_plan_version="v1",
+        frozen_at=None,
+        frozen_commit=None,
+    )
+    register_plan(root, stale)
+    with pytest.raises(PlanStateMismatchError) as exc:
+        freeze_plan(root, read_plan(root, "v2-draft"), timestamp=FROZEN_AT)
+    assert "requirement_ids" in str(exc.value)
+    assert not (root / "plans" / "v2.json").exists()
+
+
+def test_freeze_140_empty_registry_edge_case(tmp_path):
+    # An empty registry (no registered requirements) derives empty lists:
+    # a draft with empty content is a MATCH (never a divergence misfire)
+    # and the freeze is blocked by the inventory precondition -- not by
+    # the content check. Non-empty content against the empty registry is
+    # rejected, naming both divergent fields.
+    root = init_project(tmp_path)  # no items, no requirements
+    draft = build_plan_v1(root)  # empty goal_ids / requirement_ids
+    register_plan(root, draft)
+    with pytest.raises(FreezeProhibitedError) as exc:
+        freeze_plan(root, read_plan(root, "v1-draft"), timestamp=FROZEN_AT)
+    assert "formally reported" in str(exc.value)
+    divergent = replace(draft, goal_ids=["GOAL-1"], requirement_ids=["REQ-1"])
+    with pytest.raises(PlanStateMismatchError) as exc:
+        freeze_plan(root, divergent, timestamp=FROZEN_AT)
+    assert "goal_ids" in str(exc.value)
+    assert "requirement_ids" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------
