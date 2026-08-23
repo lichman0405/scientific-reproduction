@@ -91,6 +91,7 @@ def test_language_chinese_pack_ships_translations() -> None:
         "执行摘要",
         "目标论文身份与复现范围",
         "流水线摘要",
+        "研究过程",
         "需求结果",
         "核心发现",
         "治理行使",
