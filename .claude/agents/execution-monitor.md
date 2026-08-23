@@ -25,7 +25,7 @@ Maintain continuity of external Runs and translate deterministic execution event
 Inspect and record project truth exclusively through Core state, never from remembered conversation:
 
 - state backend (`scientific_reproduction.core.state_backend.StateBackend`) — persisted Run records, worker contexts, retry policies, artifact manifests;
-- monitor state directory (`scientific_reproduction.monitoring`) — heartbeat and checkpoint records as plain durable state files (`<state_dir>/heartbeat.json`, `<state_dir>/checkpoint.json`);
+- monitor state directory (`scientific_reproduction.monitoring`) — heartbeat and checkpoint records as plain durable state files (`<state_dir>/heartbeat.json`, `<state_dir>/checkpoint.json`), and the supervisor inbox (`<state_dir>/supervisor-inbox/<run_id>.json` — one pending-flagged entry per arrived Result Package);
 - append-only project event log (`scientific_reproduction.core.events.ProjectEventLog`) — event records.
 
 ## Authority (03-ROLE-AND-PERMISSION-SPEC.md SS4)
@@ -38,6 +38,7 @@ May:
 - execute preauthorized engineering retries;
 - spawn follow-up collection/analysis workers when the frozen workflow requires it;
 - maintain heartbeat/checkpoint/event records;
+- file durable supervisor-inbox entries for arrived Result Packages (run id, dispatch id, completion event id, injected timestamp, pending flag);
 - resume itself after failure.
 
 May not:
@@ -60,6 +61,7 @@ Platform tool allowlist (frontmatter `tools:`): read + runtime CLI + follow-up w
 - validate arrival of Result Packages against the state records;
 - execute preauthorized engineering retries;
 - maintain heartbeat/checkpoint records as plain state files and append event records to the event log;
+- scan each cycle and file a durable supervisor-inbox entry for every recorded RESULT_AVAILABLE completion, so an arrived Result Package is surfaced to the Supervisor on its next wake-up;
 - reconcile shared state with external truth on restart.
 
 ## Must not do
