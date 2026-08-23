@@ -94,6 +94,10 @@ from scientific_reproduction.core.models import (
     ArtifactManifest,
     DecisionMode,
     DecisionType,
+    GoalAcceptance,
+    GoalContract,
+    GoalReplication,
+    GoalTrack,
     LifecycleState,
     PrimaryOrExploratory,
     Run,
@@ -115,6 +119,7 @@ from scientific_reproduction.planning.plan import (
     read_acceptance,
     read_analysis_protocol,
     register_acceptance,
+    register_goal,
 )
 from scientific_reproduction.workers.results import (
     DeviationType,
@@ -232,6 +237,28 @@ def make_manifest(artifact_id: str, *, run_id: str) -> ArtifactManifest:
     )
 
 
+def make_goal() -> GoalContract:
+    """Build the frozen goal contract the scenario's run references (the
+    issue #148 registration gate: ``goal_id`` resolves to the frozen
+    contract and ``goal_version`` equals its formal version)."""
+    return GoalContract(
+        goal_id=GOAL_ID,
+        title="Reproduce the reported DFT convergence.",
+        unit_process_type="dft_computation",
+        track=GoalTrack.STRICT_REPRODUCTION,
+        objective="Reproduce the formally reported DFT convergence.",
+        requirement_ids=[REQUIREMENT_REF],
+        dependencies=[],
+        acceptance=GoalAcceptance(criteria_ref="ACC-1", frozen=True),
+        analysis_protocol_ref="ANL-1",
+        replication=GoalReplication(
+            independent_required=False, planned_n_policy="single"
+        ),
+        version="v1",
+        frozen=True,
+    )
+
+
 def make_acceptance(acceptance_id: str) -> AcceptanceCriteria:
     """Build the frozen CONVERGENCE acceptance record of scenario F."""
     return AcceptanceCriteria(
@@ -254,7 +281,9 @@ def build_scenario_workspace(tmp_path: Path) -> Path:
 
     Registers, deterministically: the frozen PRIMARY protocol ``ANL-1``
     ``v1`` (DEV-M9-G01 registry) carrying the smearing/mixing method
-    policy, the Run record ``RUN-001`` (the issue #92 durable Run
+    policy, the frozen goal contract ``G-1`` ``v1`` (the issue #148
+    registration gate: the run's ``goal_id`` resolves to the frozen
+    contract), the Run record ``RUN-001`` (the issue #92 durable Run
     registry -- the worker result package's ``run_ref`` must resolve to
     a registered run), the input/output artifact manifests
     (``manifests/``) and the frozen CONVERGENCE acceptance ``ACC-1``
@@ -264,6 +293,7 @@ def build_scenario_workspace(tmp_path: Path) -> Path:
     register_analysis_record(root, make_protocol("ANL-1"))
     draft = read_analysis_protocol(root, "ANL-1")
     freeze_primary_protocol(root, draft, timestamp=FROZEN_AT)
+    register_goal(root, make_goal())
     register_run(
         root,
         Run(

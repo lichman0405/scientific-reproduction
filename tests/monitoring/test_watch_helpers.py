@@ -44,6 +44,10 @@ import pytest
 from scientific_reproduction.audit.git import AuditIdentity
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
+    GoalAcceptance,
+    GoalContract,
+    GoalReplication,
+    GoalTrack,
     LifecycleState,
     Run,
     RunExternal,
@@ -61,6 +65,7 @@ from scientific_reproduction.monitoring.watch_helpers import (
     watch_run,
 )
 from scientific_reproduction.planning.init import initialize_project
+from scientific_reproduction.planning.plan import register_goal
 from scientific_reproduction.workers.run_helpers import (
     RunNotFoundError,
     read_run,
@@ -119,9 +124,33 @@ def make_registry(state_dir: Path) -> WatchedRunRegistry:
     return WatchedRunRegistry(state_dir, now=FakeClock())
 
 
+def make_goal() -> GoalContract:
+    """Build the frozen goal contract runs reference (the issue #148
+    registration gate: ``goal_id`` resolves to the frozen contract and
+    ``goal_version`` equals its formal version)."""
+    return GoalContract(
+        goal_id="GOAL-1",
+        title="Reproduce the reported isotherm.",
+        unit_process_type="gas_adsorption_isotherm",
+        track=GoalTrack.STRICT_REPRODUCTION,
+        objective="Reproduce the formally reported isotherm dataset.",
+        requirement_ids=["REQ-1"],
+        dependencies=[],
+        acceptance=GoalAcceptance(criteria_ref="ACC-1", frozen=True),
+        analysis_protocol_ref="ANP-1",
+        replication=GoalReplication(
+            independent_required=False, planned_n_policy="single"
+        ),
+        version="v1",
+        frozen=True,
+    )
+
+
 def init_workspace(root: Path) -> Path:
-    """Initialize a deterministic one-paper project at ``root``; return it."""
+    """Initialize a deterministic one-paper project at ``root`` and
+    register the frozen goal contract runs reference; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    register_goal(root, make_goal())
     return root
 
 

@@ -72,7 +72,12 @@ from typing import Any, Mapping, TypeAlias, cast
 
 from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
-from scientific_reproduction.core.models import LifecycleState, ProjectEvent, Run
+from scientific_reproduction.core.models import (
+    GoalContract,
+    LifecycleState,
+    ProjectEvent,
+    Run,
+)
 from scientific_reproduction.core.rules.lifecycle import IllegalTransitionError
 from scientific_reproduction.core.state_backend import FilesystemStateBackend
 from scientific_reproduction.core.transitions import transition
@@ -80,10 +85,13 @@ from scientific_reproduction.planning.init import (
     PROJECT_STATE_FILENAME,
     ProjectNotInitializedError,
 )
+from scientific_reproduction.planning.plan import is_formal_version, read_goal
+from scientific_reproduction.workers.context import GoalNotFrozenError
 
 __all__ = [
     "DuplicateRunError",
     "EVENTS_STATE_DIR",
+    "GoalVersionMismatchError",
     "RUN_LIFECYCLE_CHANGE_EVENT_TYPE",
     "RUN_PREDECESSOR_STATE",
     "RUN_RECORDED_EVENT_TYPE",
@@ -157,6 +165,10 @@ class DuplicateRunError(RunRegistryError):
 
 class RunNotFoundError(RunRegistryError):
     """Raised when reading a run that is not registered."""
+
+
+class GoalVersionMismatchError(RunRegistryError):
+    """Raised when a run's ``goal_version`` does not match the frozen goal's formal version."""
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +251,17 @@ def register_run(
     missing deterministic event is appended (``replayed=True``) and the
     original record stays untouched.
 
+    Goal resolution (issue #148): the run's ``goal_id`` must resolve to
+    a registered goal contract in the goal registry
+    (``goals/<goal_id>.json``, the planning layer's ``read_goal``), and
+    that contract must be the **frozen** one -- ``frozen`` True, formal
+    version ``v<N>`` -- with ``goal_version`` equal to its formal
+    version: the same contract ``generate_goal_context``
+    (``workers/context.py``, AC-01) would package for a worker. The
+    resolution runs before any write, so an unknown, unfrozen, or
+    version-mismatched goal rejects the registration and persists
+    nothing (no record, no event).
+
     Args:
         root: the initialized workspace root.
         run: the run as a typed :class:`Run` or a schema-shaped mapping.
@@ -260,6 +283,17 @@ def register_run(
         RunRegistryError: ``actor`` / ``recorded_at`` is empty.
         ProjectNotInitializedError: no ``project.yaml`` exists at
             ``root``.
+        GoalNotFoundError: ``goal_id`` names no registered goal contract
+            (planning layer's stable error naming the goal id).
+        GoalNotFrozenError: the referenced goal is not the frozen goal
+            contract (``frozen`` False, or a frozen record without a
+            formal version); stable message naming the goal id and the
+            offending state.
+        GoalVersionMismatchError: ``goal_version`` differs from the
+            frozen goal's formal version; stable message naming the goal
+            id, the expected version and the actual version.
+        InvalidRecordIdError: ``goal_id`` is not a safe single registry
+            path segment (planning layer's registry-id gate).
         DuplicateRunError: the ``run_id`` is already registered.
         ValueError: the stored state is corrupt, or the id is not a
             safe object id (state backend).
@@ -271,6 +305,7 @@ def register_run(
     event_log = _resolve_event_log(project_root, event_log)
     model = _coerce_run(run)
     _require_actor_stamp(actor, recorded_at)
+    _resolve_run_goal(project_root, model)
     store = _run_store(project_root)
     event_id = generate_id("event", RUN_RECORDED_EVENT_TYPE, model.run_id)
     if store.exists("run", model.run_id):
@@ -522,6 +557,44 @@ def _run_store(root: Path) -> FilesystemStateBackend:
     resolution (``SCHEMA_TO_STATE_DIR``) puts runs at ``runs/``.
     """
     return FilesystemStateBackend(root)
+
+
+def _resolve_run_goal(project_root: Path, run: Run) -> GoalContract:
+    """Resolve the run's ``goal_id`` against the goal registry (issue #148).
+
+    The Run registry's primary foreign key must resolve at registration
+    like every other registry entry (house pattern:
+    ``register_requirement`` resolves inventory refs, the freeze gate
+    resolves goal refs, ``register_worker_result`` resolves artifact and
+    run refs). ``goal_id`` must name a registered goal contract
+    (``read_goal`` raises the planning layer's stable
+    ``GoalNotFoundError`` otherwise) and that contract must be the
+    frozen one -- ``frozen`` True, formal version ``v<N>`` (mirroring
+    ``_require_frozen_goal`` of ``workers/context.py``: the only contract
+    ``generate_goal_context`` would package) -- with ``run.goal_version``
+    equal to its formal version. Called before any write: every
+    rejection persists nothing (no record, no event).
+    """
+    goal = read_goal(project_root, run.goal_id)
+    if not goal.frozen:
+        raise GoalNotFrozenError(
+            f"run registration requires the frozen goal contract, got"
+            f" frozen=False for goal {goal.goal_id!r}; register the run"
+            " against the record the plan freeze produced"
+            " (planning.freeze.freeze_plan)"
+        )
+    if not is_formal_version(goal.version):
+        raise GoalNotFrozenError(
+            f"frozen goal contract {goal.goal_id!r} must carry a formal"
+            f" version 'v<N>', got {goal.version!r}"
+        )
+    if run.goal_version != goal.version:
+        raise GoalVersionMismatchError(
+            f"run {run.run_id!r} references goal {goal.goal_id!r} at version"
+            f" {run.goal_version!r}, expected the frozen goal contract's"
+            f" formal version {goal.version!r}"
+        )
+    return goal
 
 
 def _coerce_run(run: RunInput) -> Run:
