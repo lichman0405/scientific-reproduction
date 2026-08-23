@@ -242,6 +242,7 @@ INIT_DIRECTORIES: tuple[str, ...] = (
     "locks",
     "lab/outgoing",
     "lab/incoming",
+    "compute",
     "reports",
 )
 

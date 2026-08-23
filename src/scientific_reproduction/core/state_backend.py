@@ -112,7 +112,8 @@ from scientific_reproduction.core.schema_validation import validate_and_reject
 #:   for their on-demand kinds;
 #: * ``lab/`` is the lab subtree of the tree template (whose children
 #:   ``lab/outgoing`` and ``lab/incoming`` the lab adapter already
-#:   uses for handoffs);
+#:   uses for handoffs); ``compute/`` is the compute subtree the runtime
+#:   execution packages land in (issue #161);
 #: * ``project`` is the one schema name without a tree directory: the
 #:   canonical single Project record is ``project.yaml`` at the workspace
 #:   root (written by ``planning.init``), so the backend keeps the
@@ -130,6 +131,7 @@ SCHEMA_TO_STATE_DIR: dict[str, str] = {
     "source": "sources",
     "worker-context": "work-packages",
     "lab-execution-package": "lab",
+    "compute-execution-package": "compute",
     "analysis": "protocols",
     "statistical-design": "designs",
     "decision": "decisions",

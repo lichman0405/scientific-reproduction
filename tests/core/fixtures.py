@@ -1,7 +1,7 @@
-"""Shared valid example documents for the 22 normative object types.
+"""Shared valid example documents for the 23 normative object types.
 
 Eight of the documents are loaded from the frozen FDM-201 reference-case
-example files in ``examples/fdm-201/``; the remaining fourteen are minimal
+example files in ``examples/fdm-201/``; the remaining fifteen are minimal
 hand-written documents that satisfy the corresponding frozen schema in
 ``schemas/`` (required fields present, enum values from the schema enums).
 
@@ -128,6 +128,29 @@ VALID_DOCS: dict[str, dict[str, Any]] = {
         "objective": "measure single-component C3H6 isotherm at 298 K",
         "procedure": [{"step": "activate sample"}],
         "required_return": ["raw_isotherm_data"],
+    },
+    "compute-execution-package": {
+        "package_id": "CMP-PKG-001",
+        "project_id": "RP-001",
+        "goal_id": "GOAL-001",
+        "goal_version": "v1",
+        "run_id": "RUN-001",
+        "track": "STRICT_REPRODUCTION",
+        "objective": "reproduce the reported GCMC adsorption isotherms",
+        "scientific_parameters": [
+            {"name": "force_field", "value": "UFF"},
+            {"name": "cutoff", "value": "12.5", "unit": "A"},
+        ],
+        "input_files": [
+            {
+                "parameter": "force_field",
+                "materializes": {"name": "force_field", "value": "UFF"},
+                "instructions": "materialize the frozen input into the input file",
+            }
+        ],
+        "declared_outputs": [{"name": "uptake.csv"}],
+        "software_environment": {"declared": []},
+        "resource_requirements": {"resource_ids": ["RES-001"]},
     },
     "analysis": {
         "analysis_id": "ANL-001",

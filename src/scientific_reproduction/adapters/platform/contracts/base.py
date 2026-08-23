@@ -871,6 +871,7 @@ ROLE_CONTRACTS: tuple[RoleContract, ...] = (
                 "run",
                 "event",
                 "lab-execution-package",
+                "compute-execution-package",
                 "analysis",
                 "artifact-manifest",
             }

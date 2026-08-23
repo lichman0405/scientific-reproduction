@@ -97,6 +97,7 @@ __all__ = [
     "ResearchSource",
     "GoalExecutionContextPackage",
     "LabExecutionPackage",
+    "ComputeExecutionPackage",
     "AnalysisProtocolOrResult",
     "SupervisorDecision",
     "HumanGate",
@@ -671,7 +672,7 @@ class ClosureLiterature(CoreModel):
 
 
 # ---------------------------------------------------------------------------
-# The 22 normative object models
+# The 23 normative object models
 # ---------------------------------------------------------------------------
 
 
@@ -987,6 +988,47 @@ class LabExecutionPackage(CoreModel):
 
 
 @dataclass(frozen=True)
+class ComputeExecutionPackage(CoreModel):
+    """The runtime execution package for a computation Goal (issue #161).
+
+    The computation-side counterpart of ``LabExecutionPackage``: the
+    worker-facing artifact that carries the frozen Goal's scientific
+    parameters (force fields, k-point meshes, cutoffs, convergence
+    criteria), the input-file creation instructions derived from them,
+    the declared outputs, the software/environment declarations, and the
+    resource requirements (11-COMPUTATION-SUBSYSTEM.md SS4). Built by
+    ``adapters.compute.package.build_compute_execution_package`` from a
+    frozen Goal only; consumed and persisted by the compute adapter's
+    ``prepare`` gate under ``<state_dir>/packages/<package_id>.json``.
+    """
+
+    schema_name: ClassVar[str] = "compute-execution-package"
+
+    package_id: str
+    project_id: str
+    goal_id: str
+    #: The frozen Goal version the package executes; required -- a runtime
+    #: execution package only exists for a frozen Goal, and the version
+    #: links the package to the exact frozen contract it materializes.
+    goal_version: str
+    run_id: str
+    objective: str
+    #: Scientific parameters materialized verbatim from the frozen Goal's
+    #: ``inputs`` (force field, k-point mesh, cutoffs, convergence
+    #: criteria, ...) -- the recorded translation from the frozen
+    #: computation design to the input files.
+    scientific_parameters: list[dict[str, Any]]
+    #: Input-file creation instructions, one per frozen input: what each
+    #: file materializes and how the worker must create it (the file name
+    #: is the worker's decision at materialization time).
+    input_files: list[dict[str, Any]]
+    declared_outputs: list[dict[str, Any]]
+    software_environment: dict[str, Any]
+    resource_requirements: dict[str, Any]
+    track: GoalTrack | None = None
+
+
+@dataclass(frozen=True)
 class AnalysisProtocolOrResult(CoreModel):
     schema_name: ClassVar[str] = "analysis"
 
@@ -1181,6 +1223,7 @@ MODEL_REGISTRY: dict[str, type[CoreModel]] = {
     "source": ResearchSource,
     "worker-context": GoalExecutionContextPackage,
     "lab-execution-package": LabExecutionPackage,
+    "compute-execution-package": ComputeExecutionPackage,
     "analysis": AnalysisProtocolOrResult,
     "decision": SupervisorDecision,
     "human-gate": HumanGate,
