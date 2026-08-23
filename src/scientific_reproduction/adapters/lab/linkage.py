@@ -38,6 +38,23 @@ conflicts with stable messages, and the real
 :class:`IllegalTransitionError` from ``core.transitions`` for a run
 whose lifecycle cannot carry the dispatch (a result-bearing or
 terminal Run can never be re-linked to a dispatch).
+
+Concurrency (issue #145)
+------------------------
+The linkage is a read -> validate -> append -> write authoring path.
+To keep the durable Run record from diverging from the ordered event
+log under concurrent writers (worker + execution monitor), the whole
+sequence runs under the **per-run lease** of the lease layer
+(DEV-M1-G03, ``core.leases``) acquired for
+``("run", dispatch.run_id)`` before the record is read and released on
+every exit path. A concurrent writer whose critical section overlaps
+the linkage is refused loudly with ``LeaseHeldError`` instead of
+overwriting a record its read may have gone stale on; the surviving
+record always agrees with the ordered event log. The lease is bounded
+(``RUN_LINKAGE_LEASE_TTL``) so a crashed holder's lease expires and the
+run is never blocked forever. The idempotent re-link / crash-window
+convergence semantics are unchanged: a genuinely idempotent re-link
+still succeeds when no other writer holds the lease.
 """
 
 from __future__ import annotations
@@ -53,6 +70,7 @@ from scientific_reproduction.adapters.lab.base import (
 )
 from scientific_reproduction.core.events import ProjectEvent, ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
+from scientific_reproduction.core.leases import LeaseStore
 from scientific_reproduction.core.models import LifecycleState, Run, RunExternal
 from scientific_reproduction.core.state_backend import StateBackend
 from scientific_reproduction.core.transitions import transition
@@ -86,6 +104,15 @@ LINKAGE_ACTOR: str = "experiment-worker"
 
 #: The stable reason stamped on every linkage lifecycle event.
 DISPATCH_LINKAGE_REASON: str = "external dispatch linkage"
+
+#: Time-to-live (seconds) of the per-run authoring lease
+#: ``link_run_to_dispatch`` holds for the duration of one read ->
+#: validate -> append -> write sequence (the lease layer of DEV-M1-G03,
+#: ``core.leases``): a concurrent writer for the same run is refused
+#: with ``LeaseHeldError`` instead of overwriting the record. The lease
+#: is bounded, so a crashed holder's lease expires after this TTL
+#: (deterministic recovery) and a run is never blocked forever.
+RUN_LINKAGE_LEASE_TTL: float = 60.0
 
 #: The injectable clock of the linkage helper: a callable producing a
 #: timestamp string (mirrors the adapters' caller-injected timestamps).
@@ -163,6 +190,16 @@ def link_run_to_dispatch(
     re-linked; a run whose lifecycle cannot carry the dispatch
     (result-bearing or terminal) is refused by the transition machinery.
 
+    Concurrency (issue #145): the read -> validate -> append -> write
+    sequence runs under the **per-run lease** (``core.leases``,
+    DEV-M1-G03) acquired for ``("run", dispatch.run_id)`` before the
+    record is read and released on every exit path. A concurrent writer
+    whose critical section overlaps the linkage is refused loudly with
+    ``LeaseHeldError`` instead of overwriting a record its read may
+    have gone stale on -- the surviving record always agrees with the
+    ordered event log, and no phantom transition can enter the audit
+    record.
+
     Args:
         run_store: the injected run store (the ``runs/`` state backend
             of the project workspace; ``write`` applies the real ``run``
@@ -196,6 +233,10 @@ def link_run_to_dispatch(
             ``read`` / ``Run.from_dict``).
         IllegalTransitionError: the Run's lifecycle state cannot carry
             the dispatch (the real transition rules refuse it).
+        LeaseHeldError: the per-run authoring lease is held by another
+            principal (a concurrent writer is mid-critical-section on
+            this run); the linkage is refused loudly and nothing is
+            persisted -- retry once the holder releases.
     """
     if not isinstance(run_store, StateBackend):
         raise TypeError(
@@ -228,64 +269,78 @@ def link_run_to_dispatch(
         event_log = ProjectEventLog(getattr(run_store, "base_dir"))
     stamp = (now if now is not None else _utc_now)()
 
-    run = Run.from_dict(run_store.read("run", dispatch.run_id))
-    old_external = run.external
-    if (
-        old_external is not None
-        and old_external.dispatch_id not in (None, dispatch.dispatch_id)
-    ):
-        raise LabAdapterDataError(
-            f"run {run.run_id!r} is already linked to dispatch"
-            f" {old_external.dispatch_id!r}; a run is never silently"
-            f" re-linked to dispatch {dispatch.dispatch_id!r}"
-        )
+    # The per-run authoring lease (DEV-M1-G03, ``core.leases``): the
+    # whole read -> validate -> append -> write sequence runs under it,
+    # so a concurrent writer for this run is refused loudly with
+    # ``LeaseHeldError`` instead of overwriting a record whose read it
+    # may have gone stale on (issue #145). The lease is released on
+    # every exit path -- a refused or failed linkage never blocks the
+    # run beyond the bounded TTL.
+    leases = LeaseStore(getattr(run_store, "base_dir"))
+    lease = leases.acquire(
+        "run", dispatch.run_id, LINKAGE_ACTOR, RUN_LINKAGE_LEASE_TTL
+    )
+    try:
+        run = Run.from_dict(run_store.read("run", dispatch.run_id))
+        old_external = run.external
+        if (
+            old_external is not None
+            and old_external.dispatch_id not in (None, dispatch.dispatch_id)
+        ):
+            raise LabAdapterDataError(
+                f"run {run.run_id!r} is already linked to dispatch"
+                f" {old_external.dispatch_id!r}; a run is never silently"
+                f" re-linked to dispatch {dispatch.dispatch_id!r}"
+            )
 
-    # The lifecycle advance through the REAL transition rules: the
-    # mainline walks READY -> DISPATCHED -> RUNNING_EXTERNAL (a direct
-    # READY -> RUNNING_EXTERNAL jump is not a legal transition), an
-    # already-external run re-links idempotently, and any state that
-    # cannot carry the dispatch is refused loudly. ``arcs`` collects
-    # the moves actually performed (an idempotent re-link: none).
-    arcs: list[tuple[LifecycleState, LifecycleState]] = []
-    if run.lifecycle_state is LifecycleState.READY:
-        transition(run.lifecycle_state, LifecycleState.DISPATCHED)
-        arcs = [
-            (LifecycleState.READY, LifecycleState.DISPATCHED),
-            (LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL),
-        ]
-    elif run.lifecycle_state is LifecycleState.DISPATCHED:
-        transition(run.lifecycle_state, LifecycleState.RUNNING_EXTERNAL)
-        arcs = [(LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL)]
-    elif run.lifecycle_state is not LifecycleState.RUNNING_EXTERNAL:
-        transition(run.lifecycle_state, LifecycleState.RUNNING_EXTERNAL)
+        # The lifecycle advance through the REAL transition rules: the
+        # mainline walks READY -> DISPATCHED -> RUNNING_EXTERNAL (a direct
+        # READY -> RUNNING_EXTERNAL jump is not a legal transition), an
+        # already-external run re-links idempotently, and any state that
+        # cannot carry the dispatch is refused loudly. ``arcs`` collects
+        # the moves actually performed (an idempotent re-link: none).
+        arcs: list[tuple[LifecycleState, LifecycleState]] = []
+        if run.lifecycle_state is LifecycleState.READY:
+            transition(run.lifecycle_state, LifecycleState.DISPATCHED)
+            arcs = [
+                (LifecycleState.READY, LifecycleState.DISPATCHED),
+                (LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL),
+            ]
+        elif run.lifecycle_state is LifecycleState.DISPATCHED:
+            transition(run.lifecycle_state, LifecycleState.RUNNING_EXTERNAL)
+            arcs = [(LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL)]
+        elif run.lifecycle_state is not LifecycleState.RUNNING_EXTERNAL:
+            transition(run.lifecycle_state, LifecycleState.RUNNING_EXTERNAL)
 
-    # One deterministic audit event per arc, appended under the stable
-    # idempotency key BEFORE the record write: a crash between the
-    # appends and the write leaves the record stale, and the re-link
-    # re-performs the same arcs and re-appends the same events (the
-    # log converges to the single original records -- no duplicates).
-    for from_state, to_state in arcs:
-        event_log.append(
-            _lifecycle_change_event(run.run_id, from_state, to_state, stamp),
-            idempotency_key=(
-                f"{RUN_LIFECYCLE_CHANGE_EVENT_TYPE}:{run.run_id}:"
-                f"{from_state.value}:{to_state.value}"
+        # One deterministic audit event per arc, appended under the stable
+        # idempotency key BEFORE the record write: a crash between the
+        # appends and the write leaves the record stale, and the re-link
+        # re-performs the same arcs and re-appends the same events (the
+        # log converges to the single original records -- no duplicates).
+        for from_state, to_state in arcs:
+            event_log.append(
+                _lifecycle_change_event(run.run_id, from_state, to_state, stamp),
+                idempotency_key=(
+                    f"{RUN_LIFECYCLE_CHANGE_EVENT_TYPE}:{run.run_id}:"
+                    f"{from_state.value}:{to_state.value}"
+                ),
+            )
+
+        external = RunExternal(
+            backend=backend,
+            dispatch_id=dispatch.dispatch_id,
+            job_id=old_external.job_id if old_external is not None else None,
+            working_directory=(
+                old_external.working_directory if old_external is not None else None
             ),
         )
-
-    external = RunExternal(
-        backend=backend,
-        dispatch_id=dispatch.dispatch_id,
-        job_id=old_external.job_id if old_external is not None else None,
-        working_directory=(
-            old_external.working_directory if old_external is not None else None
-        ),
-    )
-    updated = replace(
-        run,
-        lifecycle_state=LifecycleState.RUNNING_EXTERNAL,
-        external=external,
-        updated_at=stamp,
-    )
-    run_store.write("run", run.run_id, updated.to_dict())
-    return updated
+        updated = replace(
+            run,
+            lifecycle_state=LifecycleState.RUNNING_EXTERNAL,
+            external=external,
+            updated_at=stamp,
+        )
+        run_store.write("run", run.run_id, updated.to_dict())
+        return updated
+    finally:
+        leases.release(lease)

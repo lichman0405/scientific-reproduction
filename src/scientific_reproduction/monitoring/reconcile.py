@@ -81,6 +81,22 @@ the same external runs yields identical durable bytes (Run records,
 checkpoint, event records, watch entries -- all canonical sorted JSON
 through ``atomic_write``) and identical outcomes for identical inputs.
 
+Concurrency (issue #145)
+------------------------
+The completion recording is a read -> validate -> write -> append
+authoring path. To keep the durable Run record from diverging from the
+ordered event log under concurrent writers (worker + execution
+monitor), the completion sequence runs under the **per-run lease** of
+the lease layer (DEV-M1-G03, ``core.leases``): the lease is acquired
+for ``("run", run_id)`` and the Run record is re-read under it, so the
+state that is validated and written is the fresh one. A concurrent
+writer whose critical section overlaps the completion is refused loudly
+with ``LeaseHeldError`` -- never overwritten from a stale read; the
+pass-level API isolates the conflict per run. The lease is bounded
+(``RECONCILE_LEASE_TTL``) so a crashed holder's lease expires and a run
+is never blocked forever. The existing idempotent re-link /
+crash-window convergence semantics are unchanged.
+
 Determinism and discipline
 --------------------------
 All timestamps come from the injected clock (``now``); ids are
@@ -114,6 +130,7 @@ from typing import TypeAlias, cast
 
 from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id, is_valid_id
+from scientific_reproduction.core.leases import LeaseHeldError, LeaseStore
 from scientific_reproduction.core.models import (
     LifecycleState,
     ProjectEvent,
@@ -221,6 +238,15 @@ EXTERNAL_COMPLETION_REASON: str = "external_completion_observed"
 #: the completion event is emitted exactly once even across a restart
 #: or a crash between steps (AC-01/AC-03).
 RECONCILE_COMPLETION_KEY_PREFIX: str = "reconcile.completed"
+
+#: Time-to-live (seconds) of the per-run authoring lease the completion
+#: recording holds for the duration of one read -> validate -> write ->
+#: append sequence (the lease layer of DEV-M1-G03, ``core.leases``): a
+#: concurrent writer for the same run is refused with ``LeaseHeldError``
+#: instead of overwriting the record. The lease is bounded, so a crashed
+#: holder's lease expires after this TTL (deterministic recovery) and a
+#: run is never blocked forever.
+RECONCILE_LEASE_TTL: float = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -385,16 +411,18 @@ class ReconcileFailure:
     per-run error-isolation record of the pass-level API.
 
     ``reconcile_all`` records a run whose ``reconcile`` raises a stable
-    per-run ``ReconcileError`` (``ReconcileContractError`` or
-    ``CorruptProgressError``) here instead of aborting the pass (issue
-    #152): the failing entry is skipped and the remaining watched runs
-    still reconcile. Corrupt project-level state (an unreadable watch
-    set) still fails the pass loudly.
+    per-run ``ReconcileError`` (``ReconcileContractError``,
+    ``CorruptProgressError``, or the lease conflict ``LeaseHeldError``
+    of issue #145 -- another principal holds the per-run authoring
+    lease) here instead of aborting the pass (issue #152): the failing
+    entry is skipped and the remaining watched runs still reconcile.
+    Corrupt project-level state (an unreadable watch set) still fails
+    the pass loudly.
 
     Attributes:
         run_id: the run whose reconcile failed.
-        error: the stable error class name (``ReconcileContractError``
-            or ``CorruptProgressError``).
+        error: the stable error class name (``ReconcileContractError``,
+            ``CorruptProgressError``, or ``LeaseHeldError``).
         message: the error message (diagnostics for the operator; never
             persisted).
     """
@@ -692,6 +720,11 @@ class ReconcileEngine:
                 ``CANCELLED``), or the Run record's external identity
                 disagrees with the watch entry.
             CorruptProgressError: the run record is missing or corrupt.
+            LeaseHeldError: the per-run authoring lease is held by
+                another principal (a concurrent writer is
+                mid-critical-section on this run); the completion is
+                refused loudly and nothing is persisted -- retry once
+                the holder releases.
         """
         if not isinstance(run_id, str):
             raise TypeError(
@@ -706,36 +739,16 @@ class ReconcileEngine:
         completed = False
         transitioned_at: str | None = None
         if observed in COMPLETION_SIGNALS:
-            run_state = run.lifecycle_state
-            if run_state is LifecycleState.RUNNING_EXTERNAL:
-                self._record_completion(run, watch, stamp)
-                completed = True
-                transitioned_at = stamp
-            elif run_state in _RESULT_RECORDED_RUN_STATES:
-                if not self._checkpoint_records_completion(run_id):
-                    # Crash window between the Run write and the
-                    # event/checkpoint bookkeeping: the idempotent
-                    # re-append converges to the single completion record
-                    # (AC-01/AC-03).
-                    self._complete_bookkeeping(run_id, watch, stamp)
-                else:
-                    # Completion already durably recorded (AC-01/AC-03):
-                    # the steady-state re-poll refreshes the observation
-                    # only -- the event log is never re-emitted.
-                    self._update_checkpoint(
-                        run_id,
-                        watch,
-                        observed_state=observed,
-                        observed_at=stamp,
-                    )
-            else:
-                raise ReconcileContractError(
-                    f"external completion observed for run {run_id!r} whose"
-                    f" lifecycle state {run_state.value!r} cannot record a"
-                    f" completion (expected RUNNING_EXTERNAL or a"
-                    " result-bearing state); reconciliation never fabricates"
-                    " a completion onto this run"
-                )
+            # The completion recording re-reads the Run record under the
+            # per-run authoring lease (issue #145) and reports whether
+            # this pass performed the transition: a concurrent writer may
+            # have completed the run between the pre-lease read above and
+            # the lease-protected one -- the crash-window convergence
+            # applies instead of a re-transition, and the lease conflict
+            # of an overlapping writer is refused loudly.
+            performed = self._record_completion(run_id, watch, stamp)
+            completed = performed
+            transitioned_at = stamp if performed else None
         else:
             # AC-02: unknown/temporary/transient probe outcomes are
             # observed and recorded, never treated as completion.
@@ -759,19 +772,26 @@ class ReconcileEngine:
 
         Per-run error isolation (issue #152): a run whose ``reconcile``
         raises a stable per-run ``ReconcileError``
-        (``ReconcileContractError`` or ``CorruptProgressError``) is
-        recorded as a per-run failed outcome (``failures``) with the
-        stable error, and the pass continues with the remaining runs --
-        a healthy run still transitions to ``RESULT_AVAILABLE``. Corrupt
-        project-level state (an unreadable watch set) or a probe/type
-        contract violation still fails the whole pass loudly
-        (deterministic sorted order, deterministic error)."""
+        (``ReconcileContractError``, ``CorruptProgressError``, or the
+        lease conflict ``LeaseHeldError`` of issue #145 -- another
+        principal holds the per-run authoring lease, and the pass must
+        not abort over a briefly-overlapping writer) is recorded as a
+        per-run failed outcome (``failures``) with the stable error, and
+        the pass continues with the remaining runs -- a healthy run
+        still transitions to ``RESULT_AVAILABLE``. Corrupt project-level
+        state (an unreadable watch set) or a probe/type contract
+        violation still fails the whole pass loudly (deterministic
+        sorted order, deterministic error)."""
         outcomes: list[ReconcileOutcome] = []
         failures: list[ReconcileFailure] = []
         for record in self._registry.list_watched():
             try:
                 outcomes.append(self.reconcile(record.run_id))
-            except (ReconcileContractError, CorruptProgressError) as exc:
+            except (
+                ReconcileContractError,
+                CorruptProgressError,
+                LeaseHeldError,
+            ) as exc:
                 failures.append(
                     ReconcileFailure(
                         run_id=record.run_id,
@@ -870,23 +890,79 @@ class ReconcileEngine:
             )
 
     def _record_completion(
-        self, run: Run, watch: WatchedRunRecord, stamp: str
-    ) -> None:
-        """The AC-01 completion sequence for a run still at
-        ``RUNNING_EXTERNAL``: transition the Run record through the real
-        transition machinery, append the transition event under the
-        deterministic idempotency key, and persist the checkpoint
-        progress -- in that order, so a crash between any two steps
-        converges to a single completion on the next reconcile."""
-        new_state = cast(
-            LifecycleState,
-            transition(run.lifecycle_state, LifecycleState.RESULT_AVAILABLE),
+        self, run_id: str, watch: WatchedRunRecord, stamp: str
+    ) -> bool:
+        """The AC-01 completion sequence under the per-run authoring
+        lease (issue #145).
+
+        Acquires the bounded per-run lease (``core.leases``, DEV-M1-G03)
+        and re-reads the Run record under it -- the pre-lease read of
+        ``reconcile`` may have gone stale -- then decides from the fresh
+        state:
+
+        * still ``RUNNING_EXTERNAL``: transition the Run record through
+          the real transition machinery, append the transition event
+          under the deterministic idempotency key, and persist the
+          checkpoint progress -- in that order, so a crash between any
+          two steps converges to a single completion on the next
+          reconcile. Returns True (this call performed the transition).
+        * already result-bearing: a concurrent writer recorded the
+          completion between the pre-lease read and this lease -- never
+          re-transition. The crash-window convergence (AC-01/AC-03)
+          applies: the idempotent re-append converges to the single
+          completion record, or the steady-state re-poll refreshes the
+          observation only. Returns False.
+        * any other state: a contract violation -- completion must never
+          be fabricated onto such a run.
+
+        The lease is released on every exit path; a completion refused
+        by ``LeaseHeldError`` (another principal mid-critical-section on
+        this run) persists nothing.
+        """
+        leases = LeaseStore(getattr(self._run_store, "base_dir"))
+        lease = leases.acquire(
+            "run", run_id, self._monitor_id, RECONCILE_LEASE_TTL
         )
-        updated_run = replace(
-            run, lifecycle_state=new_state, updated_at=stamp
-        )
-        self._run_store.write("run", run.run_id, updated_run.to_dict())
-        self._complete_bookkeeping(run.run_id, watch, stamp)
+        try:
+            fresh = self._read_run(run_id)
+            fresh_state = fresh.lifecycle_state
+            if fresh_state is LifecycleState.RUNNING_EXTERNAL:
+                new_state = cast(
+                    LifecycleState,
+                    transition(fresh_state, LifecycleState.RESULT_AVAILABLE),
+                )
+                updated_run = replace(
+                    fresh, lifecycle_state=new_state, updated_at=stamp
+                )
+                self._run_store.write("run", run_id, updated_run.to_dict())
+                self._complete_bookkeeping(run_id, watch, stamp)
+                return True
+            if fresh_state in _RESULT_RECORDED_RUN_STATES:
+                # A concurrent writer recorded the completion between the
+                # pre-lease read and this lease: never re-transition.
+                # The crash-window convergence (AC-01/AC-03) applies: the
+                # idempotent re-append converges to the single completion
+                # record, or the steady-state re-poll refreshes the
+                # observation only -- the event log is never re-emitted.
+                if not self._checkpoint_records_completion(run_id):
+                    self._complete_bookkeeping(run_id, watch, stamp)
+                else:
+                    self._update_checkpoint(
+                        run_id,
+                        watch,
+                        observed_state=EXTERNAL_STATE_RESULT_AVAILABLE,
+                        observed_at=stamp,
+                    )
+                return False
+            raise ReconcileContractError(
+                f"external completion observed for run {run_id!r} whose"
+                f" lifecycle state {fresh_state.value!r} cannot record a"
+                f" completion (expected RUNNING_EXTERNAL or a"
+                " result-bearing state); reconciliation never fabricates"
+                " a completion onto this run"
+            )
+        finally:
+            leases.release(lease)
 
     def _complete_bookkeeping(
         self, run_id: str, watch: WatchedRunRecord, stamp: str
