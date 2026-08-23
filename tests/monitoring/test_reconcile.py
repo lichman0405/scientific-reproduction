@@ -39,11 +39,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from scientific_reproduction.core.events import ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
+from scientific_reproduction.core.leases import LeaseHeldError, LeaseStore
 from scientific_reproduction.core.models import (
     LifecycleState,
     Run,
@@ -142,6 +144,31 @@ class MappingProbe:
     def __call__(self, external: RunExternal) -> str:
         self.calls.append(external)
         return self._states.get(external.job_id, EXTERNAL_STATE_RUNNING)
+
+
+class ConcurrentCompletionStore(FilesystemStateBackend):
+    """Scripted run store with an injected concurrent writer: the first
+    read of the run record serves the pre-write record and lands the
+    concurrent writer's completion on disk before returning; every later
+    read serves the concurrent writer's record from disk. This injects
+    the issue #145 interleaving where a writer completes the run between
+    the monitor's pre-lease read and its lease-protected fresh read."""
+
+    def __init__(self, base_dir: Path, *, concurrent: Run) -> None:
+        super().__init__(base_dir)
+        self._concurrent = concurrent
+        self._reads = 0
+
+    def read(self, obj_type: str, object_id: str) -> dict[str, Any]:
+        record = super().read(obj_type, object_id)
+        if obj_type == "run" and object_id == self._concurrent.run_id:
+            self._reads += 1
+            if self._reads == 1:
+                # The concurrent writer lands between the stale read
+                # served above and the lease-protected fresh read (which
+                # reads the writer's record from disk on the next call).
+                super().write("run", object_id, self._concurrent.to_dict())
+        return record
 
 
 def make_run_id(index: int = 1) -> str:
@@ -848,6 +875,190 @@ def test_reconcile_all_isolates_corrupt_progress_per_run(tmp_path: Path) -> None
     assert Run.from_dict(
         engine.run_store.read("run", healthy_run.run_id)
     ).lifecycle_state is LifecycleState.RESULT_AVAILABLE
+
+
+# ---------------------------------------------------------------------------
+# Concurrency (issue #145: the completion recording is a read -> validate
+# -> write -> append sequence under the per-run authoring lease)
+# ---------------------------------------------------------------------------
+
+
+def test_reconcile_lease_conflict_refused_nothing_persisted(
+    tmp_path: Path,
+) -> None:
+    """Issue #145: a concurrent writer holding the per-run authoring
+    lease (the injected interleaving: the worker is mid-critical-section
+    on the same run) refuses the completion loudly with
+    ``LeaseHeldError`` -- nothing is persisted: run record, event log
+    and checkpoint all untouched."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    run = make_run(1)
+    probe = ConstantProbe(EXTERNAL_STATE_RESULT_AVAILABLE)
+    engine = make_engine(state, runs_dir, events_dir, probe=probe)
+    watch_all(engine, (make_watch_record(1, external=run.external),))
+    write_run(engine.run_store, run)
+    run_bytes_before = (runs_dir / "runs" / f"{run.run_id}.json").read_bytes()
+
+    leases = LeaseStore(runs_dir)
+    held = leases.acquire("run", run.run_id, "experiment-worker", 60.0)
+    with pytest.raises(LeaseHeldError, match="leased by 'experiment-worker'"):
+        engine.reconcile(run.run_id)
+
+    # The stale writer was refused loudly: no record write, no event, no
+    # checkpoint entry.
+    assert (
+        runs_dir / "runs" / f"{run.run_id}.json"
+    ).read_bytes() == run_bytes_before
+    assert engine.event_log.list_events() == []
+    assert load_checkpoint(state) is None
+
+    # Once the holder releases, the retry succeeds and the surviving
+    # record agrees with the ordered event log.
+    leases.release(held)
+    outcome = engine.reconcile(run.run_id)
+    assert outcome.completed is True
+    assert Run.from_dict(
+        engine.run_store.read("run", run.run_id)
+    ).lifecycle_state is LifecycleState.RESULT_AVAILABLE
+    records = engine.event_log.list_events()
+    assert len(records) == 1
+    assert records[0].event.from_ == LifecycleState.RUNNING_EXTERNAL.value
+    assert records[0].event.to == LifecycleState.RESULT_AVAILABLE.value
+
+
+def test_reconcile_all_isolates_lease_conflict_per_run(tmp_path: Path) -> None:
+    """Issue #145 + #152: a run whose authoring lease is held by a
+    concurrent writer is recorded as a per-run failed outcome (stable
+    error ``LeaseHeldError``) instead of aborting the pass -- the
+    healthy run still transitions to ``RESULT_AVAILABLE``, and once the
+    holder releases, the next pass completes the run."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    leased_run = make_run(1)
+    healthy_run = make_run(2)
+    probe = MappingProbe(
+        {
+            leased_run.external.job_id: EXTERNAL_STATE_RESULT_AVAILABLE,
+            healthy_run.external.job_id: EXTERNAL_STATE_RESULT_AVAILABLE,
+        }
+    )
+    engine = make_engine(state, runs_dir, events_dir, probe=probe)
+    watch_all(
+        engine,
+        (
+            make_watch_record(1, external=leased_run.external),
+            make_watch_record(2, external=healthy_run.external),
+        ),
+    )
+    for run in (leased_run, healthy_run):
+        write_run(engine.run_store, run)
+    leases = LeaseStore(runs_dir)
+    held = leases.acquire(
+        "run", leased_run.run_id, "experiment-worker", 60.0
+    )
+
+    summary = engine.reconcile_all()
+
+    # No abort: the healthy run completed; the leased run is a per-run
+    # failed outcome with the stable lease-conflict error.
+    assert summary.completed_count == 1
+    assert [o.run_id for o in summary.outcomes] == [healthy_run.run_id]
+    assert summary.failures[0].run_id == leased_run.run_id
+    assert summary.failures[0].error == "LeaseHeldError"
+    assert "leased by 'experiment-worker'" in summary.failures[0].message
+    # The healthy run transitioned through the real machinery; the
+    # leased run was never touched.
+    assert Run.from_dict(
+        engine.run_store.read("run", healthy_run.run_id)
+    ).lifecycle_state is LifecycleState.RESULT_AVAILABLE
+    assert Run.from_dict(
+        engine.run_store.read("run", leased_run.run_id)
+    ).lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    assert len(engine.event_log.list_events()) == 1
+
+    # Once the holder releases, the next pass completes the leased run
+    # (and the healthy run holds its steady state: no re-emission).
+    leases.release(held)
+    second = engine.reconcile_all()
+    assert second.completed_count == 1
+    completed = [o for o in second.outcomes if o.completed]
+    assert [o.run_id for o in completed] == [leased_run.run_id]
+    assert {o.run_id for o in second.outcomes} == {
+        leased_run.run_id,
+        healthy_run.run_id,
+    }
+    assert len(engine.event_log.list_events()) == 2
+
+
+def test_reconcile_concurrent_writer_completed_run_between_reads(
+    tmp_path: Path,
+) -> None:
+    """Issue #145, the regression scenario on the monitor side: between
+    the monitor's pre-lease read of the Run record and the
+    lease-protected fresh read, a concurrent writer records the
+    completion. The fresh read under the lease sees ``RESULT_AVAILABLE``
+    (the injected interleaving of :class:`ConcurrentCompletionStore`):
+    the monitor never re-transitions onto the surviving record, reports
+    ``completed=False``, and the surviving record agrees with the
+    ordered event log -- exactly one completion event, never
+    duplicated."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    run = make_run(1)
+    completed = Run.from_dict(
+        {
+            **run.to_dict(),
+            "lifecycle_state": LifecycleState.RESULT_AVAILABLE.value,
+        }
+    )
+    store = ConcurrentCompletionStore(runs_dir, concurrent=completed)
+    probe = ConstantProbe(EXTERNAL_STATE_RESULT_AVAILABLE)
+    engine = ReconcileEngine(
+        state,
+        now=FakeClock(),
+        probe=probe,
+        run_store=store,
+        event_log=ProjectEventLog(events_dir),
+    )
+    watch_all(engine, (make_watch_record(1, external=run.external),))
+    write_run(engine.run_store, run)
+
+    outcome = engine.reconcile(run.run_id)
+
+    # Both reads happened: the stale pre-lease one and the fresh
+    # lease-protected one that saw the concurrent writer's record.
+    assert store._reads == 2
+    # The monitor did not perform the transition (the concurrent writer
+    # did) -- but the crash-window convergence appended the single
+    # missing completion event and recorded the checkpoint progress.
+    assert outcome.completed is False
+    assert outcome.observed_state == EXTERNAL_STATE_RESULT_AVAILABLE
+    assert outcome.transitioned_at is None
+    # The surviving record agrees with the ordered event log: the
+    # concurrent writer's record, never overwritten, and exactly one
+    # completion event.
+    persisted = Run.from_dict(engine.run_store.read("run", run.run_id))
+    assert persisted == completed
+    assert persisted.lifecycle_state is LifecycleState.RESULT_AVAILABLE
+    records = engine.event_log.list_events()
+    assert len(records) == 1
+    assert records[0].event.event_type == EXTERNAL_STATUS_CHANGE_EVENT_TYPE
+    assert records[0].event.from_ == LifecycleState.RUNNING_EXTERNAL.value
+    assert records[0].event.to == LifecycleState.RESULT_AVAILABLE.value
+    entries = load_checkpoint(state)
+    assert entries is not None
+    assert entries[0].observed_state == EXTERNAL_STATE_RESULT_AVAILABLE
+    assert entries[0].reconciled_at == FIXED_STAMP
+
+    # The steady-state re-poll never re-emits: the event log stays the
+    # single original record.
+    again = engine.reconcile(run.run_id)
+    assert again.completed is False
+    assert engine.event_log.list_events() == records
 
 
 def test_reconcile_all_probe_type_violation_still_fails_loudly(

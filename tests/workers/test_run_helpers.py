@@ -39,6 +39,7 @@ import pytest
 
 from scientific_reproduction.audit.git import AuditIdentity
 from scientific_reproduction.core.events import EventRecord, ProjectEventLog
+from scientific_reproduction.core.leases import LeaseHeldError, LeaseStore
 from scientific_reproduction.core.models import (
     GoalAcceptance,
     GoalContract,
@@ -614,6 +615,99 @@ def test_transition_run_unknown_run_and_type_errors(tmp_path):
             root, "RUN-1", LifecycleState.READY,
             actor=ACTOR, reason="", at=RECORDED_AT,
         )
+
+
+# ---------------------------------------------------------------------------
+# Concurrency (issue #145: the transition authoring path is a
+# read -> validate -> write -> append sequence under the per-run lease)
+# ---------------------------------------------------------------------------
+
+
+def test_transition_run_lease_conflict_refused_nothing_persisted(tmp_path):
+    root = init_project(tmp_path)
+    register_run(root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT)
+    path = root / RUNS_STATE_DIR / "RUN-1.json"
+    original = path.read_text(encoding="utf-8")
+    # Injected interleaving: a concurrent writer holds the per-run
+    # authoring lease for RUN-1 while this transition runs.
+    leases = LeaseStore(root)
+    held = leases.acquire("run", "RUN-1", "concurrent-writer", 60.0)
+    with pytest.raises(LeaseHeldError, match="leased by 'concurrent-writer'"):
+        transition_run(
+            root, "RUN-1", LifecycleState.READY,
+            actor=ACTOR, reason="run queued", at="2026-01-03T00:00:00Z",
+            event_log=event_log(root),
+        )
+    # The stale writer was refused loudly: record bytes untouched, no
+    # transition event appended.
+    assert path.read_text(encoding="utf-8") == original
+    assert [r.event.event_type for r in run_flow_events(root)] == [
+        RUN_RECORDED_EVENT_TYPE
+    ]
+    # Once the holder releases, the retry succeeds and the surviving
+    # record agrees with the ordered event log.
+    leases.release(held)
+    transition = transition_run(
+        root, "RUN-1", LifecycleState.READY,
+        actor=ACTOR, reason="run queued", at="2026-01-03T00:00:00Z",
+        event_log=event_log(root),
+    )
+    assert transition.run.lifecycle_state is LifecycleState.READY
+    events = run_flow_events(root)
+    assert [e.event.event_type for e in events] == [
+        RUN_RECORDED_EVENT_TYPE,
+        RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+    ]
+    assert events[1].event.from_ == "CREATED"
+    assert events[1].event.to == "READY"
+
+
+def test_transition_run_phantom_transition_stale_writer_refused(tmp_path):
+    root = init_project(tmp_path)
+    register_run(
+        root,
+        make_run(lifecycle_state=LifecycleState.RUNNING_EXTERNAL),
+        actor=ACTOR,
+        recorded_at=RECORDED_AT,
+    )
+    # RUNNING_EXTERNAL has two distinct legal outgoing arcs: the
+    # mainline RUNNING_EXTERNAL -> RESULT_AVAILABLE and the cancellation
+    # arc RUNNING_EXTERNAL -> CANCELLED. Two writers both read
+    # RUNNING_EXTERNAL; writer A wins the race and records the result...
+    completed = transition_run(
+        root, "RUN-1", LifecycleState.RESULT_AVAILABLE,
+        actor=ACTOR, reason="result produced", at="2026-01-03T00:00:00Z",
+        event_log=event_log(root),
+    )
+    assert completed.replayed is False
+    # ...the stale writer B then attempts its own legal arc from its
+    # stale read. The per-run lease serialized B behind A, so B's fresh
+    # read sees RESULT_AVAILABLE and the state mismatch refuses the
+    # phantom transition (RESULT_AVAILABLE -> CANCELLED is never a
+    # legal arc): no phantom event enters the audit record.
+    with pytest.raises(
+        IllegalTransitionError, match="RESULT_AVAILABLE.*CANCELLED"
+    ):
+        transition_run(
+            root, "RUN-1", LifecycleState.CANCELLED,
+            actor="second-writer", reason="cancel",
+            at="2026-01-04T00:00:00Z",
+            event_log=event_log(root),
+        )
+    events = run_flow_events(root)
+    assert [e.event.event_type for e in events] == [
+        RUN_RECORDED_EVENT_TYPE,
+        RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
+    ]
+    # The surviving record agrees with the ordered event log: exactly
+    # the arc writer A performed, nothing from the phantom writer.
+    assert (
+        read_run(root, "RUN-1").lifecycle_state
+        is LifecycleState.RESULT_AVAILABLE
+    )
+    assert events[1].event.from_ == "RUNNING_EXTERNAL"
+    assert events[1].event.to == "RESULT_AVAILABLE"
+    assert events[1].event.actor == ACTOR
 
 
 # ---------------------------------------------------------------------------

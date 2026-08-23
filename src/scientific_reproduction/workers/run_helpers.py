@@ -62,6 +62,23 @@ States with several legal predecessors (``CANCELLED``, ``INVALIDATED``)
 have no reconstructible arc: a re-run at those states without the
 recorded event is rejected, because the from-state of the lost event
 cannot be proven.
+
+Concurrency (issue #145)
+------------------------
+``transition_run`` is a read -> validate -> write -> append authoring
+path. To keep the durable Run record from diverging from the ordered
+event log under concurrent writers (worker + execution monitor), the
+whole sequence runs under the **per-run lease** of the lease layer
+(DEV-M1-G03, ``core.leases``): the lease is acquired for
+``("run", run_id)`` before the record is read and released after the
+event append (or any failure). A concurrent writer for the same run is
+refused loudly with ``LeaseHeldError`` instead of overwriting a record
+whose read it may have gone stale on; the surviving record always
+agrees with the ordered event log. The lease is bounded
+(``RUN_TRANSITION_LEASE_TTL``) so a crashed holder's lease expires and
+the run is never blocked forever. The idempotent re-link / crash-window
+convergence semantics are unchanged: a genuinely idempotent re-run
+still succeeds when no other writer holds the lease.
 """
 
 from __future__ import annotations
@@ -72,6 +89,7 @@ from typing import Any, Mapping, TypeAlias, cast
 
 from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
+from scientific_reproduction.core.leases import LeaseStore
 from scientific_reproduction.core.models import (
     GoalContract,
     LifecycleState,
@@ -148,6 +166,15 @@ RUN_PREDECESSOR_STATE: dict[LifecycleState, LifecycleState | None] = {
     LifecycleState.CANCELLED: None,
     LifecycleState.INVALIDATED: None,
 }
+
+#: Time-to-live (seconds) of the per-run authoring lease ``transition_run``
+#: holds for the duration of one read -> validate -> write -> append
+#: sequence (the lease layer of DEV-M1-G03, ``core.leases``): a
+#: concurrent writer for the same run is refused with ``LeaseHeldError``
+#: instead of overwriting the record. The lease is bounded, so a crashed
+#: holder's lease expires after this TTL (deterministic recovery) and a
+#: run is never blocked forever.
+RUN_TRANSITION_LEASE_TTL: float = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +400,16 @@ def transition_run(
     (``CANCELLED``, ``INVALIDATED``) have no reconstructible arc: the
     no-op guard always wins there.
 
+    Concurrency (issue #145): the read -> validate -> write -> append
+    sequence runs under the **per-run lease** (``core.leases``,
+    DEV-M1-G03) acquired for ``("run", run_id)`` before the record is
+    read and released on every exit path. A concurrent writer whose
+    critical section overlaps this one is refused loudly with
+    ``LeaseHeldError`` instead of overwriting a record its read may
+    have gone stale on -- the surviving record always agrees with the
+    ordered event log, and no phantom transition can enter the audit
+    record.
+
     Args:
         root: the initialized workspace root.
         run_id: the id of the registered run to advance.
@@ -400,6 +437,10 @@ def transition_run(
         RunNotFoundError: no run with that id is registered.
         IllegalTransitionError: the pair is not in the normative rule
             table (including no-op transitions).
+        LeaseHeldError: the per-run authoring lease is held by another
+            principal (a concurrent writer is mid-transition on this
+            run); the transition is refused loudly and nothing is
+            persisted -- retry once the holder releases.
         ValueError: the stored state is corrupt, or the id is not a
             safe object id (state backend).
     """
@@ -417,51 +458,63 @@ def transition_run(
     _require_initialized(project_root)
     event_log = _resolve_event_log(project_root, event_log)
     store = _run_store(project_root)
-    current = _read_run(store, project_root, run_id)
-    if current.lifecycle_state == to_state:
-        predecessor = RUN_PREDECESSOR_STATE[to_state]
-        if predecessor is None:
-            raise IllegalTransitionError(
-                "run-lifecycle", current.lifecycle_state, to_state
+    # The per-run authoring lease (DEV-M1-G03, ``core.leases``): the
+    # whole read -> validate -> write -> append sequence runs under it,
+    # so a concurrent writer for this run is refused loudly with
+    # ``LeaseHeldError`` instead of overwriting a record whose read it
+    # may have gone stale on (issue #145). The lease is released on
+    # every exit path -- a refused or failed writer never blocks the run
+    # beyond the bounded TTL.
+    leases = LeaseStore(project_root)
+    lease = leases.acquire("run", run_id, actor, RUN_TRANSITION_LEASE_TTL)
+    try:
+        current = _read_run(store, project_root, run_id)
+        if current.lifecycle_state == to_state:
+            predecessor = RUN_PREDECESSOR_STATE[to_state]
+            if predecessor is None:
+                raise IllegalTransitionError(
+                    "run-lifecycle", current.lifecycle_state, to_state
+                )
+            record = _append(
+                event_log,
+                _lifecycle_change_event(
+                    run_id, predecessor, to_state, actor, reason, at
+                ),
+                idempotency_key=(
+                    f"{RUN_LIFECYCLE_CHANGE_EVENT_TYPE}:{run_id}:"
+                    f"{predecessor.value}:{to_state.value}"
+                ),
             )
+            return RunTransition(
+                previous_state=current.lifecycle_state,
+                run=current,
+                event_record=record,
+                replayed=True,
+            )
+        new_state = cast(
+            LifecycleState, transition(current.lifecycle_state, to_state)
+        )
+        updated = replace(
+            current, lifecycle_state=new_state, updated_at=at
+        )
+        store.write("run", run_id, updated.to_dict())
         record = _append(
             event_log,
             _lifecycle_change_event(
-                run_id, predecessor, to_state, actor, reason, at
+                run_id, current.lifecycle_state, to_state, actor, reason, at
             ),
             idempotency_key=(
                 f"{RUN_LIFECYCLE_CHANGE_EVENT_TYPE}:{run_id}:"
-                f"{predecessor.value}:{to_state.value}"
+                f"{current.lifecycle_state.value}:{to_state.value}"
             ),
         )
         return RunTransition(
             previous_state=current.lifecycle_state,
-            run=current,
+            run=updated,
             event_record=record,
-            replayed=True,
         )
-    new_state = cast(
-        LifecycleState, transition(current.lifecycle_state, to_state)
-    )
-    updated = replace(
-        current, lifecycle_state=new_state, updated_at=at
-    )
-    store.write("run", run_id, updated.to_dict())
-    record = _append(
-        event_log,
-        _lifecycle_change_event(
-            run_id, current.lifecycle_state, to_state, actor, reason, at
-        ),
-        idempotency_key=(
-            f"{RUN_LIFECYCLE_CHANGE_EVENT_TYPE}:{run_id}:"
-            f"{current.lifecycle_state.value}:{to_state.value}"
-        ),
-    )
-    return RunTransition(
-        previous_state=current.lifecycle_state,
-        run=updated,
-        event_record=record,
-    )
+    finally:
+        leases.release(lease)
 
 
 # ---------------------------------------------------------------------------

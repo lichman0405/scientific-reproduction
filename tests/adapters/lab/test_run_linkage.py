@@ -63,6 +63,7 @@ from scientific_reproduction.adapters.lab.linkage import (
 )
 from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.ids import generate_id
+from scientific_reproduction.core.leases import LeaseHeldError, LeaseStore
 from scientific_reproduction.core.models import (
     LifecycleState,
     Run,
@@ -640,3 +641,93 @@ def test_linkage_audit_trail_deterministic_identical_bytes(tmp_path) -> None:
     assert tree_bytes(first.base_dir / "events") == tree_bytes(
         second.base_dir / "events"
     )
+
+
+# ---------------------------------------------------------------------------
+# Concurrency (issue #145: the linkage authoring path is a read ->
+# validate -> append -> write sequence under the per-run lease)
+# ---------------------------------------------------------------------------
+
+
+def test_linkage_lease_conflict_refused_nothing_persisted(tmp_path) -> None:
+    # Injected interleaving: a concurrent writer (the execution monitor,
+    # mid-critical-section on the same run) holds the per-run authoring
+    # lease while the linkage runs. The linkage is refused loudly with
+    # LeaseHeldError and persists nothing.
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(store, make_run(LifecycleState.READY))
+    before = run_bytes(store)
+    leases = LeaseStore(store.base_dir)
+    held = leases.acquire("run", RUN_ID, "execution-monitor", 60.0)
+    with pytest.raises(LeaseHeldError, match="leased by 'execution-monitor'"):
+        link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    assert run_bytes(store) == before
+    assert flow_events(store) == []
+
+    # Once the holder releases, the retry succeeds: the surviving record
+    # agrees with the ordered event log (both mainline arcs, exactly
+    # once each).
+    leases.release(held)
+    updated = link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    assert updated.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    assert [r.event.event_id for r in flow_events(store)] == [
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.READY, LifecycleState.DISPATCHED
+        ),
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL
+        ),
+    ]
+
+    # The idempotent re-link discipline is intact under the lease: a
+    # genuinely idempotent re-link (no holder) still succeeds and
+    # appends no events.
+    link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    assert [r.event.event_id for r in flow_events(store)] == [
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.READY, LifecycleState.DISPATCHED
+        ),
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL
+        ),
+    ]
+
+
+def test_linkage_race_two_writers_stale_writer_refused_record_agrees_with_log(
+    tmp_path,
+) -> None:
+    # The phantom-linkage interleaving of issue #145: two orchestrators
+    # race to link the same run to DIFFERENT dispatch records, both
+    # validated against the same pre-linkage record. Writer A wins the
+    # race and links its dispatch...
+    store = FilesystemStateBackend(tmp_path / "runs")
+    write_run(store, make_run(LifecycleState.READY))
+    winner = link_run_to_dispatch(store, make_dispatch(), now=FakeClock())
+    assert winner.external is not None
+    assert winner.external.dispatch_id == DISPATCH_ID
+
+    # ...the stale writer B then attempts its own linkage. The per-run
+    # lease serialized B behind A, so B's fresh read sees the record
+    # already linked to A's dispatch: refused loudly, never silently
+    # re-linked, nothing persisted -- no phantom event enters the log.
+    with pytest.raises(LabAdapterDataError, match="already linked to dispatch"):
+        link_run_to_dispatch(
+            store,
+            make_dispatch(dispatch_id=OTHER_DISPATCH_ID),
+            now=FakeClock(),
+        )
+
+    # The surviving record agrees with the ordered event log: exactly
+    # writer A's two arcs, and the record names A's dispatch.
+    persisted = read_run(store)
+    assert persisted.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    assert persisted.external is not None
+    assert persisted.external.dispatch_id == DISPATCH_ID
+    assert [r.event.event_id for r in flow_events(store)] == [
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.READY, LifecycleState.DISPATCHED
+        ),
+        lifecycle_event_id(
+            RUN_ID, LifecycleState.DISPATCHED, LifecycleState.RUNNING_EXTERNAL
+        ),
+    ]
