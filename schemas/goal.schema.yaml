@@ -1,7 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 title: GoalContract
 type: object
-required: [goal_id, title, unit_process_type, track, objective, requirement_ids, dependencies, acceptance, analysis_protocol_ref, replication, version, frozen]
+required: [goal_id, title, unit_process_type, track, objective, procedure, execution_constraints, requirement_ids, dependencies, acceptance, analysis_protocol_ref, replication, version, frozen]
 properties:
   goal_id: {type: string}
   title: {type: string}
@@ -15,6 +15,30 @@ properties:
     items: {type: string}
   inputs: {type: array, items: {type: object}}
   outputs: {type: array, items: {type: object}}
+  # SS4 "procedure source(s)" (issue #156): ordered typed steps aligned
+  # with the LabExecutionPackage step vocabulary (action plus inputs /
+  # outputs / trace refs). Required: a goal record without the key fails
+  # the gate. The empty list is the documented migration default for
+  # records written before the field existed.
+  procedure:
+    type: array
+    items:
+      type: object
+      required: [action]
+      properties:
+        action: {type: string}
+        inputs: {type: array, items: {type: string}}
+        outputs: {type: array, items: {type: string}}
+        trace_refs: {type: array, items: {type: string}}
+  # SS4 "execution constraints" (issue #156): structured hardware /
+  # environment constraints, forbidden changes and safety notes.
+  # Required; the empty object is the documented migration default.
+  execution_constraints:
+    type: object
+    properties:
+      environment: {type: object}
+      forbidden_changes: {type: array, items: {type: string}}
+      safety_notes: {type: array, items: {type: string}}
   dependencies:
     type: array
     items:

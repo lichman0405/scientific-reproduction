@@ -14,6 +14,31 @@ outputs:
   - instrument_metadata
   - sample_metadata
   - analysis_input_manifest
+procedure:
+  - action: verify sample activation state before adsorption
+    inputs: ["sample: FDM-201 activated material"]
+    outputs: ["activation_state_record"]
+    trace_refs: ["GOAL-ACTIVATION-001"]
+  - action: acquire C3H6 isotherm at 298 K on the reported instrument
+    inputs:
+      - "sample: FDM-201 activated material"
+      - "gas: C3H6"
+      - "temperature_K: 298"
+    outputs: ["raw_isotherm_data", "instrument_metadata"]
+    trace_refs: ["REQ-ADS-001", "RES-ADSORPTION-INSTRUMENT"]
+  - action: attach sample and analysis input metadata
+    inputs: ["sample: FDM-201 activated material"]
+    outputs: ["sample_metadata", "analysis_input_manifest"]
+    trace_refs: ["ANP-ADS-C3H6-298K-001"]
+execution_constraints:
+  environment:
+    instrument: RES-ADSORPTION-INSTRUMENT
+    temperature_K: 298
+  forbidden_changes:
+    - "reported measurement temperature"
+    - "sample activation protocol (GOAL-ACTIVATION-001)"
+  safety_notes:
+    - "pressurized C3H6 handling per laboratory gas SOP"
 dependencies:
   - goal_id: GOAL-SYN-FDM201-001
     type: hard_gate

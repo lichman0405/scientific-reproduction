@@ -119,6 +119,19 @@ def test_models_are_frozen(name: str) -> None:
         setattr(model, "nonexistent_attribute", "x")
 
 
+def _schema_key_has_model_default(model_cls: type[m.CoreModel], key: str) -> bool:
+    """True iff the schema-required key maps to a model field with a
+    default (deliberately defaulted required fields -- see below)."""
+    field_name = {
+        alias: name for name, alias in model_cls._FIELD_ALIASES.items()
+    }.get(key, key)
+    model_field = getattr(model_cls, "__dataclass_fields__", {})[field_name]
+    return (
+        model_field.default is not dataclasses.MISSING
+        or model_field.default_factory is not dataclasses.MISSING
+    )
+
+
 @pytest.mark.parametrize("name", ALL_MODEL_NAMES)
 def test_from_dict_requires_schema_required_fields(name: str) -> None:
     model_cls = m.MODEL_REGISTRY[name]
@@ -126,6 +139,14 @@ def test_from_dict_requires_schema_required_fields(name: str) -> None:
     doc = copy.deepcopy(VALID_DOCS[name])
     for required_key in schema.get("required", []):
         if required_key in doc:
+            # Issue #156: GoalContract.procedure / execution_constraints
+            # are schema-required at the persistence gate but deliberately
+            # defaulted in the model -- absence reads as the documented
+            # accept-and-migrate defaults (empty procedure / empty
+            # constraints) for records written before the fields existed.
+            # The schema gate, not from_dict, enforces their presence.
+            if _schema_key_has_model_default(model_cls, required_key):
+                continue
             broken = copy.deepcopy(doc)
             del broken[required_key]
             with pytest.raises(TypeError, match="missing required field"):
@@ -161,6 +182,18 @@ def test_nested_objects_are_coerced_to_typed_dataclasses() -> None:
     assert all(isinstance(dep, m.GoalDependency) for dep in goal.dependencies)
     assert isinstance(goal.replication, m.GoalReplication)
     assert isinstance(goal.acceptance, m.GoalAcceptance)
+    # Issue #156: procedure / execution_constraints coerce to typed
+    # nested models (never free-form dicts) and round-trip verbatim.
+    assert isinstance(goal.procedure, list)
+    assert all(
+        isinstance(step, m.GoalProcedureStep) for step in goal.procedure
+    )
+    assert isinstance(goal.execution_constraints, m.GoalExecutionConstraints)
+    assert goal.to_dict()["procedure"] == VALID_DOCS["goal"]["procedure"]
+    assert (
+        goal.to_dict()["execution_constraints"]
+        == VALID_DOCS["goal"]["execution_constraints"]
+    )
 
 
 def test_event_from_key_uses_schema_alias() -> None:
