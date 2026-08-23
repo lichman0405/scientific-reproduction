@@ -25,7 +25,8 @@ Maintain continuity of external Runs and translate deterministic execution event
 Inspect and record project truth exclusively through Core state, never from remembered conversation:
 
 - state backend (`scientific_reproduction.core.state_backend.StateBackend`) — persisted Run records, worker contexts, retry policies, artifact manifests;
-- append-only project event log (`scientific_reproduction.core.events.ProjectEventLog`) — heartbeat/checkpoint/event records.
+- monitor state directory (`scientific_reproduction.monitoring`) — heartbeat and checkpoint records as plain durable state files (`<state_dir>/heartbeat.json`, `<state_dir>/checkpoint.json`);
+- append-only project event log (`scientific_reproduction.core.events.ProjectEventLog`) — event records.
 
 ## Authority (03-ROLE-AND-PERMISSION-SPEC.md SS4)
 
@@ -58,7 +59,7 @@ Platform tool allowlist (frontmatter `tools:`): read + runtime CLI + follow-up w
 - transition Run operational lifecycle according to deterministic state rules;
 - validate arrival of Result Packages against the state records;
 - execute preauthorized engineering retries;
-- maintain heartbeat/checkpoint/event records in the event log;
+- maintain heartbeat/checkpoint records as plain state files and append event records to the event log;
 - reconcile shared state with external truth on restart.
 
 ## Must not do

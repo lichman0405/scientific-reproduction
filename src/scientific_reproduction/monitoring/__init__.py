@@ -13,6 +13,10 @@ M8 monitoring subsystem:
   the adapter/external ids needed for reconciliation, AC-03) and the
   heartbeat record (AC-02). Both are plain durable state files written
   atomically -- they never involve git.
+* :mod:`scientific_reproduction.monitoring.watchdog` -- the watchdog
+  layer of the Monitor's high-availability chain (13-EXECUTION-MONITOR.md
+  SS3): a deterministic ALIVE/DEAD verdict evaluated from the persisted
+  heartbeat, the injected clock and the injected staleness threshold.
 """
 
 from scientific_reproduction.monitoring.checkpoint import (
@@ -41,22 +45,34 @@ from scientific_reproduction.monitoring.registry import (
     utc_now,
     validate_external_identity,
 )
+from scientific_reproduction.monitoring.watchdog import (
+    DEFAULT_STALENESS_THRESHOLD_SECONDS,
+    MonitorAliveness,
+    MonitorAlivenessState,
+    MonitorWatchdog,
+    WatchdogError,
+)
 
 __all__ = [
     "CHECKPOINT_FILE",
     "CHECKPOINT_VERSION",
     "CheckpointRecordError",
+    "DEFAULT_STALENESS_THRESHOLD_SECONDS",
     "HEARTBEAT_FILE",
     "HEARTBEAT_VERSION",
     "HeartbeatRecord",
     "MONITOR_ID_KIND",
+    "MonitorAliveness",
+    "MonitorAlivenessState",
     "MonitorCheckpoint",
     "MonitorCheckpointStore",
     "MonitorRunCheckpoint",
+    "MonitorWatchdog",
     "MonitoringClock",
     "MonitoringError",
     "WATCH_RECORD_VERSION",
     "WATCHED_STATE_DIR",
+    "WatchdogError",
     "WatchedRunRecord",
     "WatchedRunRegistry",
     "WatchNotFoundError",
