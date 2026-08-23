@@ -50,6 +50,15 @@ With ``out_dir`` set, the renderer writes
 carrying the PDF's SHA-256 -- the same pattern as
 ``reporting.pdf_report``. Written under ``reports/``, both files are
 registered by the audit package's report-file scan with checksums.
+
+Dispatch-time handoff (issue #157)
+----------------------------------
+The renderer has its first runtime caller: ``FilesystemLabAdapter.dispatch``
+(``workspace_root`` set) renders the sheet into the dispatch directory
+itself (``out_dir = lab/outgoing/<RUN_ID>/``) right after the outgoing
+handoff, and writes the printable zh-capable HTML sheet next to the PDF
+and the sidecar; the audit package's report-file scan registers all
+three files with checksums.
 """
 
 from __future__ import annotations
@@ -72,6 +81,7 @@ if TYPE_CHECKING:
     from scientific_reproduction.reporting.sheets.experiment import ExperimentSheet
 
 __all__ = [
+    "HTML_FILENAME_TPL",
     "JSON_FILENAME_TPL",
     "PDF_FILENAME_TPL",
     "SHEET_PDF_VERSION",
@@ -84,11 +94,14 @@ __all__ = [
 #: :class:`ExperimentSheetPdf`).
 SHEET_PDF_VERSION: str = "1.0"
 
-#: Sheet PDF file names written to the out dir (``{run_id}`` is the run
+#: Sheet file names written to the out dir (``{run_id}`` is the run
 #: id of the dispatched package; under ``reports/`` the audit package's
-#: report-file scan registers them with checksums).
+#: report-file scan registers them with checksums, and at dispatch time
+#: (issue #157) the adapter writes the same three files into the
+#: ``lab/outgoing/<RUN_ID>/`` dispatch directory itself).
 PDF_FILENAME_TPL: str = "experiment-sheet-{run_id}.pdf"
 JSON_FILENAME_TPL: str = "experiment-sheet-{run_id}.json"
+HTML_FILENAME_TPL: str = "experiment-sheet-{run_id}.html"
 
 #: The manifest keys the HTML renderer displays in dedicated sections;
 #: mirrored here (no private cross-module imports -- house rule) so the

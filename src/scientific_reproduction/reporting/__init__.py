@@ -18,7 +18,9 @@ deterministic: reads go through the real registration APIs and the only
 durable writes are the rendered document artifacts under ``reports/``
 (``plan_doc.write_plan_document`` and its SHA-256 checksum sidecar, the
 execution sheets, ``sheet_pdf.build_experiment_sheet_pdf``,
-``pdf_report.build_pdf_report`` and their canonical JSON sidecars).
+``pdf_report.build_pdf_report`` and their canonical JSON sidecars) and
+the dispatch-time experiment sheets the lab adapter writes into each
+``lab/outgoing/<RUN_ID>/`` handoff directory (issue #157).
 """
 
 from scientific_reproduction.reporting.audit import (
