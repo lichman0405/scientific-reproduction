@@ -2,6 +2,17 @@
 
 Developer-focused documentation for the `scientific-reproduction` package.
 
+## Latest release (v0.2.3)
+
+Operational-hardening release (2026-08-24): the execution chain is now
+schema-gated end to end — frozen Goal → worker context → execution
+packages → dispatch verification; monitoring is hardened (watchdog
+liveness, supervisor inbox, pass-level per-run isolation, automatic
+retry-policy consultation with persisted aftermath); and the
+planning/reporting path gained integrity fixes (research provenance,
+freeze-time goal/requirement/dependency validation, recomputed report
+mapping status). See [`CHANGELOG.md`](../CHANGELOG.md).
+
 ## Repository layout
 
 The repository root **is** the installable skill package (see
