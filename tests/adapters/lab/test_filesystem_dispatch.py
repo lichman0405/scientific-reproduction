@@ -10,6 +10,8 @@ no test touches any path outside it, and the tests prove that dispatch
 * is exactly-once (a second dispatch of the same package is refused and
   the original handoff is never overwritten),
 * refuses unsafe Run ids and artifact names before any write,
+* verifies the package's Goal reference against the registered frozen
+  goal with the workspace root injected (issue #159),
 * is deterministic (identical inputs -> identical outputs),
 * records the dispatch (returns the frozen DispatchRecord), and
 * with the workspace root injected, renders the human-readable
@@ -30,6 +32,10 @@ from scientific_reproduction.adapters.lab.base import (
     DispatchRecord,
     DuplicateDispatchError,
     LabAdapterDataError,
+    LabAdapterError,
+    PackageGoalNotFoundError,
+    PackageGoalNotFrozenError,
+    PackageGoalVersionMismatchError,
 )
 from scientific_reproduction.adapters.lab.filesystem import (
     DISPATCH_RECORD_FILENAME,
@@ -48,6 +54,7 @@ from scientific_reproduction.core.models import (
 from scientific_reproduction.core.schema_validation import SchemaValidationError
 from scientific_reproduction.planning.init import (
     INITIAL_PLAN_VERSION,
+    ProjectNotInitializedError,
     initialize_project,
 )
 from scientific_reproduction.planning.plan import register_goal
@@ -56,7 +63,6 @@ from scientific_reproduction.reporting.sheet_pdf import (
     JSON_FILENAME_TPL,
     PDF_FILENAME_TPL,
 )
-from scientific_reproduction.reporting.sheets import SheetNotInitializedError
 from tests.adapters.lab.lab_helpers import (
     GOAL_ID,
     PACKAGE_ID,
@@ -301,9 +307,17 @@ def test_dispatch_ac01_manifest_is_canonical_deterministic_json(handoff):
 DISPATCHED_AT = "2026-08-14T00:00:00Z"
 
 
-def _init_workspace(root: Path) -> None:
+def _init_workspace(
+    root: Path, *, frozen: bool = True, version: str = "v1"
+) -> None:
     """Initialize a deterministic one-goal workspace at ``root`` through
-    the real registration APIs (fixed identity/timestamp, no wall clock)."""
+    the real registration APIs (fixed identity/timestamp, no wall clock).
+
+    The goal is registered frozen at ``version`` by default (issue #159:
+    dispatch verifies the package's Goal reference against the
+    registered frozen goal); ``frozen=False`` installs a draft for the
+    rejection tests.
+    """
     initialize_project(
         root,
         "10.1039/D5TA00771B",
@@ -325,8 +339,8 @@ def _init_workspace(root: Path) -> None:
             replication=GoalReplication(
                 independent_required=True, planned_n_policy="n=1 per condition"
             ),
-            version=INITIAL_PLAN_VERSION,
-            frozen=False,
+            version=version,
+            frozen=frozen,
         ),
     )
 
@@ -432,7 +446,7 @@ def test_dispatch_issue157_sheet_rendering_boundaries(tmp_path):
     # workspace_root is an injected path: wrong types are refused at the
     # public boundary, a deviating handoff layout is refused before
     # anything is written, and an uninitialized workspace refuses the
-    # sheet render loudly (the renderer's error surface).
+    # goal verification loudly (read_goal's error surface).
     root = tmp_path / "workspace"
     _init_workspace(root)
     adapter = FilesystemLabAdapter(root / "lab")
@@ -452,10 +466,107 @@ def test_dispatch_issue157_sheet_rendering_boundaries(tmp_path):
         )
     assert not (tmp_path / "other").exists()
 
-    # A workspace root without a project state record refuses the sheet
-    # render loudly (the handoff itself was written by then).
+    # A workspace root without a project state record refuses the goal
+    # verification loudly before anything is written (read_goal's
+    # ProjectNotInitializedError propagates; nothing is written, not
+    # even the handoff directory).
     bare = tmp_path / "bare"
-    with pytest.raises(SheetNotInitializedError):
+    with pytest.raises(ProjectNotInitializedError):
         FilesystemLabAdapter(bare / "lab").dispatch(
             make_package(), workspace_root=bare
         )
+    assert not (bare / "lab").exists()
+
+
+# ---------------------------------------------------------------------------
+# Issue #159: dispatch verifies the package's Goal reference
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_issue159_nonexistent_goal_refused_nothing_written(tmp_path):
+    # A package referencing a goal that is not registered in the
+    # workspace goal store is refused before anything is written -- not
+    # even the handoff directory.
+    root = tmp_path / "workspace"
+    _init_workspace(root)
+    adapter = FilesystemLabAdapter(root / "lab")
+    missing_goal_id = "sr_goal_not_registered_0001"
+    with pytest.raises(PackageGoalNotFoundError) as exc:
+        adapter.dispatch(
+            make_package(goal_id=missing_goal_id, goal_version="v1"),
+            workspace_root=root,
+        )
+    assert "not registered" in str(exc.value)
+    assert missing_goal_id in str(exc.value)
+    assert isinstance(exc.value, LabAdapterError)
+    # Nothing is written: the pre-created outgoing handoff stays empty.
+    assert not (root / "lab" / "outgoing" / RUN_ID).exists()
+    assert list((root / "lab" / "outgoing").iterdir()) == []
+
+
+def test_dispatch_issue159_draft_goal_refused_nothing_written(tmp_path):
+    # A package referencing a registered draft (unfrozen) goal is refused
+    # before anything is written; the frozen check precedes the version
+    # check, so the draft is refused even though the package carries a
+    # version.
+    root = tmp_path / "workspace"
+    _init_workspace(root, frozen=False, version=INITIAL_PLAN_VERSION)
+    adapter = FilesystemLabAdapter(root / "lab")
+    with pytest.raises(PackageGoalNotFrozenError) as exc:
+        adapter.dispatch(make_package(goal_version="v1"), workspace_root=root)
+    assert "not frozen" in str(exc.value)
+    assert GOAL_ID in str(exc.value)
+    # Nothing is written: the pre-created outgoing handoff stays empty.
+    assert not (root / "lab" / "outgoing" / RUN_ID).exists()
+    assert list((root / "lab" / "outgoing").iterdir()) == []
+
+
+def test_dispatch_issue159_version_mismatch_refused_nothing_written(tmp_path):
+    # A package whose goal_version does not match the frozen goal's
+    # formal version (a version that was never frozen) is refused before
+    # anything is written.
+    root = tmp_path / "workspace"
+    _init_workspace(root)  # the goal is frozen at v1
+    adapter = FilesystemLabAdapter(root / "lab")
+    with pytest.raises(PackageGoalVersionMismatchError) as exc:
+        adapter.dispatch(make_package(goal_version="v2"), workspace_root=root)
+    assert "'v2'" in str(exc.value)
+    assert "'v1'" in str(exc.value)
+    assert GOAL_ID in str(exc.value)
+    # Nothing is written: the pre-created outgoing handoff stays empty.
+    assert not (root / "lab" / "outgoing" / RUN_ID).exists()
+    assert list((root / "lab" / "outgoing").iterdir()) == []
+
+
+def test_dispatch_issue159_frozen_goal_matching_version_dispatches(tmp_path):
+    # The happy path is unchanged: a package referencing the frozen goal
+    # with the matching version dispatches exactly as before the
+    # verification existed -- the execution manifest and the dispatch
+    # record are written and the package is persisted unchanged.
+    root = tmp_path / "workspace"
+    _init_workspace(root)  # the goal is frozen at v1
+    adapter = FilesystemLabAdapter(root / "lab")
+    package = make_package(goal_version="v1")
+    record = adapter.dispatch(package, workspace_root=root)
+    outgoing_dir = root / "lab" / "outgoing" / RUN_ID
+    assert (outgoing_dir / EXECUTION_MANIFEST_FILENAME).is_file()
+    assert (outgoing_dir / DISPATCH_RECORD_FILENAME).is_file()
+    assert read_json(outgoing_dir / EXECUTION_MANIFEST_FILENAME) == package
+    assert record.run_id == RUN_ID
+    assert record.goal_id == GOAL_ID
+
+
+def test_dispatch_issue159_absent_goal_version_allowed_documented_rule(tmp_path):
+    # The explicit backward-compatibility rule: a package without
+    # goal_version (a manifest written before the field existed) is
+    # verified for goal existence and frozenness only and dispatches.
+    root = tmp_path / "workspace"
+    _init_workspace(root)  # the goal is frozen at v1
+    adapter = FilesystemLabAdapter(root / "lab")
+    package = make_package()
+    assert "goal_version" not in package
+    record = adapter.dispatch(package, workspace_root=root)
+    assert record.run_id == RUN_ID
+    outgoing_dir = root / "lab" / "outgoing" / RUN_ID
+    assert (outgoing_dir / EXECUTION_MANIFEST_FILENAME).is_file()
+    assert read_json(outgoing_dir / EXECUTION_MANIFEST_FILENAME) == package

@@ -117,6 +117,34 @@ class DuplicateDispatchError(LabAdapterError):
     """
 
 
+class PackageGoalNotFoundError(LabAdapterError):
+    """Raised when a dispatched package references an unregistered goal.
+
+    The package's ``goal_id`` is resolved against the workspace goal
+    store (``planning.plan.read_goal``); a package referencing a
+    nonexistent goal is refused before anything is written (issue #159).
+    """
+
+
+class PackageGoalNotFrozenError(LabAdapterError):
+    """Raised when a dispatched package references a draft goal.
+
+    Only the frozen Goal Contract can be dispatched; a draft (``frozen``
+    False) would make the handoff drift with the authoring state and is
+    refused before anything is written (issue #159).
+    """
+
+
+class PackageGoalVersionMismatchError(LabAdapterError):
+    """Raised when the package's goal_version mismatches the frozen goal.
+
+    A package carrying ``goal_version`` must reference the frozen
+    record's formal version exactly; a mismatched version (including a
+    version that was never frozen) is refused before anything is written
+    (issue #159).
+    """
+
+
 class DispatchNotFoundError(LabAdapterError):
     """Raised when status/collect/request refer to an unknown dispatch_id."""
 
