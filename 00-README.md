@@ -108,8 +108,9 @@ For implementers, the product specification:
 
 ## What this package does NOT contain
 
-The v0.1 runtime is a **skeleton**: it implements the deterministic state,
-schema, planning-init, and audit primitives, while the scientific execution
-flow (research → plan → execute → analyze → report) is orchestrated by the
+The runtime remains a **skeleton** relative to the locked specifications: it
+implements the deterministic state, schema, planning, execution-package,
+monitoring, and audit primitives, while the scientific execution flow
+(research → plan → execute → analyze → report) is orchestrated by the
 agent roles according to the locked specifications. The complete scientific
 runtime is implemented incrementally per `19-VERSION-ROADMAP.md`.

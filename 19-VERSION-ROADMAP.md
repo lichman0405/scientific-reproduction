@@ -18,12 +18,15 @@
 
 Potential additions:
 
-- stronger watchdog/service install scripts;
+- ✓ stronger watchdog/service install scripts — watchdog liveness verdict
+  shipped in v0.2.3; service install scripts still open;
 - richer artifact synchronization;
-- more robust resume/reconciliation logic;
+- ✓ more robust resume/reconciliation logic — per-run error isolation,
+  retry-policy consultation and persisted retry aftermath (v0.2.3);
 - richer interactive `/goals` views;
 - additional materials characterization protocols;
-- provenance dashboard export;
+- ✓ provenance dashboard export — research-process provenance section in
+  the final report (v0.2.3);
 - first real field-validation feedback from FDM-201 or another MOF paper.
 
 ## v0.3 — Communication and lab integration

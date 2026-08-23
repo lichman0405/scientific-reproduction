@@ -4,6 +4,196 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-24
+
+Operational-hardening release: 33 pull requests resolving issues
+#133–#164 (including #136 part 3) — the execution chain is now
+schema-gated end to end (typed Goal procedure, runtime-generated lab
+and compute execution packages, worker-context ↔ execution-package
+binding, dispatch verification against the frozen Goal), monitoring is
+hardened (watchdog liveness, supervisor inbox, automatic retry-policy
+consultation with persisted aftermath, per-run isolation and
+concurrency control), and the planning/reporting path gains integrity
+checks from research provenance to freeze-time
+goal/requirement/dependency validation.
+
+### Added
+
+- **First-class acquisition status on source records** (issue #134) —
+  `SourceRecord` now carries an `AcquisitionStatus` (`REGISTERED`,
+  `OBTAINED`, `PARTIAL`, `UNAVAILABLE` — harmonized with the FDM-201
+  benchmark) plus a stable `UnavailabilityReason` vocabulary; the
+  registration event carries the fields, `list_sources` exposes them,
+  and defaults keep legacy records unchanged.
+- **Research-process narrative section in the final report** (issue
+  #135) — the reproduction report gains a research-process section
+  rendered from recorded research state only (bootstrap workflow,
+  per-source acquisition statuses, request transitions, decision
+  timeline) with an explicit empty-state line, in both the EN and ZH
+  language packs.
+- **First-class value-verification fidelity on inventory items** (issue
+  #139) — inventory items carry a `ValueStatus` (`VERIFIED`,
+  `REPORTED_NON_FINAL`, `UNKNOWN`) orthogonal to mapping status, with
+  `missing_reason`/`resolves_in` detail; the FDM-201 reload preserves
+  per-item fidelity and legacy serializations stay valid.
+- **Human-readable experiment sheet in the dispatch handoff** (issue
+  #157) — dispatching a lab package now renders the deterministic
+  human-readable experiment sheet into the handoff directory (PDF +
+  SHA-256 sidecar + HTML), and the machine-auditable package (v1.2)
+  registers the new files.
+- **Lab Execution Package generator from the frozen Goal** (issue #158)
+  — a runtime generator derives the schema-gated `LabExecutionPackage`
+  from the frozen Goal's typed procedure and execution constraints
+  (issue #156), so every dispatch carries the frozen scientific content
+  instead of a hand-assembled package.
+- **Runtime compute execution package model, schema and gate** (issue
+  #161) — the computation side gets its own `ComputeExecutionPackage`
+  model and `compute-execution-package` schema (software/environment,
+  scientific parameters from the frozen Goal — force field, k-point
+  mesh, cutoffs, convergence criteria — input-file creation
+  instructions, declared outputs, resource requirements), a
+  deterministic generator symmetric with the lab generator, and a
+  schema gate on the adapter handoff, backing 11-COMPUTATION-SUBSYSTEM
+  §4 with a runtime artifact.
+- **Durable supervisor inbox for arrived Result Packages** (issue #163)
+  — a `SupervisorInbox` records durable entries for arrived Result
+  Packages (keyed by run id / completion event id) with deterministic
+  `list_inbox` and `mark_reviewed`; the reconcile completion path
+  writes the inbox, and the role contracts and `SKILL.md` point
+  supervisors at it.
+- **Per-goal revision lineage** (issue #164) — `revise_goal` revises
+  one goal and records its `parent_goal_id` lineage, and `revise_plan`
+  reopens only the changed goals — goals equal to the frozen version
+  stay frozen — with stable `GoalNotFound`/`GoalNotFrozen`/
+  `GoalStateMismatch` checks.
+
+### Fixed
+
+- **Cross-registry referential integrity at research registration**
+  (issue #133) — the file-backed facades now hard-reject records whose
+  references dangle: `register_evidence` validates `source_id` against
+  the source registry and `link_result_to_request` validates the linked
+  `evidence_id`, both before any write (zero footprint on rejection).
+- **Inventory provenance and linkage integrity at registration** (issue
+  #136) — registration validates `source_id` and `linked_inventory_ids`
+  before writing (parts 1–2, PR #175), and the freeze gate runs a
+  bidirectional goal↔requirement back-reference check — every
+  registered goal referenced by its requirements and every requirement
+  back-referenced by its goal, with a documented exemption for umbrella
+  audit/integration goals and the five divergent FDM-201 items repaired
+  (part 3, PR #197).
+- **Freeze gate inventory-reachability preconditions** (issue #137) —
+  freezing now requires the project phase to have reached
+  `REPRODUCTION_INVENTORY` (mainline rank) with at least one formally
+  reported item recomputed; off-mainline phases cannot freeze, and the
+  FDM-201 reload authors the phase so it still freezes.
+- **Report recomputes inventory mapping status** (issue #138) — the
+  report's scope section recomputes each item's mapping status through
+  `evaluate_item_mapping` (with ambiguity notes) instead of trusting
+  stored snapshots.
+- **Freeze rejects drafts divergent from the registry** (issue #140) —
+  both freshness-check branches validate the submitted plan's
+  `goal_ids`/`requirement_ids` against the registry (stable error
+  naming the divergent fields), and `revise_plan` re-derives the lists
+  from registered state, so a v2 freeze can no longer persist stale
+  lists next to a recomputed audit.
+- **Freeze rejects orphan goal family records** (issue #141) — a
+  registered goal with no requirement edge fails the freeze with a
+  stable error naming the orphan goal ids, complementing the #136
+  bidirectional check without ever folding orphans silently.
+- **Freeze resolves and cycle-checks goal dependencies** (issue #142) —
+  at freeze, unresolved `goal.dependencies` raise an
+  `UnresolvedContractReferenceError` naming the goal and id, and
+  hard-gate dependency cycles are detected by a DAG pass and rejected
+  (`HardGateDependencyCycleError` naming the cycle); soft/informational
+  edges stay execution-time.
+- **Dead `PlanStatus.UNDER_AUDIT` vocabulary removed** (issue #143) —
+  the never-produced status is gone from the enum, the schema, and
+  every docstring.
+- **Execution/acceptance gate engines wired to a runtime consumer**
+  (issue #144) — `register_run` is now a real state-reading consumer of
+  the gate engines: `BLOCKED` runs are refused and the matched rule id
+  is recorded on the run record, with the heal-path non-enforcement
+  deliberately documented.
+- **Run-record concurrency control** (issue #145) — the per-run
+  lease/lock machinery (`LeaseStore`/`FileLockStore`) is wired into
+  `transition_run`, `link_run_to_dispatch`, and the reconcile
+  completion write: a writer whose read is stale fails loudly instead
+  of overwriting, and idempotent re-link semantics are preserved.
+- **Lifecycle audit events on dispatch linkage** (issue #146) —
+  `link_run_to_dispatch` appends one deterministic lifecycle audit
+  event per arc (`run.lifecycle_change:<run_id>:<from>:<to>` ids)
+  through a workspace-bound event log, preserving crash-window
+  convergence.
+- **Result package `run_ref` resolved against the run registry** (issue
+  #147) — registering a result package resolves `run_ref` against the
+  run registry before writing (after artifact refs), reusing the
+  stable `UnresolvedWorkerResultReferenceError`.
+- **`register_run` resolves `goal_id`/`goal_version`** (issue #148) —
+  the run's goal reference is resolved pre-write with
+  `GoalNotFound`/`GoalNotFrozen`/`GoalVersionMismatch` checks, and all
+  `register_run` call sites were adapted.
+- **Retry dispatcher consults the frozen automatic retry policy**
+  (issue #149) — retry authorization is routed through the frozen
+  policy evaluator, with attempt-indexed decision keys enforcing
+  `max_identical_retries` and the policy's
+  `invalidate_run_on`/`supervisor_required_changes` applied; a missing
+  policy reference defaults to refusal.
+- **Retry aftermath persisted to run record and watch entry** (issue
+  #150) — after an authorized retry, the run record's
+  `engineering_retries` gains the retry entry (a history update, not
+  parameter mutation), the run and watch entry adopt the resubmitted
+  external identity under the #145 lease discipline, and the report
+  finally renders real retry counts.
+- **Adapter-state → monitor-vocabulary bridge** (issue #151) — a frozen
+  mapping table translates both adapter job-state vocabularies into
+  the monitor's completion vocabulary, with failed/cancelled states
+  never fabricating completion; the default probe routes through the
+  mapped wrapper, and a consistency test locks both enums.
+- **Pass-level per-run error isolation** (issue #152) — `reconcile_all`
+  isolates a failed run's error from the rest of the pass, and
+  `decide_all` classifies only `RUNNING_EXTERNAL` runs; `list_watched`
+  keeps its whole-set loud failure with documented rationale (the
+  watch set is project-level state).
+- **Watchdog liveness verdict** (issue #153) — a deterministic watchdog
+  primitive (injected clock and threshold) renders the liveness verdict
+  from heartbeat state files: missing heartbeat = `DEAD`, corrupt state
+  = loud error; `load_heartbeat` consumes it, and the execution-monitor
+  contract wording now matches the implementation.
+- **Watch-authoring helper resolves runs** (issue #154) — the new
+  `watch_run` authoring helper resolves the run and enforces the
+  lifecycle gate (`DISPATCHED`/`RUNNING_EXTERNAL`) before writing a
+  watch entry; the registry primitive stays a pure state-dir helper.
+- **Result Package completeness validator** (issue #155) — a
+  deterministic rule-table validator checks each declared output's
+  coverage in the returned manifest (id → name → unkeyable matching,
+  `matched_rule_id` recorded) and is consulted before the
+  `RESULT_AVAILABLE`→`ANALYZING` transition; a vacuous zero-output
+  pass mirrors the planning/audit pattern.
+- **Typed Goal contract procedure and execution constraints** (issue
+  #156) — `GoalProcedureStep` and `GoalExecutionConstraints` are typed
+  and schema-required at the persistence gate, with an
+  accept-and-migrate empty-object path for legacy records.
+- **Dispatch verifies packages against the frozen Goal** (issue #159) —
+  `dispatch` resolves the package's `goal_id` against the goal registry
+  before writing anything: nonexistent, unfrozen, or version-mismatched
+  goals are rejected with stable typed errors and nothing is written.
+- **Worker context bound to its execution package** (issue #160) —
+  `execution_package_refs` is a first-class worker-context schema
+  property (referenced packages must exist), `generate_goal_context`
+  emits the link, and `context_hash` now fingerprints the linked
+  protocol, so tampering with the procedure changes the hash.
+- **Benchmark validator scope documented truthfully** (issue #162) —
+  the execution-package AC-01/02/03 validator is explicitly scoped
+  benchmark-only, with the runtime primitives that supersede it
+  (dispatch verification #159, package generators #158/#161, context
+  binding #160) documented — no silent gaps, no overstated claims.
+
+### Verification
+
+- Full test suite, ruff lint, and mypy type check via `python scripts/verify.py`.
+- Skill smoke verification via `python scripts/smoke.py`.
+
 ## [0.2.2] - 2026-08-16
 
 Issue-resolution release: seven more issues resolved — the pre-flight

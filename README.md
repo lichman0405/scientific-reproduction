@@ -12,16 +12,16 @@ and non-negotiable architecture decisions.
 ## Get the skill
 
 Download the release archive from
-[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.2),
+[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.3),
 or clone the release branch:
 
 ```bash
 git clone --branch release/skill-v0.2.0 https://github.com/lichman0405/scientific-reproduction.git
 ```
 
-> Note: the default branch `main` carries the v0.1.0 development record and
-> is **not** the skill distribution — always use the release branch or the
-> release archive.
+> Note: the GitHub default branch is the release branch
+> (`release/skill-v0.2.0`) itself — there is no separate `main` branch.
+> Always use the release archive or the release branch.
 
 ## Install as a skill
 
