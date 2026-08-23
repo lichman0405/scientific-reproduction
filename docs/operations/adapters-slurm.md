@@ -139,10 +139,13 @@ read, so a corrupt or foreign record fails loudly instead of being trusted.
 Every durable record carries `failure_class` — `"transport"` (connection
 level: unreachable host, authentication failure, dropped connection) or
 `"job"` (the remote job itself failed) or `None`. This is the boundary the
-Execution Monitor's retry whitelist relies on
-(`monitoring/retry.py`, `ENGINEERING_RETRY_WHITELIST = {"transport"}`): only
-transport failures are identical-resubmitted; a `"job"` class is observed
-and never resubmitted (safe by construction).
+Execution Monitor's retry dispatcher bridges to the Goal's frozen automatic
+retry policy (`monitoring/retry.py`,
+`FAILURE_CLASS_TO_FAILURE_KIND = {"transport": "ssh_connection_lost"}`):
+whether a failure kind is identical-resubmitted is the policy's
+`allowed_engineering_failures` contract, not a hard-coded class list; a
+`"job"` class is observed and never resubmitted unless the policy
+authorizes it (safe by construction).
 
 ## 7. Limitations (v0.1, documented and tested)
 
