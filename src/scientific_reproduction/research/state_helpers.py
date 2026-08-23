@@ -229,11 +229,22 @@ class DuplicateSourceError(SourceRegistryError):
 
 
 class SourceNotFoundError(SourceRegistryError):
-    """Raised when reading a source that is not registered."""
+    """Raised when a referenced source is not registered.
+
+    Raised by reads (``read_source``) and by ``register_evidence`` when
+    a record's ``source_id`` does not resolve in the durable source
+    registry (cross-registry referential integrity).
+    """
 
 
 class EvidenceNotFoundError(EvidenceRegistryError):
-    """Raised when reading an evidence record that is not registered."""
+    """Raised when a referenced evidence record is not registered.
+
+    Raised by reads (``read_evidence``) and by
+    ``link_result_to_request`` when the linked ``evidence_id`` does not
+    resolve in the durable evidence registry (cross-registry
+    referential integrity).
+    """
 
 
 class RequestNotFoundError(ResearchRequestError):
@@ -466,7 +477,12 @@ def register_evidence(
     (:func:`research.evidence.validate_evidence_record` -- the same
     checks the in-memory ``EvidenceRegistry`` applies: non-empty
     ids/claim/finding, A/R/D axes within the 0-4 rubric, non-empty
-    ``reliability_checklist_ref``, non-empty ``used_by`` entries),
+    ``reliability_checklist_ref``, non-empty ``used_by`` entries).
+    The record's ``source_id`` must resolve in the durable source
+    registry (``sources/<source_id>.json``): cross-registry
+    referential integrity -- evidence is never written against a
+    dangling source, and the check runs before any write or event
+    append, so a rejection leaves zero footprint. The record is then
     schema-validated and canonical-JSON persisted through the atomic
     state backend, and audited with one ``evidence.recorded`` event
     under the deterministic key ``evidence.recorded:<evidence_id>``.
@@ -500,6 +516,9 @@ def register_evidence(
             ``root``.
         EvidenceRegistrationError: the record violates the frozen
             evidence shape.
+        SourceNotFoundError: the record's ``source_id`` does not
+            resolve in the durable source registry (rejected before
+            anything is written).
         EvidenceDuplicateError: the ``evidence_id`` is already
             registered.
         ValueError: the stored state is corrupt, or the id is not a
@@ -513,6 +532,11 @@ def register_evidence(
     model = _coerce_evidence(evidence)
     validate_evidence_record(model)
     _require_actor_stamp(actor, recorded_at)
+    source_store = _source_store(project_root)
+    if not source_store.exists("source", model.source_id):
+        raise SourceNotFoundError(
+            f"no source registered with id {model.source_id!r} at {project_root}"
+        )
     store = _evidence_store(project_root)
     event_id = generate_id("event", EVIDENCE_RECORDED_EVENT_TYPE, model.evidence_id)
     if store.exists("evidence", model.evidence_id):
@@ -786,9 +810,13 @@ def link_result_to_request(
     Reads the **persisted** request and applies the normative linkage
     rule table of ``research.requests`` (R-LINK-S1: results may only be
     linked while the request is ``SEARCHING``; R-LINK-D1: an evidence id
-    may only be linked once). The linked record is persisted and one
-    ``research-request.result_linked`` event is appended under the
-    deterministic key ``...:<request_id>:<evidence_id>``; the event
+    may only be linked once). The linked ``evidence_id`` must resolve
+    in the durable evidence registry (``evidence/<evidence_id>.json``)
+    before the rule table runs: cross-registry referential integrity --
+    an unresolved reference raises ``EvidenceNotFoundError`` and links
+    nothing (no record write, no event). The linked record is persisted
+    and one ``research-request.result_linked`` event is appended under
+    the deterministic key ``...:<request_id>:<evidence_id>``; the event
     carries ``from`` = the request status at linkage time and ``to`` =
     the linked evidence id, so the audit trail of the link is
     reconstructible from the event alone.
@@ -822,6 +850,9 @@ def link_result_to_request(
         ProjectNotInitializedError: no ``project.yaml`` exists at
             ``root``.
         RequestNotFoundError: no request with that id is registered.
+        EvidenceNotFoundError: the linked ``evidence_id`` does not
+            resolve in the durable evidence registry (rejected before
+            the linkage rule table runs).
         RequestLinkageError: the linkage rule table rejected the link
             (stable message naming the rejecting rule).
         ValueError: the stored state is corrupt, or the id is not a
@@ -843,6 +874,11 @@ def link_result_to_request(
     event_log = _resolve_event_log(project_root, event_log)
     store = _request_store(project_root)
     current = _read_request(store, project_root, request_id)
+    evidence_store = _evidence_store(project_root)
+    if not evidence_store.exists("evidence", evidence_id):
+        raise EvidenceNotFoundError(
+            f"no evidence registered with id {evidence_id!r} at {project_root}"
+        )
     if evidence_id in current.result_evidence_ids:
         # The deterministic re-append resolves the original event
         # (``replayed=True``); the link's audit record is reconstructed

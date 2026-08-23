@@ -15,12 +15,16 @@ the issue's observed hand-rolled layer:
 * evidence writes -- ``test_register_evidence_*``: records at
   ``evidence/<id>.json`` validated against the frozen evidence
   shape (the same checks the in-memory ``EvidenceRegistry`` applies),
-  exactly-once;
+  cross-registry referential integrity (a ``source_id`` that does not
+  resolve in the source registry is rejected before anything is
+  written), exactly-once;
 * request lifecycle -- ``test_register_request_*`` /
   ``test_advance_request_*`` / ``test_link_result_*``: persistence of
   the issued (OPEN) request, lifecycle moves through the normative rule
   table (no-op transitions rejected), result linkage through the
-  linkage rule table, and one deterministic event per operation;
+  linkage rule table with the linked ``evidence_id`` required to
+  resolve in the evidence registry first (cross-registry referential
+  integrity), and one deterministic event per operation;
 * event appends -- every operation audits through the real
   ``ProjectEventLog`` under deterministic idempotency keys; a call
   without an explicit ``event_log`` audits through the workspace-bound
@@ -354,6 +358,7 @@ def test_register_source_crash_window_converges_exactly_once(tmp_path):
 
 def test_register_evidence_persists_and_audits(tmp_path):
     root = init_project(tmp_path)
+    register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
     registration = register_evidence(
         root,
         make_evidence(),
@@ -408,6 +413,7 @@ def test_register_evidence_rejects_invalid_records(tmp_path):
 
 def test_register_evidence_duplicate_and_convergence(tmp_path):
     root = init_project(tmp_path)
+    register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
     log = event_log(root)
     register_evidence(
         root,
@@ -427,6 +433,9 @@ def test_register_evidence_duplicate_and_convergence(tmp_path):
     # Crash-window convergence on a fresh project: record present, event
     # absent -> the missing event is appended, replayed.
     other_root = init_project(tmp_path / "other")
+    register_source(
+        other_root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT
+    )
     (other_root / EVIDENCE_STATE_DIR / "EVID-1.json").parent.mkdir(
         parents=True, exist_ok=True
     )
@@ -442,7 +451,32 @@ def test_register_evidence_duplicate_and_convergence(tmp_path):
         event_log=event_log(other_root),
     )
     assert replayed.replayed is True
-    assert len(flow_events(other_root)) == 1
+    # The healed log holds exactly the source and evidence recorded
+    # events (the converged re-run appended the single missing event).
+    assert [r.event.event_type for r in flow_events(other_root)] == [
+        SOURCE_RECORDED_EVENT_TYPE,
+        EVIDENCE_RECORDED_EVENT_TYPE,
+    ]
+
+
+def test_register_evidence_rejects_unknown_source(tmp_path):
+    root = init_project(tmp_path)
+    # Cross-registry referential integrity: the source reference must
+    # resolve before anything is written, with a stable error naming
+    # the offending id.
+    with pytest.raises(
+        SourceNotFoundError, match="no source registered with id 'SRC-9'"
+    ):
+        register_evidence(
+            root,
+            make_evidence(source_id="SRC-9"),
+            actor=ACTOR,
+            recorded_at=RECORDED_AT,
+        )
+    # Rejection leaves zero footprint: no evidence record, no event.
+    assert list_evidence(root) == ()
+    assert not (root / EVIDENCE_STATE_DIR / "EVID-1.json").exists()
+    assert flow_events(root) == []
 
 
 # ---------------------------------------------------------------------------
@@ -673,6 +707,7 @@ def test_link_result_to_request_while_searching(tmp_path):
     register_research_request(
         root, make_request(), actor="supervisor", recorded_at=RECORDED_AT
     )
+    register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
     register_evidence(root, make_evidence(), actor=ACTOR, recorded_at=RECORDED_AT)
     log = event_log(root)
     advance_research_request(
@@ -702,6 +737,10 @@ def test_link_result_rejects_when_not_searching(tmp_path):
     register_research_request(
         root, make_request(), actor="supervisor", recorded_at=RECORDED_AT
     )
+    # The referenced evidence resolves (the referential-integrity check
+    # passes); the rule table still rejects the link outside SEARCHING.
+    register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
+    register_evidence(root, make_evidence(), actor=ACTOR, recorded_at=RECORDED_AT)
     with pytest.raises(RequestLinkageError, match="R-LINK-S1"):
         link_result_to_request(
             root, "REQ-1", "EVID-1",
@@ -709,11 +748,47 @@ def test_link_result_rejects_when_not_searching(tmp_path):
         )
 
 
+def test_link_result_rejects_unknown_evidence(tmp_path):
+    root = init_project(tmp_path)
+    register_research_request(
+        root, make_request(), actor="supervisor", recorded_at=RECORDED_AT
+    )
+    log = event_log(root)
+    advance_research_request(
+        root, "REQ-1", ResearchRequestStatus.SEARCHING,
+        actor=ACTOR, reason="search started", at="2026-01-03T00:00:00Z",
+        event_log=log,
+    )
+    # Cross-registry referential integrity: the evidence reference must
+    # resolve before the linkage rule table runs, with a stable error
+    # naming the offending id.
+    with pytest.raises(
+        EvidenceNotFoundError, match="no evidence registered with id 'EVID-9'"
+    ):
+        link_result_to_request(
+            root, "REQ-1", "EVID-9",
+            linked_by=ACTOR, linked_at=RECORDED_AT,
+            event_log=log,
+        )
+    # Nothing linked, no linkage transition recorded: the request stays
+    # in its pre-link state and the log holds only the recorded and
+    # transition events.
+    request = read_research_request(root, "REQ-1")
+    assert request.status is ResearchRequestStatus.SEARCHING
+    assert request.result_evidence_ids == []
+    assert [r.event.event_type for r in flow_events(root)] == [
+        RESEARCH_REQUEST_RECORDED_EVENT_TYPE,
+        RESEARCH_REQUEST_TRANSITION_EVENT_TYPE,
+    ]
+
+
 def test_link_result_duplicate_replays_with_log_and_rejects_without(tmp_path):
     root = init_project(tmp_path)
     register_research_request(
         root, make_request(), actor="supervisor", recorded_at=RECORDED_AT
     )
+    register_source(root, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
+    register_evidence(root, make_evidence(), actor=ACTOR, recorded_at=RECORDED_AT)
     log = event_log(root)
     advance_research_request(
         root, "REQ-1", ResearchRequestStatus.SEARCHING,
@@ -742,6 +817,7 @@ def test_link_result_duplicate_replays_with_log_and_rejects_without(tmp_path):
     register_research_request(
         other, make_request(), actor="supervisor", recorded_at=RECORDED_AT
     )
+    register_source(other, make_source(), actor=ACTOR, recorded_at=RECORDED_AT)
     register_evidence(other, make_evidence(), actor=ACTOR, recorded_at=RECORDED_AT)
     advance_research_request(
         other, "REQ-1", ResearchRequestStatus.SEARCHING,

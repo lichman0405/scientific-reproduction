@@ -51,12 +51,17 @@ Normative readings
   never dropped (AC-03). The frozen model has no separate
   ``used_by_goal_ids``/``used_by_requirement_ids`` fields, so the registry
   does not invent them.
-* **Referential integrity**: at this milestone the registry is
-  intentionally unvalidated against source/claim/goal registries (none
-  exist in scope): ids are opaque strings and no cross-registry checks are
-  performed. Registration validates the record shape against the frozen
-  schema's constraints (types, required fields, 0-4 axis range, checklist
-  reference, string used-by entries) with stable errors.
+* **Referential integrity**: this in-memory registry is intentionally
+  unvalidated against the source/claim/goal registries as a pure layer
+  (no registry access, so no cross-registry checks can exist here): ids
+  are opaque strings. Cross-registry referential integrity is enforced
+  by the file-backed authoring facade (``research/state_helpers.py``):
+  the facade rejects evidence whose ``source_id`` does not resolve in
+  the durable source registry and result links whose ``evidence_id``
+  does not resolve in the durable evidence registry, before anything
+  is written. Registration here validates the record shape against the
+  frozen schema's constraints (types, required fields, 0-4 axis range,
+  checklist reference, string used-by entries) with stable errors.
 
 Design
 ------
