@@ -34,6 +34,15 @@ written. The pure audit API keeps its vacuous-PASS acceptance on an
 empty inventory: the non-empty precondition belongs to the freeze gate,
 not to the audit rule table (``planning/audit.py`` is unchanged).
 
+Since issue #140 the freeze also validates the submitted plan's
+``goal_ids`` / ``requirement_ids`` against the registry in **both**
+freshness branches: a registered draft's content is immutable
+(``register_plan`` has no update API), so lists diverging from the
+registry-derived content (the deterministic ``build_plan_v1``
+derivation) are rejected with ``PlanStateMismatchError`` naming the
+divergent fields -- a frozen plan can never persist lists that diverge
+from the state its audit was recomputed from.
+
 AC-02 -- frozen contracts
 -------------------------
 On success, ``freeze_plan`` produces the frozen ``Plan``
@@ -64,9 +73,15 @@ AC-03 -- versioned revision
 ``revise_plan`` creates the next plan version from a **registered,
 frozen** plan: the new draft carries the incremented version
 (``v1`` -> ``v2-draft``), ``parent_plan_version`` = the frozen version,
-the frozen plan's content (goal_ids, requirement_ids, work_packages,
-resource_ids) and a freshly recomputed ``inventory_audit``. The old
-record is **never touched**: the stored file stays byte-identical and
+and a freshly recomputed ``inventory_audit``. Since issue #140 the plan
+content is refreshed, not copied verbatim: ``goal_ids`` /
+``requirement_ids`` are re-derived from the current registered state
+(the deterministic ``build_plan_v1`` derivation -- the registry may have
+grown since the frozen version was authored, and a v2 freeze must not
+persist stale lists next to an audit recomputed from the grown state),
+while the authored ``work_packages`` / ``resource_ids`` keep the frozen
+plan's values as the revision baseline. The old record is **never
+touched**: the stored file stays byte-identical and
 ``planning.plan.plan_lineage`` reports the old version as ``SUPERSEDED``
 (via the versioned ``SUPERSEDED_RULES`` rule table) without any in-place
 mutation -- supersession is a computed lineage status.
@@ -176,7 +191,12 @@ class PlanStateMismatchError(FreezeError, ValueError):
 
     Guards against stale plan objects: the plan must be the registered
     draft at its version (or the deterministic build of the current
-    registered state when no draft is registered yet).
+    registered state when no draft is registered yet). Since issue #140
+    the guard also validates the plan content in **both** branches:
+    ``goal_ids`` / ``requirement_ids`` must equal the registry-derived
+    content (the deterministic ``build_plan_v1`` derivation) -- a
+    registered draft's content is immutable, so divergent lists are
+    rejected with a message naming the divergent fields.
     """
 
 
@@ -262,7 +282,13 @@ def freeze_plan(
     (``PlanStateMismatchError`` otherwise): the registered draft at its
     version, or -- when no draft is registered yet -- the deterministic
     ``build_plan_v1`` of the current registered state (the draft is then
-    written by the freeze). The formal version must not be frozen yet
+    written by the freeze). In both cases the submitted plan's
+    ``goal_ids`` / ``requirement_ids`` must equal the registry-derived
+    content (the deterministic ``build_plan_v1`` derivation -- issue
+    #140): a registered draft's content is immutable (``register_plan``
+    has no update API), so a draft whose lists diverged from the
+    registered requirements is rejected, naming the divergent fields.
+    The formal version must not be frozen yet
     (``PlanAlreadyFrozenError``); every goal referenced by the plan must
     be registered and every registered goal's acceptance/analysis/closure
     references -- and every acceptance's ``statistical_design_ref``
@@ -305,7 +331,9 @@ def freeze_plan(
         InvalidPlanVersionError: ``plan.version`` is not a draft version
             (``v<N>-draft``).
         PlanStateMismatchError: ``plan`` is not the registered state's
-            draft plan.
+            draft plan, or its ``goal_ids`` / ``requirement_ids`` diverge
+            from the registry-derived content (the message names the
+            divergent fields).
         PlanAlreadyFrozenError: the formal version is already frozen.
         FreezeProhibitedError: a freeze precondition fails (AC-01) --
             the registered project phase has not reached
@@ -332,6 +360,25 @@ def freeze_plan(
     if not is_draft_version(plan.version):
         raise _freeze_expected_draft_version(plan.version)
 
+    # Freshness (issue #140): the plan's goal_ids / requirement_ids must
+    # match the registry in BOTH branches -- a registered draft's content
+    # is immutable (register_plan has no update API), so a draft whose
+    # lists diverged from the registered requirements must never freeze
+    # next to an audit recomputed from the diverged state. The expected
+    # content is the deterministic derivation of build_plan_v1.
+    expected = build_plan_v1(project_root)
+    divergent: list[str] = []
+    if plan.goal_ids != expected.goal_ids:
+        divergent.append("goal_ids")
+    if plan.requirement_ids != expected.requirement_ids:
+        divergent.append("requirement_ids")
+    if divergent:
+        raise PlanStateMismatchError(
+            f"plan {plan.version!r} diverges from the registered state in"
+            f" {', '.join(divergent)}; re-derive the plan content with"
+            " build_plan_v1(root)"
+        )
+
     # Freshness: the plan must be the registered draft at its version, or
     # (when none is registered yet) the deterministic build of the
     # current registered state. Either way it must match the state the
@@ -343,7 +390,7 @@ def freeze_plan(
                 f"plan {plan.version!r} is not the registered draft of the"
                 " workspace; re-build it from the current registered state"
             )
-    elif plan != build_plan_v1(project_root):
+    elif plan != expected:
         raise PlanStateMismatchError(
             f"plan {plan.version!r} does not match the deterministic build"
             " of the current registered state; re-build it with"
@@ -428,8 +475,13 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
 
     * creates the next draft version (``v1`` -> ``v2-draft``) with
       ``parent_plan_version`` set to the frozen version;
-    * copies the frozen plan's content (goal_ids, requirement_ids,
-      work_packages, resource_ids) as the revision baseline;
+    * re-derives ``goal_ids`` / ``requirement_ids`` from the current
+      registered state (the deterministic ``build_plan_v1`` derivation,
+      issue #140): the registry may have grown since the frozen version
+      was authored, and a v2 freeze must not persist stale lists next to
+      an audit recomputed from the grown state; the authored
+      ``work_packages`` / ``resource_ids`` are copied from the frozen
+      plan as the revision baseline;
     * recomputes ``inventory_audit`` from the registered state at revise
       time;
     * re-opens the registered goal-contract family as drafts of the next
@@ -498,13 +550,22 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
         )
 
     audit = audit_inventory_registry(project_root)
+    # Issue #140: the plan content is re-derived from the current
+    # registered state (the deterministic derivation of build_plan_v1),
+    # not copied from the frozen plan -- the registry may have grown
+    # since the frozen version was authored, and copying the frozen
+    # lists would persist stale content that the next freeze rejects
+    # (or worse, freezes next to an audit recomputed from the grown
+    # state). The authored work_packages / resource_ids keep the frozen
+    # plan's values as the revision baseline.
+    content = build_plan_v1(project_root)
     new_draft = Plan(
         plan_id=plan.plan_id,
         version=next_draft,
         status=PlanStatus.DRAFT,
         inventory_audit=audit.plan_inventory_audit(),
-        goal_ids=list(plan.goal_ids),
-        requirement_ids=list(plan.requirement_ids),
+        goal_ids=list(content.goal_ids),
+        requirement_ids=list(content.requirement_ids),
         parent_plan_version=plan.version,
         work_packages=[dict(wp) for wp in plan.work_packages],
         resource_ids=list(plan.resource_ids),
