@@ -958,6 +958,13 @@ class GoalExecutionContextPackage(CoreModel):
     upstream_result_refs: list[str] = field(default_factory=list)
     protocol_refs: list[str] = field(default_factory=list)
     resource_refs: list[str] = field(default_factory=list)
+    #: The stored execution packages the worker executes (issue #160):
+    #: the ``LabExecutionPackage`` / ``ComputeExecutionPackage`` record
+    #: ids. A first-class schema property (no longer an
+    #: ``additionalProperties`` pass-through); the context generator
+    #: resolves every entry against the workspace execution-package
+    #: state dirs and refuses unknown ids.
+    execution_package_refs: list[str] = field(default_factory=list)
     environment: dict[str, Any] = field(default_factory=dict)
     required_outputs: list[str] = field(default_factory=list)
     context_hash: str | None = None

@@ -293,6 +293,17 @@ def validate_schema(package: dict, kind: str) -> list[str]:
             value = package.get(key)
             if value is not None and not all(isinstance(item, str) for item in value):
                 failures.append(f"{key} must be a list of strings")
+        # Issue #160: the worker context links its execution package via
+        # execution_package_refs -- a first-class schema property. Every
+        # worker-context package must carry a non-empty list; each entry
+        # resolves via AC-02 against the declared package ids.
+        execution_refs = package.get("execution_package_refs")
+        if (
+            not isinstance(execution_refs, list)
+            or not execution_refs
+            or not all(isinstance(item, str) for item in execution_refs)
+        ):
+            failures.append("execution_package_refs must be a non-empty list of strings")
         environment = package.get("environment")
         if environment is not None and not isinstance(environment, dict):
             failures.append("environment must be an object")

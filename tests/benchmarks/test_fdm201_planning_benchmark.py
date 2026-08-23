@@ -693,3 +693,25 @@ def test_fdm201_packages_core_schemas_validate():
             data = yaml.safe_load(package.read_text(encoding="utf-8"))
             errors = validate_object(obj_type, data)
             assert errors == [], f"{package.name}: {errors}"
+
+
+def test_fdm201_worker_context_packages_link_their_execution_package():
+    # Issue #160: every worker-context package carries the schema's
+    # execution_package_refs property, and every entry resolves to a
+    # declared execution package of the same goal -- the link the
+    # benchmark README documents and the runtime context generator emits.
+    package_goals: dict[str, str] = {}
+    for kind in ("experiment", "computation"):
+        for path in sorted((PACKAGES_ROOT / kind).glob("*.yaml")):
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            package_goals[str(data["package_id"])] = str(data["goal_id"])
+    for path in sorted((PACKAGES_ROOT / "worker-context").glob("*.yaml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        refs = data.get("execution_package_refs")
+        assert isinstance(refs, list) and refs, f"{path.name}: missing link"
+        for ref in refs:
+            assert ref in package_goals, f"{path.name}: unresolved ref {ref!r}"
+            assert package_goals[ref] == data["goal_id"], (
+                f"{path.name}: {ref!r} links goal {package_goals[ref]!r},"
+                f" not {data['goal_id']!r}"
+            )
