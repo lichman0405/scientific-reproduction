@@ -9,7 +9,10 @@ maps to the issue's observed hand-rolled layer:
 
 * run writes -- ``test_register_run_*``: canonical-JSON records at
   ``runs/<id>.json`` (the exact directory the audit package reads),
-  exactly-once with crash-window convergence;
+  exactly-once with crash-window convergence; the goal resolution gate
+  (issue #148): an unknown, draft, or version-mismatched goal rejects
+  the registration with a stable error and persists nothing, while a
+  matching frozen goal registers unchanged;
 * run transitions -- ``test_transition_run_*``: the full mainline chain
   plus the ``CANCELLED`` / ``INVALIDATED`` arcs, each move persisted
   (``lifecycle_state`` advanced, ``updated_at`` stamped with the
@@ -36,19 +39,34 @@ import pytest
 
 from scientific_reproduction.audit.git import AuditIdentity
 from scientific_reproduction.core.events import EventRecord, ProjectEventLog
-from scientific_reproduction.core.models import LifecycleState, Run, RunType
+from scientific_reproduction.core.models import (
+    GoalAcceptance,
+    GoalContract,
+    GoalReplication,
+    GoalTrack,
+    LifecycleState,
+    Run,
+    RunType,
+)
 from scientific_reproduction.core.rules.lifecycle import IllegalTransitionError
 from scientific_reproduction.planning.init import (
     INIT_EVENT_TYPE,
     ProjectNotInitializedError,
     initialize_project,
 )
+from scientific_reproduction.planning.plan import (
+    GoalNotFoundError,
+    read_goal,
+    register_goal,
+)
+from scientific_reproduction.workers.context import GoalNotFrozenError
 from scientific_reproduction.workers.run_helpers import (
     RUN_LIFECYCLE_CHANGE_EVENT_TYPE,
     RUN_PREDECESSOR_STATE,
     RUN_RECORDED_EVENT_TYPE,
     RUNS_STATE_DIR,
     DuplicateRunError,
+    GoalVersionMismatchError,
     RunNotFoundError,
     RunRegistryError,
     list_runs,
@@ -74,10 +92,17 @@ DOI = "10.1039/D5TA00771B"
 ACTOR = "worker"
 RECORDED_AT = "2026-01-02T00:00:00Z"
 
+#: The frozen goal contract runs reference (registered by
+#: ``init_project``; issue #148 resolution gate).
+GOAL_ID = "GOAL-1"
+GOAL_VERSION = "v1"
+
 
 def init_project(root: Path) -> Path:
-    """Initialize a deterministic one-paper project at ``root``; return it."""
+    """Initialize a deterministic one-paper project at ``root`` and
+    register the frozen goal contract runs reference; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    register_goal(root, make_goal())
     return root
 
 
@@ -97,18 +122,45 @@ def run_flow_events(root: Path) -> list[EventRecord]:
     ]
 
 
+def make_goal(
+    goal_id: str = GOAL_ID,
+    *,
+    version: str = GOAL_VERSION,
+    frozen: bool = True,
+) -> GoalContract:
+    """Build a schema-valid goal contract (frozen at the formal version)."""
+    return GoalContract(
+        goal_id=goal_id,
+        title=f"Reproduce the reported isotherm ({goal_id}).",
+        unit_process_type="gas_adsorption_isotherm",
+        track=GoalTrack.STRICT_REPRODUCTION,
+        objective="Reproduce the formally reported isotherm dataset.",
+        requirement_ids=["REQ-1"],
+        dependencies=[],
+        acceptance=GoalAcceptance(criteria_ref="ACC-1", frozen=frozen),
+        analysis_protocol_ref="ANP-1",
+        replication=GoalReplication(
+            independent_required=False, planned_n_policy="single"
+        ),
+        version=version,
+        frozen=frozen,
+    )
+
+
 def make_run(
     run_id: str = "RUN-1",
     *,
     lifecycle_state: LifecycleState = LifecycleState.CREATED,
+    goal_id: str = GOAL_ID,
+    goal_version: str = GOAL_VERSION,
 ) -> Run:
     """Build a schema-valid run record with compact defaults."""
     return Run(
         run_id=run_id,
-        goal_id="GOAL-1",
+        goal_id=goal_id,
         run_type=RunType.INDEPENDENT_REPLICATE,
         lifecycle_state=lifecycle_state,
-        goal_version="v1",
+        goal_version=goal_version,
         created_at=TIMESTAMP.isoformat(),
     )
 
@@ -256,6 +308,84 @@ def test_explicit_event_log_overrides_workspace_default(tmp_path):
 def test_register_run_requires_initialized_project(tmp_path):
     with pytest.raises(ProjectNotInitializedError):
         register_run(tmp_path, make_run(), actor=ACTOR, recorded_at=RECORDED_AT)
+
+
+# ---------------------------------------------------------------------------
+# Goal resolution (issue #148: the run's goal reference resolves at
+# registration like every other registry's primary foreign key)
+# ---------------------------------------------------------------------------
+
+
+def test_register_run_unregistered_goal_rejected_nothing_persisted(tmp_path):
+    root = init_project(tmp_path)
+    with pytest.raises(GoalNotFoundError) as exc:
+        register_run(
+            root,
+            make_run(goal_id="GOAL-GHOST"),
+            actor=ACTOR,
+            recorded_at=RECORDED_AT,
+        )
+    assert "GOAL-GHOST" in str(exc.value)
+    # Nothing was written: no run record, no run.recorded event.
+    assert list_runs(root) == ()
+    assert not (root / RUNS_STATE_DIR / "RUN-1.json").exists()
+    assert run_flow_events(root) == []
+
+
+def test_register_run_draft_goal_rejected_nothing_persisted(tmp_path):
+    root = init_project(tmp_path)
+    register_goal(
+        root, make_goal(goal_id="GOAL-DRAFT", version="v1-draft", frozen=False)
+    )
+    with pytest.raises(GoalNotFrozenError) as exc:
+        register_run(
+            root,
+            make_run(goal_id="GOAL-DRAFT", goal_version="v1-draft"),
+            actor=ACTOR,
+            recorded_at=RECORDED_AT,
+        )
+    message = str(exc.value)
+    assert "GOAL-DRAFT" in message
+    assert "frozen" in message
+    # Nothing was written: no run record, no run.recorded event.
+    assert list_runs(root) == ()
+    assert not (root / RUNS_STATE_DIR / "RUN-1.json").exists()
+    assert run_flow_events(root) == []
+
+
+def test_register_run_goal_version_mismatch_rejected_nothing_persisted(tmp_path):
+    root = init_project(tmp_path)
+    with pytest.raises(GoalVersionMismatchError) as exc:
+        register_run(
+            root,
+            make_run(goal_version="v2"),
+            actor=ACTOR,
+            recorded_at=RECORDED_AT,
+        )
+    message = str(exc.value)
+    assert GOAL_ID in message
+    assert "'v1'" in message  # the frozen contract's formal version
+    assert "'v2'" in message  # the run's goal_version
+    # Nothing was written: no run record, no run.recorded event.
+    assert list_runs(root) == ()
+    assert not (root / RUNS_STATE_DIR / "RUN-1.json").exists()
+    assert run_flow_events(root) == []
+
+
+def test_register_run_matching_frozen_goal_registers_unchanged(tmp_path):
+    root = init_project(tmp_path)
+    frozen = read_goal(root, GOAL_ID)
+    assert frozen.frozen is True
+    assert frozen.version == GOAL_VERSION
+    registration = register_run(
+        root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT
+    )
+    assert registration.run == make_run()
+    assert registration.replayed is False
+    record = registration.event_record
+    assert record is not None and record.event.event_type == RUN_RECORDED_EVENT_TYPE
+    assert read_run(root, "RUN-1") == make_run()
+    assert list_runs(root) == (make_run(),)
 
 
 def test_register_run_type_errors(tmp_path):

@@ -61,6 +61,10 @@ from scientific_reproduction.core.models import (
     ArtifactManifest,
     Criticality,
     DecisionType,
+    GoalAcceptance,
+    GoalContract,
+    GoalReplication,
+    GoalTrack,
     InventoryItemType,
     LifecycleState,
     MappingStatus,
@@ -85,6 +89,7 @@ from scientific_reproduction.planning.inventory import (
     register_inventory_item,
     register_requirement,
 )
+from scientific_reproduction.planning.plan import register_goal
 from scientific_reproduction.workers.results import (
     ARTIFACTS_STATE_DIR,
     WORKER_RESULT_MANIFEST_VERSION,
@@ -161,8 +166,32 @@ def register_artifact(root: Path, artifact_id: str) -> None:
     )
 
 
+def make_goal() -> GoalContract:
+    """Build the frozen goal contract runs reference (the issue #148
+    registration gate: ``goal_id`` resolves to the frozen contract and
+    ``goal_version`` equals its formal version)."""
+    return GoalContract(
+        goal_id="GOAL-1",
+        title="Reproduce the reported isotherm.",
+        unit_process_type="gas_adsorption_isotherm",
+        track=GoalTrack.STRICT_REPRODUCTION,
+        objective="Reproduce the formally reported isotherm dataset.",
+        requirement_ids=["REQ-1"],
+        dependencies=[],
+        acceptance=GoalAcceptance(criteria_ref="ACC-1", frozen=True),
+        analysis_protocol_ref="ANP-1",
+        replication=GoalReplication(
+            independent_required=False, planned_n_policy="single"
+        ),
+        version="v1",
+        frozen=True,
+    )
+
+
 def register_run_record(root: Path, run_id: str = "RUN-001") -> None:
-    """Register one Run record under ``runs/`` (the issue #92 registry)."""
+    """Register the frozen goal contract and one Run record under
+    ``runs/`` (the issue #92 registry)."""
+    register_goal(root, make_goal())
     register_run(
         root,
         Run(
