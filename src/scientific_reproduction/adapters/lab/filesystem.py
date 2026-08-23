@@ -14,11 +14,25 @@ Handoff layout
       outgoing/<RUN_ID>/
         dispatch.json          the DispatchRecord (AC-01 record)
         manifest.json          the schema-gated execution package manifest
+        experiment-sheet-<RUN_ID>.pdf    the human-readable execution
+                                          sheet (deterministic PDF)
+        experiment-sheet-<RUN_ID>.json   its canonical JSON sidecar
+                                          (the PDF's SHA-256)
+        experiment-sheet-<RUN_ID>.html   the printable HTML sheet
+                                          (zh-capable)
         <artifact files>       optional companion artifacts
         missing-result-request.json   (after request_missing_result)
       incoming/<RUN_ID>/
         result-manifest.json   the returned Result Package manifest
         <returned data files>  the declared data files
+
+The three ``experiment-sheet-*`` files are written by ``dispatch`` when
+the caller injects the workspace root (``workspace_root``): the handoff
+directory carries the operator-facing sheet (tables, the red
+prohibited-changes callout, the amber safety callout, operator-record
+fill-ins, the required-return checklist and the signature lines) so a
+lab operator with no CS background can execute from the sheet alone
+(10-EXPERIMENT-SUBSYSTEM.md SS1/SS2, issue #157).
 
 Outgoing flow (AC-01)
 ---------------------
@@ -28,7 +42,12 @@ real schema gate (``core.schema_validation.validate_and_reject`` against
 package is refused loudly and nothing is written. The dispatch is
 exactly-once (a second dispatch of the same package is refused) and the
 ``dispatch_id`` is a deterministic pure function of the package identity.
-``dispatched_at`` is caller-injected; no wall clock.
+``dispatched_at`` is caller-injected; no wall clock. With the workspace
+root injected (``workspace_root``), ``dispatch`` renders the
+human-readable experiment sheet into the dispatch directory itself as a
+deterministic pure step (issue #157): the PDF, its canonical SHA-256
+sidecar and the printable HTML sheet, byte-identical for identical
+state, with ``dispatched_at`` as the sheet's injected ``generated_at``.
 
 Incoming flow (AC-02/AC-03)
 ---------------------------
@@ -88,6 +107,7 @@ from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import LabExecutionPackage
 from scientific_reproduction.core.schema_validation import validate_and_reject
+from scientific_reproduction.core.state_backend import SCHEMA_TO_STATE_DIR
 
 __all__ = [
     "DISPATCH_RECORD_FILENAME",
@@ -187,6 +207,7 @@ class FilesystemLabAdapter(LabAdapter):
         *,
         artifacts: Mapping[str, str | bytes] | None = None,
         dispatched_at: str | None = None,
+        workspace_root: str | Path | None = None,
     ) -> DispatchRecord:
         """Dispatch one Experiment Execution Package to the outgoing path.
 
@@ -202,6 +223,18 @@ class FilesystemLabAdapter(LabAdapter):
         :class:`DuplicateDispatchError` and never overwrites the original
         handoff.
 
+        With ``workspace_root`` set, ``dispatch`` also renders the
+        human-readable experiment sheet into the dispatch directory
+        right after the outgoing handoff (issue #157): the deterministic
+        PDF ``experiment-sheet-<RUN_ID>.pdf`` plus its canonical JSON
+        sidecar (the PDF's SHA-256) and the printable zh-capable HTML
+        sheet, rendered from the just-written handoff state through
+        ``reporting.sheet_pdf`` / ``reporting.sheets.experiment`` with
+        the caller-injected ``dispatched_at`` as the sheet's
+        ``generated_at`` (no wall clock). The rendering is a pure,
+        deterministic function of the injected root and handoff state:
+        identical state always yields byte-identical sheet files.
+
         Returns:
             The :class:`DispatchRecord` of the dispatch (AC-01). The
             adapter never touches the Run record: the caller owns the
@@ -214,14 +247,22 @@ class FilesystemLabAdapter(LabAdapter):
         Raises:
             TypeError: ``execution_package`` is neither a
                 ``LabExecutionPackage`` nor a mapping, ``artifacts`` is
-                not a mapping, or an artifact value is neither str nor
-                bytes.
+                not a mapping, an artifact value is neither str nor
+                bytes, or ``workspace_root`` is neither str/Path nor
+                None.
             LabAdapterDataError: the ``run_id`` is not a safe handoff
                 path segment, an artifact name is not a safe path
-                segment, or ``dispatched_at`` is malformed.
+                segment, ``dispatched_at`` is malformed, or
+                ``workspace_root`` is set but the adapter does not sit on
+                the canonical ``lab/outgoing`` handoff layout the sheet
+                renderer reads.
             SchemaValidationError: the package fails the real
                 lab-execution-package schema (nothing is written).
             DuplicateDispatchError: the package was already dispatched.
+            SheetNotInitializedError / SheetNotFoundError /
+                SheetCorruptError: ``workspace_root`` is set and the
+                sheet renderer refuses the workspace state (no project
+                record, no outgoing handoff, or a corrupt stored record).
         """
         if not isinstance(execution_package, (LabExecutionPackage, Mapping)):
             raise TypeError(
@@ -238,6 +279,15 @@ class FilesystemLabAdapter(LabAdapter):
                 raise LabAdapterDataError(
                     "dispatched_at must be a non-empty string when set"
                 )
+        if workspace_root is not None and not isinstance(
+            workspace_root, (str, Path)
+        ):
+            raise TypeError(
+                "workspace_root must be a str or Path or None, got"
+                f" {type(workspace_root).__name__}"
+            )
+        if workspace_root is not None:
+            _require_canonical_handoff_layout(self, workspace_root)
         data = (
             execution_package.to_dict()
             if isinstance(execution_package, LabExecutionPackage)
@@ -303,6 +353,12 @@ class FilesystemLabAdapter(LabAdapter):
         if artifacts is not None:
             for name in sorted(artifacts):
                 atomic_write(outgoing_dir / name, artifacts[name])
+        if workspace_root is not None:
+            # Issue #157: the handoff is human-readable -- render the
+            # operator-facing experiment sheet into the dispatch
+            # directory itself (deterministic pure step, caller-injected
+            # dispatched_at as the sheet's generated_at).
+            _write_experiment_sheet(workspace_root, run_id, outgoing_dir, dispatched_at)
         return record
 
     # ------------------------------------------------------------------
@@ -562,3 +618,72 @@ def _read_json_object(path: Path, kind: str) -> dict[str, Any]:
 def _canonical_json(data: dict[str, Any]) -> str:
     """Canonical JSON text: sorted keys, 2-space indent, trailing newline."""
     return json.dumps(data, indent=_JSON_INDENT, sort_keys=True) + "\n"
+
+
+def _require_canonical_handoff_layout(
+    adapter: FilesystemLabAdapter, workspace_root: str | Path
+) -> None:
+    """Refuse sheet rendering on a non-canonical handoff layout.
+
+    The experiment-sheet renderer reads the workspace's canonical
+    ``<root>/lab/outgoing/<RUN_ID>/`` handoff (the adapter's own
+    constants); an adapter whose base dir or outgoing directory deviates
+    from that layout would render from state this dispatch never wrote.
+    """
+    root = Path(workspace_root)
+    canonical_lab = root / SCHEMA_TO_STATE_DIR["lab-execution-package"]
+    if (
+        adapter._base_dir != canonical_lab
+        or adapter._outgoing != OUTGOING_DIR_NAME
+    ):
+        raise LabAdapterDataError(
+            "workspace_root requires the canonical"
+            f" {SCHEMA_TO_STATE_DIR['lab-execution-package']}/{OUTGOING_DIR_NAME}"
+            f" handoff layout (base_dir {canonical_lab}, outgoing"
+            f" directory {OUTGOING_DIR_NAME!r}); the experiment-sheet"
+            " renderer reads the workspace's canonical lab/outgoing"
+            f" handoff, but this adapter writes to {adapter._base_dir}"
+            f" / {adapter._outgoing!r}"
+        )
+
+
+def _write_experiment_sheet(
+    workspace_root: str | Path,
+    run_id: str,
+    outgoing_dir: Path,
+    generated_at: str | None,
+) -> None:
+    """Render the human-readable experiment sheet into the dispatch dir.
+
+    The deterministic pure step of issue #157: right after the outgoing
+    handoff the dispatch directory carries the operator-facing sheet --
+    ``experiment-sheet-<RUN_ID>.pdf`` plus its canonical JSON sidecar
+    (the PDF's SHA-256, so the audit package's report-file scan registers
+    the files with checksums) and the printable zh-capable HTML sheet.
+    Rendered from the just-written handoff state with the caller-injected
+    timestamp (no wall clock). The renderer's errors (the ``SheetError``
+    family) propagate unchanged.
+    """
+    # Imported here (never at module top): ``reporting.sheet_pdf`` reads
+    # the handoff through this module's own constants, which would be a
+    # module-level import cycle.
+    from scientific_reproduction.reporting.sheet_pdf import (
+        HTML_FILENAME_TPL,
+        build_experiment_sheet_pdf,
+    )
+    from scientific_reproduction.reporting.sheets.experiment import (
+        render_experiment_sheet,
+    )
+
+    build_experiment_sheet_pdf(
+        workspace_root,
+        run_id,
+        generated_at=generated_at,
+        out_dir=outgoing_dir,
+    )
+    atomic_write(
+        outgoing_dir / HTML_FILENAME_TPL.format(run_id=run_id),
+        render_experiment_sheet(
+            workspace_root, run_id, generated_at=generated_at
+        ),
+    )

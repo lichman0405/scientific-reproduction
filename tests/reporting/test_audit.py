@@ -39,7 +39,9 @@ from reporting_helpers import (
     make_result_record,
     make_run,
 )
+from sheets_helpers import make_package
 
+from scientific_reproduction.adapters.lab.filesystem import FilesystemLabAdapter
 from scientific_reproduction.artifacts.checksum import compute_sha256
 from scientific_reproduction.core.models import (
     LifecycleState,
@@ -47,6 +49,7 @@ from scientific_reproduction.core.models import (
     RunType,
     ScientificReview,
 )
+from scientific_reproduction.core.state_backend import SCHEMA_TO_STATE_DIR
 from scientific_reproduction.reporting.audit import (
     AuditCorruptError,
     AuditNotInitializedError,
@@ -57,6 +60,11 @@ from scientific_reproduction.reporting.audit import (
     build_audit_package,
     run_status,
     validate_package,
+)
+from scientific_reproduction.reporting.sheet_pdf import (
+    HTML_FILENAME_TPL,
+    JSON_FILENAME_TPL,
+    PDF_FILENAME_TPL,
 )
 from scientific_reproduction.research.evidence import EvidenceRegistry
 
@@ -110,7 +118,7 @@ def test_audit_validation_result_dict_shape_ac01(tmp_path: Path) -> None:
     data = validate_package(tmp_path, evidence, [CLAIM_ID]).to_dict()
 
     assert set(data) == {"package_version", "passed", "errors", "package"}
-    assert data["package_version"] == "1.1"
+    assert data["package_version"] == "1.2"
     assert data["passed"] is True
     assert data["errors"] == []
     assert set(data["package"]) == {
@@ -159,6 +167,45 @@ def test_audit_report_files_registered_with_checksums(tmp_path: Path) -> None:
     )
     data = package.to_dict()
     assert data["report_files"][0]["file_name"] == "reproduction-report.json"
+
+
+def test_audit_handoff_sheet_files_registered_with_checksums(
+    tmp_path: Path,
+) -> None:
+    """The experiment-sheet files a dispatch wrote into the handoff
+    directory (issue #157) are registered in the package with SHA-256
+    checksums and sizes, sorted by name -- the dispatch-time sheet the
+    adapter rendered from the real handoff state."""
+    evidence = install_valid_chain(tmp_path)
+    # A workspace with no dispatch directories registers no sheet files.
+    assert build_audit_package(tmp_path, evidence, [CLAIM_ID]).report_files == ()
+
+    record = FilesystemLabAdapter(tmp_path / "lab").dispatch(
+        make_package(),
+        dispatched_at="2026-01-02T00:00:00Z",
+        workspace_root=tmp_path,
+    )
+    package = build_audit_package(tmp_path, evidence, [CLAIM_ID])
+
+    names = {
+        PDF_FILENAME_TPL.format(run_id=record.run_id),
+        JSON_FILENAME_TPL.format(run_id=record.run_id),
+        HTML_FILENAME_TPL.format(run_id=record.run_id),
+    }
+    assert [file.file_name for file in package.report_files] == sorted(names)
+    outgoing_dir = (
+        tmp_path
+        / SCHEMA_TO_STATE_DIR["lab-execution-package"]
+        / "outgoing"
+        / record.run_id
+    )
+    for file in package.report_files:
+        path = outgoing_dir / file.file_name
+        assert file.sha256 == compute_sha256(path)
+        assert file.size_bytes == path.stat().st_size
+    data = package.to_dict()
+    assert data["report_files"][0]["file_name"] == sorted(names)[0]
+    assert data["report_files"][0]["sha256"] == package.report_files[0].sha256
 
 
 def test_audit_empty_key_claims_passes_vacuously_ac01(

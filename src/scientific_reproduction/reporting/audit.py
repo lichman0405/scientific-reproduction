@@ -77,6 +77,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Sequence
 
+from scientific_reproduction.adapters.lab.filesystem import OUTGOING_DIR_NAME
 from scientific_reproduction.analysis.results import ResultRecord, list_results
 from scientific_reproduction.artifacts.checksum import compute_sha256
 from scientific_reproduction.artifacts.exceptions import (
@@ -94,10 +95,18 @@ from scientific_reproduction.core.models import (
     ScientificReview,
 )
 from scientific_reproduction.core.rules.lifecycle import TERMINAL_RUN_STATES
-from scientific_reproduction.core.state_backend import FilesystemStateBackend
+from scientific_reproduction.core.state_backend import (
+    SCHEMA_TO_STATE_DIR,
+    FilesystemStateBackend,
+)
 from scientific_reproduction.planning.init import PROJECT_STATE_FILENAME
 from scientific_reproduction.planning.inventory import list_requirements
 from scientific_reproduction.planning.plan import list_acceptance
+from scientific_reproduction.reporting.sheet_pdf import (
+    HTML_FILENAME_TPL,
+    JSON_FILENAME_TPL,
+    PDF_FILENAME_TPL,
+)
 from scientific_reproduction.reporting.traceability import (
     ClaimTrace,
     TraceCorruptError,
@@ -131,8 +140,9 @@ _JSON_INDENT: int = 2
 
 #: Version of the audit package serialization (``package_version`` key of
 #: :class:`AuditValidationResult`). Bumped to 1.1 for the report-file
-#: registration of issue #107.
-PACKAGE_VERSION: str = "1.1"
+#: registration of issue #107 and to 1.2 for the dispatch-handoff
+#: experiment-sheet file registration of issue #157.
+PACKAGE_VERSION: str = "1.2"
 
 #: The run store object type of the state backend (resolved through
 #: ``SCHEMA_TO_STATE_DIR`` to the canonical ``runs/<id>.json`` records).
@@ -146,6 +156,18 @@ _ARTIFACTS_STATE_DIR: str = "manifests"
 #: ``reporting.pdf_report`` writes (``reproduction-report.pdf`` and its
 #: JSON sidecar) land here and are registered in the package (issue #107).
 _REPORTS_STATE_DIR: str = "reports"
+
+#: The experiment-sheet file name templates of one dispatched lab
+#: package (issue #157): at dispatch time the adapter writes the
+#: deterministic PDF, its canonical JSON sidecar (the PDF's SHA-256) and
+#: the printable HTML sheet into each ``lab/outgoing/<RUN_ID>/``
+#: dispatch directory -- the renderer's own templates, mirrored here so
+#: the scan registers exactly the files the dispatch wrote.
+_HANDOFF_SHEET_NAME_TPLS: tuple[str, ...] = (
+    PDF_FILENAME_TPL,
+    JSON_FILENAME_TPL,
+    HTML_FILENAME_TPL,
+)
 
 #: The frozen Run states that record a failed execution (AC-03): the
 #: terminal states of ``core.rules.lifecycle`` minus ``CLOSED`` -- a run
@@ -355,8 +377,10 @@ class AuditPackage:
         requirements: every registered requirement record, sorted by
             ``requirement_id``.
         report_files: every rendered report file of the workspace
-            ``reports/`` dir (issue #107) with its SHA-256 checksum and
-            size, sorted by ``file_name``.
+            ``reports/`` dir (issue #107) plus the experiment-sheet
+            files of every dispatch directory (``lab/outgoing/<RUN_ID>/``,
+            issue #157) with their SHA-256 checksums and sizes, sorted
+            by ``file_name``.
     """
 
     claims: tuple[ClaimTrace, ...]
@@ -502,7 +526,13 @@ def build_audit_package(
         requirements=tuple(
             sorted(requirements, key=lambda r: r.requirement_id)
         ),
-        report_files=_read_report_files(project_root),
+        report_files=tuple(
+            sorted(
+                _read_report_files(project_root)
+                + _read_handoff_sheet_files(project_root),
+                key=lambda file: file.file_name,
+            )
+        ),
     )
 
 
@@ -664,6 +694,49 @@ def _read_report_files(project_root: Path) -> tuple[ReportFile, ...]:
                 f"cannot register report file {path.name!r}: {exc}"
             ) from exc
     return tuple(report_files)
+
+
+def _read_handoff_sheet_files(project_root: Path) -> tuple[ReportFile, ...]:
+    """Register the experiment-sheet files of every dispatch directory.
+
+    Issue #157 renders the human-readable experiment sheet into each
+    ``lab/outgoing/<RUN_ID>/`` dispatch directory at dispatch time; the
+    three files (the deterministic PDF, its canonical JSON sidecar
+    carrying the PDF's SHA-256 and the printable HTML sheet) are
+    registered with checksums and sizes -- the same registration pattern
+    as the ``reports/`` scan, applied to exactly the files the dispatch
+    wrote (the renderer's own name templates with the directory's run
+    id). Deterministic: run directories and file names are visited in
+    sorted order. A missing outgoing dir registers nothing; an unreadable
+    sheet file is a corrupt state, never a silent skip.
+    """
+    outgoing_root = (
+        project_root
+        / SCHEMA_TO_STATE_DIR["lab-execution-package"]
+        / OUTGOING_DIR_NAME
+    )
+    if not outgoing_root.is_dir():
+        return ()
+    sheet_files: list[ReportFile] = []
+    for run_dir in sorted(p for p in outgoing_root.iterdir() if p.is_dir()):
+        for template in _HANDOFF_SHEET_NAME_TPLS:
+            path = run_dir / template.format(run_id=run_dir.name)
+            if not path.is_file():
+                continue
+            try:
+                sheet_files.append(
+                    ReportFile(
+                        file_name=path.name,
+                        sha256=compute_sha256(path),
+                        size_bytes=path.stat().st_size,
+                    )
+                )
+            except (ArtifactFileError, OSError) as exc:
+                raise AuditCorruptError(
+                    f"cannot register handoff sheet file"
+                    f" {path.name!r}: {exc}"
+                ) from exc
+    return tuple(sheet_files)
 
 
 def _normalize_key_claims(key_claims: Sequence[str]) -> tuple[str, ...]:
