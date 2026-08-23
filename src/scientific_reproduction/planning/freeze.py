@@ -83,6 +83,15 @@ that rewrite the records. No plan record is ever clobbered: the draft
 is written when absent, tolerated when byte-equal, and a differing
 record at the same version is rejected.
 
+Since issue #156 every frozen goal contract carries the typed
+``procedure`` and ``execution_constraints`` fields (schema-required,
+``schemas/goal.schema.yaml``): the freeze persists them on the frozen
+record. Goal records written before the fields existed are accepted and
+migrated on read (the model reads them with an explicitly empty
+procedure / empty constraints); the freeze rewrites them carrying both
+fields, so the migrated default is never silently frozen as authored
+content.
+
 AC-03 -- versioned revision
 ---------------------------
 ``revise_plan`` creates the next plan version from a **registered,

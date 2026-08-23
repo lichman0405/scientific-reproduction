@@ -165,7 +165,10 @@ reviewable, with explicit inputs and outputs. The frozen `GoalContract` schema
 dependencies (`hard_gate`/`soft_dependency`/`informational`, with separate
 `execution_gate`/`acceptance_gate`), acceptance criteria, primary analysis
 protocol reference, closure contract reference, resource requirements, the
-automatic engineering retry policy, allowed outputs and forbidden
+typed procedure (ordered steps with action/inputs/outputs/trace refs, aligned
+with the LabExecutionPackage step vocabulary) and execution constraints
+(structured hardware/environment constraints, forbidden changes and safety
+notes), the automatic engineering retry policy, allowed outputs and forbidden
 modifications, and version/freeze metadata. Run lifecycle states are the
 `CREATED -> READY -> DISPATCHED -> RUNNING_EXTERNAL -> RESULT_AVAILABLE -> ...`
 chain of `05-GOAL-RUN-SCHEMA.md` SS7; scientific PASS/FAIL is a Supervisor

@@ -87,6 +87,8 @@ __all__ = [
     "Run",
     "Plan",
     "GoalContract",
+    "GoalProcedureStep",
+    "GoalExecutionConstraints",
     "ClaimSpecificEvidence",
     "Assumption",
     "ClosureContract",
@@ -608,6 +610,43 @@ class GoalAcceptance(CoreModel):
 
 
 @dataclass(frozen=True)
+class GoalProcedureStep(CoreModel):
+    """One ordered step of the frozen goal procedure (05-GOAL-RUN-SCHEMA.md
+    SS4 "procedure source(s)", issue #156).
+
+    The typed counterpart of a ``LabExecutionPackage`` procedure step: the
+    step's serialized form is exactly the step vocabulary the
+    execution-package generator consumes (``action`` plus ``inputs`` /
+    ``outputs`` / ``trace_refs``), so the frozen procedure is the
+    machine-readable reference against which dispatched packages are
+    checked. Steps are ordered by their list position; the goal schema
+    guarantees every step carries an ``action``.
+    """
+
+    action: str
+    inputs: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)
+    trace_refs: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class GoalExecutionConstraints(CoreModel):
+    """The structured execution constraints of a goal contract
+    (05-GOAL-RUN-SCHEMA.md SS4 "execution constraints", issue #156).
+
+    The SS4 semantics in typed form: hardware/environment constraints
+    (``environment``), the forbidden modifications (``forbidden_changes``),
+    and safety notes (``safety_notes``). Every field defaults to its
+    empty value; the empty object is the documented migration state for
+    goal records written before the field existed.
+    """
+
+    environment: dict[str, Any] = field(default_factory=dict)
+    forbidden_changes: list[str] = field(default_factory=list)
+    safety_notes: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class EvidenceAssessment(CoreModel):
     authority: int
     reliability: int
@@ -690,6 +729,21 @@ class Plan(CoreModel):
 
 @dataclass(frozen=True)
 class GoalContract(CoreModel):
+    """The frozen Goal Contract (05-GOAL-RUN-SCHEMA.md SS4, issue #156).
+
+    The contract's operational design is machine-verifiable, not
+    natural-language only: ``procedure`` carries the ordered procedure
+    steps (action/inputs/outputs/trace refs, aligned with the
+    ``LabExecutionPackage`` step vocabulary) and
+    ``execution_constraints`` carries the structured SS4 execution
+    constraints (hardware/environment constraints, forbidden changes,
+    safety notes). Both keys are schema-required at the persistence gate
+    (``schemas/goal.schema.yaml``), so every record the freeze writes
+    carries them; goal records written before the fields existed load
+    through the documented accept-and-migrate path (see the field
+    comments).
+    """
+
     schema_name: ClassVar[str] = "goal"
 
     goal_id: str
@@ -704,6 +758,26 @@ class GoalContract(CoreModel):
     replication: GoalReplication
     version: str
     frozen: bool
+    #: The ordered procedure steps of the frozen design (SS4 "procedure
+    #: source(s)"), aligned with the ``LabExecutionPackage`` step
+    #: vocabulary. Schema-required at the persistence gate: a record
+    #: without the key fails schema validation, and the freeze persists
+    #: the field on every frozen record (issue #156). Records written
+    #: before the field existed (the FDM-201 benchmark register) load
+    #: through the documented accept-and-migrate path: absence reads as
+    #: an explicitly empty procedure, and the freeze re-persists the
+    #: record carrying the key. Unlike the ``value_status``-style
+    #: optional fields, the default is never omitted from ``to_dict`` --
+    #: the schema requires the key.
+    procedure: list[GoalProcedureStep] = field(default_factory=list)
+    #: The structured execution constraints of the frozen design (SS4
+    #: "execution constraints": hardware/environment constraints,
+    #: forbidden changes, safety notes). Schema-required and migrated
+    #: exactly like ``procedure``: absence reads as the empty constraints
+    #: object, and ``to_dict`` always emits the key.
+    execution_constraints: GoalExecutionConstraints = field(
+        default_factory=GoalExecutionConstraints
+    )
     parent_goal_id: str | None = None
     inputs: list[dict[str, Any]] = field(default_factory=list)
     outputs: list[dict[str, Any]] = field(default_factory=list)

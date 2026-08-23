@@ -826,9 +826,12 @@ def register_goal(root: str | Path, goal: GoalInput) -> GoalContract:
     a ``goal_id`` is registered exactly once
     (``DuplicateGoalError``). Drafts default to version
     ``INITIAL_PLAN_VERSION`` and ``frozen`` False (the pre-freeze state
-    of ``examples/fdm-201/goal.example.yaml``). Cross-record references
-    (acceptance/analysis/closure) are resolved by the plan freeze flow
-    (``planning/freeze.py``), not at registration.
+    of ``examples/fdm-201/goal.example.yaml``). The goal schema requires
+    the typed ``procedure`` and ``execution_constraints`` fields (issue
+    #156), so a draft authored without them still persists carrying the
+    model's documented migration defaults (explicitly empty). Cross-record
+    references (acceptance/analysis/closure) are resolved by the plan
+    freeze flow (``planning/freeze.py``), not at registration.
 
     Args:
         root: the initialized workspace root.
@@ -996,6 +999,13 @@ def register_statistical_design(
 
 def read_goal(root: str | Path, goal_id: str) -> GoalContract:
     """Read one registered goal contract record as a typed model.
+
+    Records written before the typed procedure/execution-constraint
+    fields existed (issue #156) load through the documented
+    accept-and-migrate path: absence reads as an explicitly empty
+    ``procedure`` and empty ``execution_constraints`` (``GoalContract``
+    defaults); the stored file itself is rewritten only by the freeze /
+    revision flows, which persist both fields.
 
     Raises:
         TypeError: ``root`` is not a str/Path, or ``goal_id`` is not a str.

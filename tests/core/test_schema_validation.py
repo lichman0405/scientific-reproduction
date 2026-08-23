@@ -116,6 +116,18 @@ INVALID_CASES: dict[str, tuple[str, dict, str]] = {
          "version": "v1", "frozen": False},
         "requirement_ids",
     ),
+    "missing_procedure_and_execution_constraints": (
+        "goal",
+        {"goal_id": "G1", "title": "t", "unit_process_type": "u",
+         "track": "STRICT_REPRODUCTION", "objective": "o",
+         "requirement_ids": ["R1"], "dependencies": [],
+         "acceptance": {"criteria_ref": "A", "frozen": False},
+         "analysis_protocol_ref": "P",
+         "replication": {"independent_required": True,
+                         "planned_n_policy": "p"},
+         "version": "v1", "frozen": False},
+        "procedure",
+    ),
     "numeric_range_exceeded": (
         "evidence",
         {"evidence_id": "E1", "source_id": "S1", "claim_id": "C1", "finding": "f",
