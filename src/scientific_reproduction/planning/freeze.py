@@ -11,7 +11,7 @@ of DEV-M4-G04 over the ``planning/plan.py`` registry (DEV-M4-G04) and the
   commit itself is created by the Supervisor flow -- this module only
   records the pre-freeze ``git HEAD`` as ``frozen_commit``, it never
   writes Git state);
-* ``core/models.py``: ``PlanStatus`` (DRAFT/UNDER_AUDIT/FROZEN/SUPERSEDED)
+* ``core/models.py``: ``PlanStatus`` (DRAFT/FROZEN/SUPERSEDED)
   and the frozen goal-contract family (``GoalContract`` /
   ``AcceptanceCriteria`` / ``AnalysisProtocolOrResult`` /
   ``ClosureContract``).
