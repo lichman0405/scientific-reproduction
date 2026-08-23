@@ -68,6 +68,8 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ResearchSource,
+    SourceType,
 )
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
@@ -91,6 +93,7 @@ from scientific_reproduction.planning.plan import (
     register_closure_contract,
     register_goal,
 )
+from scientific_reproduction.research.state_helpers import register_source
 
 #: Deterministic author/committer identity (mirrors the other scenario suites).
 IDENTITY = AuditIdentity(name="Audit Bot", email="audit@example.org")
@@ -138,6 +141,20 @@ CLS_ID = "CLS-EXE-50"
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root``; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    # The scenario items reference SRC-TARGET-PAPER; the source must be
+    # registered before the first item registers.
+    register_source(
+        root,
+        ResearchSource(
+            source_id="SRC-TARGET-PAPER",
+            source_type=SourceType.TARGET_PAPER,
+            title="Scenario J provenance source (deterministic fixture)",
+            provenance="test fixture",
+            doi=DOI,
+        ),
+        actor="research",
+        recorded_at=FROZEN_AT.isoformat(),
+    )
     return root
 
 

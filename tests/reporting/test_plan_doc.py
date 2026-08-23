@@ -42,10 +42,9 @@ from reporting_helpers import (
     DOI,
     FROZEN_AT,
     GOAL_ID,
-    IDENTITY,
     INVENTORY_ID,
     SOURCE_ID,
-    TIMESTAMP,
+    init_project,
     make_acceptance,
     make_goal,
     make_protocol,
@@ -71,10 +70,7 @@ from scientific_reproduction.core.models import (
     StatisticalDesign,
 )
 from scientific_reproduction.planning.freeze import freeze_plan
-from scientific_reproduction.planning.init import (
-    INITIAL_PLAN_VERSION,
-    initialize_project,
-)
+from scientific_reproduction.planning.init import INITIAL_PLAN_VERSION
 from scientific_reproduction.planning.inventory import (
     register_inventory_item,
     register_requirement,
@@ -230,7 +226,7 @@ def install_plan_workspace(
     ``register_plan`` and freezes it through the real audit gate with the
     fixed ``FROZEN_AT`` stamp.
     """
-    initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    init_project(root)
     register_inventory_item(root, make_mapped_item(requirement_ids=["REQ-001"]))
     register_inventory_item(
         root,

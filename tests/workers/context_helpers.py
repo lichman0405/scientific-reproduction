@@ -65,6 +65,7 @@ from scientific_reproduction.planning.plan import (
     register_goal,
 )
 from scientific_reproduction.planning.resources import register_resource
+from scientific_reproduction.research.state_helpers import register_source
 
 #: Deterministic author/committer identity used by every context test.
 IDENTITY = AuditIdentity(name="Audit Bot", email="audit@example.org")
@@ -86,6 +87,14 @@ ROLE = WorkerRole.EXPERIMENT_WORKER
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root``; return it."""
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    # The helper-built items all reference SRC-TARGET-PAPER; the source
+    # must be registered before the first item registers.
+    register_source(
+        root,
+        make_source("SRC-TARGET-PAPER"),
+        actor="research",
+        recorded_at="2026-01-02T00:00:00Z",
+    )
     return root
 
 

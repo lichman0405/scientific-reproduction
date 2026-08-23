@@ -71,8 +71,10 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ResearchSource,
     Run,
     RunType,
+    SourceType,
     SupervisorDecision,
     WorkerRole,
 )
@@ -90,6 +92,7 @@ from scientific_reproduction.planning.inventory import (
     register_requirement,
 )
 from scientific_reproduction.planning.plan import register_goal
+from scientific_reproduction.research.state_helpers import register_source
 from scientific_reproduction.workers.results import (
     ARTIFACTS_STATE_DIR,
     WORKER_RESULT_MANIFEST_VERSION,
@@ -210,10 +213,23 @@ def register_run_record(root: Path, run_id: str = "RUN-001") -> None:
 def build_result_workspace(root: Path) -> Path:
     """Initialize a project with the registered entities a result references.
 
-    Registers, deterministically: the raw artifact manifest ``ART-001`` in
-    the project ``manifests/`` artifact registry (DEV-M3-G02).
+    Registers, deterministically: the provenance source ``SRC-1`` (the
+    inventory item of the linkage test resolves against the source
+    registry), and the raw artifact manifest ``ART-001`` in the project
+    ``manifests/`` artifact registry (DEV-M3-G02).
     """
     init_project(root)
+    register_source(
+        root,
+        ResearchSource(
+            source_id="SRC-1",
+            source_type=SourceType.TARGET_PAPER,
+            title="Result-worker linkage provenance source.",
+            provenance="test fixture",
+        ),
+        actor="research",
+        recorded_at="2026-01-02T00:00:00Z",
+    )
     register_artifact(root, "ART-001")
     return root
 

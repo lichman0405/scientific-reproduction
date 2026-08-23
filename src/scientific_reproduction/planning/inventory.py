@@ -126,6 +126,10 @@ from scientific_reproduction.planning.init import (
     PlanningError,
     ProjectNotInitializedError,
 )
+from scientific_reproduction.research.state_helpers import (
+    SourceNotFoundError,
+    read_source,
+)
 
 __all__ = [
     "INVENTORY_STATE_DIR",
@@ -150,7 +154,9 @@ __all__ = [
     "RequirementClosureError",
     "RequirementInput",
     "RequirementNotFoundError",
+    "UnresolvedItemLinkError",
     "UnresolvedItemReferenceError",
+    "UnresolvedSourceReferenceError",
     "close_requirement",
     "evaluate_item_mapping",
     "list_inventory_items",
@@ -193,6 +199,14 @@ class RequirementNotFoundError(InventoryError, ValueError):
 
 class UnresolvedItemReferenceError(InventoryError, ValueError):
     """Raised when a requirement references unregistered inventory items."""
+
+
+class UnresolvedSourceReferenceError(InventoryError, ValueError):
+    """Raised when an inventory item references an unregistered source."""
+
+
+class UnresolvedItemLinkError(InventoryError, ValueError):
+    """Raised when an inventory item links unregistered inventory items."""
 
 
 class InvalidRegistryIdError(InventoryError, ValueError):
@@ -641,6 +655,15 @@ def register_inventory_item(
     derived deterministically from the canonical fields (``source_id``,
     ``item_type``, ``description``) via ``core.ids.generate_id``.
 
+    Both provenance edges are resolved against the registered state before
+    any write: the item's ``source_id`` must name a source registered in
+    the workspace source registry (``research.state_helpers``, rejected
+    with ``UnresolvedSourceReferenceError`` otherwise), and every
+    ``linked_inventory_ids`` entry must name an already-registered
+    inventory item (``UnresolvedItemLinkError`` otherwise) -- the item is
+    registered after the records it references, mirroring the
+    requirement-to-item authoring order.
+
     Args:
         root: the initialized workspace root.
         item: the item as a typed ``ReproductionInventoryItem`` or a
@@ -660,6 +683,10 @@ def register_inventory_item(
         ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
         DuplicateInventoryItemError: an item with the same ``inventory_id``
             is already registered (stable message).
+        UnresolvedSourceReferenceError: the ``source_id`` is not registered
+            in the workspace source registry (stable message).
+        UnresolvedItemLinkError: a ``linked_inventory_ids`` entry is not a
+            registered inventory item (stable message).
     """
     if not isinstance(root, (str, Path)):
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
@@ -673,6 +700,18 @@ def register_inventory_item(
             f"inventory item {item_model.inventory_id!r} is already registered;"
             " an inventory_id is unique per item and duplicate registration is"
             " rejected"
+        )
+    _verify_source_registered(project_root, item_model)
+    missing_links = [
+        iid
+        for iid in item_model.linked_inventory_ids
+        if iid not in _registered_inventory_ids(project_root)
+    ]
+    if missing_links:
+        raise UnresolvedItemLinkError(
+            f"inventory item {item_model.inventory_id!r} links unregistered"
+            f" inventory item(s): {', '.join(missing_links)}; register the"
+            " linked inventory items before the item that links them"
         )
     assessment = evaluate_item_mapping(item_model, _registered_requirement_ids(project_root))
     final = replace(
@@ -1395,6 +1434,24 @@ def _registered_inventory_ids(root: Path) -> frozenset[str]:
     if not directory.is_dir():
         return frozenset()
     return frozenset(path.stem for path in directory.glob("*.json"))
+
+
+def _verify_source_registered(root: Path, item: ReproductionInventoryItem) -> None:
+    """Reject an item whose ``source_id`` is absent from the source registry.
+
+    The provenance edge (AC-03 of DEV-M4-G02) is resolved through the
+    research layer's reader (``research.state_helpers.read_source``): an
+    item can only cite a source the workspace already holds, so a typo'd
+    or stale ``source_id`` fails loudly before any write.
+    """
+    try:
+        read_source(root, item.source_id)
+    except SourceNotFoundError as exc:
+        raise UnresolvedSourceReferenceError(
+            f"inventory item {item.inventory_id!r} references source"
+            f" {item.source_id!r} which is not registered in the workspace"
+            " source registry; register the source before the inventory item"
+        ) from exc
 
 
 def _item_path(root: Path, inventory_id: str) -> Path:

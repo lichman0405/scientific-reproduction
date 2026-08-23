@@ -75,8 +75,10 @@ from scientific_reproduction.core.models import (
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    ResearchSource,
     Run,
     RunType,
+    SourceType,
 )
 from scientific_reproduction.planning.init import ProjectNotInitializedError
 from scientific_reproduction.planning.inventory import (
@@ -89,6 +91,7 @@ from scientific_reproduction.planning.plan import (
     read_analysis_protocol,
     register_acceptance,
 )
+from scientific_reproduction.research.state_helpers import register_source
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -174,9 +177,22 @@ def register_raw_artifact(root: Path, artifact_id: str) -> None:
 def register_requirement_fixture(root: Path, requirement_id: str = "REQ-1") -> Path:
     """Register an OPEN requirement (and its inventory item) at ``requirements/``.
 
-    Returns the requirement state file path so tests can prove the bytes
-    are untouched by result registration (AC-03).
+    The item's provenance source ``SRC-1`` is registered first (the
+    registration contract resolves ``source_id`` against the source
+    registry). Returns the requirement state file path so tests can prove
+    the bytes are untouched by result registration (AC-03).
     """
+    register_source(
+        root,
+        ResearchSource(
+            source_id="SRC-1",
+            source_type=SourceType.TARGET_PAPER,
+            title="Result-fixture provenance source.",
+            provenance="test fixture",
+        ),
+        actor="research",
+        recorded_at="2026-01-02T00:00:00Z",
+    )
     register_inventory_item(
         root,
         ReproductionInventoryItem(
