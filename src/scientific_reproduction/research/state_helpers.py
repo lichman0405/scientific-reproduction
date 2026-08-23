@@ -373,7 +373,12 @@ def register_source(
     schema-shaped (``schemas/source.schema.yaml``), canonical-JSON
     persisted through the atomic state backend, and audited with one
     ``source.recorded`` event under the deterministic key
-    ``source.recorded:<source_id>``. The canonical mirror identity
+    ``source.recorded:<source_id>``. The acquisition outcome
+    (``acquisition_status`` plus ``unavailability_reason`` /
+    ``unavailability_detail`` when set; issue #134) is persisted with
+    the record -- records without the fields load as ``REGISTERED``
+    (identity only) and re-serialize unchanged -- and carried in the
+    event payload. The canonical mirror identity
     (``research.sources.canonical_identity``) is derived at authoring
     time -- a malformed DOI is surfaced loudly
     (``SourceNormalizationError``) -- and a record whose identity
@@ -442,7 +447,7 @@ def register_source(
         stored = _read_source_record(store, model.source_id)
         record = _append(
             event_log,
-            _source_recorded_event(model.source_id, actor, recorded_at),
+            _source_recorded_event(stored, actor, recorded_at),
             idempotency_key=f"{SOURCE_RECORDED_EVENT_TYPE}:{model.source_id}",
         )
         return SourceRegistration(
@@ -456,7 +461,7 @@ def register_source(
     store.write("source", model.source_id, model.to_dict())
     record = _append(
         event_log,
-        _source_recorded_event(model.source_id, actor, recorded_at),
+        _source_recorded_event(model, actor, recorded_at),
         idempotency_key=f"{SOURCE_RECORDED_EVENT_TYPE}:{model.source_id}",
     )
     return SourceRegistration(source=model, identity=identity, event_record=record)
@@ -1286,15 +1291,31 @@ def _append(
 
 
 def _source_recorded_event(
-    source_id: str, actor: str, recorded_at: str
+    source: ResearchSource, actor: str, recorded_at: str
 ) -> ProjectEvent:
-    """The deterministic ``source.recorded`` event of one source."""
+    """The deterministic ``source.recorded`` event of one source.
+
+    The payload carries the acquisition fields (issue #134):
+    ``acquisition_status`` always, ``unavailability_reason`` /
+    ``unavailability_detail`` when set -- the audit trail of the
+    acquisition outcome, a pure function of the record.
+    """
+    payload: dict[str, Any] = {
+        "acquisition_status": source.acquisition_status.value,
+    }
+    if source.unavailability_reason is not None:
+        payload["unavailability_reason"] = source.unavailability_reason.value
+    if source.unavailability_detail is not None:
+        payload["unavailability_detail"] = source.unavailability_detail
     return ProjectEvent(
-        event_id=generate_id("event", SOURCE_RECORDED_EVENT_TYPE, source_id),
+        event_id=generate_id(
+            "event", SOURCE_RECORDED_EVENT_TYPE, source.source_id
+        ),
         timestamp=recorded_at,
         actor=actor,
         event_type=SOURCE_RECORDED_EVENT_TYPE,
-        object_id=source_id,
+        object_id=source.source_id,
+        payload=payload,
     )
 
 

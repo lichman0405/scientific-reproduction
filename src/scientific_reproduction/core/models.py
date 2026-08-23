@@ -65,6 +65,8 @@ __all__ = [
     "AvailabilityState",
     "SourceType",
     "AccessClass",
+    "AcquisitionStatus",
+    "UnavailabilityReason",
     "WorkerRole",
     "AnalysisKind",
     "AnalysisProfile",
@@ -265,6 +267,37 @@ class AccessClass(StrEnum):
     OPTIONAL_COMMERCIAL = "OPTIONAL_COMMERCIAL"
     USER_PROVIDED = "USER_PROVIDED"
     UNKNOWN = "UNKNOWN"
+
+
+class AcquisitionStatus(StrEnum):
+    """Acquisition outcome of a source (issue #134).
+
+    Harmonized with the FDM-201 benchmark acquisition-log vocabulary
+    (``benchmarks/fdm201/sources/ACQUISITION_LOG.yaml``) plus
+    ``OBTAINED`` for sources whose content was actually obtained (local
+    copy linked via ``local_artifact_id``). ``REGISTERED`` is the
+    identity-only default: records written before the field existed load
+    as ``REGISTERED``.
+    """
+
+    REGISTERED = "REGISTERED"
+    OBTAINED = "OBTAINED"
+    PARTIAL = "PARTIAL"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class UnavailabilityReason(StrEnum):
+    """Stable acquisition-failure vocabulary of a source (issue #134).
+
+    The deterministic reason values for ``UNAVAILABLE`` (and partially
+    obtained) sources; optional prose detail lives in the record's
+    ``unavailability_detail`` -- never free-form prose alone.
+    """
+
+    PAYWALL = "paywall"
+    BOT_BLOCK = "bot_block"
+    NOT_FOUND = "not_found"
+    ACCESS_GATE_ELIGIBLE = "access_gate_eligible"
 
 
 class WorkerRole(StrEnum):
@@ -752,6 +785,34 @@ class ResearchSource(CoreModel):
     acquired_at: str | None = None
     local_artifact_id: str | None = None
     access_class: AccessClass | None = None
+    #: Acquisition outcome, harmonized with the FDM-201 benchmark
+    #: acquisition-log vocabulary (``benchmarks/fdm201/sources/
+    #: ACQUISITION_LOG.yaml``, issue #134). ``REGISTERED`` (identity
+    #: only) is the default: records written before the field existed
+    #: load as ``REGISTERED``, and the default serializes as an absent
+    #: key (see ``to_dict``) so legacy registrations re-serialize
+    #: unchanged.
+    acquisition_status: AcquisitionStatus = AcquisitionStatus.REGISTERED
+    #: Stable reason vocabulary for ``UNAVAILABLE`` (and partially
+    #: obtained) sources -- ``paywall`` / ``bot_block`` / ``not_found``
+    #: / ``access_gate_eligible`` -- with optional prose detail in
+    #: ``unavailability_detail``. Deterministic, never free-form only.
+    unavailability_reason: UnavailabilityReason | None = None
+    unavailability_detail: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialized schema-key form; the ``REGISTERED`` default is omitted.
+
+        ``REGISTERED`` is exactly the state legacy records already meant
+        (identity only), so the default serializes as an absent key:
+        records written before the acquisition fields existed
+        re-serialize unchanged, and every explicit outcome (``OBTAINED``
+        / ``PARTIAL`` / ``UNAVAILABLE``) is emitted.
+        """
+        data = super().to_dict()
+        if data.get("acquisition_status") == AcquisitionStatus.REGISTERED.value:
+            del data["acquisition_status"]
+        return data
 
 
 @dataclass(frozen=True)

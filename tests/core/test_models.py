@@ -205,6 +205,13 @@ def test_sensible_defaults() -> None:
                                criteria=[{}])
     assert acc.confidence is None
     assert acc.target is None
+    # ResearchSource acquisition fields default to the identity-only state
+    # (issue #134): REGISTERED status, no unavailability reason/detail.
+    source = m.ResearchSource(source_id="S", source_type=m.SourceType.TARGET_PAPER,
+                              title="t", provenance="p")
+    assert source.acquisition_status is m.AcquisitionStatus.REGISTERED
+    assert source.unavailability_reason is None
+    assert source.unavailability_detail is None
 
 
 def test_enum_member_counts_match_schemas() -> None:
@@ -227,6 +234,9 @@ def test_enum_member_counts_match_schemas() -> None:
     assert len(m.ScientificReview) == 4
     assert len(m.RunType) == 5
     assert len(m.SourceType) == 14
+    # schemas/source.schema.yaml acquisition vocabulary (issue #134).
+    assert len(m.AcquisitionStatus) == 4
+    assert len(m.UnavailabilityReason) == 4
 
 
 def test_enum_values_are_schema_exact() -> None:

@@ -14,4 +14,15 @@ properties:
   acquired_at: {type: [string, "null"]}
   local_artifact_id: {type: [string, "null"]}
   access_class: {enum: [PUBLIC, OPTIONAL_COMMERCIAL, USER_PROVIDED, UNKNOWN]}
+  # Acquisition outcome (issue #134), harmonized with the FDM-201 benchmark
+  # acquisition-log vocabulary (REGISTERED / PARTIAL / UNAVAILABLE) plus
+  # OBTAINED (local copy linked via local_artifact_id). Optional so records
+  # written before the field existed keep validating; absent means
+  # REGISTERED (identity only) -- the model default serializes as absence.
+  acquisition_status: {enum: [REGISTERED, OBTAINED, PARTIAL, UNAVAILABLE]}
+  # Stable acquisition-failure vocabulary for UNAVAILABLE (and partially
+  # obtained) sources; optional prose detail lives in
+  # unavailability_detail -- deterministic, never free-form only.
+  unavailability_reason: {enum: [paywall, bot_block, not_found, access_gate_eligible]}
+  unavailability_detail: {type: string}
 additionalProperties: true
