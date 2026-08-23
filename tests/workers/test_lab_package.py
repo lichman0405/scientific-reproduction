@@ -2,8 +2,14 @@
 
 The frozen Goal Contract comes from the real plan freeze flow
 (``context_helpers.frozen_goal``) for the end-to-end case and from
-``dataclasses.replace`` for the in-memory record-level cases. Every
-happy-path result is checked by the generator's own persistence gate
+``dataclasses.replace`` for the in-memory record-level cases. The
+package's procedure and constraint columns derive from the frozen
+goal's typed contract fields (issue #156): ``goal.procedure`` ->
+``procedure``, ``execution_constraints.forbidden_changes`` ->
+``prohibited_changes``, ``execution_constraints.safety_notes`` ->
+``safety_notes``; the environment constraints have no lab-package
+field and are not rendered (documented no-op). Every happy-path result
+is checked by the generator's own persistence gate
 (``validate_and_reject("lab-execution-package", ...)``), and the
 milestone benchmark fixtures are re-validated through that same gate --
 the same validator the generator uses, not a fork of the benchmark
@@ -22,7 +28,12 @@ from context_helpers import (
     build_complete_workspace,
     frozen_goal,
     init_project,
+    make_acceptance,
+    make_analysis_protocol,
+    make_closure,
     make_goal,
+    make_item,
+    make_requirement,
     make_resource,
 )
 
@@ -30,6 +41,8 @@ from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     AvailabilityState,
     GoalContract,
+    GoalExecutionConstraints,
+    GoalProcedureStep,
     LabExecutionPackage,
     ResourceType,
 )
@@ -38,8 +51,18 @@ from scientific_reproduction.planning.init import (
     ProjectNotInitializedError,
     read_project_state,
 )
-from scientific_reproduction.planning.plan import InvalidPlanVersionError
-from scientific_reproduction.planning.resources import read_resource
+from scientific_reproduction.planning.inventory import (
+    register_inventory_item,
+    register_requirement,
+)
+from scientific_reproduction.planning.plan import (
+    InvalidPlanVersionError,
+    register_acceptance,
+    register_analysis_protocol,
+    register_closure_contract,
+    register_goal,
+)
+from scientific_reproduction.planning.resources import read_resource, register_resource
 from scientific_reproduction.workers.context import GoalNotFrozenError
 from scientific_reproduction.workers.lab_package import (
     LabPackageBuildError,
@@ -48,30 +71,77 @@ from scientific_reproduction.workers.lab_package import (
     generate_lab_execution_package,
 )
 
-#: The authored procedure used across the tests, following the shared
-#: step vocabulary (``action`` + ``inputs``/``outputs``/``trace_refs``),
-#: with a benchmark-style ``step`` key passing through verbatim.
-PROCEDURE = (
-    {
-        "step": "S1",
-        "action": "Weigh 0.25 g of activated FDM-201 into the sample cell.",
-        "inputs": ["FDM-201"],
-        "outputs": ["loaded_cell"],
-        "trace_refs": ["GOAL-EXE-20"],
-    },
-    {
-        "step": "S2",
-        "action": "Record the N2 adsorption isotherm at 77 K.",
-        "inputs": ["loaded_cell"],
-        "outputs": ["raw_isotherm"],
-        "trace_refs": [],
-    },
+#: The typed procedure steps the frozen goal carries, following the
+#: shared step vocabulary (``action`` + ``inputs``/``outputs``/
+#: ``trace_refs``).
+PROCEDURE_STEPS: tuple[GoalProcedureStep, ...] = (
+    GoalProcedureStep(
+        action="Weigh 0.25 g of activated FDM-201 into the sample cell.",
+        inputs=["FDM-201"],
+        outputs=["loaded_cell"],
+        trace_refs=["GOAL-EXE-20"],
+    ),
+    GoalProcedureStep(
+        action="Record the N2 adsorption isotherm at 77 K.",
+        inputs=["loaded_cell"],
+        outputs=["raw_isotherm"],
+    ),
+)
+
+#: The typed execution constraints the frozen goal carries.
+EXECUTION_CONSTRAINTS = GoalExecutionConstraints(
+    environment={"temperature_K": 77},
+    forbidden_changes=[
+        "Do not change the activation temperature.",
+        "Do not change the measurement gas.",
+    ],
+    safety_notes=["Liquid N2 handling requires cryogenic gloves."],
 )
 
 
 def frozen_record(goal: GoalContract) -> GoalContract:
     """The frozen record a plan freeze produces: frozen, formal version."""
     return replace(goal, frozen=True, version="v1")
+
+
+def typed_goal() -> GoalContract:
+    """An in-memory frozen goal carrying the typed contract fields."""
+    return frozen_record(
+        make_goal(
+            "GOAL-1",
+            outputs=({"name": "analysis_input_manifest"},),
+            procedure=PROCEDURE_STEPS,
+            execution_constraints=EXECUTION_CONSTRAINTS,
+        )
+    )
+
+
+def build_typed_goal_workspace(root: Path) -> Path:
+    """A freeze-eligible single-goal workspace whose GOAL-1 carries the
+    typed contract fields, authored through the real registry and frozen
+    by the real plan freeze flow (``context_helpers.frozen_goal``)."""
+    init_project(root)
+    register_inventory_item(
+        root, make_item("ITEM-1", requirement_ids=("REQ-1",))
+    )
+    register_requirement(
+        root, make_requirement("REQ-1", goal_ids=("GOAL-1",))
+    )
+    register_goal(
+        root,
+        make_goal(
+            "GOAL-1",
+            outputs=({"name": "analysis_input_manifest"},),
+            resource_ids=("RES-1",),
+            procedure=PROCEDURE_STEPS,
+            execution_constraints=EXECUTION_CONSTRAINTS,
+        ),
+    )
+    register_acceptance(root, make_acceptance())
+    register_analysis_protocol(root, make_analysis_protocol("ANP-1"))
+    register_closure_contract(root, make_closure())
+    register_resource(root, make_resource("RES-1"))
+    return root
 
 
 def package_fixture_files() -> list[Path]:
@@ -94,23 +164,28 @@ PACKAGE_FILES = package_fixture_files()
 def test_generates_schema_valid_package_from_the_real_freeze_flow(
     tmp_path: Path,
 ) -> None:
-    """AC-01: the frozen goal deterministically yields a schema-valid package."""
-    root = build_complete_workspace(tmp_path)
+    """AC-01: the frozen goal deterministically yields a schema-valid
+    package whose procedure and constraint columns derive from the typed
+    contract fields the freeze persisted (the typed round trip is proven
+    by the frozen record's own content)."""
+    root = build_typed_goal_workspace(tmp_path)
     goal = frozen_goal(root, "GOAL-1")
     resource = read_resource(root, "RES-1")
+
+    # The freeze round-tripped the typed fields: what the package derives
+    # from is the frozen record's typed content, not the authoring input.
+    assert goal.procedure == list(PROCEDURE_STEPS)
+    assert goal.execution_constraints == EXECUTION_CONSTRAINTS
 
     package = generate_lab_execution_package(
         root,
         goal,
         [resource],
         "RUN-2026-001",
-        procedure=PROCEDURE,
         critical_control_variables=(
             {"name": "activation_temperature", "value": "423 K"},
         ),
-        prohibited_changes=("Do not change the activation temperature.",),
         required_operator_records=("record-01-synthesis-lab-notebook",),
-        safety_notes=("Liquid N2 handling requires cryogenic gloves.",),
     )
 
     assert isinstance(package, LabExecutionPackage)
@@ -133,18 +208,20 @@ def test_generates_schema_valid_package_from_the_real_freeze_flow(
         }
     ]
     assert package.instruments == []
-    assert package.procedure == [dict(step) for step in PROCEDURE]
+    # Derived from the typed contract fields, not caller-authored.
+    assert package.procedure == [step.to_dict() for step in PROCEDURE_STEPS]
+    assert package.prohibited_changes == list(
+        EXECUTION_CONSTRAINTS.forbidden_changes
+    )
+    assert package.safety_notes == list(EXECUTION_CONSTRAINTS.safety_notes)
+    # The environment constraints have no lab-package field (the schema
+    # declares none): documented no-op, the package never carries it.
+    assert "environment" not in package.to_dict()
     assert package.critical_control_variables == [
         {"name": "activation_temperature", "value": "423 K"}
     ]
-    assert package.prohibited_changes == [
-        "Do not change the activation temperature."
-    ]
     assert package.required_operator_records == [
         "record-01-synthesis-lab-notebook"
-    ]
-    assert package.safety_notes == [
-        "Liquid N2 handling requires cryogenic gloves."
     ]
     # The result passes the generator's own persistence gate.
     validate_and_reject("lab-execution-package", package.to_dict())
@@ -153,22 +230,138 @@ def test_generates_schema_valid_package_from_the_real_freeze_flow(
 def test_package_is_deterministic(tmp_path: Path) -> None:
     """Same inputs in, same package out -- no wall clock, no randomness."""
     root = build_complete_workspace(tmp_path)
-    goal = frozen_goal(root, "GOAL-1")
+    goal = frozen_record(
+        make_goal(
+            "GOAL-1",
+            procedure=PROCEDURE_STEPS,
+            execution_constraints=EXECUTION_CONSTRAINTS,
+        )
+    )
     resource = read_resource(root, "RES-1")
-    kwargs = {"procedure": PROCEDURE, "prohibited_changes": ("keep", "order")}
 
     first = generate_lab_execution_package(
-        root, goal, [resource], "RUN-2026-001", **kwargs
+        root, goal, [resource], "RUN-2026-001"
     )
     second = generate_lab_execution_package(
-        root, goal, [resource], "RUN-2026-001", **kwargs
+        root, goal, [resource], "RUN-2026-001"
     )
     assert first.to_dict() == second.to_dict()
     # The resource input order does not matter: tables are id-sorted.
     reordered = generate_lab_execution_package(
-        root, goal, list(reversed([resource])), "RUN-2026-001", **kwargs
+        root, goal, list(reversed([resource])), "RUN-2026-001"
     )
     assert reordered.to_dict() == first.to_dict()
+
+
+def test_derivation_from_the_typed_goal_fields(tmp_path: Path) -> None:
+    """The typed contract fields project onto the package columns exactly:
+    procedure steps -> procedure (goal order, serialized step vocabulary),
+    forbidden_changes -> prohibited_changes, safety_notes -> safety_notes;
+    the environment constraints are not rendered."""
+    root = init_project(tmp_path)
+    package = generate_lab_execution_package(
+        root, typed_goal(), [], "RUN-2026-001"
+    )
+
+    assert package.procedure == [step.to_dict() for step in PROCEDURE_STEPS]
+    assert package.procedure[0]["trace_refs"] == ["GOAL-EXE-20"]
+    assert package.procedure[1]["trace_refs"] == []
+    assert package.prohibited_changes == [
+        "Do not change the activation temperature.",
+        "Do not change the measurement gas.",
+    ]
+    assert package.safety_notes == [
+        "Liquid N2 handling requires cryogenic gloves."
+    ]
+    assert "environment" not in package.to_dict()
+
+
+def test_migration_defaults_derive_as_empty_columns(tmp_path: Path) -> None:
+    """A frozen goal with the documented migration state (empty typed
+    fields) yields an explicitly empty procedure and empty constraint
+    columns -- the derivation never fabricates content."""
+    root = init_project(tmp_path)
+    package = generate_lab_execution_package(
+        root, frozen_record(make_goal("GOAL-1")), [], "RUN-2026-001"
+    )
+    assert package.procedure == []
+    assert package.prohibited_changes == []
+    assert package.safety_notes == []
+
+
+def test_typed_goal_field_violations_are_rejected(tmp_path: Path) -> None:
+    """A frozen record that violates the shared step vocabulary or the
+    constraint-column rules is refused loudly -- the generator derives,
+    it does not repair."""
+    root = init_project(tmp_path)
+
+    blank_action = frozen_record(
+        make_goal(
+            "GOAL-1", procedure=(GoalProcedureStep(action="  "),)
+        )
+    )
+    with pytest.raises(LabPackageBuildError, match="'action'"):
+        generate_lab_execution_package(root, blank_action, [], "RUN-2026-001")
+
+    non_str_input = frozen_record(
+        make_goal(
+            "GOAL-1",
+            procedure=(
+                GoalProcedureStep(action="mix", inputs=cast(Any, [1])),
+            ),
+        )
+    )
+    with pytest.raises(LabPackageBuildError, match="'inputs'"):
+        generate_lab_execution_package(root, non_str_input, [], "RUN-2026-001")
+
+    non_step = replace(
+        frozen_record(make_goal("GOAL-1")),
+        procedure=cast(Any, ("not a step",)),
+    )
+    with pytest.raises(TypeError, match="GoalProcedureStep"):
+        generate_lab_execution_package(root, non_step, [], "RUN-2026-001")
+
+    non_constraints = replace(
+        frozen_record(make_goal("GOAL-1")),
+        execution_constraints=cast(Any, "not constraints"),
+    )
+    with pytest.raises(TypeError, match="GoalExecutionConstraints"):
+        generate_lab_execution_package(
+            root, non_constraints, [], "RUN-2026-001"
+        )
+
+    empty_forbidden = frozen_record(
+        make_goal(
+            "GOAL-1",
+            execution_constraints=GoalExecutionConstraints(
+                forbidden_changes=["  "]
+            ),
+        )
+    )
+    with pytest.raises(LabPackageBuildError, match="forbidden_changes"):
+        generate_lab_execution_package(
+            root, empty_forbidden, [], "RUN-2026-001"
+        )
+
+    empty_note = frozen_record(
+        make_goal(
+            "GOAL-1",
+            execution_constraints=GoalExecutionConstraints(safety_notes=[""]),
+        )
+    )
+    with pytest.raises(LabPackageBuildError, match="safety_notes"):
+        generate_lab_execution_package(root, empty_note, [], "RUN-2026-001")
+
+    non_str_forbidden = replace(
+        frozen_record(make_goal("GOAL-1")),
+        execution_constraints=GoalExecutionConstraints(
+            forbidden_changes=cast(Any, ["ok", 1])
+        ),
+    )
+    with pytest.raises(TypeError, match="forbidden_changes"):
+        generate_lab_execution_package(
+            root, non_str_forbidden, [], "RUN-2026-001"
+        )
 
 
 def test_rejects_a_non_frozen_goal(tmp_path: Path) -> None:
@@ -290,41 +483,12 @@ def test_required_return_derives_from_goal_outputs(tmp_path: Path) -> None:
     ]
 
 
-def test_procedure_steps_follow_the_shared_step_vocabulary(
-    tmp_path: Path,
-) -> None:
-    """One step vocabulary: action + string lists; extra keys pass through."""
-    root = init_project(tmp_path)
-    goal = frozen_record(make_goal("GOAL-1"))
-
-    package = generate_lab_execution_package(
-        root, goal, [], "RUN-2026-001", procedure=PROCEDURE
-    )
-    assert package.procedure == [dict(step) for step in PROCEDURE]
-
-    bad_steps = (
-        {"inputs": ["x"]},  # missing action
-        {"action": "  "},  # blank action
-        {"action": "mix", "inputs": [1]},  # non-str input
-        {"action": "mix", "outputs": "isotherm"},  # not a list
-        {"action": "mix", "trace_refs": ("REF",)},  # not a list
-    )
-    for bad in bad_steps:
-        with pytest.raises(LabPackageBuildError):
-            generate_lab_execution_package(
-                root, goal, [], "RUN-2026-001", procedure=(bad,)
-            )
-    with pytest.raises(TypeError, match="mapping"):
-        generate_lab_execution_package(
-            root, goal, [], "RUN-2026-001",
-            procedure=cast(Any, ("not a step",)),
-        )
-
-
 def test_authoring_lists_are_validated_and_order_preserved(
     tmp_path: Path,
 ) -> None:
-    """Authoring list order is meaningful on the operator sheet."""
+    """The remaining authoring columns (critical control variables and
+    operator records) have no typed goal source; their order is
+    meaningful on the operator sheet and is preserved."""
     root = init_project(tmp_path)
     goal = frozen_record(make_goal("GOAL-1"))
 
@@ -333,14 +497,10 @@ def test_authoring_lists_are_validated_and_order_preserved(
         goal,
         [],
         "RUN-2026-001",
-        prohibited_changes=("change B", "change A"),
         required_operator_records=("record 2", "record 1"),
-        safety_notes=("note 2", "note 1"),
         critical_control_variables=({"second": True}, {"first": True}),
     )
-    assert package.prohibited_changes == ["change B", "change A"]
     assert package.required_operator_records == ["record 2", "record 1"]
-    assert package.safety_notes == ["note 2", "note 1"]
     assert package.critical_control_variables == [
         {"second": True},
         {"first": True},
@@ -349,11 +509,11 @@ def test_authoring_lists_are_validated_and_order_preserved(
     with pytest.raises(TypeError):
         generate_lab_execution_package(
             root, goal, [], "RUN-2026-001",
-            prohibited_changes=cast(Any, ("ok", 1)),
+            required_operator_records=cast(Any, ("ok", 1)),
         )
     with pytest.raises(LabPackageDataError):
         generate_lab_execution_package(
-            root, goal, [], "RUN-2026-001", safety_notes=("",)
+            root, goal, [], "RUN-2026-001", required_operator_records=("",)
         )
     with pytest.raises(TypeError):
         generate_lab_execution_package(

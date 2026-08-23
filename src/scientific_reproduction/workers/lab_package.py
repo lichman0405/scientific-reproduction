@@ -33,8 +33,8 @@ Normative grounding (locked readings)
 
 Derivation rules (deterministic, pure)
 --------------------------------------
-The package is a pure function of the registered state and the
-caller-provided inputs:
+The package is a pure function of the registered state, the frozen Goal
+Contract and the remaining injectable authoring inputs:
 
 * ``package_id`` -- ``core.ids.generate_id("package", project_id,
   goal.goal_id, run_id)``: deterministic and identity-bearing;
@@ -64,33 +64,49 @@ caller-provided inputs:
   A goal resource id with no provided record raises loudly (the frozen
   plan guarantees registration; nothing is silently dropped).
 
-Stage-1 scaffolding (the #156 extension point)
-----------------------------------------------
-Until issue #156 (the typed Goal Contract ``procedure`` /
-``execution_constraints``) is merged, the frozen goal carries no typed
-procedure steps or execution constraints, so the generator cannot
-derive them: the scientific step content (actions, per-step
-inputs/outputs, critical control variables, prohibited changes,
-operator records, safety notes) is **caller-authored** through the
-keyword arguments and passed through verbatim. The authored ``procedure``
-steps are validated against the shared step vocabulary of issue #156's
-``GoalProcedureStep`` (``action`` plus ``inputs`` / ``outputs`` /
-``trace_refs`` lists of strings): one step vocabulary, not two, so the
-post-#156 projection (``goal.procedure`` -> package ``procedure``,
-``execution_constraints.forbidden_changes`` -> ``prohibited_changes``,
-``execution_constraints.safety_notes`` -> ``safety_notes``) slots into
-this generator without a translator. Authoring lists are preserved in
-caller order (their order is meaningful on the operator sheet); entries
-must be non-empty strings.
+Derivation from the typed Goal fields (issue #156)
+--------------------------------------------------
+The frozen goal carries the typed procedure and execution constraints
+(issue #156 / PR #191, both schema-required in
+``schemas/goal.schema.yaml``), and the generator derives them from the
+frozen record directly -- the stage-1 caller-injected ``procedure`` /
+``prohibited_changes`` / ``safety_notes`` scaffolding is removed:
+
+* ``goal.procedure`` (typed ``GoalProcedureStep`` list) -> the package
+  ``procedure``: a step's serialized form is exactly the shared step
+  vocabulary (``action`` plus ``inputs`` / ``outputs`` / ``trace_refs``
+  lists of strings) -- one vocabulary for Goal Contract steps and
+  package steps, so the projection slots in without a translator. Step
+  order is the goal record's order (meaningful on the operator sheet).
+  A step with a blank ``action`` or a non-string list entry raises
+  ``LabPackageBuildError``: the frozen record violates the vocabulary
+  the dispatched package must carry.
+* ``goal.execution_constraints.forbidden_changes`` -> the package
+  ``prohibited_changes`` and ``goal.execution_constraints.safety_notes``
+  -> the package ``safety_notes``: order preserved, entries must be
+  non-empty strings (``LabPackageBuildError`` otherwise).
+* ``goal.execution_constraints.environment`` is **not rendered**: the
+  lab-execution-package schema declares no environment field (the
+  package schema is not changed) and the hardware/environment
+  constraints belong to the worker-context package
+  (``core.models.GoalExecutionContextPackage.environment``), which the
+  context generator derives for the same goal. Documented no-op, not a
+  silent drop: the frozen goal record keeps the field.
+* ``critical_control_variables`` / ``required_operator_records`` have
+  no typed Goal Contract source (the goal schema declares neither
+  field), so they remain caller-injected authoring inputs, validated
+  and passed through in caller order (their order is meaningful on the
+  operator sheet).
 
 Determinism and boundaries
 --------------------------
-Everything is a pure function of the registered state and the
-injectable inputs: no randomness, no wall clock, no network.
-``TypeError`` at the public boundaries; ``ValueError`` subclasses with
-stable messages otherwise. The result is schema-gated on the way out:
-a package that fails the real ``lab-execution-package`` schema raises
-``SchemaValidationError`` (nothing is returned).
+Everything is a pure function of the registered state, the frozen Goal
+Contract and the injectable inputs: no randomness, no wall clock, no
+network. ``TypeError`` at the public boundaries; ``ValueError``
+subclasses with stable messages otherwise. The result is schema-gated
+on the way out: a package that fails the real
+``lab-execution-package`` schema raises ``SchemaValidationError``
+(nothing is returned).
 """
 
 from __future__ import annotations
@@ -101,6 +117,8 @@ from typing import Any, Mapping, Sequence
 from scientific_reproduction.core.ids import generate_id
 from scientific_reproduction.core.models import (
     GoalContract,
+    GoalExecutionConstraints,
+    GoalProcedureStep,
     LabExecutionPackage,
     Resource,
     ResourceType,
@@ -178,25 +196,26 @@ def generate_lab_execution_package(
     resources: Sequence[Resource],
     run_id: str,
     *,
-    procedure: Sequence[Mapping[str, Any]] = (),
     critical_control_variables: Sequence[Mapping[str, Any]] = (),
-    prohibited_changes: Sequence[str] = (),
     required_operator_records: Sequence[str] = (),
-    safety_notes: Sequence[str] = (),
 ) -> LabExecutionPackage:
     """Generate the Lab Execution Package for one frozen goal.
 
     Pure and deterministic: the package is a pure function of the
     registered project state at ``root``, the frozen Goal Contract, the
-    provided resource records and the injectable authoring inputs. The
-    package identifies the frozen contract exactly (``goal_id`` and
-    ``goal_version`` = the frozen record's id and version); the
-    required-return tokens derive from the goal's declared outputs; the
-    reagent/instrument tables derive from the goal's referenced
-    resources. The procedure steps and the constraint-like fields are
-    caller-authored stage-1 scaffolding (the typed goal procedure of
-    issue #156 does not exist yet) and are passed through verbatim
-    after shape validation against the shared step vocabulary.
+    provided resource records and the remaining injectable authoring
+    inputs. The package identifies the frozen contract exactly
+    (``goal_id`` and ``goal_version`` = the frozen record's id and
+    version); the required-return tokens derive from the goal's declared
+    outputs; the reagent/instrument tables derive from the goal's
+    referenced resources. The procedure steps and the constraint columns
+    derive from the frozen goal's typed fields (issue #156):
+    ``goal.procedure`` -> ``procedure``,
+    ``execution_constraints.forbidden_changes`` -> ``prohibited_changes``,
+    ``execution_constraints.safety_notes`` -> ``safety_notes``; the
+    ``environment`` constraints have no lab-package field and are not
+    rendered (documented no-op -- they belong to the worker-context
+    package).
 
     The result is schema-gated on the way out
     (``validate_and_reject("lab-execution-package", ...)``): a package
@@ -213,22 +232,12 @@ def generate_lab_execution_package(
             provided record raises ``LabPackageResourceError``.
         run_id: the Run the package dispatches (caller-injected; the Run
             is registered before dispatch).
-        procedure: the authored procedure steps, each a mapping of the
-            shared step vocabulary (non-empty string ``action`` plus
-            optional ``inputs`` / ``outputs`` / ``trace_refs`` lists of
-            strings); extra keys (e.g. ``step`` / ``title``) pass
-            through verbatim. Default empty.
         critical_control_variables: the authored critical control
-            variables (mappings, passed through verbatim). Default
-            empty.
-        prohibited_changes: the authored prohibited scientific
-            modifications (non-empty strings, caller order preserved).
-            Default empty.
+            variables (mappings, passed through verbatim; the Goal
+            Contract declares no typed source for them). Default empty.
         required_operator_records: the authored operator record
-            requirements (non-empty strings, caller order preserved).
-            Default empty.
-        safety_notes: the authored safety/resource notes (non-empty
-            strings, caller order preserved). Default empty.
+            requirements (non-empty strings, caller order preserved; no
+            typed Goal Contract source). Default empty.
 
     Returns:
         The schema-gated :class:`LabExecutionPackage`.
@@ -236,18 +245,21 @@ def generate_lab_execution_package(
     Raises:
         TypeError: ``root`` is not a str/Path, ``goal`` is not a
             ``GoalContract``, ``resources`` is not a sequence of
-            ``Resource`` records, ``run_id`` is not a str, or one of the
-            authoring inputs violates its declared shape (a non-mapping
-            procedure/control-variable entry, a non-str list entry).
+            ``Resource`` records, ``run_id`` is not a str, or a typed
+            goal field violates its declared shape (a non-
+            ``GoalProcedureStep`` procedure entry, a non-
+            ``GoalExecutionConstraints`` constraints value, a non-str
+            constraint entry, a non-mapping control-variable entry, a
+            non-str operator-record entry).
         ProjectNotInitializedError: no ``project.yaml`` exists at
             ``root``.
         GoalNotFrozenError: ``goal`` is not the frozen Goal Contract
             (``frozen`` False); stable message.
         LabPackageBuildError: the frozen goal carries no formal version
-            (``v<N>``), or a procedure step violates the shared step
-            vocabulary (missing/empty ``action``, non-string
-            ``inputs`` / ``outputs`` / ``trace_refs`` entries); stable
-            messages.
+            (``v<N>``), or a goal record field violates the shared step
+            vocabulary (blank ``action``, non-string ``inputs`` /
+            ``outputs`` / ``trace_refs`` entries, empty constraint
+            entries); stable messages.
         LabPackageDataError: ``run_id`` is empty or not a safe handoff
             path segment, or an authoring-list entry is empty; stable
             messages.
@@ -282,6 +294,7 @@ def generate_lab_execution_package(
     _require_frozen_goal(goal)
     _validate_run_id(run_id)
     reagents, instruments = _resource_tables(goal, resources)
+    procedure, prohibited_changes, safety_notes = _derive_goal_execution(goal)
 
     package = LabExecutionPackage(
         package_id=generate_id(
@@ -291,7 +304,7 @@ def generate_lab_execution_package(
         goal_id=goal.goal_id,
         run_id=run_id,
         objective=goal.objective,
-        procedure=_coerce_procedure(procedure),
+        procedure=procedure,
         required_return=_required_returns(goal),
         track=goal.track,
         goal_version=goal.version,
@@ -300,13 +313,11 @@ def generate_lab_execution_package(
         critical_control_variables=_coerce_object_list(
             "critical_control_variables", critical_control_variables
         ),
-        prohibited_changes=_coerce_string_list(
-            "prohibited_changes", prohibited_changes
-        ),
+        prohibited_changes=prohibited_changes,
         required_operator_records=_coerce_string_list(
             "required_operator_records", required_operator_records
         ),
-        safety_notes=_coerce_string_list("safety_notes", safety_notes),
+        safety_notes=safety_notes,
     )
     # The real persistence gate on the way out: a schema-invalid package
     # is refused loudly (the models and the schema must agree).
@@ -417,45 +428,78 @@ def _required_returns(goal: GoalContract) -> list[str]:
     return sorted(names)
 
 
-def _coerce_procedure(
-    procedure: Sequence[Mapping[str, Any]],
-) -> list[dict[str, Any]]:
-    """Validate and copy the authored procedure steps.
+def _derive_goal_execution(
+    goal: GoalContract,
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """Derive the procedure and constraint columns from the typed fields.
 
-    The shared step vocabulary of issue #156 (one vocabulary for Goal
-    Contract steps and package steps): every step is a mapping with a
-    non-empty string ``action`` and, when present, ``inputs`` /
-    ``outputs`` / ``trace_refs`` lists of strings. Extra keys (e.g.
-    ``step`` / ``title``) pass through verbatim; step order is
-    preserved.
+    The frozen goal carries the typed procedure steps and execution
+    constraints (issue #156, schema-required): a step's serialized form
+    is exactly the shared step vocabulary (``action`` plus ``inputs`` /
+    ``outputs`` / ``trace_refs`` lists of strings), and
+    ``forbidden_changes`` / ``safety_notes`` map onto the package
+    columns verbatim (goal order preserved). ``environment`` has no
+    lab-package field and is not rendered (documented no-op; it belongs
+    to the worker-context package).
     """
+    constraints = goal.execution_constraints
+    if not isinstance(constraints, GoalExecutionConstraints):
+        raise TypeError(
+            "goal.execution_constraints must be a"
+            f" GoalExecutionConstraints, got {type(constraints).__name__}"
+        )
     steps: list[dict[str, Any]] = []
-    for index, step in enumerate(procedure):
-        if not isinstance(step, Mapping):
+    for index, step in enumerate(goal.procedure):
+        if not isinstance(step, GoalProcedureStep):
             raise TypeError(
-                f"procedure entry {index} must be a mapping, got"
-                f" {type(step).__name__}"
+                f"goal.procedure entry {index} must be a GoalProcedureStep,"
+                f" got {type(step).__name__}"
             )
-        data = dict(step)
-        action = data.get("action")
+        action = step.action
         if not isinstance(action, str) or not action.strip():
             raise LabPackageBuildError(
-                f"procedure entry {index} must carry a non-empty string"
-                f" 'action' (the shared step vocabulary of issue #156),"
-                f" got {action!r}"
+                f"goal.procedure entry {index} must carry a non-empty string"
+                f" 'action' (the shared step vocabulary), got {action!r}"
             )
         for key in ("inputs", "outputs", "trace_refs"):
-            value = data.get(key)
-            if value is not None and (
-                not isinstance(value, list)
-                or not all(isinstance(item, str) for item in value)
+            value = getattr(step, key)
+            if not isinstance(value, list) or not all(
+                isinstance(item, str) for item in value
             ):
                 raise LabPackageBuildError(
-                    f"procedure entry {index} {key!r} must be a list of"
+                    f"goal.procedure entry {index} {key!r} must be a list of"
                     f" strings, got {value!r}"
                 )
-        steps.append(data)
-    return steps
+        steps.append(step.to_dict())
+    return (
+        steps,
+        _constraint_strings("forbidden_changes", constraints.forbidden_changes),
+        _constraint_strings("safety_notes", constraints.safety_notes),
+    )
+
+
+def _constraint_strings(name: str, values: list[str]) -> list[str]:
+    """Copy one derived constraint column (order preserved, non-empty
+    entries).
+
+    ``name`` is the ``GoalExecutionConstraints`` field the entries came
+    from; it appears in the stable error messages.
+    """
+    entries: list[str] = []
+    for index, value in enumerate(values):
+        if not isinstance(value, str):
+            raise TypeError(
+                f"goal.execution_constraints.{name} entry {index} must be a"
+                f" str, got {type(value).__name__}"
+            )
+        if not value.strip():
+            raise LabPackageBuildError(
+                f"goal.execution_constraints.{name} entries must be"
+                " non-empty strings (the frozen record carries an empty"
+                " entry)"
+            )
+        entries.append(value)
+    return entries
 
 
 def _coerce_object_list(

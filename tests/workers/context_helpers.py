@@ -37,6 +37,8 @@ from scientific_reproduction.core.models import (
     GoalAcceptance,
     GoalContract,
     GoalDependency,
+    GoalExecutionConstraints,
+    GoalProcedureStep,
     GoalReplication,
     GoalTrack,
     InventoryItemType,
@@ -138,8 +140,15 @@ def make_goal(
     requirement_ids: tuple[str, ...] = ("REQ-1",),
     retry_policy_ref: str | None = "RETRY-ENGINEERING-DEFAULT",
     analysis_id: str = "ANP-1",
+    procedure: tuple[GoalProcedureStep, ...] = (),
+    execution_constraints: GoalExecutionConstraints | None = None,
 ) -> GoalContract:
-    """Build a schema-valid draft goal contract (version ``v1-draft``)."""
+    """Build a schema-valid draft goal contract (version ``v1-draft``).
+
+    The typed contract fields (issue #156) default to the documented
+    migration state (explicitly empty); suites that need authored
+    content pass them in.
+    """
     return GoalContract(
         goal_id=goal_id,
         title=f"Reproduce the reported isotherm ({goal_id}).",
@@ -159,6 +168,12 @@ def make_goal(
         frozen=False,
         closure_contract_ref="CLC-1",
         automatic_retry_policy_ref=retry_policy_ref,
+        procedure=list(procedure),
+        execution_constraints=(
+            execution_constraints
+            if execution_constraints is not None
+            else GoalExecutionConstraints()
+        ),
     )
 
 
