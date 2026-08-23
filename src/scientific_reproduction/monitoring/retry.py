@@ -86,6 +86,14 @@ lifecycle/identity contract violations, ``CorruptRetryStateError`` for
 corrupt retry state). No credentials are ever persisted: transient
 classifier failures are recorded as unclassified refusals and their
 messages never reach durable bytes.
+
+The pass-level :meth:`RetryDispatcher.decide_all` isolates per-run
+errors (issue #152): only ``RUNNING_EXTERNAL`` runs are eligible for a
+decision, ineligible runs are recorded as skipped, a run whose decision
+raises a stable per-run ``RetryError`` is recorded as a per-run failed
+outcome, and the pass continues -- one permanently failing entry never
+blocks the retry decisions of the healthy ones. Corrupt project-level
+state (an unreadable watch set) still fails the pass loudly.
 """
 
 from __future__ import annotations
@@ -135,7 +143,9 @@ __all__ = [
     "RetryContractError",
     "RetryDispatcher",
     "RetryError",
+    "RetryFailure",
     "RetryOutcome",
+    "RetrySkipped",
     "RetrySummary",
 ]
 
@@ -379,12 +389,101 @@ class RetryOutcome:
 
 
 @dataclass(frozen=True)
+class RetrySkipped:
+    """The skipped outcome of one watched run in a pass-level decision:
+    the run's lifecycle cannot carry a retry decision (it is not
+    ``RUNNING_EXTERNAL`` -- a completed, result-bearing or terminal
+    state), so the pass records the skip and continues (issue #152: a
+    mixed watch set no longer aborts the pass).
+
+    Attributes:
+        run_id: the skipped run.
+        lifecycle_state: the stable lifecycle-state value of the run
+            (the reason the decision was skipped).
+        skipped_at: the injected clock stamp of the skip.
+    """
+
+    run_id: str
+    lifecycle_state: str
+    skipped_at: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.run_id, str):
+            raise TypeError(
+                f"RetrySkipped.run_id must be a str, got"
+                f" {type(self.run_id).__name__}"
+            )
+        valid_states = {state.value for state in LifecycleState}
+        if self.lifecycle_state not in valid_states:
+            raise RetryError(
+                f"RetrySkipped.lifecycle_state {self.lifecycle_state!r} is"
+                " not a valid lifecycle-state value"
+                f" {sorted(valid_states)!r}"
+            )
+        if self.lifecycle_state == LifecycleState.RUNNING_EXTERNAL.value:
+            raise RetryError(
+                "RetrySkipped invariant violation: a RUNNING_EXTERNAL run"
+                " is eligible for a retry decision and can never be skipped"
+            )
+        if not isinstance(self.skipped_at, str) or not self.skipped_at:
+            raise RetryError(
+                "RetrySkipped.skipped_at must be a non-empty timestamp"
+                f" string, got {self.skipped_at!r}"
+            )
+
+
+@dataclass(frozen=True)
+class RetryFailure:
+    """The failed outcome of deciding one watched run: the per-run
+    error-isolation record of the pass-level API.
+
+    ``decide_all`` records a run whose decision raises a stable per-run
+    ``RetryError`` (``RetryContractError`` or ``CorruptRetryStateError``)
+    here instead of aborting the pass (issue #152): the failing entry is
+    skipped and the remaining watched runs still get decided. Corrupt
+    project-level state (an unreadable watch set) still fails the pass
+    loudly.
+
+    Attributes:
+        run_id: the run whose decision failed.
+        error: the stable error class name (``RetryContractError`` or
+            ``CorruptRetryStateError``).
+        message: the error message (diagnostics for the operator; never
+            persisted).
+    """
+
+    run_id: str
+    error: str
+    message: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.run_id, str):
+            raise TypeError(
+                f"RetryFailure.run_id must be a str, got"
+                f" {type(self.run_id).__name__}"
+            )
+        if not isinstance(self.error, str) or not self.error:
+            raise RetryError(
+                "RetryFailure.error must be a non-empty error class name,"
+                f" got {self.error!r}"
+            )
+        if not isinstance(self.message, str):
+            raise TypeError(
+                "RetryFailure.message must be a str, got"
+                f" {type(self.message).__name__}"
+            )
+
+
+@dataclass(frozen=True)
 class RetrySummary:
     """The outcome of deciding the full watch set.
 
     ``outcomes`` is the per-run outcomes in sorted run-id order
     (deterministic); ``authorized_count`` / ``refused_count`` count the
-    decisions of this pass.
+    decisions of this pass; ``skipped`` is the per-run skipped outcomes
+    (runs whose lifecycle cannot carry a retry) and ``failures`` the
+    per-run failed outcomes (issue #152 error isolation), both in
+    sorted run-id order.
     """
 
     monitor_id: str
@@ -392,6 +491,8 @@ class RetrySummary:
     outcomes: tuple[RetryOutcome, ...] = ()
     authorized_count: int = 0
     refused_count: int = 0
+    skipped: tuple[RetrySkipped, ...] = ()
+    failures: tuple[RetryFailure, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.monitor_id, str) or not is_valid_id(
@@ -443,6 +544,39 @@ class RetrySummary:
             raise RetryError(
                 "RetrySummary.refused_count must equal the number of"
                 " refused outcomes"
+            )
+        for name, record_type in (
+            ("skipped", RetrySkipped),
+            ("failures", RetryFailure),
+        ):
+            records = getattr(self, name)
+            if not isinstance(records, tuple):
+                raise TypeError(
+                    f"RetrySummary.{name} must be a tuple of"
+                    f" {record_type.__name__} entries, got"
+                    f" {type(records).__name__}"
+                )
+            for record in records:
+                if not isinstance(record, record_type):
+                    raise TypeError(
+                        f"RetrySummary.{name} entries must be"
+                        f" {record_type.__name__}, got {type(record).__name__}"
+                    )
+            record_ids = [record.run_id for record in records]
+            if record_ids != sorted(record_ids):
+                raise RetryError(
+                    f"RetrySummary.{name} must be sorted by run_id"
+                    " (deterministic order)"
+                )
+        outcome_ids = {outcome.run_id for outcome in self.outcomes}
+        skipped_ids = {record.run_id for record in self.skipped}
+        failure_ids = {record.run_id for record in self.failures}
+        if outcome_ids & skipped_ids or outcome_ids & failure_ids or (
+            skipped_ids & failure_ids
+        ):
+            raise RetryError(
+                "a run cannot appear in more than one of the outcomes,"
+                " skipped and failures groups of one decision pass"
             )
 
 
@@ -747,18 +881,63 @@ class RetryDispatcher:
 
     def decide_all(self) -> RetrySummary:
         """Decide every watched run (sorted run-id order) and return
-        the summary, classifying each run through the injected failure
-        classifier. A contract violation or corrupt state anywhere in
-        the watch set fails the whole pass loudly (deterministic sorted
-        order, deterministic error)."""
-        outcomes = tuple(
-            self.decide(record.run_id, self._classify(record.external))
-            for record in self._registry.list_watched()
-        )
+        the summary, classifying each eligible run through the injected
+        failure classifier.
+
+        Per-run isolation (issue #152): only runs whose lifecycle is
+        ``RUNNING_EXTERNAL`` are eligible for a decision; a watched run
+        at any other lifecycle (``RESULT_AVAILABLE``, terminal states)
+        is recorded as skipped (``skipped``) -- never aborted -- and
+        the classifier is not invoked for it. A run whose decision
+        raises a stable per-run ``RetryError`` (``RetryContractError``
+        or ``CorruptRetryStateError``) is recorded as a per-run failed
+        outcome (``failures``) with the stable error, and the pass
+        continues with the remaining runs. Corrupt project-level state
+        (an unreadable watch set), a classifier/type contract violation
+        or the loud default hook (no resubmission hook for an
+        authorized decision) still fails the whole pass loudly
+        (deterministic sorted order, deterministic error)."""
+        outcomes: list[RetryOutcome] = []
+        skipped: list[RetrySkipped] = []
+        failures: list[RetryFailure] = []
+        for record in self._registry.list_watched():
+            run_id = record.run_id
+            try:
+                run = self._read_run(run_id)
+            except CorruptRetryStateError as exc:
+                failures.append(
+                    RetryFailure(
+                        run_id=run_id,
+                        error=type(exc).__name__,
+                        message=str(exc),
+                    )
+                )
+                continue
+            if run.lifecycle_state is not LifecycleState.RUNNING_EXTERNAL:
+                skipped.append(
+                    RetrySkipped(
+                        run_id=run_id,
+                        lifecycle_state=run.lifecycle_state.value,
+                        skipped_at=self._now_fn(),
+                    )
+                )
+                continue
+            try:
+                outcomes.append(
+                    self.decide(run_id, self._classify(record.external))
+                )
+            except (RetryContractError, CorruptRetryStateError) as exc:
+                failures.append(
+                    RetryFailure(
+                        run_id=run_id,
+                        error=type(exc).__name__,
+                        message=str(exc),
+                    )
+                )
         return RetrySummary(
             monitor_id=self._monitor_id,
             decided_at=self._now_fn(),
-            outcomes=outcomes,
+            outcomes=tuple(outcomes),
             authorized_count=sum(
                 1
                 for o in outcomes
@@ -767,6 +946,8 @@ class RetryDispatcher:
             refused_count=sum(
                 1 for o in outcomes if o.decision == RETRY_DECISION_REFUSED
             ),
+            skipped=tuple(skipped),
+            failures=tuple(failures),
         )
 
     # -- internals ----------------------------------------------------------

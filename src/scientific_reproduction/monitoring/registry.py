@@ -536,7 +536,15 @@ class WatchedRunRegistry:
         A corrupt or foreign entry anywhere under ``<state_dir>/
         watched/`` fails the whole reconstruction loudly (stable
         ``WatchRecordError``) -- the watched directory is Monitor-owned
-        and everything in it is a watch entry.
+        and everything in it is a watch entry. This is intentional and
+        deliberately has NO per-entry isolation (issue #152 decision):
+        the watch set is reconstructed project-level state, not a
+        per-run record; a partial set would silently drop the corrupt
+        entry from every pass-level API and from recovery's
+        authoritative plan, while the loud error names the offending
+        path. Per-run error isolation lives in the pass-level APIs
+        (``reconcile_all`` / ``decide_all``), which record the runs
+        that cannot participate without aborting the pass.
         """
         if not self._watched_dir.is_dir():
             return ()

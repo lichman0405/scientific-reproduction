@@ -69,7 +69,9 @@ from scientific_reproduction.monitoring.retry import (
     RetryContractError,
     RetryDispatcher,
     RetryError,
+    RetryFailure,
     RetryOutcome,
+    RetrySkipped,
     RetrySummary,
 )
 
@@ -1173,6 +1175,163 @@ def test_retry_decide_all_classifies_each_watched_run(tmp_path: Path) -> None:
     )
     # Every watched run was classified through the injected classifier.
     assert set(classifier.calls) == {transport_run.external, job_run.external}
+
+
+# ---------------------------------------------------------------------------
+# Pass-level per-run isolation (issue #152)
+# ---------------------------------------------------------------------------
+
+
+def test_decide_all_skips_ineligible_runs_and_decides_the_eligible(
+    tmp_path: Path,
+) -> None:
+    """Issue #152: a mixed watch set -- a ``RESULT_AVAILABLE`` run that
+    completed normally plus a ``RUNNING_EXTERNAL`` run with an
+    engineering failure -- does not abort the pass: the ineligible run
+    is recorded as skipped, the eligible run is decided (and
+    resubmitted), and the classifier is only invoked for the eligible
+    run."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    completed_run = make_run(1, lifecycle_state=LifecycleState.RESULT_AVAILABLE)
+    failed_run = make_run(2)
+    classifier = MappingClassifier(
+        {failed_run.external.job_id: FAILURE_CLASS_TRANSPORT}
+    )
+    resubmit = RecordingResubmit()
+    dispatcher = make_dispatcher(
+        state,
+        runs_dir,
+        events_dir,
+        classifier=classifier,
+        resubmit=resubmit,
+    )
+    watch_all(
+        dispatcher,
+        (
+            make_watch_record(1, external=completed_run.external),
+            make_watch_record(2, external=failed_run.external),
+        ),
+    )
+    for run in (completed_run, failed_run):
+        write_run(dispatcher.run_store, run)
+
+    summary = dispatcher.decide_all()
+
+    # The pass did not abort: exactly the eligible run was decided.
+    assert summary.authorized_count == 1
+    assert summary.refused_count == 0
+    assert [o.run_id for o in summary.outcomes] == [failed_run.run_id]
+    assert summary.outcomes[0].decision == RETRY_DECISION_AUTHORIZED
+    # The ineligible run is a skipped outcome with the stable reason.
+    assert summary.skipped == (
+        RetrySkipped(
+            run_id=completed_run.run_id,
+            lifecycle_state=LifecycleState.RESULT_AVAILABLE.value,
+            skipped_at=FIXED_STAMP,
+        ),
+    )
+    assert summary.failures == ()
+    # Only the eligible run was classified and resubmitted.
+    assert classifier.calls == [failed_run.external]
+    assert resubmit.calls == [failed_run.external]
+    assert len(dispatcher.event_log.list_events()) == 1
+    assert Run.from_dict(
+        dispatcher.run_store.read("run", completed_run.run_id)
+    ) == completed_run
+
+
+def test_decide_all_records_per_run_failures_and_continues(
+    tmp_path: Path,
+) -> None:
+    """Issue #152: per-run errors during the pass -- a watched run
+    whose Run record is missing (``CorruptRetryStateError``) and a run
+    whose external identity disagrees with its watch entry
+    (``RetryContractError``) -- are recorded as per-run failed outcomes
+    with the stable error, and the pass still decides the healthy runs."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    missing_run = make_run(1)
+    mismatch_run = make_run(2)
+    healthy_run = make_run(3)
+    classifier = MappingClassifier(
+        {healthy_run.external.job_id: FAILURE_CLASS_TRANSPORT}
+    )
+    resubmit = RecordingResubmit()
+    dispatcher = make_dispatcher(
+        state,
+        runs_dir,
+        events_dir,
+        classifier=classifier,
+        resubmit=resubmit,
+    )
+    mismatch_external = make_external(
+        job_id=generate_id("job", "mismatch"),
+        working_directory=mismatch_run.external.working_directory,
+    )
+    watch_all(
+        dispatcher,
+        (
+            make_watch_record(1, external=missing_run.external),
+            make_watch_record(2, external=mismatch_external),
+            make_watch_record(3, external=healthy_run.external),
+        ),
+    )
+    write_run(dispatcher.run_store, mismatch_run)
+    write_run(dispatcher.run_store, healthy_run)
+
+    summary = dispatcher.decide_all()
+
+    assert summary.authorized_count == 1
+    assert summary.refused_count == 0
+    assert summary.skipped == ()
+    assert [o.run_id for o in summary.outcomes] == [healthy_run.run_id]
+    assert all(
+        isinstance(failure, RetryFailure) for failure in summary.failures
+    )
+    failures_by_run = {failure.run_id: failure for failure in summary.failures}
+    assert set(failures_by_run) == {missing_run.run_id, mismatch_run.run_id}
+    assert failures_by_run[missing_run.run_id].error == "CorruptRetryStateError"
+    assert failures_by_run[missing_run.run_id].message.startswith(
+        f"corrupt retry state for run {missing_run.run_id!r}"
+    )
+    assert failures_by_run[mismatch_run.run_id].error == "RetryContractError"
+    assert "external identity disagrees" in failures_by_run[
+        mismatch_run.run_id
+    ].message
+    # Only the healthy run was decided, resubmitted and recorded; the
+    # mismatched run is classified (it is lifecycle-eligible) but its
+    # decision fails the identity contract before the hook is reached.
+    assert set(classifier.calls) == {mismatch_external, healthy_run.external}
+    assert resubmit.calls == [healthy_run.external]
+    assert len(dispatcher.event_log.list_events()) == 1
+
+
+def test_decide_all_loud_default_hook_still_fails_the_pass(
+    tmp_path: Path,
+) -> None:
+    """The per-run isolation covers per-run durable state errors only:
+    an authorized decision with no resubmission hook injected raises
+    the loud default ``RetryError`` -- a Monitor configuration problem
+    -- and still fails the whole pass loudly."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    run = make_run(1)
+    classifier = MappingClassifier(
+        {run.external.job_id: FAILURE_CLASS_TRANSPORT}
+    )
+    dispatcher = make_dispatcher(
+        state, runs_dir, events_dir, classifier=classifier
+    )
+    watch_all(dispatcher, (make_watch_record(1, external=run.external),))
+    write_run(dispatcher.run_store, run)
+
+    with pytest.raises(RetryError):
+        dispatcher.decide_all()
+    assert dispatcher.event_log.list_events() == []
 
 
 # ---------------------------------------------------------------------------

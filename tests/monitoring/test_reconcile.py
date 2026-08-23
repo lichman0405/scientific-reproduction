@@ -70,6 +70,7 @@ from scientific_reproduction.monitoring.reconcile import (
     ReconcileContractError,
     ReconcileEngine,
     ReconcileError,
+    ReconcileFailure,
     ReconcileOutcome,
     ReconcileSummary,
 )
@@ -722,6 +723,154 @@ def test_ac03_empty_watch_set_yields_empty_summary(tmp_path: Path) -> None:
         completed_count=0,
     )
     assert load_checkpoint(state) is None
+
+
+# ---------------------------------------------------------------------------
+# Pass-level per-run error isolation (issue #152)
+# ---------------------------------------------------------------------------
+
+
+def test_reconcile_all_isolates_permanently_failing_run_and_completes_healthy(
+    tmp_path: Path,
+) -> None:
+    """Issue #152: a mixed watch set -- one watched run whose reconcile
+    raises ``ReconcileContractError`` on every pass (a run cancelled by
+    the supervisor whose external job still reports the completion
+    signal) plus one healthy running run -- does not abort the pass:
+    the healthy run still transitions to ``RESULT_AVAILABLE`` and the
+    failing run's outcome is recorded in the summary with the stable
+    error. The isolation is permanent: re-reconciling the same watch
+    set keeps recording the failure and never blocks the healthy run's
+    steady state."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    cancelled_run = make_run(1, lifecycle_state=LifecycleState.CANCELLED)
+    healthy_run = make_run(2)
+    # Both externals report the completion signal; the cancelled run
+    # can never record it (the permanent failure of the mixed set).
+    probe = MappingProbe(
+        {
+            cancelled_run.external.job_id: EXTERNAL_STATE_RESULT_AVAILABLE,
+            healthy_run.external.job_id: EXTERNAL_STATE_RESULT_AVAILABLE,
+        }
+    )
+    engine = make_engine(state, runs_dir, events_dir, probe=probe)
+    watch_all(
+        engine,
+        (
+            make_watch_record(1, external=cancelled_run.external),
+            make_watch_record(2, external=healthy_run.external),
+        ),
+    )
+    for run in (cancelled_run, healthy_run):
+        write_run(engine.run_store, run)
+
+    first = engine.reconcile_all()
+
+    # No abort: the healthy run completed and the failing run is a
+    # per-run failed outcome with the stable error.
+    assert first.completed_count == 1
+    assert [o.run_id for o in first.outcomes] == [healthy_run.run_id]
+    assert first.outcomes[0].completed is True
+    assert first.outcomes[0].observed_state == EXTERNAL_STATE_RESULT_AVAILABLE
+    assert first.failures == (
+        ReconcileFailure(
+            run_id=cancelled_run.run_id,
+            error="ReconcileContractError",
+            message=(
+                f"external completion observed for run {cancelled_run.run_id!r}"
+                " whose lifecycle state 'CANCELLED' cannot record a"
+                " completion (expected RUNNING_EXTERNAL or a"
+                " result-bearing state); reconciliation never fabricates a"
+                " completion onto this run"
+            ),
+        ),
+    )
+    # The healthy run transitioned through the real machinery; the
+    # cancelled run was never touched and never fabricated onto.
+    assert Run.from_dict(
+        engine.run_store.read("run", healthy_run.run_id)
+    ).lifecycle_state is LifecycleState.RESULT_AVAILABLE
+    assert Run.from_dict(
+        engine.run_store.read("run", cancelled_run.run_id)
+    ).lifecycle_state is LifecycleState.CANCELLED
+    assert len(engine.event_log.list_events()) == 1
+    entries = load_checkpoint(state)
+    assert entries is not None
+    assert {entry.run_id for entry in entries} == {healthy_run.run_id}
+
+    # The failure is permanent: the next pass over the same watch set
+    # still isolates it and never blocks the healthy run's steady state.
+    second = engine.reconcile_all()
+    assert second.completed_count == 0
+    assert second.failures == first.failures
+    assert len(engine.event_log.list_events()) == 1
+
+
+def test_reconcile_all_isolates_corrupt_progress_per_run(tmp_path: Path) -> None:
+    """Issue #152: a watched run whose Run record is missing raises
+    ``CorruptProgressError`` on every pass; the pass-level API records
+    it as a per-run failed outcome and still reconciles the healthy
+    runs of the mixed watch set."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    missing_run = make_run(1)
+    healthy_run = make_run(2)
+    probe = MappingProbe(
+        {
+            missing_run.external.job_id: EXTERNAL_STATE_RUNNING,
+            healthy_run.external.job_id: EXTERNAL_STATE_RESULT_AVAILABLE,
+        }
+    )
+    engine = make_engine(state, runs_dir, events_dir, probe=probe)
+    watch_all(
+        engine,
+        (
+            make_watch_record(1, external=missing_run.external),
+            make_watch_record(2, external=healthy_run.external),
+        ),
+    )
+    write_run(engine.run_store, healthy_run)
+
+    summary = engine.reconcile_all()
+
+    assert summary.completed_count == 1
+    assert [o.run_id for o in summary.outcomes] == [healthy_run.run_id]
+    assert [failure.run_id for failure in summary.failures] == [
+        missing_run.run_id
+    ]
+    assert summary.failures[0].error == "CorruptProgressError"
+    assert summary.failures[0].message.startswith(
+        f"corrupt reconciliation progress for run {missing_run.run_id!r}"
+    )
+    assert Run.from_dict(
+        engine.run_store.read("run", healthy_run.run_id)
+    ).lifecycle_state is LifecycleState.RESULT_AVAILABLE
+
+
+def test_reconcile_all_probe_type_violation_still_fails_loudly(
+    tmp_path: Path,
+) -> None:
+    """The per-run error isolation covers the stable per-run durable
+    state errors only: a probe type contract violation (a non-str
+    return) is a programming/config error and still fails the whole
+    pass loudly."""
+    state, runs_dir, events_dir = (
+        tmp_path / "state", tmp_path / "runs", tmp_path / "events"
+    )
+    run = make_run(1)
+
+    def bad_probe(external: RunExternal) -> str:
+        return 42  # type: ignore[return-value]
+
+    engine = make_engine(state, runs_dir, events_dir, probe=bad_probe)  # type: ignore[arg-type]
+    watch_all(engine, (make_watch_record(1, external=run.external),))
+    write_run(engine.run_store, run)
+
+    with pytest.raises(TypeError):
+        engine.reconcile_all()
 
 
 # ---------------------------------------------------------------------------

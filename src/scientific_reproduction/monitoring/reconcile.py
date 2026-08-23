@@ -95,6 +95,14 @@ for lifecycle/identity contract violations, ``CorruptProgressError``
 for corrupt progress state). No credentials are ever persisted: probe
 exception messages are never recorded, only the normalized state
 vocabulary.
+
+The pass-level :meth:`ReconcileEngine.reconcile_all` isolates per-run
+errors (issue #152): a run whose reconcile raises a stable per-run
+``ReconcileError`` is recorded as a per-run failed outcome in the
+summary and the pass continues with the remaining runs -- one
+permanently failing entry never blocks the completion recording of the
+healthy ones. Corrupt project-level state (an unreadable watch set)
+still fails the pass loudly.
 """
 
 from __future__ import annotations
@@ -150,6 +158,7 @@ __all__ = [
     "ReconcileContractError",
     "ReconcileEngine",
     "ReconcileError",
+    "ReconcileFailure",
     "ReconcileOutcome",
     "ReconcileSummary",
 ]
@@ -371,18 +380,64 @@ class ReconcileOutcome:
 
 
 @dataclass(frozen=True)
+class ReconcileFailure:
+    """The failed outcome of reconciling one watched external Run: the
+    per-run error-isolation record of the pass-level API.
+
+    ``reconcile_all`` records a run whose ``reconcile`` raises a stable
+    per-run ``ReconcileError`` (``ReconcileContractError`` or
+    ``CorruptProgressError``) here instead of aborting the pass (issue
+    #152): the failing entry is skipped and the remaining watched runs
+    still reconcile. Corrupt project-level state (an unreadable watch
+    set) still fails the pass loudly.
+
+    Attributes:
+        run_id: the run whose reconcile failed.
+        error: the stable error class name (``ReconcileContractError``
+            or ``CorruptProgressError``).
+        message: the error message (diagnostics for the operator; never
+            persisted).
+    """
+
+    run_id: str
+    error: str
+    message: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.run_id, str):
+            raise TypeError(
+                f"ReconcileFailure.run_id must be a str, got"
+                f" {type(self.run_id).__name__}"
+            )
+        if not isinstance(self.error, str) or not self.error:
+            raise ReconcileError(
+                "ReconcileFailure.error must be a non-empty error class"
+                f" name, got {self.error!r}"
+            )
+        if not isinstance(self.message, str):
+            raise TypeError(
+                "ReconcileFailure.message must be a str, got"
+                f" {type(self.message).__name__}"
+            )
+
+
+@dataclass(frozen=True)
 class ReconcileSummary:
     """The outcome of reconciling the full watch set.
 
     ``outcomes`` is the per-run outcomes in sorted run-id order
     (deterministic); ``completed_count`` is the number of runs that
-    performed the completion transition during this pass.
+    performed the completion transition during this pass; ``failures``
+    is the per-run failed outcomes (issue #152 error isolation) in
+    sorted run-id order -- the runs whose reconcile raised a stable
+    per-run error and were skipped without aborting the pass.
     """
 
     monitor_id: str
     reconciled_at: str
     outcomes: tuple[ReconcileOutcome, ...] = ()
     completed_count: int = 0
+    failures: tuple[ReconcileFailure, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.monitor_id, str) or not is_valid_id(
@@ -425,6 +480,29 @@ class ReconcileSummary:
             raise ReconcileError(
                 "ReconcileSummary.completed_count must equal the number of"
                 " completed outcomes"
+            )
+        if not isinstance(self.failures, tuple):
+            raise TypeError(
+                "ReconcileSummary.failures must be a tuple of"
+                f" ReconcileFailure entries, got {type(self.failures).__name__}"
+            )
+        for failure in self.failures:
+            if not isinstance(failure, ReconcileFailure):
+                raise TypeError(
+                    "ReconcileSummary.failures entries must be"
+                    f" ReconcileFailure, got {type(failure).__name__}"
+                )
+        failure_ids = [failure.run_id for failure in self.failures]
+        if failure_ids != sorted(failure_ids):
+            raise ReconcileError(
+                "ReconcileSummary.failures must be sorted by run_id"
+                " (deterministic order)"
+            )
+        overlap = set(failure_ids) & {outcome.run_id for outcome in self.outcomes}
+        if overlap:
+            raise ReconcileError(
+                "a run cannot appear in both the outcomes and the failures"
+                " of one reconcile pass"
             )
 
 
@@ -677,18 +755,36 @@ class ReconcileEngine:
 
     def reconcile_all(self) -> ReconcileSummary:
         """Reconcile every watched run (sorted run-id order) and return
-        the summary. A contract violation or corrupt progress anywhere
-        in the watch set fails the whole pass loudly (deterministic
-        sorted order, deterministic error)."""
-        outcomes = tuple(
-            self.reconcile(record.run_id)
-            for record in self._registry.list_watched()
-        )
+        the summary.
+
+        Per-run error isolation (issue #152): a run whose ``reconcile``
+        raises a stable per-run ``ReconcileError``
+        (``ReconcileContractError`` or ``CorruptProgressError``) is
+        recorded as a per-run failed outcome (``failures``) with the
+        stable error, and the pass continues with the remaining runs --
+        a healthy run still transitions to ``RESULT_AVAILABLE``. Corrupt
+        project-level state (an unreadable watch set) or a probe/type
+        contract violation still fails the whole pass loudly
+        (deterministic sorted order, deterministic error)."""
+        outcomes: list[ReconcileOutcome] = []
+        failures: list[ReconcileFailure] = []
+        for record in self._registry.list_watched():
+            try:
+                outcomes.append(self.reconcile(record.run_id))
+            except (ReconcileContractError, CorruptProgressError) as exc:
+                failures.append(
+                    ReconcileFailure(
+                        run_id=record.run_id,
+                        error=type(exc).__name__,
+                        message=str(exc),
+                    )
+                )
         return ReconcileSummary(
             monitor_id=self._monitor_id,
             reconciled_at=self._now_fn(),
-            outcomes=outcomes,
+            outcomes=tuple(outcomes),
             completed_count=sum(1 for o in outcomes if o.completed),
+            failures=tuple(failures),
         )
 
     # -- internals ----------------------------------------------------------
