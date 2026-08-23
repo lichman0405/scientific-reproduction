@@ -116,6 +116,7 @@ from scientific_reproduction.core.models import (
 from scientific_reproduction.core.rules.lifecycle import PROJECT_PHASE_MAINLINE
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.init import PlanningError, read_project_state
+from scientific_reproduction.planning.inventory import list_requirements
 from scientific_reproduction.planning.plan import (
     ACCEPTANCE_STATE_DIR,
     CLOSURE_STATE_DIR,
@@ -143,6 +144,7 @@ __all__ = [
     "FreezeError",
     "FreezeProhibitedError",
     "GoalFamilyNotDraftError",
+    "OrphanGoalContractError",
     "PlanAlreadyFrozenError",
     "PlanFreezeResult",
     "PlanNotDraftError",
@@ -224,6 +226,20 @@ class GoalFamilyNotDraftError(FreezeError, ValueError):
     """Raised when a goal-family record is already frozen at freeze time."""
 
 
+class OrphanGoalContractError(FreezeError, ValueError):
+    """Raised when a registered goal contract no requirement references.
+
+    Freezing requires every registered goal to carry at least one
+    registered ``requirement -> goal`` edge -- equivalently, every
+    registered goal must be reachable from the plan's goal closure
+    (issue #141). A goal the requirements never map would be stamped
+    frozen yet stay absent from the plan, the plan DAG, and every
+    dispatch; the gate surfaces the orphan ids instead of freezing a
+    contract no run will ever exercise. The message names the orphan
+    goal ids (deterministic, sorted by goal id).
+    """
+
+
 # ---------------------------------------------------------------------------
 # Freeze result
 # ---------------------------------------------------------------------------
@@ -294,7 +310,10 @@ def freeze_plan(
     references -- and every acceptance's ``statistical_design_ref``
     (07-STATISTICS-AND-ACCEPTANCE.md SS9: the design is frozen before
     data generation) -- must resolve
-    (``UnresolvedContractReferenceError``).
+    (``UnresolvedContractReferenceError``); and every registered goal
+    must be referenced by at least one registered requirement -- a goal
+    no requirement maps is an orphan family record and blocks the freeze
+    (``OrphanGoalContractError``, issue #141).
 
     On success, the frozen ``Plan`` (``PlanStatus.FROZEN``, ``frozen_at``,
     ``frozen_commit`` = pre-freeze ``git HEAD`` or ``None`` outside a Git
@@ -344,6 +363,9 @@ def freeze_plan(
         UnresolvedContractReferenceError: a goal-family reference is
             unresolvable.
         GoalFamilyNotDraftError: a goal-family record is already frozen.
+        OrphanGoalContractError: a registered goal contract is not
+            referenced by any registered requirement (an orphan family
+            record; the message names the orphan goal ids).
         ValueError: a stored registry record is corrupt.
     """
     if not isinstance(root, (str, Path)):
@@ -646,6 +668,15 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
     goal-family record that is already frozen blocks the freeze
     (``GoalFamilyNotDraftError``): the family must be frozen *by* the
     plan freeze, not before it.
+
+    The reverse direction is verified too (issue #141): every registered
+    goal must be referenced by at least one registered requirement (a
+    ``requirement -> goal`` edge, ``ReproductionRequirement.goal_ids``
+    naming the goal). A registered goal no requirement maps -- and
+    therefore absent from the plan and every dispatch -- raises
+    ``OrphanGoalContractError`` naming the orphan goal ids instead of
+    being stamped frozen silently. The gate surfaces the inconsistency;
+    it never folds orphans into the plan.
     """
     goals = list_goals(project_root)
     registered_goal_ids = {g.goal_id for g in goals}
@@ -709,6 +740,25 @@ def _verify_goal_family_closed(project_root: Path, plan: Plan) -> None:
                 f"{kind} {record_id!r} is already frozen; the goal-contract"
                 " family must be frozen by the plan freeze"
             )
+
+    # Orphan direction (issue #141): every registered goal must carry at
+    # least one registered ``requirement -> goal`` edge. Computed from the
+    # registered requirements at freeze time (stored snapshots are never
+    # trusted): a goal no requirement maps -- and therefore absent from the
+    # plan, the plan DAG, and every dispatch -- must block the freeze
+    # instead of being stamped frozen silently.
+    referenced_goal_ids = {
+        goal_id
+        for requirement in list_requirements(project_root)
+        for goal_id in requirement.goal_ids
+    }
+    orphan_goal_ids = sorted(registered_goal_ids - referenced_goal_ids)
+    if orphan_goal_ids:
+        raise OrphanGoalContractError(
+            "registered goal contract(s) are not referenced by any"
+            " registered requirement (orphan family records):"
+            f" {', '.join(orphan_goal_ids)}"
+        )
 
 
 def _goal_family_kind_and_id(record: Any) -> tuple[str, str]:

@@ -10,12 +10,13 @@ plan and renders the deterministic PDF report with an injected
 ``generated_at``:
 
 1. the report renders for the benchmark state -- the frozen 82-item /
-   82-requirement inventory, the 20 goals, 10 protocols and 4 closure
-   contracts appear in the report (scope/pipeline counts, requirement
-   outcome table, closure table, frozen plan refs), the frozen DOI is
-   the target identity, and the simulation/real-data label derives from
-   the recorded item types (the frozen register has simulation
-   categories, so the label is mixed, never silently real-data);
+   82-requirement inventory, the 18 registered (item-mapped) goals, 10
+   protocols and 4 closure contracts appear in the report
+   (scope/pipeline counts, requirement outcome table, closure table,
+   frozen plan refs), the frozen DOI is the target identity, and the
+   simulation/real-data label derives from the recorded item types (the
+   frozen register has simulation categories, so the label is mixed,
+   never silently real-data);
 2. the render is deterministic: two fresh workspaces replaying the same
    frozen register produce byte-identical PDF bytes and identical
    section page numbers (same convention as the reload determinism
@@ -63,8 +64,9 @@ def _render(root: Path):
 
 def test_fdm201_report_renders_frozen_register_counts(tmp_path: Path) -> None:
     """The report renders for the FDM-201 benchmark state with the frozen
-    register counts: 82 items / 82 requirements, 20 goals, 10 protocols,
-    4 closure contracts, the frozen DOI and a mixed data label."""
+    register counts: 82 items / 82 requirements, 18 goals (the item-mapped
+    family the reload registers), 10 protocols, 4 closure contracts, the
+    frozen DOI and a mixed data label."""
     root = execute_reload(tmp_path)
     report = _render(root)
 
@@ -78,7 +80,7 @@ def test_fdm201_report_renders_frozen_register_counts(tmp_path: Path) -> None:
     assert DOI.encode() in data
     assert b"82 items" in data
     assert b"82 requirements" in data
-    assert b"20 goals" in data
+    assert b"18 goals" in data
     assert b"10 protocols" in data
     assert b"4 closure contracts" in data
     # A requirement of the frozen register renders in the outcome table.
