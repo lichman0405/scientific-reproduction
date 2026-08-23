@@ -62,6 +62,17 @@ Do not create umbrella Goals such as “reproduce all adsorption experiments”.
 - forbidden modifications
 - version/freeze metadata
 
+The version/freeze metadata carries the contract's revision lineage. Freeze
+stamps the draft to its formal version (`v1-draft` -> `v1`) and persists the
+contract in place; a plan-wide revision re-opens the whole goal-contract
+family as the next draft version (`v1` -> `v2-draft`). A goal may also be
+revised on its own (`revise_goal`): the single goal contract re-opens as the
+next draft version with `parent_goal_id` set to the goal it was revised
+from (goal-level lineage), while sibling goals and the
+acceptance/design/analysis/closure records stay frozen and byte-untouched.
+Runs keep referencing the `goal_version` they executed against, so past
+results are unaffected.
+
 ## 5. Dependencies
 
 Dependency semantics must include at least:
