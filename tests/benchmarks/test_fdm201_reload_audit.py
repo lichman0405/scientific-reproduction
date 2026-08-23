@@ -101,6 +101,7 @@ from scientific_reproduction.core.models import (
 from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
+    OrphanGoalContractError,
     PlanAlreadyFrozenError,
     freeze_plan,
 )
@@ -117,6 +118,7 @@ from scientific_reproduction.planning.inventory import (
 )
 from scientific_reproduction.planning.plan import (
     build_plan_v1,
+    read_goal,
     read_plan,
     register_acceptance,
     register_analysis_protocol,
@@ -450,11 +452,34 @@ def make_closure(frozen: dict) -> ClosureContract:
 
 
 def reload_goal_families(root: Path) -> None:
-    """Reload the full frozen goal-contract family: all 20 goals, their
-    20 acceptance records, the 10 analysis protocols (ANL-001..090, once
-    each) and the 4 closure contracts (CC-*, once each), every value read
-    from the frozen register."""
-    frozen_goals = _frozen_goals()["goals"]
+    """Reload the frozen goal-contract family: the 18 item-mapped goals
+    with their 18 acceptance records, the 10 analysis protocols
+    (ANL-001..090, once each) and the 4 closure contracts (CC-*, once
+    each), every value read from the frozen register.
+
+    The two plan-level goals (GOAL-AUD-001, GOAL-EXE-90) carry no item
+    mapping (INVENTORY.yaml ``requirement_mapping_policy``): registering
+    them would freeze orphan family records, which the issue #141 freeze
+    gate rejects -- the reload leaves them out, their frozen verdicts are
+    asserted directly from the register (AC-03 (d)), and the rejection
+    path has its own test.
+    """
+    mapped = {
+        goal_id
+        for item in _frozen_inventory()["items"]
+        for goal_id in resolve_goal_refs(item["requirement_mapping"])
+    }
+    # The requirement mappings cover exactly the plan's 18 goals; the two
+    # plan-level goals enter the frozen plan_v1 goal_ids only.
+    assert mapped == set(_load_yaml(PLAN_V1_YAML)["goal_ids"]) - {
+        "GOAL-AUD-001",
+        "GOAL-EXE-90",
+    }
+    frozen_goals = [
+        frozen
+        for frozen in _frozen_goals()["goals"]
+        if frozen["goal_id"] in mapped
+    ]
     for frozen in frozen_goals:
         register_goal(root, make_goal(frozen))
     for frozen in frozen_goals:
@@ -662,10 +687,10 @@ def test_fdm201_reload_deterministic_double_run(tmp_path):
 
 
 def test_fdm201_reload_goal_family_freezes_the_frozen_verdict(tmp_path):
-    # AC-03: the reloaded state -- full inventory plus the full 20-goal
-    # contract family -- freezes to a Plan v1 whose embedded inventory
-    # audit is the frozen 82/82 PASS, at the frozen timestamp, with the
-    # whole family frozen by the freeze and the plan reading back
+    # AC-03: the reloaded state -- full inventory plus the 18-goal
+    # item-mapped contract family -- freezes to a Plan v1 whose embedded
+    # inventory audit is the frozen 82/82 PASS, at the frozen timestamp,
+    # with the family frozen by the freeze and the plan reading back
     # identically through the plan registry.
     root = execute_reload(tmp_path)
     result = freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
@@ -677,12 +702,10 @@ def test_fdm201_reload_goal_family_freezes_the_frozen_verdict(tmp_path):
     assert len(frozen_goal_ids) == 20
     # The reloaded plan covers the 18 item-mapped goals; the audit goal
     # (GOAL-AUD-001) and the integration goal (GOAL-EXE-90) carry no item
-    # mapping, so they enter the plan's goal set via the frozen goal
-    # family instead -- the whole family is frozen regardless.
+    # mapping, so they are not registered (the issue #141 freeze gate
+    # rejects goals with no requirement -> goal edge; see the rejection
+    # test below).
     assert set(frozen.goal_ids) == frozen_goal_ids - {"GOAL-AUD-001", "GOAL-EXE-90"}
-    assert {"GOAL-AUD-001", "GOAL-EXE-90"} <= {
-        g.goal_id for g in result.goals
-    }
     assert frozen.requirement_ids == sorted(
         _load_yaml(PLAN_V1_YAML)["requirement_ids"]
     )
@@ -694,12 +717,16 @@ def test_fdm201_reload_goal_family_freezes_the_frozen_verdict(tmp_path):
     assert audit_view.ambiguous_items == 0
     assert audit_view.coverage == 1.0
     assert audit_view.status is AuditStatus.PASS
-    # The whole registered goal-contract family (all 20 frozen goals) is
-    # frozen by the freeze; the plan's goal set is the 18 item-mapped
-    # subset (GOAL-AUD-001 and GOAL-EXE-90 carry no item mapping).
-    assert {g.goal_id for g in result.goals} == frozen_goal_ids
+    # The whole registered goal-contract family (the 18 item-mapped
+    # goals) is frozen by the freeze; the plan's goal set is the same
+    # set -- the frozen family never contains records absent from the
+    # plan's goal closure.
+    assert {g.goal_id for g in result.goals} == frozen_goal_ids - {
+        "GOAL-AUD-001",
+        "GOAL-EXE-90",
+    }
     assert all(g.frozen for g in result.goals)
-    assert len(result.acceptance) == 20
+    assert len(result.acceptance) == 18
     assert all(a.frozen for a in result.acceptance)
     assert len(result.analysis_protocols) == 10
     assert all(a.frozen for a in result.analysis_protocols)
@@ -709,6 +736,37 @@ def test_fdm201_reload_goal_family_freezes_the_frozen_verdict(tmp_path):
     # Immutable: a second freeze of v1 is rejected, nothing rewritten.
     with pytest.raises(PlanAlreadyFrozenError):
         freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+
+
+def test_fdm201_reload_orphan_plan_goals_block_the_freeze(tmp_path):
+    # The two plan-level goals (GOAL-AUD-001, GOAL-EXE-90) carry no item
+    # mapping: registering them makes them orphan family records, which
+    # the freeze gate (issue #141) must surface -- never freeze silently.
+    # The error is stable across attempts, names the orphan ids sorted,
+    # and writes nothing: no draft, no frozen plan, the family stays
+    # draft. (The reload itself registers only the 18 item-mapped goals;
+    # this test registers the two plan-level goals on top.)
+    root = execute_reload(tmp_path)
+    for goal_id in ("GOAL-AUD-001", "GOAL-EXE-90"):
+        register_goal(root, make_goal(_frozen_goal(goal_id)))
+        register_acceptance(root, make_acceptance(_frozen_goal(goal_id)))
+
+    messages = []
+    for _ in range(2):
+        with pytest.raises(OrphanGoalContractError) as exc:
+            freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+        messages.append(str(exc.value))
+    assert messages[0] == messages[1]
+    assert "orphan" in messages[0]
+    assert "GOAL-AUD-001" in messages[0]
+    assert "GOAL-EXE-90" in messages[0]
+    assert messages[0].index("GOAL-AUD-001") < messages[0].index("GOAL-EXE-90")
+    # Nothing is written: no draft, no frozen plan, and the goal family
+    # stays in its draft state.
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+    for goal_id in ("GOAL-AUD-001", "GOAL-EXE-90", GOAL_ID):
+        assert read_goal(root, goal_id).frozen is False
 
 
 def test_fdm201_reload_goal_family_values_reload_verbatim(tmp_path):

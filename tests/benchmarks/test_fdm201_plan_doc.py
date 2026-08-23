@@ -1,12 +1,14 @@
 """Issue #105 acceptance: the frozen FDM-201 benchmark renders into a
 designed plan document.
 
-The full frozen FDM-201 state (82/82 inventory, 20-goal contract family)
-is reloaded through the real registration APIs, frozen through the real
-audit gate (``freeze_plan``, fixed ``FROZEN_AT`` stamp) and rendered
-with a fixed injected ``generated_at`` -- the document must cover the
-cover identity, the inventory coverage summary, the 82-requirement
-table, the 20-node goal DAG diagram and one section per goal, render
+The full frozen FDM-201 state (82/82 inventory, the 18 item-mapped goal
+family -- the two plan-level goals carry no item mapping and are not
+registered, see the issue #141 orphan gate) is reloaded through the real
+registration APIs, frozen through the real audit gate (``freeze_plan``,
+fixed ``FROZEN_AT`` stamp) and rendered with a fixed injected
+``generated_at`` -- the document must cover the cover identity, the
+inventory coverage summary, the 82-requirement table, the goal DAG
+diagram and one section per plan goal, render
 byte-identically on repeated runs, and persist under ``reports/`` with a
 machine-verifiable SHA-256 checksum. The reload registers no statistical
 designs, so the SS8 "no basis on record" path is exercised at benchmark
@@ -47,8 +49,8 @@ def install_frozen_fdm201(root: Path) -> Path:
 
 def test_fdm201_plan_doc_renders_the_frozen_plan(tmp_path: Path) -> None:
     """The renderer handles the full benchmark workspace: cover identity
-    and freeze stamp, coverage summary, 82-requirement table, 20-node
-    DAG and one section per goal (issue #105 acceptance)."""
+    and freeze stamp, coverage summary, 82-requirement table, the 18-goal
+    DAG and one section per plan goal (issue #105 acceptance)."""
     root = install_frozen_fdm201(tmp_path)
     doc = render_plan_document(root, "v1", generated_at=GENERATED_AT)
     text = doc.to_html()

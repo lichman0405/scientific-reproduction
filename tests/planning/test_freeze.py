@@ -83,6 +83,7 @@ from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
     FreezeProhibitedError,
     GoalFamilyNotDraftError,
+    OrphanGoalContractError,
     PlanAlreadyFrozenError,
     PlanFreezeResult,
     PlanNotDraftError,
@@ -1321,6 +1322,7 @@ def test_freeze_plan_error_hierarchy_and_stable_messages(tmp_path):
         PlanNotFrozenError,
         UnresolvedContractReferenceError,
         GoalFamilyNotDraftError,
+        OrphanGoalContractError,
         DuplicatePlanVersionError,
         DuplicateStatisticalDesignError,
         StatisticalDesignNotFoundError,
@@ -1429,6 +1431,68 @@ def test_freeze_plan_unresolved_goal_refs_block_freeze(tmp_path):
     assert "ANL-MISSING" in str(exc.value)
     assert not (root / "plans" / "v1-draft.json").exists()
     assert not (root / "plans" / "v1.json").exists()
+
+
+def test_freeze_plan_orphan_goal_blocks_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2's references all resolve to registered records, but no
+    # registered requirement maps it (no requirement -> goal edge): an
+    # orphan family record. The freeze gate must surface it, not stamp it
+    # frozen into a plan that will never dispatch it.
+    register_goal(root, make_goal("GOAL-2"))
+    with pytest.raises(OrphanGoalContractError) as exc:
+        freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert "GOAL-2" in str(exc.value)
+    assert "orphan" in str(exc.value)
+    # Nothing is written: no draft, no frozen plan, and the goal family
+    # stays in its draft state.
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+    assert read_goal(root, "GOAL-1").frozen is False
+    assert read_goal(root, "GOAL-2").frozen is False
+
+
+def test_freeze_plan_orphan_goal_error_is_stable_and_sorted(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    register_goal(root, make_goal("GOAL-2"))
+    register_goal(root, make_goal("GOAL-3"))
+    messages = []
+    for _ in range(2):
+        with pytest.raises(OrphanGoalContractError) as exc:
+            freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+        messages.append(str(exc.value))
+    # Stable: identical message on every attempt, naming every orphan id
+    # in deterministic sorted order.
+    assert messages[0] == messages[1]
+    assert "GOAL-2" in messages[0]
+    assert "GOAL-3" in messages[0]
+    assert messages[0].index("GOAL-2") < messages[0].index("GOAL-3")
+
+
+def test_freeze_plan_frozen_family_matches_plan_goal_closure(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    plan = build_plan_v1(root)
+    result = freeze_plan(root, plan, timestamp=FROZEN_AT)
+    # The frozen family never contains records absent from the plan's
+    # reference closure: the frozen goals are exactly the plan's goals,
+    # and every goal-family record is referenced from that closure.
+    plan_goal_ids = set(plan.goal_ids)
+    assert {g.goal_id for g in result.goals} == plan_goal_ids
+    referenced = {
+        g.acceptance.criteria_ref for g in result.goals
+    } | {
+        g.analysis_protocol_ref for g in result.goals
+    } | {
+        g.closure_contract_ref for g in result.goals if g.closure_contract_ref
+    } | {
+        a.statistical_design_ref
+        for a in result.acceptance
+        if a.statistical_design_ref
+    }
+    assert {a.acceptance_id for a in result.acceptance} <= referenced
+    assert {a.analysis_id for a in result.analysis_protocols} <= referenced
+    assert {c.closure_id for c in result.closure_contracts} <= referenced
+    assert {d.design_id for d in result.statistical_designs} <= referenced
 
 
 def test_freeze_plan_unresolved_design_ref_blocks_freeze(tmp_path):

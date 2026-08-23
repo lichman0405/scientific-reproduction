@@ -304,13 +304,16 @@ def build_complete_workspace(root: Path) -> Path:
     """Initialize a freeze-eligible workspace with a two-goal dependency chain.
 
     Registers inventory items and requirements mapping ``REQ-1`` to
-    ``GOAL-1`` and ``REQ-2`` to ``GOAL-2``, the goal-contract family
-    drafts (``GOAL-1`` depending on ``GOAL-2``, plus an unrelated
-    ``GOAL-UNRELATED`` that is registered but is not a dependency), shared
+    ``GOAL-1`` and ``REQ-2`` to ``GOAL-2`` and ``GOAL-UNRELATED``, the
+    goal-contract family drafts (``GOAL-1`` depending on ``GOAL-2``, plus
+    ``GOAL-UNRELATED`` which is not a dependency), shared
     acceptance/analysis/closure records, and resource ``RES-1``. ``GOAL-1``
     declares output ``analysis_input_manifest``; ``GOAL-2`` declares
     ``raw_isotherm_data``; ``GOAL-UNRELATED`` declares
-    ``unrelated_artifact``.
+    ``unrelated_artifact``. ``GOAL-UNRELATED`` is requirement-mapped (the
+    issue #141 freeze gate rejects registered goals with no
+    ``requirement -> goal`` edge) yet stays outside ``GOAL-1``'s closure:
+    its output must never leak into ``GOAL-1``'s context.
     """
     init_project(root)
     register_inventory_item(
@@ -331,7 +334,7 @@ def build_complete_workspace(root: Path) -> Path:
         root,
         make_requirement(
             "REQ-2",
-            goal_ids=("GOAL-2",),
+            goal_ids=("GOAL-2", "GOAL-UNRELATED"),
             inventory_items=("ITEM-2",),
         ),
     )
