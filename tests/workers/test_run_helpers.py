@@ -13,6 +13,14 @@ maps to the issue's observed hand-rolled layer:
   (issue #148): an unknown, draft, or version-mismatched goal rejects
   the registration with a stable error and persists nothing, while a
   matching frozen goal registers unchanged;
+* gate consultation (issue #144) -- ``test_register_run_gate_*``: the
+  registration consults the execution gate before anything is written
+  (a goal blocked by its unresolved hard-gated dependencies is refused
+  with a stable error naming the goal, the deciding aggregate rule and
+  the blocking upstream goals); an allowed registration records the
+  consulted verdict -- including its ``matched_rule_id`` -- in the
+  ``run.recorded`` event payload; the crash-window heal path consults
+  without enforcing and converges unchanged;
 * run transitions -- ``test_transition_run_*``: the full mainline chain
   plus the ``CANCELLED`` / ``INVALIDATED`` arcs, each move persisted
   (``lifecycle_state`` advanced, ``updated_at`` stamped with the
@@ -41,8 +49,10 @@ from scientific_reproduction.audit.git import AuditIdentity
 from scientific_reproduction.core.events import EventRecord, ProjectEventLog
 from scientific_reproduction.core.leases import LeaseHeldError, LeaseStore
 from scientific_reproduction.core.models import (
+    DependencyType,
     GoalAcceptance,
     GoalContract,
+    GoalDependency,
     GoalReplication,
     GoalTrack,
     LifecycleState,
@@ -50,6 +60,9 @@ from scientific_reproduction.core.models import (
     RunType,
 )
 from scientific_reproduction.core.rules.lifecycle import IllegalTransitionError
+from scientific_reproduction.planning.gate_state import (
+    GoalExecutionBlockedError,
+)
 from scientific_reproduction.planning.init import (
     INIT_EVENT_TYPE,
     ProjectNotInitializedError,
@@ -107,6 +120,28 @@ def init_project(root: Path) -> Path:
     return root
 
 
+def init_gated_project(root: Path) -> Path:
+    """Initialize a deterministic project whose GOAL-1 (the run target
+    of ``make_run``) hard-gates GOAL-2 on both axes (issue #144)."""
+    initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
+    register_goal(root, make_goal(goal_id="GOAL-2"))
+    register_goal(
+        root,
+        make_goal(
+            goal_id=GOAL_ID,
+            dependencies=(
+                GoalDependency(
+                    goal_id="GOAL-2",
+                    type=DependencyType.HARD_GATE,
+                    execution_gate=True,
+                    acceptance_gate=True,
+                ),
+            ),
+        ),
+    )
+    return root
+
+
 def event_log(root: Path) -> ProjectEventLog:
     """The workspace event log bound to the ``events/`` directory."""
     return ProjectEventLog(root)
@@ -126,6 +161,7 @@ def run_flow_events(root: Path) -> list[EventRecord]:
 def make_goal(
     goal_id: str = GOAL_ID,
     *,
+    dependencies: tuple[GoalDependency, ...] = (),
     version: str = GOAL_VERSION,
     frozen: bool = True,
 ) -> GoalContract:
@@ -137,7 +173,7 @@ def make_goal(
         track=GoalTrack.STRICT_REPRODUCTION,
         objective="Reproduce the formally reported isotherm dataset.",
         requirement_ids=["REQ-1"],
-        dependencies=[],
+        dependencies=list(dependencies),
         acceptance=GoalAcceptance(criteria_ref="ACC-1", frozen=frozen),
         analysis_protocol_ref="ANP-1",
         replication=GoalReplication(
@@ -397,6 +433,130 @@ def test_register_run_type_errors(tmp_path):
         register_run(root, make_run(), actor=1, recorded_at=RECORDED_AT)  # type: ignore[arg-type]
     with pytest.raises(RunRegistryError):
         register_run(root, make_run(), actor="", recorded_at=RECORDED_AT)
+
+
+# ---------------------------------------------------------------------------
+# Gate consultation (issue #144: the registration is the runtime consumer
+# of the dependency gate engines)
+# ---------------------------------------------------------------------------
+
+
+def test_register_run_gate_blocked_goal_refused_nothing_persisted(tmp_path):
+    root = init_gated_project(tmp_path)
+    with pytest.raises(GoalExecutionBlockedError) as exc:
+        register_run(
+            root,
+            make_run(),
+            actor=ACTOR,
+            recorded_at=RECORDED_AT,
+        )
+    message = str(exc.value)
+    assert GOAL_ID in message  # the gated goal
+    assert "R-EXEC-G-1" in message  # the deciding aggregate rule
+    assert "GOAL-2" in message  # the unresolved hard-gated upstream goal
+    # Nothing was written: no run record, no run.recorded event.
+    assert list_runs(root) == ()
+    assert not (root / RUNS_STATE_DIR / "RUN-1.json").exists()
+    assert run_flow_events(root) == []
+
+
+def test_register_run_gate_blocked_until_upstream_run_accepted(tmp_path):
+    root = init_gated_project(tmp_path)
+    # GOAL-2 unresolved: GOAL-1's execution gate is BLOCKED (AC-01).
+    with pytest.raises(GoalExecutionBlockedError):
+        register_run(root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT)
+    # GOAL-2's run is registered and driven to the accepted result
+    # (CLOSED); GOAL-1 registers unchanged and the consulted verdict --
+    # including its matched_rule_id -- is recorded in the event payload.
+    register_run(
+        root,
+        make_run("RUN-2", goal_id="GOAL-2"),
+        actor=ACTOR,
+        recorded_at=RECORDED_AT,
+    )
+    for to_state, reason in (
+        (LifecycleState.READY, "run queued"),
+        (LifecycleState.DISPATCHED, "dispatched"),
+        (LifecycleState.RUNNING_EXTERNAL, "started"),
+        (LifecycleState.RESULT_AVAILABLE, "result produced"),
+        (LifecycleState.ANALYZING, "analyzing"),
+        (LifecycleState.SUBMITTED_FOR_REVIEW, "submitted"),
+        (LifecycleState.CLOSED, "review passed"),
+    ):
+        transition_run(
+            root, "RUN-2", to_state,
+            actor=ACTOR, reason=reason, at="2026-01-10T00:00:00Z",
+        )
+    registration = register_run(
+        root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT
+    )
+    assert registration.replayed is False
+    assert read_run(root, "RUN-1") == make_run()
+    record = registration.event_record
+    assert record is not None
+    gate = record.event.payload["execution_gate"]
+    assert gate["outcome"] == "ALLOWED"
+    assert gate["matched_rule_id"] == "R-EXEC-G-2"
+    assert gate["blocking_goal_ids"] == []
+
+
+def test_register_run_gate_allowed_records_matched_rule_id(tmp_path):
+    """The consulted matched_rule_id is recorded in the audit trail."""
+    root = init_project(tmp_path)  # dependency-free frozen GOAL-1
+    registration = register_run(
+        root, make_run(), actor=ACTOR, recorded_at=RECORDED_AT
+    )
+    record = registration.event_record
+    assert record is not None
+    gate = record.event.payload["execution_gate"]
+    assert gate["outcome"] == "ALLOWED"
+    assert gate["matched_rule_id"] == "R-EXEC-G-2"
+    assert gate["blocking_goal_ids"] == []
+    assert gate["ruleset_version"]  # the frozen engine's ruleset version
+    # The payload is durable: the workspace log reads back the same event.
+    stored = event_log(root).get(record.event.event_id)
+    assert stored is not None
+    assert stored.event.payload == record.event.payload
+
+
+def test_register_run_gate_crash_window_heal_consults_without_enforcing(tmp_path):
+    root = init_gated_project(tmp_path)
+    log = event_log(root)
+    # Simulate the crash: the record write landed, the event append did
+    # not (the hand-rolled interruption point of the existing suite).
+    (root / RUNS_STATE_DIR).mkdir(parents=True, exist_ok=True)
+    (root / RUNS_STATE_DIR / "RUN-1.json").write_text(
+        json.dumps(make_run().to_dict(), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    registration = register_run(
+        root,
+        make_run(),
+        actor=ACTOR,
+        recorded_at=RECORDED_AT,
+        event_log=log,
+    )
+    assert registration.replayed is True
+    # The heal path consults WITHOUT enforcing (the registration decision
+    # was already durably made): GOAL-1's gate is still BLOCKED here, and
+    # the current verdict is recorded in the healed event's payload.
+    record = registration.event_record
+    assert record is not None
+    gate = record.event.payload["execution_gate"]
+    assert gate["outcome"] == "BLOCKED"
+    assert gate["matched_rule_id"] == "R-EXEC-G-1"
+    assert gate["blocking_goal_ids"] == ["GOAL-2"]
+    # Convergence is unchanged: a third call finds record and event both
+    # present and is a true duplicate.
+    with pytest.raises(DuplicateRunError, match="already registered"):
+        register_run(
+            root,
+            make_run(),
+            actor=ACTOR,
+            recorded_at=RECORDED_AT,
+            event_log=log,
+        )
+    assert len(run_flow_events(root)) == 1
 
 
 # ---------------------------------------------------------------------------

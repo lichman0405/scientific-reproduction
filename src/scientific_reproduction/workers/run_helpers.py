@@ -22,7 +22,13 @@ plumbing. The frozen spec grounds this module:
   Run records are durable state, one file per run;
 * the role contracts of ``adapters/platform/contracts/base.py`` AC-02:
   run records and the append-only event log are the roles' core state
-  truth (``state_object_types`` includes ``run`` and ``event``).
+  truth (``state_object_types`` includes ``run`` and ``event``);
+* ``planning/gate_state.py`` (issue #144): ``register_run`` is the
+  runtime consumer of the dependency gate engines -- the Execute step
+  consults the workspace gate state before any run is authored, refuses
+  a goal whose execution gate is BLOCKED (AC-01) and records the
+  consulted verdict (including its ``matched_rule_id``) in the
+  ``run.recorded`` event payload.
 
 Workspace layout (normative)
 ----------------------------
@@ -99,6 +105,11 @@ from scientific_reproduction.core.models import (
 from scientific_reproduction.core.rules.lifecycle import IllegalTransitionError
 from scientific_reproduction.core.state_backend import FilesystemStateBackend
 from scientific_reproduction.core.transitions import transition
+from scientific_reproduction.planning.gate_state import (
+    GoalGateVerdict,
+    assert_execution_eligible,
+    goal_gate_verdict,
+)
 from scientific_reproduction.planning.init import (
     PROJECT_STATE_FILENAME,
     ProjectNotInitializedError,
@@ -289,6 +300,21 @@ def register_run(
     version-mismatched goal rejects the registration and persists
     nothing (no record, no event).
 
+    Gate consultation (issue #144): registration is the first authoring
+    step of the execution-facing flow, so the goal's execution gate is
+    consulted through the deterministic gate-state wiring
+    (``planning.gate_state`` -- the runtime consumer of the frozen gate
+    engines) before anything is written. A goal whose execution gate is
+    BLOCKED by its unresolved hard-gated dependencies is refused with
+    ``GoalExecutionBlockedError`` and nothing persists (no record, no
+    event); the consulted verdict -- including its ``matched_rule_id``
+    -- is recorded in the ``run.recorded`` event payload. The
+    crash-window heal path consults the gate *without* enforcing: the
+    registration decision was already durably made there, and
+    convergence must never be refused by gate state that changed in the
+    meantime (the current verdict is still recorded in the healed
+    event's payload).
+
     Args:
         root: the initialized workspace root.
         run: the run as a typed :class:`Run` or a schema-shaped mapping.
@@ -321,6 +347,10 @@ def register_run(
             id, the expected version and the actual version.
         InvalidRecordIdError: ``goal_id`` is not a safe single registry
             path segment (planning layer's registry-id gate).
+        GoalExecutionBlockedError: the goal's execution gate is BLOCKED
+            (AC-01); stable message naming the goal, the deciding
+            aggregate rule (``matched_rule_id``) and the unresolved
+            hard-gated upstream goals. Raised before any write.
         DuplicateRunError: the ``run_id`` is already registered.
         ValueError: the stored state is corrupt, or the id is not a
             safe object id (state backend).
@@ -345,18 +375,40 @@ def register_run(
             )
         # Crash window: the record write landed but the event append did
         # not -- heal the log with the deterministic event and report the
-        # original record (replayed convergence).
+        # original record (replayed convergence). The gate is consulted
+        # WITHOUT enforcing: the registration decision was already durably
+        # made, so convergence must never be refused by gate state that
+        # changed in the meantime; the current verdict is still recorded
+        # in the healed event's payload (a pure function of the state at
+        # heal time, like everything else in the convergence path).
+        gate_verdict = goal_gate_verdict(project_root, model.goal_id)
         stored = _read_run_record(store, model.run_id)
         record = _append(
             event_log,
-            _run_recorded_event(model.run_id, actor, recorded_at),
+            _run_recorded_event(
+                model.run_id,
+                actor,
+                recorded_at,
+                payload=_execution_gate_payload(gate_verdict),
+            ),
             idempotency_key=f"{RUN_RECORDED_EVENT_TYPE}:{model.run_id}",
         )
         return RunRegistration(run=stored, event_record=record, replayed=True)
+    # Gate consultation (issue #144): the dispatch decision of the Execute
+    # step consults the execution gate before anything is written -- a
+    # goal whose execution gate is BLOCKED by its unresolved hard-gated
+    # dependencies is refused (AC-01) and nothing persists. The consulted
+    # verdict is recorded in the run.recorded event payload.
+    gate_verdict = assert_execution_eligible(project_root, model.goal_id)
     store.write("run", model.run_id, model.to_dict())
     record = _append(
         event_log,
-        _run_recorded_event(model.run_id, actor, recorded_at),
+        _run_recorded_event(
+            model.run_id,
+            actor,
+            recorded_at,
+            payload=_execution_gate_payload(gate_verdict),
+        ),
         idempotency_key=f"{RUN_RECORDED_EVENT_TYPE}:{model.run_id}",
     )
     return RunRegistration(run=model, event_record=record)
@@ -707,8 +759,40 @@ def _append(
     return event_log.append(event, idempotency_key=idempotency_key)
 
 
-def _run_recorded_event(run_id: str, actor: str, recorded_at: str) -> ProjectEvent:
-    """The deterministic ``run.recorded`` event of one run."""
+def _execution_gate_payload(verdict: GoalGateVerdict) -> dict[str, Any]:
+    """The ``run.recorded`` payload recording the consulted gate verdict.
+
+    The execution-facing audit trail of issue #144: the payload records
+    exactly what the registration consulted -- the frozen execution-gate
+    assessment's outcome, deciding aggregate rule (``matched_rule_id``)
+    and ruleset version, plus the unresolved hard-gated upstream goals.
+    Plain JSON-safe values only (the event record is schema-validated).
+    """
+    assessment = verdict.execution_assessment
+    return {
+        "execution_gate": {
+            "outcome": assessment.outcome.value,
+            "matched_rule_id": assessment.matched_rule_id,
+            "ruleset_version": assessment.ruleset_version,
+            "blocking_goal_ids": list(assessment.blocking_goal_ids),
+        }
+    }
+
+
+def _run_recorded_event(
+    run_id: str,
+    actor: str,
+    recorded_at: str,
+    *,
+    payload: dict[str, Any],
+) -> ProjectEvent:
+    """The deterministic ``run.recorded`` event of one run.
+
+    ``payload`` records the consulted execution-gate verdict (issue
+    #144); the event id stays a pure function of (event type, run id),
+    so the registration's idempotency and crash-window semantics are
+    unchanged by the audit payload.
+    """
     return ProjectEvent(
         event_id=generate_id("event", RUN_RECORDED_EVENT_TYPE, run_id),
         timestamp=recorded_at,
@@ -716,6 +800,7 @@ def _run_recorded_event(run_id: str, actor: str, recorded_at: str) -> ProjectEve
         event_type=RUN_RECORDED_EVENT_TYPE,
         object_id=run_id,
         run_id=run_id,
+        payload=payload,
     )
 
 
