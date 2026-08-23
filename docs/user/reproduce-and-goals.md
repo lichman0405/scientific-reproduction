@@ -219,7 +219,14 @@ must resolve to a registered design);
 `revise_plan(root, plan)` creates the next draft version (`v1 -> v2-draft`)
 from a registered FROZEN plan and re-opens the goal-contract family as
 drafts of that version — the frozen content as the authoring baseline
-(AC-03).
+(AC-03). `revise_plan(root, plan, goal_subset=(...))` revises only a
+submitted subset of goals: submitted contracts whose content equals the
+registered frozen record are left frozen, so only goals that actually
+changed are re-opened. `revise_goal(root, goal)` reopens a single
+registered FROZEN goal as the next draft version (`v1 -> v2-draft`) with
+`parent_goal_id` set to the revised-from goal (goal-level lineage); sibling
+goals and the acceptance/design/analysis/closure records stay frozen and
+byte-untouched.
 
 **DAG and blocker views** — `src/scientific_reproduction/planning/dag.py`
 (DEV-M4-G05): `build_plan_dag(root, version)` builds the ready-first

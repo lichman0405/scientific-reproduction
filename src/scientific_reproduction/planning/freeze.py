@@ -110,6 +110,20 @@ touched**: the stored file stays byte-identical and
 (via the versioned ``SUPERSEDED_RULES`` rule table) without any in-place
 mutation -- supersession is a computed lineage status.
 
+Since issue #164 the revision unit is not only the whole plan:
+``revise_goal`` reopens **one** registered FROZEN goal as a draft of the
+next version with ``parent_goal_id`` set (the goal-level lineage field
+that until now had no consumer) -- sibling goals, and the
+acceptance/statistical-design/analysis/closure records, stay frozen and
+byte-untouched, so a failed experiment amends its own goal without
+forcing the re-freeze of unrelated goals. ``revise_plan`` accepts an
+explicit ``goal_subset`` of amended goal contracts: only the submitted
+goals whose content changed are reopened (a submitted contract equal to
+the registered frozen record is left frozen); with no subset (the
+default) the whole registered goal-contract family is reopened as
+before, for genuine plan-wide revisions. Runs keep referencing the
+``goal_version`` they executed against, so past results are unaffected.
+
 Determinism and boundaries
 --------------------------
 All checks and derived records are pure functions of the registered
@@ -166,6 +180,7 @@ from scientific_reproduction.planning.plan import (
     list_goals,
     list_statistical_designs,
     next_version,
+    read_goal,
     read_plan,
     register_plan,
 )
@@ -174,6 +189,8 @@ __all__ = [
     "FreezeError",
     "FreezeProhibitedError",
     "GoalFamilyNotDraftError",
+    "GoalNotFrozenError",
+    "GoalStateMismatchError",
     "HardGateDependencyCycleError",
     "OrphanGoalContractError",
     "PlanAlreadyFrozenError",
@@ -183,6 +200,7 @@ __all__ = [
     "PlanStateMismatchError",
     "UnresolvedContractReferenceError",
     "freeze_plan",
+    "revise_goal",
     "revise_plan",
 ]
 
@@ -239,6 +257,28 @@ class PlanAlreadyFrozenError(FreezeError, ValueError):
 
 class PlanNotFrozenError(FreezeError, ValueError):
     """Raised when revising a plan that is not registered and FROZEN."""
+
+
+class GoalNotFrozenError(FreezeError, ValueError):
+    """Raised when revising a goal that is not a registered FROZEN contract.
+
+    Goal-level revision (issue #164) reopens frozen goal records only:
+    the registered record at the submitted goal id must be FROZEN (the
+    same transition ``revise_plan`` applies to the family). A draft
+    record -- including a goal already reopened by an earlier revision --
+    is rejected instead of being re-versioned silently.
+    """
+
+
+class GoalStateMismatchError(FreezeError, ValueError):
+    """Raised when the submitted goal is not derived from the frozen record.
+
+    Guards against stale goal objects (mirroring the plan revision's
+    freshness guard): the submitted contract's ``version`` must equal the
+    registered frozen record's version, so the amendment demonstrably
+    descends from the frozen contract it revises. The message names the
+    goal id and both versions.
+    """
 
 
 class UnresolvedContractReferenceError(FreezeError, ValueError):
@@ -549,7 +589,12 @@ def freeze_plan(
 # ---------------------------------------------------------------------------
 
 
-def revise_plan(root: str | Path, plan: Plan) -> Plan:
+def revise_plan(
+    root: str | Path,
+    plan: Plan,
+    *,
+    goal_subset: tuple[GoalContract, ...] | None = None,
+) -> Plan:
     """Revise a registered FROZEN plan into the next draft version (AC-03).
 
     The plan must be the **registered** frozen plan of the workspace
@@ -570,8 +615,20 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
       time;
     * re-opens the registered goal-contract family as drafts of the next
       version (the frozen content as the authoring baseline, freeze
-      metadata cleared) -- the next freeze re-freezes it (AC-02
-      persistence keeps the on-disk family in step with the plan line);
+      metadata cleared, ``parent_goal_id`` set -- the goal-level lineage
+      marker) when no subset is given: the whole-family path, for
+      genuine plan-wide revisions -- the next freeze re-freezes it
+      (AC-02 persistence keeps the on-disk family in step with the plan
+      line);
+    * or -- with an explicit ``goal_subset`` of amended goal contracts
+      (issue #164) -- reopens **only** the submitted goals: each
+      submitted contract must carry a registered goal id
+      (``GoalNotFoundError``), target a FROZEN record
+      (``GoalNotFrozenError``) and be derived from the registered record
+      of its version (``GoalStateMismatchError``); a submitted contract
+      **equal** to the registered frozen record is left frozen (nothing
+      changed), so unchanged goals are never reopened. Goals outside the
+      subset stay frozen and byte-untouched;
     * writes the new draft record and leaves the old record **byte
       untouched** -- the old version is reported ``SUPERSEDED`` by
       ``planning.plan.plan_lineage`` (computed lineage status, never a
@@ -584,17 +641,23 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
         root: the initialized workspace root.
         plan: the registered FROZEN formal plan to revise (``TypeError``
             otherwise).
+        goal_subset: the amended goal contracts to reopen as drafts of
+            the next version, in submission order (``None`` -- the
+            default -- reopens the whole registered goal-contract
+            family). Each contract must be a ``GoalContract`` derived
+            from the registered frozen record (``TypeError`` otherwise).
 
     Returns:
         The new draft ``Plan`` (version ``v<N+1>-draft``,
         ``PlanStatus.DRAFT``, ``parent_plan_version`` = the frozen
         version), persisted at ``plans/<new-version>.json``; the
-        registered goal family is re-opened as drafts of the same
-        version.
+        registered goal family -- the whole family, or only the changed
+        subset goals -- is re-opened as drafts of the same version.
 
     Raises:
         TypeError: ``root`` is not a str/Path, or ``plan`` is not a
-            ``Plan``.
+            ``Plan``, or ``goal_subset`` is neither ``None`` nor a tuple
+            of ``GoalContract``.
         ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
         PlanNotFoundError: no record with the plan's version is
             registered.
@@ -604,12 +667,23 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
         InvalidPlanVersionError: ``plan.version`` is not a formal
             ``v<N>``.
         DuplicatePlanVersionError: the next version is already registered.
+        GoalNotFoundError: a submitted goal id is not registered.
+        GoalNotFrozenError: a submitted goal's registered record is not
+            FROZEN.
+        GoalStateMismatchError: a submitted goal's ``version`` does not
+            equal the registered frozen record's version (a stale goal
+            object).
         ValueError: a stored registry record is corrupt.
     """
     if not isinstance(root, (str, Path)):
         raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
     if not isinstance(plan, Plan):
         raise TypeError(f"plan must be a Plan, got {type(plan).__name__}")
+    if goal_subset is not None and not isinstance(goal_subset, tuple):
+        raise TypeError(
+            "goal_subset must be a tuple of GoalContract or None, got"
+            f" {type(goal_subset).__name__}"
+        )
     project_root = Path(root).resolve()
 
     registered = read_plan(project_root, plan.version)
@@ -654,9 +728,122 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
         work_packages=[dict(wp) for wp in plan.work_packages],
         resource_ids=list(plan.resource_ids),
     )
+
+    # Issue #164: per-goal revision -- validate the explicit subset and
+    # build every reopened draft BEFORE any write, so a rejected subset
+    # leaves no partial revision behind (all-or-nothing, like the plan
+    # checks above). A submitted contract equal to the registered frozen
+    # record is unchanged content: the goal stays frozen.
+    revised_goal_drafts: list[GoalContract] = []
+    if goal_subset is not None:
+        for submitted in goal_subset:
+            if not isinstance(submitted, GoalContract):
+                raise TypeError(
+                    "goal_subset must contain only GoalContract, got"
+                    f" {type(submitted).__name__}"
+                )
+            registered_goal = _require_revisable_frozen_goal(
+                project_root, submitted
+            )
+            if submitted == registered_goal:
+                continue
+            revised_goal_drafts.append(
+                _reopened_goal_draft(submitted, registered_goal, next_draft)
+            )
+
     registered = register_plan(project_root, new_draft)
-    _reopen_goal_family_drafts(project_root, next_draft)
+    if goal_subset is None:
+        _reopen_goal_family_drafts(project_root, next_draft)
+    else:
+        for draft in revised_goal_drafts:
+            _persist_goal_family_record(
+                root=project_root,
+                state_dir=GOALS_STATE_DIR,
+                schema_name="goal",
+                kind_label="goal",
+                record=draft,
+                record_type=GoalContract,
+            )
     return registered
+
+
+def revise_goal(root: str | Path, goal: GoalContract) -> GoalContract:
+    """Revise one registered FROZEN goal into the next draft version.
+
+    Goal-level revision (issue #164): the unit of revision is the single
+    goal contract, not the whole plan family. The submitted ``goal`` is
+    the amended content -- built from the frozen record, e.g.
+    ``dataclasses.replace(read_goal(root, goal_id), ...)`` -- and must
+
+    * carry a registered goal id (``GoalNotFoundError`` otherwise);
+    * target a registered FROZEN record (``GoalNotFrozenError``
+      otherwise) -- like ``revise_plan``, revision reopens frozen
+      records only, so a goal already reopened by an earlier revision is
+      rejected instead of re-versioned;
+    * be derived from the registered record of its version
+      (``GoalStateMismatchError`` otherwise): ``goal.version`` must equal
+      the registered frozen version, the anti-staleness guard that the
+      amendment descends from the frozen contract.
+
+    The revision reopens the goal **in place** at its registry path as a
+    draft of the next version (``v1`` -> ``v2-draft``, mirroring how
+    ``revise_plan`` versions the family): ``version`` set to the next
+    draft version, ``frozen`` False, freeze metadata cleared,
+    ``parent_goal_id`` set to the registered goal id (the goal-level
+    lineage marker -- the model field that until now had no consumer),
+    and the embedded acceptance un-frozen. The submitted content is the
+    authoring baseline. Only the one goal record is rewritten: sibling
+    goals -- and the acceptance / statistical-design / analysis /
+    closure records -- stay frozen and byte-untouched, so a failed
+    experiment amends its own goal without re-opening (and forcing the
+    re-freeze of) unrelated goals. Runs keep referencing the
+    ``goal_version`` they executed against, so past results are
+    unaffected.
+
+    No timestamp is taken (like ``revise_plan``): the revision produces
+    a working DRAFT record; the subsequent plan freeze stamps it.
+
+    Args:
+        root: the initialized workspace root.
+        goal: the amended goal contract to reopen as the next draft
+            (``TypeError`` otherwise).
+
+    Returns:
+        The reopened draft ``GoalContract`` (version ``v<N+1>-draft``,
+        ``frozen`` False, ``parent_goal_id`` = the registered goal id),
+        persisted in place at ``goals/<goal_id>.json``.
+
+    Raises:
+        TypeError: ``root`` is not a str/Path, or ``goal`` is not a
+            ``GoalContract``.
+        ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
+        GoalNotFoundError: no goal with ``goal.goal_id`` is registered.
+        GoalNotFrozenError: the registered goal is not FROZEN.
+        GoalStateMismatchError: ``goal.version`` does not equal the
+            registered frozen record's version (a stale goal object).
+        InvalidPlanVersionError: the registered frozen version is not a
+            formal ``v<N>`` (defensive -- the freeze stamps formal
+            versions).
+        ValueError: a stored registry record is corrupt.
+    """
+    if not isinstance(root, (str, Path)):
+        raise TypeError(f"root must be a str or Path, got {type(root).__name__}")
+    if not isinstance(goal, GoalContract):
+        raise TypeError(f"goal must be a GoalContract, got {type(goal).__name__}")
+    project_root = Path(root).resolve()
+
+    registered = _require_revisable_frozen_goal(project_root, goal)
+    next_draft = f"{next_version(registered.version)}-draft"
+    draft = _reopened_goal_draft(goal, registered, next_draft)
+    _persist_goal_family_record(
+        root=project_root,
+        state_dir=GOALS_STATE_DIR,
+        schema_name="goal",
+        kind_label="goal",
+        record=draft,
+        record_type=GoalContract,
+    )
+    return draft
 
 
 # ---------------------------------------------------------------------------
@@ -983,10 +1170,12 @@ def _reopen_goal_family_drafts(project_root: Path, version: str) -> None:
     version: every registered record is replaced **in place** by its
     draft variant -- the frozen content as the revision baseline,
     ``version`` / ``protocol_version`` set to the next draft version,
-    ``frozen`` False, freeze metadata cleared -- mirroring the plan
-    revision, which copies the frozen plan's content into the next
-    draft. The family must be frozen again by the next freeze (AC-01
-    keeps requiring drafts at freeze time, ``GoalFamilyNotDraftError``).
+    ``frozen`` False, freeze metadata cleared, ``parent_goal_id`` set to
+    the goal id (the goal-level lineage marker, issue #164) --
+    mirroring the plan revision, which copies the frozen plan's content
+    into the next draft. The family must be frozen again by the next
+    freeze (AC-01 keeps requiring drafts at freeze time,
+    ``GoalFamilyNotDraftError``).
     """
     goals = tuple(
         replace(
@@ -995,6 +1184,7 @@ def _reopen_goal_family_drafts(project_root: Path, version: str) -> None:
             frozen=False,
             frozen_at=None,
             frozen_commit=None,
+            parent_goal_id=g.goal_id,
             acceptance=replace(g.acceptance, frozen=False),
         )
         for g in list_goals(project_root)
@@ -1011,6 +1201,62 @@ def _reopen_goal_family_drafts(project_root: Path, version: str) -> None:
         replace(c, frozen=False) for c in list_closure_contracts(project_root)
     )
     _persist_goal_family(project_root, goals, acceptance, analysis, closure)
+
+
+def _require_revisable_frozen_goal(
+    project_root: Path, submitted: GoalContract
+) -> GoalContract:
+    """Return the registered frozen record ``submitted`` revises.
+
+    The shared validation gate of goal-level revision (issue #164),
+    used by both ``revise_goal`` and the ``revise_plan`` ``goal_subset``
+    path: the submitted contract must carry a registered goal id
+    (``GoalNotFoundError``), the registered record must be FROZEN
+    (``GoalNotFrozenError`` -- revision reopens frozen records only, the
+    same transition the family reopen applies), and the submitted
+    contract must be derived from the registered record of its version
+    (``GoalStateMismatchError`` -- a stale goal object, mirroring the
+    plan revision's freshness guard).
+    """
+    registered = read_goal(project_root, submitted.goal_id)
+    if not registered.frozen:
+        raise GoalNotFrozenError(
+            "goal revision requires a FROZEN goal contract, got goal"
+            f" {submitted.goal_id!r} at version {registered.version!r} which"
+            " is not frozen"
+        )
+    if submitted.version != registered.version:
+        raise GoalStateMismatchError(
+            f"goal contract {submitted.goal_id!r} (version"
+            f" {submitted.version!r}) is not derived from the registered"
+            f" frozen record at version {registered.version!r}; build the"
+            " revision from the registered record with"
+            " read_goal(root, goal_id)"
+        )
+    return registered
+
+
+def _reopened_goal_draft(
+    goal: GoalContract, registered: GoalContract, version: str
+) -> GoalContract:
+    """Build the next draft of one goal from its submitted revision.
+
+    The submitted content is the authoring baseline; the record is
+    normalized exactly like the family reopen in
+    ``_reopen_goal_family_drafts`` (next draft ``version``, ``frozen``
+    False, freeze metadata cleared, the embedded acceptance un-frozen)
+    plus the goal-level lineage marker ``parent_goal_id`` set to the
+    registered goal id the revision descends from (issue #164).
+    """
+    return replace(
+        goal,
+        version=version,
+        frozen=False,
+        frozen_at=None,
+        frozen_commit=None,
+        parent_goal_id=registered.goal_id,
+        acceptance=replace(goal.acceptance, frozen=False),
+    )
 
 
 def _persist_goal_family(
