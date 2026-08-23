@@ -16,11 +16,19 @@ durable state alone.
 Adapter coupling
 ----------------
 The monitoring subsystem never imports the adapters package (locked by
-``tests/monitoring/test_monitoring_surface.py``): the external state is
-a plain string vocabulary mirrored from the adapters'
-``DispatchState``/``JobState`` reports (``RUNNING_EXTERNAL`` /
-``RESULT_AVAILABLE``), injected through the :class:`ExternalStateProbe`
-callable. ``reconcile.py`` defines its own constants for that vocabulary
+``tests/monitoring/test_monitoring_surface.py``). The external state is
+a plain string vocabulary -- the monitor's own completion-focused
+vocabulary (``RUNNING_EXTERNAL`` / ``RESULT_AVAILABLE`` / ``UNKNOWN`` /
+``TEMPORARY_UNAVAILABLE`` plus backend-specific strings) -- injected
+through the :class:`ExternalStateProbe` callable. The lab adapter's
+``DispatchState`` reports ``RUNNING_EXTERNAL`` / ``RESULT_AVAILABLE``
+directly, but the compute adapters' ``JobState`` vocabulary
+(``prepared`` / ``running`` / ``completed`` / ``failed`` /
+``cancelled``) does not use the monitor vocabulary: the deterministic
+adapter-state -> monitor-vocabulary bridge of
+``scientific_reproduction.monitoring.adapter_state`` (issue #151) maps
+it, and the engine's default probe routes through that mapping.
+``reconcile.py`` defines its own constants for the monitor vocabulary
 and never imports ``scientific_reproduction.adapters``; tests inject
 fake probes.
 
@@ -109,6 +117,9 @@ from scientific_reproduction.core.state_backend import (
     StateBackend,
 )
 from scientific_reproduction.core.transitions import transition
+from scientific_reproduction.monitoring.adapter_state import (
+    build_mapped_probe,
+)
 from scientific_reproduction.monitoring.checkpoint import (
     MonitorCheckpoint,
     MonitorCheckpointStore,
@@ -126,6 +137,7 @@ from scientific_reproduction.monitoring.registry import (
 __all__ = [
     "COMPLETION_SIGNALS",
     "CorruptProgressError",
+    "default_probe",
     "EXTERNAL_COMPLETION_REASON",
     "EXTERNAL_STATUS_CHANGE_EVENT_TYPE",
     "EXTERNAL_STATE_RESULT_AVAILABLE",
@@ -148,7 +160,9 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 #: The external state of a dispatched run still executing remotely
-#: (mirrors the ``RUNNING_EXTERNAL`` report of the adapters).
+#: (the lab adapter's ``DispatchState`` report; the compute adapters'
+#: non-terminal ``JobState`` states are bridged to it by
+#: ``monitoring.adapter_state``).
 EXTERNAL_STATE_RUNNING: str = "RUNNING_EXTERNAL"
 
 #: The external completion signal: the adapter reports the external run
@@ -241,13 +255,23 @@ ExternalStateProbe: TypeAlias = Callable[[RunExternal], str]
 
 
 def _unknown_probe(_external: RunExternal) -> str:
-    """The default probe: always reports unknown.
+    """The raw always-unknown source of the default probe.
 
     With no probe injected the engine can never fabricate completion
     (AC-02): the default configuration observes ``UNKNOWN`` and records
     it, and never moves any run.
     """
     return EXTERNAL_STATE_UNKNOWN
+
+
+#: The engine's default external-status probe: the always-unknown raw
+#: source routed through the deterministic adapter-state mapping
+#: (``monitoring.adapter_state``, issue #151). With no probe injected
+#: the default configuration observes ``UNKNOWN`` and records it, and
+#: can never fabricate completion (AC-02) -- the same safe default as
+#: before, now constructed through the runtime mapping instead of a
+#: hand-written probe.
+default_probe: ExternalStateProbe = build_mapped_probe(_unknown_probe)
 
 
 # ---------------------------------------------------------------------------
@@ -444,9 +468,11 @@ class ReconcileEngine:
         monitor_id: the Monitor identity (``sr_monitor_<32 hex>``).
             Defaults to the deterministic identity of the state
             directory.
-        probe: the injected external-status probe (default: a probe that
-            always reports ``EXTERNAL_STATE_UNKNOWN``, so the default
-            configuration can never fabricate completion).
+        probe: the injected external-status probe (default:
+            :data:`default_probe` -- the always-unknown raw source
+            routed through the deterministic adapter-state mapping of
+            ``monitoring.adapter_state``, so the default configuration
+            can never fabricate completion).
         run_store: the durable Run store the engine reads and
             transitions Run records through (default:
             ``FilesystemStateBackend(state_dir)`` -- runs at
@@ -499,7 +525,7 @@ class ReconcileEngine:
             )
         self._state_dir = Path(state_dir)
         self._now_fn = now if now is not None else utc_now
-        self._probe = probe if probe is not None else _unknown_probe
+        self._probe = probe if probe is not None else default_probe
         # The registry validates the injected monitor_id (stable
         # MonitoringError); the checkpoint store is bound to the same
         # identity so both always agree on who the Monitor is.
