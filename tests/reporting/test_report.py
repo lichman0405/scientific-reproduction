@@ -46,6 +46,7 @@ from reporting_helpers import (
     REQUIREMENT_ID,
     RESULT_ID,
     RUN_ID,
+    SOURCE_ID,
     install_chain_with_failed_run,
     install_valid_chain,
     make_evidence,
@@ -58,8 +59,18 @@ from scientific_reproduction.core.models import (
     ClosureContract,
     ClosureLiterature,
     ClosureRecovery,
+    InventoryItemType,
+    MappingStatus,
     MethodReproducibility,
+    ReproductionInventoryItem,
     ScientificReview,
+)
+from scientific_reproduction.planning.audit import evaluate_completeness_audit
+from scientific_reproduction.planning.inventory import (
+    list_inventory_items,
+    list_requirements,
+    register_inventory_item,
+    register_requirement,
 )
 from scientific_reproduction.planning.plan import register_closure_contract
 from scientific_reproduction.reporting.report import (
@@ -246,6 +257,80 @@ def test_report_scope_renders_real_planning_records_ac02(tmp_path: Path) -> None
     assert REQUIREMENT_ID in body
     assert "INV-001" in body
     assert ACCEPTANCE_ID in body
+
+
+def test_report_scope_mapping_recomputed_not_stored_snapshot_ac02(
+    tmp_path: Path,
+) -> None:
+    """The scope section recomputes each item's mapping status from the
+    registered requirement ids instead of printing the stored snapshot
+    (issue #138): an item registered before its requirements (stored
+    AMBIGUOUS) renders as MAPPED once the requirement exists -- agreeing
+    with the embedded plan audit -- and an item with still-unresolved
+    references renders its ambiguity notes."""
+    evidence = install_valid_chain(tmp_path)
+    # Sanctioned authoring flow: the item carries forward requirement
+    # references, so registration stores an AMBIGUOUS snapshot.
+    forward = register_inventory_item(
+        tmp_path,
+        ReproductionInventoryItem(
+            inventory_id="INV-FWD-001",
+            source_id=SOURCE_ID,
+            item_type=InventoryItemType.EXPERIMENT,
+            formal_report=True,
+            description="Forward-referenced experiment of the FDM-201 case",
+            mapping_status=MappingStatus.UNMAPPED,
+            requirement_ids=["REQ-FWD-001"],
+        ),
+    )
+    assert forward.mapping_status is MappingStatus.AMBIGUOUS
+    register_requirement(
+        tmp_path,
+        make_requirement(
+            "REQ-FWD-001",
+            inventory_items=["INV-FWD-001"],
+            goal_ids=[GOAL_ID],
+        ),
+    )
+    # A dangling reference stays unresolved and the report surfaces the
+    # recomputed AMBIGUOUS status with its stable ambiguity note.
+    register_inventory_item(
+        tmp_path,
+        ReproductionInventoryItem(
+            inventory_id="INV-AMB-001",
+            source_id=SOURCE_ID,
+            item_type=InventoryItemType.EXPERIMENT,
+            formal_report=True,
+            description="Dangling-reference experiment of the FDM-201 case",
+            mapping_status=MappingStatus.MAPPED,
+            requirement_ids=["REQ-MISSING-001"],
+        ),
+    )
+    report = build_report(tmp_path, evidence, [CLAIM_ID])
+    body = _sections(report)["Scope"].body
+    lines = body.splitlines()
+
+    # The displayed statuses are the recomputed ones, never the stored
+    # snapshots.
+    forward_line = next(
+        line for line in lines if line.startswith("- INV-FWD-001 ")
+    )
+    assert "mapping: MAPPED" in forward_line
+    ambiguous_line = next(
+        line for line in lines if line.startswith("- INV-AMB-001 ")
+    )
+    assert "mapping: AMBIGUOUS" in ambiguous_line
+    assert "  - unresolved requirement reference(s): REQ-MISSING-001" in lines
+
+    # The displayed statuses agree with the embedded plan audit by
+    # construction: the audit counts the forward-referenced item as
+    # mapped and the dangling-reference item as ambiguous.
+    audit = evaluate_completeness_audit(
+        list_inventory_items(tmp_path), list_requirements(tmp_path)
+    )
+    assert "INV-FWD-001" not in audit.unmapped_item_ids
+    assert "INV-FWD-001" not in audit.ambiguous_item_ids
+    assert "INV-AMB-001" in audit.ambiguous_item_ids
 
 
 # ---------------------------------------------------------------------------

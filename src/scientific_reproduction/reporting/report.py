@@ -26,6 +26,10 @@ human-readable projection.
 Sections (fixed order, covering the DEV-M13-G02 objective)
 ----------------------------------------------------------
 1. Scope -- goals, requirements, inventory items, acceptance criteria.
+   Every item's mapping status is recomputed from the registered
+   requirement ids by the mapping rule table (the same pure recompute
+   convention the plan audit uses); stored ``mapping_status`` snapshots
+   are never trusted.
 2. Methods -- the registered analysis protocol lineage: every version
    with its frozen/draft status, profile and method/artifact counts.
 3. Statistics -- the registered analysis result records: the metrics,
@@ -95,7 +99,10 @@ from scientific_reproduction.planning.init import (
     ProjectNotInitializedError,
     read_project_state,
 )
-from scientific_reproduction.planning.inventory import list_inventory_items
+from scientific_reproduction.planning.inventory import (
+    evaluate_item_mapping,
+    list_inventory_items,
+)
 from scientific_reproduction.planning.plan import (
     list_analysis_protocols,
     list_closure_contracts,
@@ -411,7 +418,13 @@ def _scope_section(
     inventory: tuple[ReproductionInventoryItem, ...],
     acceptances: tuple[AcceptanceCriteria, ...],
 ) -> str:
-    """The scope section: goals, requirements, inventory, acceptances."""
+    """The scope section: goals, requirements, inventory, acceptances.
+
+    Each inventory item's mapping status is recomputed from the
+    registered requirement ids via ``evaluate_item_mapping`` -- the pure
+    rule-table recompute the plan audit uses -- so the report always
+    agrees with the embedded audit; stored snapshots are never trusted.
+    """
     lines: list[str] = [f"Goals ({len(goals)})"]
     for goal in goals:
         lines.append(
@@ -431,13 +444,19 @@ def _scope_section(
             f" {_maybe(requirement.method_reproducibility)})"
         )
     lines.extend(["", f"Inventory items ({len(inventory)})"])
+    registered_requirement_ids = tuple(
+        requirement.requirement_id for requirement in requirements
+    )
     for item in inventory:
+        assessment = evaluate_item_mapping(item, registered_requirement_ids)
         lines.append(
             f"- {item.inventory_id} [{item.item_type.value}]"
             f" {item.description}"
             f" (formal report: {_yes_no(item.formal_report)},"
-            f" mapping: {item.mapping_status.value})"
+            f" mapping: {assessment.mapping_status.value})"
         )
+        if assessment.ambiguity_notes is not None:
+            lines.append(f"  - {assessment.ambiguity_notes}")
     lines.extend(["", f"Acceptance criteria ({len(acceptances)})"])
     for acceptance in acceptances:
         lines.append(
