@@ -9,22 +9,31 @@ so state-content assertions compare exact bytes.
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from scientific_reproduction.audit.git import AuditIdentity
+from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.models import (
     Criticality,
     InventoryItemType,
     MappingStatus,
+    ProjectPhase,
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
     ResearchSource,
     SourceType,
 )
-from scientific_reproduction.planning.init import initialize_project
+from scientific_reproduction.core.schema_validation import validate_and_reject
+from scientific_reproduction.planning.init import (
+    PROJECT_STATE_FILENAME,
+    initialize_project,
+    read_project_state,
+)
 from scientific_reproduction.research.state_helpers import register_source
 
 #: Deterministic author/committer identity used by every init behind the
@@ -70,10 +79,34 @@ def register_default_source(root: Path) -> Path:
     return root
 
 
+def author_project_phase(root: Path, phase: ProjectPhase) -> None:
+    """Author ``phase`` on the registered project state record.
+
+    The registry has no phase-authoring API (phase transitions are a
+    supervisor-flow operation, out of scope), so tests author the phase
+    by writing the project record in place with the registry's canonical
+    serialization. ``updated_at`` is preserved: deterministic fixtures
+    pin every timestamp.
+    """
+    project = read_project_state(root)
+    updated = replace(project, project_phase=phase)
+    validate_and_reject("project", updated.to_dict())
+    atomic_write(
+        root / PROJECT_STATE_FILENAME,
+        json.dumps(updated.to_dict(), indent=2, sort_keys=True) + "\n",
+    )
+
+
 def init_project(root: Path) -> Path:
-    """Initialize a deterministic one-paper project at ``root``; return it."""
+    """Initialize a deterministic one-paper project at ``root``; return it.
+
+    The workspace is authored at ``REPRODUCTION_INVENTORY``: the freeze
+    gate (issue #137) requires the registered phase to have reached the
+    inventory phase, and the planning suite exercises that gate.
+    """
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
     register_default_source(root)
+    author_project_phase(root, ProjectPhase.REPRODUCTION_INVENTORY)
     return root
 
 

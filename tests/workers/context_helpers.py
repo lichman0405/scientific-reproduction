@@ -11,10 +11,13 @@ the context generator requires.
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
 from scientific_reproduction.audit.git import AuditIdentity
+from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
     AnalysisKind,
@@ -39,6 +42,7 @@ from scientific_reproduction.core.models import (
     InventoryItemType,
     MappingStatus,
     PrimaryOrExploratory,
+    ProjectPhase,
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
@@ -48,10 +52,13 @@ from scientific_reproduction.core.models import (
     SourceType,
     WorkerRole,
 )
+from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.freeze import PlanFreezeResult, freeze_plan
 from scientific_reproduction.planning.init import (
     INITIAL_PLAN_VERSION,
+    PROJECT_STATE_FILENAME,
     initialize_project,
+    read_project_state,
 )
 from scientific_reproduction.planning.inventory import (
     register_inventory_item,
@@ -84,8 +91,31 @@ DOI = "10.1039/D5TA00771B"
 ROLE = WorkerRole.EXPERIMENT_WORKER
 
 
+def author_project_phase(root: Path, phase: ProjectPhase) -> None:
+    """Author ``phase`` on the registered project state record.
+
+    The registry has no phase-authoring API (phase transitions are a
+    supervisor-flow operation, out of scope), so tests author the phase
+    by writing the project record in place with the registry's canonical
+    serialization. ``updated_at`` is preserved: deterministic fixtures
+    pin every timestamp.
+    """
+    project = read_project_state(root)
+    updated = replace(project, project_phase=phase)
+    validate_and_reject("project", updated.to_dict())
+    atomic_write(
+        root / PROJECT_STATE_FILENAME,
+        json.dumps(updated.to_dict(), indent=2, sort_keys=True) + "\n",
+    )
+
+
 def init_project(root: Path) -> Path:
-    """Initialize a deterministic one-paper project at ``root``; return it."""
+    """Initialize a deterministic one-paper project at ``root``; return it.
+
+    The workspace is authored at ``REPRODUCTION_INVENTORY``: the freeze
+    gate (issue #137) requires the registered phase to have reached the
+    inventory phase before the plan can be frozen.
+    """
     initialize_project(root, DOI, timestamp=TIMESTAMP, identity=IDENTITY)
     # The helper-built items all reference SRC-TARGET-PAPER; the source
     # must be registered before the first item registers.
@@ -95,6 +125,7 @@ def init_project(root: Path) -> Path:
         actor="research",
         recorded_at="2026-01-02T00:00:00Z",
     )
+    author_project_phase(root, ProjectPhase.REPRODUCTION_INVENTORY)
     return root
 
 

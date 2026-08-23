@@ -8,8 +8,13 @@ state:
 
 1. the frozen project record reloads into a fresh workspace through the
    real ``initialize_project`` API (fixed identity and the frozen
-   ``2026-08-14T00:00:00Z`` timestamp), the 13 frozen source records
-   reload through the real research-layer ``register_source`` API, and
+   ``2026-08-14T00:00:00Z`` timestamp), with the registered phase
+   authored at ``REPRODUCTION_INVENTORY`` on the fresh record (the
+   freeze gate of issue #137 requires the phase to have reached the
+   inventory phase; the registry has no phase-authoring API, so the
+   reload authors the phase in place -- the documented-gap convention
+   of point 5), the 13 frozen source records reload through the real
+   research-layer ``register_source`` API, and
    the full 82-item / 82-requirement inventory reloads through the real
    registry APIs (``register_inventory_item`` /
    ``register_requirement``; sources first, then items -- the provenance
@@ -53,6 +58,8 @@ machinery -- never mocked.
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -60,6 +67,7 @@ import pytest
 import yaml
 
 from scientific_reproduction.audit.git import AuditIdentity
+from scientific_reproduction.core.atomic import atomic_write
 from scientific_reproduction.core.models import (
     AcceptanceCriteria,
     AnalysisKind,
@@ -82,10 +90,12 @@ from scientific_reproduction.core.models import (
     MappingStatus,
     PlanStatus,
     PrimaryOrExploratory,
+    ProjectPhase,
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
 )
+from scientific_reproduction.core.schema_validation import validate_and_reject
 from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
     PlanAlreadyFrozenError,
@@ -93,7 +103,9 @@ from scientific_reproduction.planning.freeze import (
 )
 from scientific_reproduction.planning.init import (
     INITIAL_PLAN_VERSION,
+    PROJECT_STATE_FILENAME,
     initialize_project,
+    read_project_state,
 )
 from scientific_reproduction.planning.inventory import (
     register_inventory_item,
@@ -200,9 +212,31 @@ def resolve_goal_refs(refs: list[str]) -> tuple[str, ...]:
     return tuple(sorted(resolved))
 
 
+def _author_freeze_eligible_phase(root: Path) -> None:
+    """Author ``REPRODUCTION_INVENTORY`` on the fresh project record.
+
+    The reload exercises the real freeze gate (issue #137), which
+    requires the registered phase to have reached
+    ``REPRODUCTION_INVENTORY``. The registry has no phase-authoring API
+    (phase transitions are a supervisor-flow operation), so the reload
+    authors the phase directly on the state record with the registry's
+    canonical serialization -- the documented-gap convention of AC-03
+    (d). ``updated_at`` is preserved (fixed-timestamp determinism).
+    """
+    project = read_project_state(root)
+    updated = replace(project, project_phase=ProjectPhase.REPRODUCTION_INVENTORY)
+    validate_and_reject("project", updated.to_dict())
+    atomic_write(
+        root / PROJECT_STATE_FILENAME,
+        json.dumps(updated.to_dict(), indent=2, sort_keys=True) + "\n",
+    )
+
+
 def init_project(root: Path) -> Path:
     """Initialize a deterministic one-paper project at ``root`` with the
-    frozen project record identity; return ``root``."""
+    frozen project record identity, authored at the freeze-eligible phase
+    (``REPRODUCTION_INVENTORY`` -- the freeze gate of issue #137); return
+    ``root``."""
     initialize_project(
         root,
         DOI,
@@ -210,6 +244,7 @@ def init_project(root: Path) -> Path:
         timestamp=TIMESTAMP,
         identity=IDENTITY,
     )
+    _author_freeze_eligible_phase(root)
     return root
 
 

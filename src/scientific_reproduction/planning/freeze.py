@@ -18,13 +18,21 @@ of DEV-M4-G04 over the ``planning/plan.py`` registry (DEV-M4-G04) and the
 
 AC-01 -- the audit gate
 -----------------------
-``freeze_plan`` is **prohibited** unless the completeness audit passes
-(freeze eligibility, ``planning/audit.py``). The audit is always
-recomputed from the **registered state at freeze time**
+``freeze_plan`` is **prohibited** unless the freeze preconditions hold
+and the completeness audit passes (freeze eligibility,
+``planning/audit.py``). The preconditions (issue #137) are read from the
+**registered state at freeze time**: the registered project phase has
+reached ``REPRODUCTION_INVENTORY`` on the normative phase mainline
+(``core/rules/lifecycle.py`` ``PROJECT_PHASE_MAINLINE`` ordering), and
+the registered inventory holds at least one formally reported item.
+The audit is always recomputed from the registered state at freeze time
 (``audit_inventory_registry``); the embedded ``inventory_audit`` snapshot
-of the draft is never trusted. A failed gate raises
-``FreezeProhibitedError`` naming the offending item ids (unmapped or
-ambiguous formal items), with no record written.
+of the draft is never trusted. A violated precondition or a failed gate
+raises ``FreezeProhibitedError`` (naming the offending item ids for
+audit failures -- unmapped or ambiguous formal items), with no record
+written. The pure audit API keeps its vacuous-PASS acceptance on an
+empty inventory: the non-empty precondition belongs to the freeze gate,
+not to the audit rule table (``planning/audit.py`` is unchanged).
 
 AC-02 -- frozen contracts
 -------------------------
@@ -87,10 +95,12 @@ from scientific_reproduction.core.models import (
     GoalContract,
     Plan,
     PlanStatus,
+    ProjectPhase,
     StatisticalDesign,
 )
+from scientific_reproduction.core.rules.lifecycle import PROJECT_PHASE_MAINLINE
 from scientific_reproduction.planning.audit import audit_inventory_registry
-from scientific_reproduction.planning.init import PlanningError
+from scientific_reproduction.planning.init import PlanningError, read_project_state
 from scientific_reproduction.planning.plan import (
     ACCEPTANCE_STATE_DIR,
     CLOSURE_STATE_DIR,
@@ -139,11 +149,15 @@ class FreezeError(PlanningError):
 
 
 class FreezeProhibitedError(FreezeError, ValueError):
-    """Raised when the completeness audit blocks the freeze (AC-01).
+    """Raised when a freeze precondition blocks the freeze (AC-01).
 
-    The message names the offending inventory item ids, and
-    ``offending_item_ids`` carries them structurally (deterministic,
-    sorted by inventory id).
+    The preconditions (issue #137) are: the registered project phase has
+    reached ``REPRODUCTION_INVENTORY`` on the normative phase mainline,
+    the registered inventory holds at least one formally reported item,
+    and the completeness audit passes. For audit failures the message
+    names the offending inventory item ids, and ``offending_item_ids``
+    carries them structurally (deterministic, sorted by inventory id);
+    phase/inventory precondition failures carry an empty tuple.
     """
 
     def __init__(
@@ -235,12 +249,16 @@ def freeze_plan(
     *,
     timestamp: datetime | None = None,
 ) -> PlanFreezeResult:
-    """Freeze the draft plan, gated by the completeness audit (AC-01).
+    """Freeze the draft plan, gated by the freeze preconditions (AC-01).
 
-    The freeze is **prohibited** unless the completeness audit evaluated
-    from the registered state at freeze time passes
-    (``FreezeProhibitedError`` naming the offending item ids, no record
-    written). The plan must be the DRAFT plan of the registered state
+    The freeze is **prohibited** unless the registered project phase has
+    reached ``REPRODUCTION_INVENTORY`` on the normative phase mainline
+    (``PROJECT_PHASE_MAINLINE`` ordering), the registered inventory holds
+    at least one formally reported item, and the completeness audit
+    evaluated from the registered state at freeze time passes
+    (``FreezeProhibitedError`` naming the offending item ids for audit
+    failures, no record written). The plan must be the DRAFT plan of the
+    registered state
     (``PlanStateMismatchError`` otherwise): the registered draft at its
     version, or -- when no draft is registered yet -- the deterministic
     ``build_plan_v1`` of the current registered state (the draft is then
@@ -289,8 +307,12 @@ def freeze_plan(
         PlanStateMismatchError: ``plan`` is not the registered state's
             draft plan.
         PlanAlreadyFrozenError: the formal version is already frozen.
-        FreezeProhibitedError: the completeness audit fails (AC-01);
-            message names the offending item ids.
+        FreezeProhibitedError: a freeze precondition fails (AC-01) --
+            the registered project phase has not reached
+            ``REPRODUCTION_INVENTORY`` on the normative phase mainline,
+            the registered inventory holds no formally reported item, or
+            the completeness audit fails (message names the offending
+            item ids for audit failures).
         UnresolvedContractReferenceError: a goal-family reference is
             unresolvable.
         GoalFamilyNotDraftError: a goal-family record is already frozen.
@@ -335,9 +357,32 @@ def freeze_plan(
             " version is written exactly once"
         )
 
+    # Freeze preconditions (issue #137), read from the registered state
+    # at freeze time -- stored snapshots are never trusted:
+    # (a) the registered project phase has reached REPRODUCTION_INVENTORY
+    # on the normative phase mainline (``PROJECT_PHASE_MAINLINE``
+    # ordering -- the only phase ordering of the frozen state model);
+    # (b) the registered inventory holds at least one formally reported
+    # item (counts recomputed below by the audit from the registry).
+    project = read_project_state(project_root)
+    if not _phase_reaches_freeze_threshold(project.project_phase):
+        raise FreezeProhibitedError(
+            "plan freeze is prohibited: the registered project phase is"
+            f" {project.project_phase.value!r}, which has not reached"
+            f" {ProjectPhase.REPRODUCTION_INVENTORY.value!r} on the"
+            " normative phase mainline; the reproduction inventory phase"
+            " must be reached before the plan can be frozen"
+        )
+
     # AC-01: the audit gate, recomputed from the registered state at
     # freeze time (stored inventory_audit snapshots are never trusted).
     audit = audit_inventory_registry(project_root)
+    if audit.summary.formally_reported_items == 0:
+        raise FreezeProhibitedError(
+            "plan freeze is prohibited: the registered inventory contains"
+            " no formally reported items; at least one formally reported"
+            " inventory item is required before the plan can be frozen"
+        )
     if not audit.freeze_eligible:
         raise FreezeProhibitedError(
             "plan freeze is prohibited until the completeness audit"
@@ -472,6 +517,28 @@ def revise_plan(root: str | Path, plan: Plan) -> Plan:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+#: Mainline rank of every normative project phase: the declaration order
+#: of ``core/rules/lifecycle.py`` ``PROJECT_PHASE_MAINLINE`` -- the only
+#: phase ordering of the frozen state model. The ``StrEnum`` lexicographic
+#: order is NOT the phase order (e.g. ``PLANNING`` < ``REPRODUCTION_INVENTORY``
+#: lexicographically, but follows it on the mainline).
+_PHASE_MAINLINE_RANK: dict[ProjectPhase, int] = {
+    phase: rank for rank, phase in enumerate(PROJECT_PHASE_MAINLINE)
+}
+
+
+def _phase_reaches_freeze_threshold(phase: ProjectPhase) -> bool:
+    """True iff ``phase`` is at or beyond ``REPRODUCTION_INVENTORY``.
+
+    Off-mainline phases (``PAUSED`` / ``WAITING_*`` / ``REPLANNING``)
+    carry no mainline rank and never reach the threshold: a suspended or
+    replanning workspace cannot freeze.
+    """
+    return _PHASE_MAINLINE_RANK.get(phase, -1) >= _PHASE_MAINLINE_RANK[
+        ProjectPhase.REPRODUCTION_INVENTORY
+    ]
 
 
 def _resolve_timestamp(timestamp: datetime | None, *, name: str) -> datetime:
