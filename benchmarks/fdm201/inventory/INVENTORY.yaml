@@ -257,7 +257,7 @@ items:
       evidence_basis: REFERENCE-CASE-SPEC
     missing_reason: "No CSD/CCDC deposition located at registration: CCDC public deposition search by DOI 10.1039/D5TA00771B returned no deposited structures, and no CCDC deposition number was found in public search. The CIF may exist only embedded inside the ESI. Re-verified during benchmark execution."
     resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
-    requirement_mapping: ["GOAL-RES-003", "WP-80"]
+    requirement_mapping: ["GOAL-RES-003", "GOAL-INV-004", "WP-80"]
   - item_id: "INV-0005"
     category: "00"
     title: "Related deposited structure(s) used by the paper"
@@ -520,7 +520,7 @@ items:
       evidence_basis: REFERENCE-CASE-SPEC
     missing_reason: "Requires the published CIF, which is not located at registration (see INV-0004); the reported comparison itself is read from the paper during execution."
     resolves_in: ["GOAL-RES-003", "GOAL-INV-001"]
-    requirement_mapping: ["GOAL-INV-001", "WP-30"]
+    requirement_mapping: ["GOAL-INV-001", "GOAL-RES-003", "WP-30"]
 
   # ======================= category b: porosity (WP-40) ====================
   - item_id: "INV-0201"
@@ -1205,7 +1205,7 @@ items:
       evidence_basis: REFERENCE-CASE-SPEC
     missing_reason: "No CSD/CCDC deposition located at registration; the CIF may exist only embedded in the ESI (see AMB-0001)."
     resolves_in: ["GOAL-RES-003", "GOAL-INV-004"]
-    requirement_mapping: ["GOAL-RES-003", "WP-80"]
+    requirement_mapping: ["GOAL-RES-003", "GOAL-INV-004", "WP-80"]
   - item_id: "INV-0602"
     category: "f"
     title: "Simulation model construction (disorder, cell, atom types)"
@@ -1222,7 +1222,7 @@ items:
       evidence_basis: REFERENCE-CASE-SPEC
     missing_reason: "Model-construction details depend on the CIF and the SI (atom types, charges, disorder treatment), none of which is in the repository at registration."
     resolves_in: ["GOAL-INV-002", "GOAL-RES-003"]
-    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+    requirement_mapping: ["GOAL-INV-002", "GOAL-RES-003", "WP-80"]
   - item_id: "INV-0603"
     category: "f"
     title: "Geometry and pore-access verification"
@@ -1239,7 +1239,7 @@ items:
       evidence_basis: REFERENCE-CASE-SPEC
     missing_reason: "Requires the CIF and the paper's reported geometry facts; both unavailable at registration."
     resolves_in: ["GOAL-INV-002", "GOAL-RES-003"]
-    requirement_mapping: ["GOAL-INV-002", "WP-80"]
+    requirement_mapping: ["GOAL-INV-002", "GOAL-RES-003", "WP-80"]
   - item_id: "INV-0604"
     category: "f"
     title: "Linker rotation / dynamic pore argument (if computationally reported)"
