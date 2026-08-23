@@ -67,8 +67,10 @@ from scientific_reproduction.core.models import (
     ClosureRecovery,
     Confidence,
     DecisionMode,
+    DependencyType,
     GoalAcceptance,
     GoalContract,
+    GoalDependency,
     GoalReplication,
     GoalTrack,
     Plan,
@@ -83,6 +85,7 @@ from scientific_reproduction.planning.audit import audit_inventory_registry
 from scientific_reproduction.planning.freeze import (
     FreezeProhibitedError,
     GoalFamilyNotDraftError,
+    HardGateDependencyCycleError,
     OrphanGoalContractError,
     PlanAlreadyFrozenError,
     PlanFreezeResult,
@@ -156,6 +159,7 @@ def make_goal(
     acceptance_id: str = "ACC-1",
     analysis_id: str = "ANL-1",
     closure_id: str | None = "CLS-1",
+    dependencies: tuple[GoalDependency, ...] = (),
 ) -> GoalContract:
     """Build a schema-valid draft goal contract (version ``v1-draft``)."""
     return GoalContract(
@@ -165,7 +169,7 @@ def make_goal(
         track=GoalTrack.STRICT_REPRODUCTION,
         objective="Reproduce the formally reported isotherm dataset.",
         requirement_ids=list(requirement_ids),
-        dependencies=[],
+        dependencies=list(dependencies),
         acceptance=GoalAcceptance(criteria_ref=acceptance_id, frozen=False),
         analysis_protocol_ref=analysis_id,
         replication=GoalReplication(
@@ -1467,6 +1471,134 @@ def test_freeze_plan_orphan_goal_error_is_stable_and_sorted(tmp_path):
     assert "GOAL-2" in messages[0]
     assert "GOAL-3" in messages[0]
     assert messages[0].index("GOAL-2") < messages[0].index("GOAL-3")
+
+
+# ---------------------------------------------------------------------------
+# Issue #142: dependency referential and acyclicity closure
+# ---------------------------------------------------------------------------
+
+
+def _register_mapped_goal(
+    root: Path,
+    goal_id: str,
+    *,
+    item_id: str,
+    requirement_id: str,
+    dependencies: tuple[GoalDependency, ...] = (),
+) -> None:
+    """Register a requirement-mapped goal carrying ``dependencies``.
+
+    A fresh ``inventory item -> requirement -> goal`` chain keeps the
+    completeness audit mapped and the goal non-orphan, so the freeze
+    reaches the dependency gate (issue #142) instead of stopping earlier.
+    """
+    register_inventory_item(
+        root, make_item(item_id, requirement_ids=(requirement_id,))
+    )
+    register_requirement(
+        root,
+        make_requirement(
+            requirement_id, inventory_items=(item_id,), goal_ids=(goal_id,)
+        ),
+    )
+    register_goal(
+        root,
+        make_goal(
+            goal_id,
+            requirement_ids=(requirement_id,),
+            dependencies=dependencies,
+        ),
+    )
+
+
+def test_freeze_142_unresolved_dependency_ref_blocks_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2 is requirement-mapped (not an orphan) but declares a
+    # dependency on a goal id with no registered contract: the frozen
+    # plan would carry a dangling dependency edge.
+    _register_mapped_goal(
+        root,
+        "GOAL-2",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        dependencies=(
+            GoalDependency("GOAL-GHOST", DependencyType.HARD_GATE, True, False),
+        ),
+    )
+    messages = []
+    for _ in range(2):
+        with pytest.raises(UnresolvedContractReferenceError) as exc:
+            freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+        messages.append(str(exc.value))
+    # Stable error naming the goal and the unresolved dependency id.
+    assert messages[0] == messages[1]
+    assert "GOAL-2" in messages[0]
+    assert "GOAL-GHOST" in messages[0]
+    # Nothing is written: no draft, no frozen plan, family stays draft.
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+    assert read_goal(root, "GOAL-2").frozen is False
+
+
+def test_freeze_142_hard_gate_cycle_blocks_freeze_naming_cycle(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2 and GOAL-3 hard-gate each other's execution: no goal of the
+    # cycle can ever start (an execution deadlock).
+    _register_mapped_goal(
+        root,
+        "GOAL-2",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        dependencies=(
+            GoalDependency("GOAL-3", DependencyType.HARD_GATE, True, False),
+        ),
+    )
+    _register_mapped_goal(
+        root,
+        "GOAL-3",
+        item_id="ITEM-4",
+        requirement_id="REQ-4",
+        dependencies=(
+            GoalDependency("GOAL-2", DependencyType.HARD_GATE, True, False),
+        ),
+    )
+    messages = []
+    for _ in range(2):
+        with pytest.raises(HardGateDependencyCycleError) as exc:
+            freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+        messages.append(str(exc.value))
+    # Stable error naming both cycle members, deterministically sorted.
+    assert messages[0] == messages[1]
+    assert "GOAL-2" in messages[0]
+    assert "GOAL-3" in messages[0]
+    assert messages[0].index("GOAL-2") < messages[0].index("GOAL-3")
+    # Nothing is written: no draft, no frozen plan, family stays draft.
+    assert not (root / "plans" / "v1-draft.json").exists()
+    assert not (root / "plans" / "v1.json").exists()
+    assert read_goal(root, "GOAL-2").frozen is False
+    assert read_goal(root, "GOAL-3").frozen is False
+
+
+def test_freeze_142_resolvable_acyclic_dependencies_still_freeze(tmp_path):
+    root = build_complete_workspace(tmp_path)
+    # GOAL-2 hard-gates on the registered GOAL-1: the edge resolves and
+    # the graph stays acyclic, so the freeze must succeed and the frozen
+    # contract keeps the dependency edge verbatim.
+    dependency = GoalDependency("GOAL-1", DependencyType.HARD_GATE, True, False)
+    _register_mapped_goal(
+        root,
+        "GOAL-2",
+        item_id="ITEM-3",
+        requirement_id="REQ-3",
+        dependencies=(dependency,),
+    )
+    result = freeze_plan(root, build_plan_v1(root), timestamp=FROZEN_AT)
+    assert result.frozen_plan.status is PlanStatus.FROZEN
+    assert {g.goal_id for g in result.goals} == {"GOAL-1", "GOAL-2"}
+    frozen_goal_2 = next(g for g in result.goals if g.goal_id == "GOAL-2")
+    assert frozen_goal_2.dependencies == [dependency]
+    # The frozen dependency survives the registry round-trip.
+    assert read_goal(root, "GOAL-2").dependencies == frozen_goal_2.dependencies
 
 
 def test_freeze_plan_frozen_family_matches_plan_goal_closure(tmp_path):
