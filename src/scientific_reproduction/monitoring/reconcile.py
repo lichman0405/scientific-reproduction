@@ -51,13 +51,19 @@ When the probe reports the completion signal
    log's sequence never advances twice for the same completion;
 3. persists the observation in the checkpoint (``observed_state`` /
    ``observed_at`` / ``reconciled_at``), the durable "completion was
-   recorded" marker.
+   recorded" marker;
+4. files one durable supervisor-inbox entry for the arrived Result
+   Package (``monitoring.supervisor_inbox``, issue #163) -- the durable
+   notification that surfaces the arrival to the Supervisor. The entry
+   is deterministically keyed by run id / completion event id, so
+   re-filing the same completion is an idempotent no-op.
 
 A crash between any two steps converges on the same single completion
 on restart: a Run record already at ``RESULT_AVAILABLE`` is never
 transitioned again, and the idempotency claim of the event log makes the
 re-append of the same deterministic event a no-op replay. Re-reconciling
-the same progress therefore never re-transitions and never re-emits.
+the same progress therefore never re-transitions, never re-emits and
+never duplicates the inbox entry.
 
 AC-02 -- unknown/temporary adapter state never fabricates completion
 -------------------------------------------------------------------
@@ -157,6 +163,10 @@ from scientific_reproduction.monitoring.registry import (
     WatchedRunRecord,
     WatchedRunRegistry,
     utc_now,
+)
+from scientific_reproduction.monitoring.supervisor_inbox import (
+    SupervisorInbox,
+    SupervisorInboxEntry,
 )
 
 __all__ = [
@@ -548,10 +558,12 @@ class ReconcileEngine:
     the monitor checkpoint (DEV-M8-G01):
 
     * AC-01: an external completion signal moves the Run to
-      ``RESULT_AVAILABLE`` through the real transition machinery and
+      ``RESULT_AVAILABLE`` through the real transition machinery,
       appends one ``external_status_change`` event under a deterministic
-      idempotency key -- re-reconciling the same progress never
-      re-transitions and never re-emits.
+      idempotency key, and files one durable supervisor-inbox entry for
+      the arrived Result Package (issue #163) -- re-reconciling the same
+      progress never re-transitions, never re-emits and never
+      duplicates the inbox entry.
     * AC-02: every non-completion probe outcome (unknown, temporarily
       unavailable, transient probe failure, unrecognized string) is
       observed and recorded in the checkpoint, never treated as
@@ -646,6 +658,7 @@ class ReconcileEngine:
             now=self._now_fn,
             monitor_id=self._monitor_id,
         )
+        self._inbox = SupervisorInbox(self._state_dir)
         self._run_store = (
             run_store if run_store is not None else FilesystemStateBackend(
                 self._state_dir
@@ -678,6 +691,12 @@ class ReconcileEngine:
     def checkpoint_store(self) -> MonitorCheckpointStore:
         """The checkpoint store of this engine."""
         return self._checkpoint_store
+
+    @property
+    def inbox(self) -> SupervisorInbox:
+        """The supervisor inbox this engine files arrival entries into
+        (issue #163)."""
+        return self._inbox
 
     @property
     def probe(self) -> ExternalStateProbe:
@@ -969,10 +988,22 @@ class ReconcileEngine:
     ) -> None:
         """Append the completion event (idempotent on the deterministic
         key, so re-submission after a crash returns the single original
-        record -- exactly-once) and persist the checkpoint progress."""
-        self._event_log.append(
+        record -- exactly-once), file the supervisor-inbox entry for the
+        arrived Result Package (issue #163, keyed by run id / completion
+        event id -- re-filing the same completion is an idempotent
+        no-op) and persist the checkpoint progress."""
+        record = self._event_log.append(
             self._completion_event(run_id, watch, stamp),
             idempotency_key=f"{RECONCILE_COMPLETION_KEY_PREFIX}:{run_id}",
+        )
+        self._inbox.file_entry(
+            SupervisorInboxEntry(
+                run_id=run_id,
+                dispatch_id=watch.external.dispatch_id,
+                completion_event_id=record.event.event_id,
+                injected_at=stamp,
+                pending=True,
+            )
         )
         self._update_checkpoint(
             run_id,

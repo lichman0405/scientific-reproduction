@@ -17,6 +17,12 @@ M8 monitoring subsystem:
   layer of the Monitor's high-availability chain (13-EXECUTION-MONITOR.md
   SS3): a deterministic ALIVE/DEAD verdict evaluated from the persisted
   heartbeat, the injected clock and the injected staleness threshold.
+* :mod:`scientific_reproduction.monitoring.supervisor_inbox` -- the
+  durable supervisor inbox of arrived Result Packages (issue #163): one
+  plain state-file entry per completed Run at
+  ``<state_dir>/supervisor-inbox/<run_id>.json`` (run id, dispatch id,
+  completion event id, injected timestamp, pending flag) that surfaces
+  the arrival to the Supervisor.
 """
 
 from scientific_reproduction.monitoring.checkpoint import (
@@ -45,6 +51,15 @@ from scientific_reproduction.monitoring.registry import (
     utc_now,
     validate_external_identity,
 )
+from scientific_reproduction.monitoring.supervisor_inbox import (
+    INBOX_ENTRY_VERSION,
+    INBOX_STATE_DIR,
+    DuplicateInboxEntryError,
+    InboxEntryNotFoundError,
+    InboxRecordError,
+    SupervisorInbox,
+    SupervisorInboxEntry,
+)
 from scientific_reproduction.monitoring.watchdog import (
     DEFAULT_STALENESS_THRESHOLD_SECONDS,
     MonitorAliveness,
@@ -61,6 +76,11 @@ __all__ = [
     "HEARTBEAT_FILE",
     "HEARTBEAT_VERSION",
     "HeartbeatRecord",
+    "INBOX_ENTRY_VERSION",
+    "INBOX_STATE_DIR",
+    "InboxEntryNotFoundError",
+    "InboxRecordError",
+    "DuplicateInboxEntryError",
     "MONITOR_ID_KIND",
     "MonitorAliveness",
     "MonitorAlivenessState",
@@ -70,6 +90,8 @@ __all__ = [
     "MonitorWatchdog",
     "MonitoringClock",
     "MonitoringError",
+    "SupervisorInbox",
+    "SupervisorInboxEntry",
     "WATCH_RECORD_VERSION",
     "WATCHED_STATE_DIR",
     "WatchdogError",

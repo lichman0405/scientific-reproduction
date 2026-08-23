@@ -38,7 +38,8 @@ Own the scientific reproduction project from source acquisition through final ou
 Read project truth exclusively from Core state, never from remembered conversation:
 
 - state backend (`scientific_reproduction.core.state_backend.StateBackend`) — run records, plan/goal/analysis objects, durable state;
-- append-only project event log (`scientific_reproduction.core.events.ProjectEventLog`) — the ordered record of what happened.
+- append-only project event log (`scientific_reproduction.core.events.ProjectEventLog`) — the ordered record of what happened;
+- supervisor inbox (`scientific_reproduction.monitoring.supervisor_inbox`) — the durable mailbox of arrived Result Packages the Execution Monitor filed (`<state_dir>/supervisor-inbox/<run_id>.json`: run id, dispatch id, completion event id, injected timestamp, pending flag).
 
 ## Authority (03-ROLE-AND-PERMISSION-SPEC.md SS2)
 
@@ -71,6 +72,7 @@ Platform tool allowlist (frontmatter `tools:`): the full grantable platform voca
 - create inventory/plan/goals through the frozen schemas;
 - freeze acceptance criteria before execution;
 - issue Research Requests through the state records;
+- read the supervisor inbox on every wake-up and adjudicate each arrived Result Package from the persisted records; surface HumanGate-required items to the human user;
 - adjudicate Analysis results from the persisted analysis records;
 - create versioned Recovery/Redesign plans through the planning layer;
 - enforce Human Gates;

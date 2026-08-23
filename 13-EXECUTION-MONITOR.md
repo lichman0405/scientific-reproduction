@@ -18,6 +18,12 @@ Preferred normal behavior: a Codex/Claude Code session remains active 24×7 in a
 - execute whitelisted engineering retries;
 - spawn follow-up collection/analysis workers according to frozen rules;
 - maintain heartbeat and checkpoint state;
+- notify the Supervisor of arrived Result Packages: scan each cycle and
+  file a durable supervisor-inbox entry (run id, dispatch id, completion
+  event id, injected timestamp, pending flag) for every recorded
+  `RESULT_AVAILABLE` completion — the Supervisor reads the inbox on every
+  wake-up, so an arrived (or failed) return is surfaced, never left to
+  manual inspection;
 - recover after its own interruption.
 
 ## 3. High-availability layers

@@ -113,7 +113,13 @@ stays network-free and deterministic.
    attempt, and artifact in the workspace; wet-lab work hands off through
    the filesystem LabAdapter (`lab/outgoing`, `lab/incoming`).
 6. **Monitor and recover** — the Execution Monitor reconciles long-running
-   runs and applies the L1–L3 recovery ladder (`08-STRICT-RECOVERY-CLOSURE.md`).
+   runs and applies the L1–L3 recovery ladder (`08-STRICT-RECOVERY-CLOSURE.md`);
+   each cycle it files a durable supervisor-inbox entry for every arrived
+   Result Package (`<state_dir>/supervisor-inbox/<run_id>.json`), and the
+   Supervisor reads the inbox on every wake-up, adjudicating each arrival
+   from the persisted records and surfacing HumanGate-required items to the
+   human user — an arrived (or failed) return is guaranteed to reach the
+   Supervisor's next wake-up, never left to manual inspection.
 7. **Analyze independently** — analysis is separated from execution; apply
    the frozen statistics and acceptance governance
    (`07-STATISTICS-AND-ACCEPTANCE.md`).
