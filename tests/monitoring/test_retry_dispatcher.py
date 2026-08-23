@@ -8,11 +8,15 @@ Per-AC coverage, named after the acceptance criteria:
   bridged ``"transport"`` kind or a policy kind reported directly)
   triggers an IDENTICAL resubmission through the injected hook -- same
   run identity, same external identity semantics, no parameter change
-  (the dispatcher never writes the run store) -- and records exactly
-  one ``engineering_retry_decision`` event per attempt. Re-deciding
-  the same failure generation never re-invokes the hook (exactly-once
-  per recorded decision); a policy that does not authorize the kind
-  refuses it.
+  of any kind -- and records exactly one
+  ``engineering_retry_decision`` event per attempt. The decision's
+  aftermath (issue #150) is persisted: the Run record gains the
+  retry-history entry and the resubmitted external identity (a history
+  update, never a parameter mutation), and the watch entry names the
+  resubmitted identity. Re-deciding the same failure generation never
+  re-invokes the hook (exactly-once per recorded decision) and heals a
+  missing aftermath; a policy that does not authorize the kind refuses
+  it.
 * ``test_ac02_*`` -- AC-02: a scientific compute failure -- the
   ``"job"`` class, an unclassified failure, any unrecognized failure
   class, a Goal with no retry policy -- never triggers a resubmission
@@ -332,36 +336,6 @@ def write_goal_and_policy(
     write_policy(dispatcher, policy)
 
 
-def advance_external(
-    dispatcher: RetryDispatcher, run: Run, external: RunExternal
-) -> Run:
-    """Advance the failure generation: re-watch the run under the fresh
-    external identity and persist the updated run record (the Monitor
-    picks up the resubmission receipt; the next failure of the fresh
-    job is the next attempt)."""
-    dispatcher.registry.unwatch(run.run_id)
-    dispatcher.registry.watch(
-        WatchedRunRecord(
-            run_id=run.run_id,
-            external=external,
-            watched_at=FIXED_STAMP,
-            adapter_id="adapter:compute/slurm_ssh",
-            adapter_version="1.0",
-        )
-    )
-    advanced = Run(
-        run_id=run.run_id,
-        goal_id=run.goal_id,
-        run_type=run.run_type,
-        lifecycle_state=LifecycleState.RUNNING_EXTERNAL,
-        goal_version=run.goal_version,
-        external=external,
-        created_at=run.created_at,
-        updated_at=run.updated_at,
-    )
-    write_run(dispatcher.run_store, advanced)
-    return advanced
-
 
 def make_dispatcher(
     state_dir: Path,
@@ -448,9 +422,11 @@ def test_ac01_whitelisted_transport_failure_triggers_identical_resubmission(
     receives the watch's external identity, the resubmission receipt
     is recorded, exactly one deterministic decision event is appended
     carrying the consulted policy and the evaluator's reasoning, and
-    the run record -- parameters and lifecycle -- is byte-identical
-    after the decision (an identical resubmission never mutates the
-    run)."""
+    the decision's aftermath (issue #150) is persisted -- the run
+    record gains the retry-history entry and the resubmitted identity
+    (parameters and lifecycle untouched: a history update, never a
+    parameter mutation), and the watch entry names the resubmitted
+    identity."""
     state, runs_dir, events_dir = (
         tmp_path / "state", tmp_path / "runs", tmp_path / "events"
     )
@@ -535,25 +511,47 @@ def test_ac01_whitelisted_transport_failure_triggers_identical_resubmission(
     }
     assert records[0].sequence == 1
 
-    # The identical resubmission: the run record -- parameters and
-    # lifecycle -- is byte-identical (no parameter mutation, ever).
-    assert (runs_dir / "runs" / f"{run.run_id}.json").read_bytes() == (
+    # The identical resubmission aftermath (issue #150): the run record
+    # carries the retry-history entry -- the decision payload plus the
+    # decision's event id -- and the resubmitted identity, while the
+    # parameters and the lifecycle stay untouched (a history update,
+    # never a parameter mutation).
+    assert (runs_dir / "runs" / f"{run.run_id}.json").read_bytes() != (
         run_file_before
     )
     persisted = Run.from_dict(dispatcher.run_store.read("run", run.run_id))
+    assert persisted.engineering_retries == [
+        {**event.payload, "event_id": event.event_id}
+    ]
+    assert persisted.external == outcome.resubmitted_external
+    assert persisted.updated_at == FIXED_STAMP
+    assert persisted.created_at == run.created_at
     assert persisted.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
-    assert persisted == run
+    assert persisted.goal_id == run.goal_id
+    assert persisted.run_type is run.run_type
+    assert persisted.goal_version == run.goal_version
+    assert persisted.artifacts == run.artifacts
+    assert persisted.deviations == run.deviations
+
+    # The watch entry names the resubmitted identity: the shipped
+    # reconciliation probes the resubmitted job, not the dead one.
+    watch_after = dispatcher.registry.get(run.run_id)
+    assert watch_after.external == outcome.resubmitted_external
 
 
 def test_ac01_resubmission_is_exactly_once_per_retry_decision(
     tmp_path: Path,
 ) -> None:
-    """AC-01: re-deciding the same failure never re-invokes the
-    resubmission hook: the recorded decision resolves the deterministic
-    event id / idempotency key to the single original record and the
-    second pass replays it (``replayed=True``, original receipt and
-    stamp) -- the resubmission happens exactly once per recorded
-    decision and the log sequence never advances twice."""
+    """AC-01: re-deciding the same failure generation never re-invokes
+    the resubmission hook: the recorded decision resolves the
+    deterministic event id / idempotency key to the single original
+    record and the second pass replays it (``replayed=True``, original
+    receipt and stamp) -- the resubmission happens exactly once per
+    recorded decision and the log sequence never advances twice. The
+    crash window (the event appended, the aftermath not yet persisted --
+    the watch entry still names the dead job) is healed by the replay:
+    the watch entry converges back to the resubmitted identity and the
+    retry-history entry stays unique."""
     state, runs_dir, events_dir = (
         tmp_path / "state", tmp_path / "runs", tmp_path / "events"
     )
@@ -572,8 +570,13 @@ def test_ac01_resubmission_is_exactly_once_per_retry_decision(
     assert resubmit.calls == [run.external]
     records_after_first = dispatcher.event_log.list_events()
 
-    # The same decision again (e.g. a Monitor loop re-observing the same
-    # failed run): no second hook call, no second record, no sequence
+    # Rewind the watch entry to the dead job -- the crash window: the
+    # decision is recorded but the aftermath never advanced the watch.
+    dispatcher.registry.unwatch(run.run_id)
+    dispatcher.registry.watch(make_watch_record(1, external=run.external))
+
+    # The same generation again (e.g. a Monitor restart in the crash
+    # window): no second hook call, no second record, no sequence
     # advance -- the recorded history replays.
     second = dispatcher.decide(run.run_id, FAILURE_CLASS_TRANSPORT)
 
@@ -585,6 +588,17 @@ def test_ac01_resubmission_is_exactly_once_per_retry_decision(
     assert dispatcher.event_log.list_events() == records_after_first
     assert len(dispatcher.event_log.list_events()) == 1
     assert dispatcher.event_log.list_events()[0].sequence == 1
+
+    # The replay healed the aftermath to convergence: the watch entry
+    # names the resubmitted identity again and the run record carries
+    # exactly one retry-history entry.
+    assert dispatcher.registry.get(run.run_id).external == (
+        first.resubmitted_external
+    )
+    persisted = Run.from_dict(dispatcher.run_store.read("run", run.run_id))
+    assert len(persisted.engineering_retries) == 1
+    assert persisted.engineering_retries[0]["event_id"] == first.event_id
+    assert persisted.external == first.resubmitted_external
 
 
 def test_ac01_policy_whitelist_authorizes_a_policy_kind_failure(
@@ -903,9 +917,10 @@ def test_ac02_max_identical_retries_gates_identical_checkpoint_continuation(
     identical resubmissions of one failure (the ``checkpoint_continuation``
     kind -- identity-bridged, authorized without a whitelist entry) and
     refuses the fourth. Each resubmission receipt becomes the next
-    failing generation (a fresh watch external identity for the same
-    run), so every decision gets its own attempt-indexed event and
-    idempotency key; a ceiling refusal never advances the attempt."""
+    failing generation (the aftermath itself advances the watch external
+    identity and the Run record's external identity for the same run --
+    issue #150), so every decision gets its own attempt-indexed event
+    and idempotency key; a ceiling refusal never advances the attempt."""
     state, runs_dir, events_dir = (
         tmp_path / "state", tmp_path / "runs", tmp_path / "events"
     )
@@ -930,8 +945,19 @@ def test_ac02_max_identical_retries_gates_identical_checkpoint_continuation(
         )
         assert outcome.resubmitted_external is not None
         # The resubmission receipt becomes the next failing generation:
-        # a fresh watch external identity for the same run.
-        run = advance_external(dispatcher, run, outcome.resubmitted_external)
+        # the aftermath advanced the watch entry and the Run record's
+        # external identity to the fresh receipt -- no external advance
+        # is needed.
+        assert dispatcher.registry.get(run.run_id).external == (
+            outcome.resubmitted_external
+        )
+
+    # Each authorized decision appended its retry-history entry (a
+    # history update -- the run's parameters stay untouched).
+    persisted = Run.from_dict(dispatcher.run_store.read("run", run.run_id))
+    assert len(persisted.engineering_retries) == 3
+    assert persisted.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    assert persisted.goal_id == run.goal_id
 
     # The fourth identical failure: the ceiling is reached, the frozen
     # evaluator refuses -- never a resubmission.
@@ -1096,7 +1122,11 @@ def test_ac03_fresh_dispatcher_replays_recorded_decisions_without_reexecution(
     recorded events alone: re-deciding the same failures returns the
     recorded outcomes (original stamp and receipt, ``replayed=True``)
     and never re-invokes the hook -- no duplicate records, no second
-    resubmission, identical event-log bytes."""
+    resubmission, identical durable bytes. A watch entry rewound to the
+    dead external identity (the crash window between the event append
+    and the aftermath, issue #150) is healed back to the resubmitted
+    identity by the replay -- without touching the already-converged run
+    record."""
     state, runs_dir, events_dir = (
         tmp_path / "state", tmp_path / "runs", tmp_path / "events"
     )
@@ -1120,6 +1150,15 @@ def test_ac03_fresh_dispatcher_replays_recorded_decisions_without_reexecution(
     assert first_resubmit.calls == [transport_run.external]
     events_after_first = tree_bytes(events_dir)
     runs_after_first = tree_bytes(runs_dir)
+    state_after_first = tree_bytes(state)
+
+    # Rewind the transport run's watch entry to the dead external
+    # identity: the crash window between the event append and the
+    # aftermath leaves a legacy watch that still names the dead job.
+    first.registry.unwatch(transport_run.run_id)
+    first.registry.watch(
+        make_watch_record(1, external=transport_run.external)
+    )
 
     # A FRESH dispatcher over the same durable state -- no session state
     # -- with a fresh hook instance.
@@ -1141,16 +1180,34 @@ def test_ac03_fresh_dispatcher_replays_recorded_decisions_without_reexecution(
     assert job_replay.decision == RETRY_DECISION_REFUSED
     assert fresh_resubmit.calls == []
     # Identical durable bytes: no duplicate records, no re-execution.
+    # The replay healed the rewound watch entry back to the resubmitted
+    # identity and left the converged run record untouched.
     assert tree_bytes(events_dir) == events_after_first
     assert len(fresh.event_log.list_events()) == 2
-    # The run store was never touched by any decision or replay.
     assert tree_bytes(runs_dir) == runs_after_first
+    assert tree_bytes(state) == state_after_first
 
-    # The persisted run records were never touched by any decision.
-    for run in runs:
-        persisted = Run.from_dict(fresh.run_store.read("run", run.run_id))
-        assert persisted == run
-        assert persisted.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    # The transport run record carries the aftermath of the replayed
+    # authorized decision: exactly one retry-history entry keyed by the
+    # recorded event id and the resubmitted external identity.
+    transport_persisted = Run.from_dict(
+        fresh.run_store.read("run", transport_run.run_id)
+    )
+    assert len(transport_persisted.engineering_retries) == 1
+    assert (
+        transport_persisted.engineering_retries[0]["event_id"]
+        == transport_replay.event_id
+    )
+    assert (
+        transport_persisted.external
+        == transport_replay.resubmitted_external
+    )
+    assert (
+        transport_persisted.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    )
+    # A refused decision never touches its run record.
+    job_persisted = Run.from_dict(fresh.run_store.read("run", job_run.run_id))
+    assert job_persisted == job_run
 
 
 def test_ac03_byte_identical_durable_state_for_identical_inputs(

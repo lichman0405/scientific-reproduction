@@ -9,8 +9,11 @@ scientific failure. Expected behavior (frozen acceptance):
   the failure is classified through the real slurm-ssh adapter's durable
   job record (``failure_class == "transport"``), the identical batch is
   resubmitted at the scheduler level, and **no Supervisor scientific
-  replan** ever happens (no decision record, no run mutation, no new Run
-  record, no new adapter job record).
+  replan** ever happens (no decision record, no run parameter mutation,
+  no new Run record, no new adapter job record). The aftermath of the
+  authorized decision IS persisted (issue #150): the Run record gains
+  exactly one retry-history entry and the resubmitted external
+  identity, and the watch entry names the resubmitted job.
 * AC-02: a genuine scientific compute failure (non-zero remote exit,
   ``failure_class == "job"``) is **never** auto-resubmitted: observed,
   recorded and refused.
@@ -672,22 +675,49 @@ def test_E_ac01_resubmission_is_a_scheduler_receipt_not_a_new_job_record(
 def test_E_ac01_engineering_recovery_only_no_supervisor_replan(
     tmp_path: Path,
 ) -> None:
-    """AC-01: engineering recovery only -- the run record is never
-    mutated (byte-identical, still ``RUNNING_EXTERNAL``, no engineering
-    retry entry, no parameter change), no Supervisor decision exists
-    anywhere, and the event log records only the engineering retry
-    decision (never a replan/decision event)."""
+    """AC-01: engineering recovery only -- no Supervisor decision exists
+    anywhere, the event log records only the engineering retry decision
+    (never a replan/decision event), and the run record carries exactly
+    the aftermath of the authorized decision (issue #150): one
+    retry-history entry and the resubmitted external identity -- a
+    history update, never a parameter mutation (still
+    ``RUNNING_EXTERNAL``, same created/updated stamps)."""
     result = execute_scenario_e(tmp_path / "scenario-e")
+    outcome = result.outcome
+    assert outcome.resubmitted_external is not None
 
-    assert result.run_bytes_before == run_file_bytes(tmp_path / "scenario-e" / "runs")
     run_record = json.loads(
         run_file_bytes(tmp_path / "scenario-e" / "runs").decode("utf-8")
     )
     assert run_record["run_id"] == RUN_ID
     assert run_record["lifecycle_state"] == LifecycleState.RUNNING_EXTERNAL.value
-    assert run_record["engineering_retries"] == []
-    assert run_record["external"]["job_id"] == JOB_ID
     assert result.run.lifecycle_state is LifecycleState.RUNNING_EXTERNAL
+    assert run_record["created_at"] == FIXED_STAMP
+    assert run_record["updated_at"] == FIXED_STAMP
+    # The aftermath advanced the Run record's external identity to the
+    # resubmitted receipt; every other field is untouched.
+    assert run_record["external"]["job_id"] == outcome.resubmitted_external.job_id
+    assert run_record["external"]["job_id"] != JOB_ID
+    assert run_record["external"]["backend"] == SSH_BACKEND_NAME
+    assert run_record["external"]["working_directory"] == WORK_DIR
+    # Exactly one retry-history entry: the recorded decision payload
+    # keyed by the event id.
+    retries = run_record["engineering_retries"]
+    assert len(retries) == 1
+    entry = retries[0]
+    assert entry["event_id"] == outcome.event_id
+    assert entry["decision"] == RETRY_DECISION_AUTHORIZED
+    assert entry["failure_class"] == FAILURE_CLASS_TRANSPORT
+    assert entry["external"]["job_id"] == JOB_ID
+    assert entry["resubmitted_external"]["job_id"] == outcome.resubmitted_external.job_id
+    # The watch entry names the resubmitted identity -- the shipped
+    # reconciliation probes the resubmitted job, not the dead one.
+    watch_record = json.loads(
+        (
+            tmp_path / "scenario-e" / "monitor" / "watched" / f"{RUN_ID}.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert watch_record["external"]["job_id"] == outcome.resubmitted_external.job_id
 
     # no Supervisor decision artifact anywhere in the durable state
     decision_files = [
@@ -731,12 +761,19 @@ def test_E_ac01_resubmission_decided_exactly_once_per_failure(
     """AC-01: the resubmission happens exactly once per failure -- a
     second decision pass over the same durable state replays the
     recorded decision (same receipt, hook not invoked again, no new
-    event)."""
+    event) and heals a watch entry rewound to the dead identity (the
+    issue #150 crash window between the event append and the aftermath)
+    back to the resubmitted receipt."""
     result = execute_scenario_e(tmp_path / "scenario-e")
     first = result.outcome
     assert first.resubmitted_external is not None
 
     dispatcher = make_dispatcher(result.root)
+    # Rewind the watch entry to the dead external identity -- the crash
+    # window leaves a legacy watch that still names the dead job.
+    dispatcher.registry.unwatch(RUN_ID)
+    dispatcher.registry.watch(make_watch_record(result.watch.external))
+
     replay = dispatcher.decide_all()
     assert len(replay.outcomes) == 1
     second = replay.outcomes[0]
@@ -746,6 +783,9 @@ def test_E_ac01_resubmission_decided_exactly_once_per_failure(
     assert second.event_id == first.event_id
     assert len(result.cluster.resubmissions) == 1
     assert len(event_records(result.root / "events")) == 1
+    # The replay healed the rewound watch entry back to the resubmitted
+    # identity.
+    assert dispatcher.registry.get(RUN_ID).external == first.resubmitted_external
 
 
 # ---------------------------------------------------------------------------
@@ -834,12 +874,19 @@ def test_E_ac03_fresh_dispatcher_replays_recorded_history(tmp_path: Path) -> Non
     """AC-03: a replacement Monitor session (fresh dispatcher, fresh
     classifier, fresh plumbing over the same durable state) reconstructs
     the recorded decision history -- the original receipt and stamp are
-    authoritative, nothing is performed twice and no durable bytes
-    change."""
+    authoritative, nothing is performed twice -- and heals a watch
+    entry rewound to the dead identity (the issue #150 crash window
+    between the event append and the aftermath) back to the
+    post-aftermath durable bytes."""
     result = execute_scenario_e(tmp_path / "scenario-e")
-    before = tree_bytes(tmp_path / "scenario-e")
+    after_aftermath = tree_bytes(tmp_path / "scenario-e")
 
     dispatcher = make_dispatcher(result.root)
+    # Rewind the watch entry to the dead external identity -- the crash
+    # window leaves a legacy watch that still names the dead job.
+    dispatcher.registry.unwatch(RUN_ID)
+    dispatcher.registry.watch(make_watch_record(result.watch.external))
+
     replay = dispatcher.decide_all()
     assert len(replay.outcomes) == 1
     assert replay.outcomes[0].replayed
@@ -847,8 +894,21 @@ def test_E_ac03_fresh_dispatcher_replays_recorded_history(tmp_path: Path) -> Non
     assert replay.outcomes[0].decided_at == FIXED_STAMP
     assert len(result.cluster.resubmissions) == 1
 
-    assert tree_bytes(tmp_path / "scenario-e") == before
-    assert run_file_bytes(tmp_path / "scenario-e" / "runs") == result.run_bytes_before
+    # The replay healed the rewound watch entry and left the converged
+    # run record untouched: the durable tree matches the post-aftermath
+    # bytes exactly.
+    assert tree_bytes(tmp_path / "scenario-e") == after_aftermath
+
+    # The run record carries the aftermath: one retry-history entry and
+    # the resubmitted external identity.
+    run_record = json.loads(
+        run_file_bytes(tmp_path / "scenario-e" / "runs").decode("utf-8")
+    )
+    assert len(run_record["engineering_retries"]) == 1
+    assert (
+        run_record["external"]["job_id"]
+        == result.outcome.resubmitted_external.job_id
+    )
 
 
 def test_E_ac03_fresh_dispatcher_replays_refused_history(tmp_path: Path) -> None:
