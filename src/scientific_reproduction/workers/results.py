@@ -56,8 +56,8 @@ engineering vocabulary of the docs (``protocol_deviation`` /
 (``10-EXPERIMENT-SUBSYSTEM.md`` SS4 mandates reporting "failures/
 interruptions"), not a requirement verdict.
 
-Artifact linkage (AC-03)
-------------------------
+Artifact and run linkage (AC-03)
+-------------------------------
 Every artifact reference (``input_artifact_ids`` /
 ``output_artifact_ids``) resolves against the **real** DEV-M3-G02
 ``ArtifactRegistry`` (``manifests/``) at registration: an unregistered
@@ -66,11 +66,14 @@ and nothing is written. Every artifact id is validated as a safe registry
 id (no ``/``, no ``\\``, not ``.``/``..``, no glob metacharacters
 ``* ? [ ]``) at the record boundary (``__post_init__``) **and** re-checked
 at the resolution gate before any registry path is constructed
-(defense-in-depth -- the hard-won lesson of FND-M9-G02-01). Registration
-returns the package together with the :class:`ResultManifest`, which
-records exactly the linked references (context, run, artifacts,
-requirements, decisions) in deterministic sorted order -- "artifacts are
-linked through manifests".
+(defense-in-depth -- the hard-won lesson of FND-M9-G02-01). ``run_ref``,
+when present, resolves against the **durable Run registry**
+(``runs/<run_id>.json``, the issue #92 run authoring facade) in the same
+registration pass, so the Run -> Result Package edge of the traceability
+chain can never point into nothing. Registration returns the package
+together with the :class:`ResultManifest`, which records exactly the
+linked references (context, run, artifacts, requirements, decisions) in
+deterministic sorted order -- "artifacts are linked through manifests".
 
 Registry model (locked reading)
 -------------------------------
@@ -81,10 +84,13 @@ atomic write). The registry is id-keyed and written **exactly once**:
 records are immutable, a duplicate ``result_id`` is rejected with a stable
 ``DuplicateWorkerResultError`` and the original file is never rewritten.
 Result ids are validated as safe single path segments so the registry
-glob can never escape its directory. ``run_ref`` is shape-validated only:
-no Run registry exists in v0.1 (the DEV-M9-G02 reading). Requirement refs
+glob can never escape its directory. ``run_ref`` is shape-validated at
+the record boundary **and** resolved against the durable Run registry
+(``runs/<run_id>.json``, the issue #92 run authoring facade) at
+registration: a ``run_ref`` naming no registered run is rejected with the
+same stable ``UnresolvedWorkerResultReferenceError``. Requirement refs
 are pure linkage and are never resolved (AC-02); decision refs are pure
-linkage -- no decision registry exists in v0.1.
+linkage -- no decision registry exists.
 
 Determinism and boundaries
 --------------------------
@@ -112,6 +118,11 @@ from scientific_reproduction.core.models import WorkerRole
 from scientific_reproduction.planning.init import (
     PROJECT_STATE_FILENAME,
     ProjectNotInitializedError,
+)
+from scientific_reproduction.workers.run_helpers import (
+    RUNS_STATE_DIR,
+    RunNotFoundError,
+    read_run,
 )
 
 __all__ = [
@@ -172,11 +183,11 @@ class WorkerResultNotFoundError(WorkerResultError):
 class UnresolvedWorkerResultReferenceError(WorkerResultError):
     """Raised when a result reference does not resolve to a registered entity.
 
-    AC-01/AC-03: the package names the exact context/artifact refs -- an
-    artifact id that is not a registered manifest (or an artifact id that
-    is not a safe registry id, rejected at the resolution gate before any
-    registry path is constructed) is rejected instead of silently
-    drifting.
+    AC-01/AC-03: the package names the exact context/artifact/run refs --
+    an artifact id that is not a registered manifest, or a ``run_ref``
+    that names no registered run (or a ref that is not a safe registry
+    id, rejected at the resolution gate before any registry path is
+    constructed) is rejected instead of silently drifting.
     """
 
 
@@ -536,11 +547,12 @@ class WorkerResultPackage:
     The package names the **exact context it answers**: ``context_id`` is
     the ``context_id`` of the ``GoalExecutionContextPackage`` the worker
     was given (shape-validated as a well-formed generated id of kind
-    ``context``; no context registry exists in v0.1) and ``goal_id`` /
+    ``context``; no context registry exists) and ``goal_id`` /
     ``goal_version`` echo the frozen goal identity of that context
     (``goal_version`` is the formal ``v<N>`` the frozen contract carries).
     ``run_ref`` is the ``run_id`` of the Run the worker executed, when one
-    exists (shape-validated only -- no Run registry exists in v0.1).
+    exists (shape-validated here; resolved against the durable Run
+    registry at registration -- see :func:`register_worker_result`).
 
     The typed sections (AC-01) hold the worker-produced content:
     ``facts`` (measurements/values), ``data`` (structured outputs) and
@@ -1067,11 +1079,15 @@ def register_worker_result(
     (``manifests/``); each id is validated as a safe registry id at the
     record boundary and re-checked at the resolution gate before any
     registry path is constructed (defense-in-depth -- FND-M9-G02-01).
-    Unresolved references raise ``UnresolvedWorkerResultReferenceError``
-    with a stable message before anything is written. Requirement refs are
-    pure linkage (AC-02): never resolved, never interpreted, never closed.
-    Decision refs are pure linkage (AC-01): the package never carries
-    decision semantics.
+    Then ``run_ref``, when present, must resolve to a registered Run
+    record in the project run registry (``runs/<run_id>.json``, the issue
+    #92 run authoring facade): the Run -> Result Package traceability
+    edge must never point into nothing. A package without a ``run_ref``
+    has nothing to resolve and passes trivially. Unresolved references
+    raise ``UnresolvedWorkerResultReferenceError`` with a stable message
+    before anything is written. Requirement refs are pure linkage (AC-02):
+    never resolved, never interpreted, never closed. Decision refs are
+    pure linkage (AC-01): the package never carries decision semantics.
 
     Args:
         root: the initialized workspace root.
@@ -1092,8 +1108,9 @@ def register_worker_result(
         DuplicateWorkerResultError: a result with the same id is already
             registered (stable message, original bytes untouched).
         UnresolvedWorkerResultReferenceError: an artifact reference does
-            not resolve to a registered entity, or is not a safe registry
-            id at the resolution gate (AC-03).
+            not resolve to a registered entity, a ``run_ref`` names no
+            registered run, or either is not a safe registry id at the
+            resolution gate (AC-03).
         ProjectNotInitializedError: no ``project.yaml`` exists at ``root``.
         ValueError: a stored artifact record is corrupt.
     """
@@ -1111,6 +1128,7 @@ def register_worker_result(
             " exactly once"
         )
     _resolve_artifact_refs(project_root, model)
+    _resolve_run_ref(project_root, model)
     manifest = build_result_manifest(model)
     atomic_write(state_path, _canonical_json(model.to_dict()))
     return WorkerResultRegistration(package=model, manifest=manifest)
@@ -1244,6 +1262,39 @@ def _resolve_artifact_refs(root: Path, package: WorkerResultPackage) -> None:
                 f" registry ({ARTIFACTS_STATE_DIR}/); register the artifact"
                 " manifest first"
             ) from exc
+
+
+def _resolve_run_ref(root: Path, package: WorkerResultPackage) -> None:
+    """Resolve the package ``run_ref`` against the durable Run registry.
+
+    AC-03: the ``run_ref`` must name a registered Run record in the
+    project ``runs/`` registry (the issue #92 run authoring facade), so
+    the Run -> Result Package edge of the traceability chain can never
+    point into nothing. A package without a ``run_ref`` has nothing to
+    resolve and passes trivially. Defense-in-depth: the id is re-checked
+    as a safe registry id before ``read_run``, mirroring the artifact
+    gate (FND-M9-G02-01), so an unsafe id raises this stable error
+    rather than the store's generic one even if a record somehow
+    bypassed the record-boundary check.
+    """
+    if package.run_ref is None:
+        return
+    if not _is_safe_registry_id(package.run_ref):
+        raise UnresolvedWorkerResultReferenceError(
+            f"worker result {package.result_id!r} references run"
+            f" {package.run_ref!r}, which is not a safe registry id (no"
+            " '/', no '\\', not '.' or '..', no glob metacharacters"
+            " '*', '?', '[' or ']'); the ref must name the exact run_id"
+            " of a registered run record"
+        )
+    try:
+        read_run(root, package.run_ref)
+    except RunNotFoundError as exc:
+        raise UnresolvedWorkerResultReferenceError(
+            f"worker result {package.result_id!r} references run"
+            f" {package.run_ref!r}, which is not registered in the run"
+            f" registry ({RUNS_STATE_DIR}/); register the run first"
+        ) from exc
 
 
 def _read_result_file(state_path: Path) -> WorkerResultPackage:

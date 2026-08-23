@@ -25,13 +25,17 @@ to the acceptance criteria of DEV-M6-G02:
   :class:`ResultManifest` recording exactly the linked references --
   "artifacts are linked through manifests"; every artifact id is a safe
   registry id at the record boundary and re-checked at the resolution
-  gate (defense-in-depth, FND-M9-G02-01).
+  gate (defense-in-depth, FND-M9-G02-01); ``run_ref``, when present,
+  resolves against the durable Run registry (``runs/``, issue #92) in
+  the same registration pass -- a ``run_ref`` naming no registered run
+  is rejected with the same stable error and nothing is written.
 
 The deterministic path mirrors the M9-G02 suite: every fixture uses a
 fixed identity/timestamp for ``initialize_project`` and a pinned
 generated context id, so every record and every registered byte is
 deterministic. Artifact manifests are registered through the real
-``ArtifactRegistry`` (``manifests/``).
+``ArtifactRegistry`` (``manifests/``); Run records through the real
+``workers.run_helpers.register_run`` (``runs/``).
 """
 
 from __future__ import annotations
@@ -58,10 +62,13 @@ from scientific_reproduction.core.models import (
     Criticality,
     DecisionType,
     InventoryItemType,
+    LifecycleState,
     MappingStatus,
     ReproductionInventoryItem,
     ReproductionRequirement,
     RequirementOutcome,
+    Run,
+    RunType,
     SupervisorDecision,
     WorkerRole,
 )
@@ -101,6 +108,11 @@ from scientific_reproduction.workers.results import (
     list_worker_results,
     read_worker_result,
     register_worker_result,
+)
+from scientific_reproduction.workers.run_helpers import (
+    list_runs,
+    read_run,
+    register_run,
 )
 
 # ---------------------------------------------------------------------------
@@ -146,6 +158,23 @@ def register_artifact(root: Path, artifact_id: str) -> None:
     """Register one artifact manifest under ``manifests/`` (real registry)."""
     ArtifactRegistry(root / ARTIFACTS_STATE_DIR).register(
         make_manifest(artifact_id)
+    )
+
+
+def register_run_record(root: Path, run_id: str = "RUN-001") -> None:
+    """Register one Run record under ``runs/`` (the issue #92 registry)."""
+    register_run(
+        root,
+        Run(
+            run_id=run_id,
+            goal_id="GOAL-1",
+            run_type=RunType.INDEPENDENT_REPLICATE,
+            lifecycle_state=LifecycleState.CREATED,
+            goal_version="v1",
+            created_at=TIMESTAMP.isoformat(),
+        ),
+        actor="experiment_worker",
+        recorded_at="2026-01-02T00:00:00Z",
     )
 
 
@@ -645,6 +674,7 @@ def test_result_ac03_unregistered_output_artifact_ref_rejected(tmp_path):
 def test_result_ac03_manifest_records_exactly_the_linked_references(tmp_path):
     root = build_result_workspace(tmp_path)
     register_artifact(root, "FIG-1")
+    register_run_record(root)
     register_worker_result(
         root,
         make_package(
@@ -767,6 +797,106 @@ def test_result_ac03_defense_in_depth_unsafe_id_rejected_at_resolution_gate(
     assert not (root / WORKER_RESULTS_STATE_DIR / "RES-1.json").exists()
 
 
+def test_result_ac03_run_ref_resolves_against_real_run_registry(tmp_path):
+    root = build_result_workspace(tmp_path)
+    register_run_record(root)
+    registered = register_worker_result(
+        root, make_package("RES-1", run_ref="RUN-001")
+    )
+    stored = read_worker_result(root, "RES-1")
+    assert stored.run_ref == "RUN-001"
+    assert registered.manifest.references_for(ResultReferenceKind.RUN) == (
+        ResultReference(ResultReferenceKind.RUN, "RUN-001"),
+    )
+    # The linkage names a real registered Run record (the issue #92
+    # durable Run registry), never a shape-plausible ghost.
+    assert read_run(root, "RUN-001").run_id == "RUN-001"
+    assert list_runs(root) == (read_run(root, "RUN-001"),)
+
+
+def test_result_ac03_unregistered_run_ref_rejected_nothing_written(tmp_path):
+    root = build_result_workspace(tmp_path)
+    with pytest.raises(UnresolvedWorkerResultReferenceError) as exc:
+        register_worker_result(
+            root, make_package("RES-1", run_ref="RUN-GHOST")
+        )
+    message = str(exc.value)
+    assert "RES-1" in message
+    assert "RUN-GHOST" in message
+    assert "not registered" in message
+    assert "runs/" in message
+    # Nothing was written and no run record appeared as a side effect.
+    assert not (root / WORKER_RESULTS_STATE_DIR / "RES-1.json").exists()
+    assert list_worker_results(root) == ()
+    assert list_runs(root) == ()
+
+
+def test_result_ac03_none_run_ref_skips_resolution(tmp_path):
+    root = build_result_workspace(tmp_path)
+    # No run registered anywhere: a package without a run_ref has nothing
+    # to resolve and registers trivially.
+    registered = register_worker_result(root, make_package("RES-1"))
+    assert registered.package.run_ref is None
+    assert list_runs(root) == ()
+
+
+def test_result_ac03_artifact_refs_resolve_before_run_ref(tmp_path):
+    root = build_result_workspace(tmp_path)
+    # Deterministic gate order: artifact refs resolve first, run_ref
+    # second -- the stable error names the artifact, never the run.
+    with pytest.raises(UnresolvedWorkerResultReferenceError) as exc:
+        register_worker_result(
+            root,
+            make_package(
+                "RES-1",
+                run_ref="RUN-GHOST",
+                input_artifact_ids=["ART-NOPE"],
+            ),
+        )
+    assert "ART-NOPE" in str(exc.value)
+    assert "RUN-GHOST" not in str(exc.value)
+    assert not (root / WORKER_RESULTS_STATE_DIR / "RES-1.json").exists()
+
+
+def test_result_ac03_defense_in_depth_unsafe_run_ref_rejected_at_resolution_gate(
+    tmp_path,
+):
+    """The resolution gate refuses an unsafe run_ref even if the shape check were bypassed.
+
+    The record boundary offers no bypass (``replace``/``from_dict``
+    re-run the frozen constructor), so an unsafe ``run_ref`` cannot reach
+    registration through any public path. Defense-in-depth
+    (FND-M9-G02-01): the run resolution gate re-checks the id before
+    ``read_run``, so the gate never hands an unsafe id to the run store.
+    """
+    root = build_result_workspace(tmp_path)
+    bypass = object.__new__(WorkerResultPackage)
+    for name, value in {
+        "result_id": "RES-1",
+        "context_id": CONTEXT_ID,
+        "worker_role": ROLE,
+        "goal_id": "GOAL-1",
+        "goal_version": "v1",
+        "run_ref": "../EVIL",
+        "facts": [],
+        "data": [],
+        "deviations": [],
+        "input_artifact_ids": [],
+        "output_artifact_ids": [],
+        "decision_refs": [],
+        "environment": {},
+        "completed_at": None,
+    }.items():
+        object.__setattr__(bypass, name, value)
+    with pytest.raises(UnresolvedWorkerResultReferenceError) as exc:
+        results_module._resolve_run_ref(root.resolve(), bypass)
+    message = str(exc.value)
+    assert "RES-1" in message
+    assert "'../EVIL'" in message
+    assert "not a safe registry id" in message
+    assert not (root / WORKER_RESULTS_STATE_DIR / "RES-1.json").exists()
+
+
 # ---------------------------------------------------------------------------
 # Paradigm: canonical bytes, roundtrip, listing, exactly-once registry
 # ---------------------------------------------------------------------------
@@ -775,6 +905,7 @@ def test_result_ac03_defense_in_depth_unsafe_id_rejected_at_resolution_gate(
 def test_result_registry_canonical_json_and_roundtrip(tmp_path):
     root = build_result_workspace(tmp_path)
     register_artifact(root, "FIG-1")
+    register_run_record(root)
     package = make_package(
         "RES-1",
         run_ref="RUN-001",
@@ -1141,6 +1272,7 @@ def test_result_frozen_records_reject_mutation(tmp_path):
 def test_result_manifest_is_deterministic_sorted_and_hashable(tmp_path):
     root = build_result_workspace(tmp_path)
     register_artifact(root, "FIG-1")
+    register_run_record(root)
     package = make_package(
         "RES-1",
         run_ref="RUN-001",

@@ -94,7 +94,10 @@ from scientific_reproduction.core.models import (
     ArtifactManifest,
     DecisionMode,
     DecisionType,
+    LifecycleState,
     PrimaryOrExploratory,
+    Run,
+    RunType,
     SupervisorDecision,
     WorkerRole,
 )
@@ -123,6 +126,7 @@ from scientific_reproduction.workers.results import (
     read_worker_result,
     register_worker_result,
 )
+from scientific_reproduction.workers.run_helpers import register_run
 
 #: Deterministic author/committer identity (mirrors protocol_helpers).
 IDENTITY = AuditIdentity(name="Audit Bot", email="audit@example.org")
@@ -250,13 +254,29 @@ def build_scenario_workspace(tmp_path: Path) -> Path:
 
     Registers, deterministically: the frozen PRIMARY protocol ``ANL-1``
     ``v1`` (DEV-M9-G01 registry) carrying the smearing/mixing method
-    policy, the input/output artifact manifests (``manifests/``) and the
-    frozen CONVERGENCE acceptance ``ACC-1`` with the tolerance.
+    policy, the Run record ``RUN-001`` (the issue #92 durable Run
+    registry -- the worker result package's ``run_ref`` must resolve to
+    a registered run), the input/output artifact manifests
+    (``manifests/``) and the frozen CONVERGENCE acceptance ``ACC-1``
+    with the tolerance.
     """
     root = init_project(tmp_path)
     register_analysis_record(root, make_protocol("ANL-1"))
     draft = read_analysis_protocol(root, "ANL-1")
     freeze_primary_protocol(root, draft, timestamp=FROZEN_AT)
+    register_run(
+        root,
+        Run(
+            run_id=RUN_REF,
+            goal_id=GOAL_ID,
+            run_type=RunType.INDEPENDENT_REPLICATE,
+            lifecycle_state=LifecycleState.CREATED,
+            goal_version="v1",
+            created_at="2026-01-01T00:00:00Z",
+        ),
+        actor="computation_worker",
+        recorded_at="2026-01-02T00:00:00Z",
+    )
     registry = ArtifactRegistry(root / ARTIFACTS_STATE_DIR)
     registry.register(make_manifest(INPUT_ARTIFACT, run_id=RUN_REF))
     registry.register(make_manifest(OUTPUT_ARTIFACT, run_id=RUN_REF))
@@ -562,16 +582,17 @@ def test_F_analysis_record_carries_convergence_failure(tmp_path):
 
 def test_F_failure_reported_never_silent_retry(tmp_path):
     # AC-02 (a): the failure is on the record -- exactly one worker result
-    # and one analysis result exist, the runs registry holds no
-    # re-execution, and no retry policy record was written: the worker
-    # layer reports, it never silently retries.
+    # and one analysis result exist, the runs registry holds exactly the
+    # pre-registered ``RUN-001`` record and no re-execution, and no retry
+    # policy record was written: the worker layer reports, it never
+    # silently retries.
     root = build_scenario_workspace(tmp_path)
     execute_scenario_f(root)
     worker_results = list_worker_results(root)
     assert len(worker_results) == 1
     assert worker_results[0].deviations[0].kind is DeviationType.FAILURE
     runs_dir = root / "runs"
-    assert list(runs_dir.glob("*.json")) == []
+    assert sorted(p.name for p in runs_dir.glob("*.json")) == [f"{RUN_REF}.json"]
     # Retry policies live in the canonical ``retry-policies/`` tree
     # directory (SCHEMA_TO_STATE_DIR); none were written -- the worker
     # layer reports, it never silently retries.
