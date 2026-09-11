@@ -11,7 +11,7 @@ recorded state and the Core aggregation results:
 * the persisted Requirement records -- ``ReproductionRequirement.outcome``
   / ``method_reproducibility`` through the real registration API
   ``planning.inventory.list_requirements`` (the frozen
-  ``RequirementOutcome`` vocabulary of ``schemas/requirement.schema.yaml``,
+  ``RequirementOutcome`` vocabulary of ``schemas/requirement.schema.json``,
   ``05-GOAL-RUN-SCHEMA.md`` SS2: ``OPEN`` / ``REPRODUCED`` /
   ``REPRODUCED_WITH_RECOVERY`` / ``NOT_REPRODUCED`` / ``INCONCLUSIVE``),
   rendered **verbatim** -- an outcome that is not recorded is rendered as
@@ -46,7 +46,7 @@ Phase/outcome separation (AC-02)
 workflow now?", the outcome answers "what is the final scientific
 reproduction conclusion?"). The summary renders ``project_phase`` in its
 own section with its own ``ProjectPhase`` vocabulary
-(``schemas/project.schema.yaml``) and renders every outcome value
+(``schemas/project.schema.json``) and renders every outcome value
 (``RequirementOutcome``, ``ReproductionOutcome``, ``MethodReproducibility``)
 verbatim from its own vocabulary; no symbol, section or rendering path ever
 maps a phase value onto an outcome value or vice versa.

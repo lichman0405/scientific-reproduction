@@ -25,14 +25,24 @@ data and stay verbatim.
 
 PDF output note
 ---------------
-The deterministic PDF writer (``rendering.pdf``) uses base-14 Type1
-fonts with WinAnsi (cp1252) encoding; characters cp1252 cannot represent
--- including CJK -- render as ``?`` deterministically. The ``zh`` pack
-therefore targets the HTML sheets (the operator-facing artifact, fully
-readable in any browser); the PDF renderers accept ``language="zh"`` and
-render deterministically, with the writer's documented ``?`` fallback.
-A future writer with embedded CJK fonts can consume the same packs
-unchanged.
+The deterministic PDF writer (``rendering.pdf``) supports two font
+backends (see ``rendering.fonts``):
+
+* the legacy base-14 path (WinAnsi/cp1252) -- used automatically when
+  every rendered string is cp1252-representable -- keeps its historical
+  bytes; characters cp1252 cannot represent render as ``?`` only on
+  this low-level path, and the report renderer never selects it for
+  content it cannot encode;
+* the Unicode backend embeds subsetted TrueType fonts (``assets/fonts``,
+  overridable via ``SCIENTIFIC_REPRODUCTION_FONT_DIR``) and renders
+  arbitrary Unicode -- CJK, Greek, technical symbols -- with a
+  ToUnicode CMap, so text stays extractable and searchable.
+
+The backend choice is decided by the *content*, never by ``language``:
+``language="zh"`` selects Chinese labels, and those labels -- plus any
+Chinese data fields -- render through the Unicode backend. The ``zh``
+pack therefore renders correctly in the PDF as well as in the HTML
+sheets.
 
 Available languages are explicit: :data:`AVAILABLE_LANGUAGES` and the
 :data:`EN_PACK` / :data:`ZH_PACK` instances. Unknown languages raise
@@ -227,6 +237,7 @@ class ReportPack:
     band_ref_tpl: str
     band_not_recorded: str
     headline_tpl: str
+    headline_na: str
     #: Recovery ladder labels keyed by ``MethodReproducibility.value``
     #: (08-STRICT-RECOVERY-CLOSURE.md L1-L4 vocabulary).
     recovery_labels: dict[str, str]
@@ -608,6 +619,11 @@ EN_PACK: Final[TemplatePack] = TemplatePack(
             "Most important number: {name} = {value}{interval}{band}"
             " ({result_id}, protocol {protocol_version})."
         ),
+        headline_na=(
+            "Most important number: N/A (the analysis results referencing"
+            " CRITICAL requirements are audit-type scores without a"
+            " confidence interval or acceptance band)."
+        ),
         recovery_labels={
             "DIRECTLY_REPRODUCIBLE": "L1 direct",
             "REPRODUCIBLE_WITH_MINOR_RECOVERY": "L1/L2 minor recovery",
@@ -966,6 +982,10 @@ ZH_PACK: Final[TemplatePack] = TemplatePack(
         headline_tpl=(
             "最重要数值: {name} = {value}{interval}{band} ({result_id},"
             " 协议 {protocol_version})."
+        ),
+        headline_na=(
+            "最重要数值: N/A (引用关键需求的分析结果均为审计型打分, 无置信"
+            "区间或验收带)."
         ),
         recovery_labels={
             "DIRECTLY_REPRODUCIBLE": "L1 直接复现",
