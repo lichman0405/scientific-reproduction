@@ -57,7 +57,7 @@ on every platform.
 
 Lease records are runtime records, not schema objects
 -----------------------------------------------------
-There is no ``schemas/lease.schema.yaml`` (creating one is out of scope
+There is no ``schemas/lease.schema.json`` (creating one is out of scope
 for DEV-M1-G03), so lease files are **not** validated by the schema
 gate of ``core.state_backend``.  They are validated here against the
 documented lease contract (required fields and types in ``Lease``);

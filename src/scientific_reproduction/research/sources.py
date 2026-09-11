@@ -2,7 +2,7 @@
 
 Implements the **source normalization** deliverable: deterministic,
 lossless-enough normalization of the identity-bearing fields of the frozen
-``ResearchSource`` model (``schemas/source.schema.yaml``, modeled in
+``ResearchSource`` model (``schemas/source.schema.json``, modeled in
 ``core/models.py``) and derivation of a **canonical identity key** per
 record. The frozen spec grounds this module:
 
@@ -71,7 +71,7 @@ other identifier a record may also carry.
 
 **Scoping (AC-02):** the three resource-bearing record types --
 ``supplementary_information``, ``dataset`` and ``structure_deposition``
-(schemas/source.schema.yaml, ``SourceType``) -- are **record-scoped**: they
+(schemas/source.schema.json, ``SourceType``) -- are **record-scoped**: they
 keep their own address/identifier (``record:<source_id>``) and are never
 identified by a DOI they carry (typically the parent paper's DOI). This is
 what keeps distinct SI/dataset/structure records separately addressable

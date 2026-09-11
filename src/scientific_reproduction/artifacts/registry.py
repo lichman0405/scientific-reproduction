@@ -6,7 +6,7 @@ atomic writes via temp file + rename, schema validation on the persistence
 gate, deterministic ordering -- and no monolithic state file.
 
 The manifest model is the frozen ``ArtifactManifest`` from ``core.models``,
-which mirrors ``schemas/artifact-manifest.schema.yaml`` (the same model
+which mirrors ``schemas/artifact-manifest.schema.json`` (the same model
 that ``core.schema_validation`` validates against). ``uri`` values are
 stored verbatim and never interpreted relative to the repository: an
 artifact may live anywhere, including outside the Git tree (AC-03).

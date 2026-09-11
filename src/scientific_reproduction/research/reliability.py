@@ -11,10 +11,10 @@ rule trace. The frozen spec grounds this module:
   produced from a checklist and rule engine, not an LLM gut score*, the
   required checklist dimensions (the nine listed there, "at least"), and *a
   versioned rule maps checklist answers to 0-4 Reliability*.
-* ``schemas/evidence.schema.yaml``: the assessment requires
+* ``schemas/evidence.schema.json``: the assessment requires
   ``reliability`` (integer 0-4) and ``reliability_checklist_ref`` (a
   non-empty string -- the checklist record reference).
-* ``schemas/research-request.schema.yaml``: ``minimum_reliability`` is an
+* ``schemas/research-request.schema.json``: ``minimum_reliability`` is an
   integer 0-4 or null, so the derived score is schema-compatible by
   construction.
 * ``09-RESEARCH-SUBSYSTEM.md`` SS5 ("Evidence extraction"): research must

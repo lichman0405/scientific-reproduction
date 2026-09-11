@@ -1,6 +1,6 @@
 """Assumption-effect evaluation rules for strict-reproduction labeling (DEV-M2-G07).
 
-Evaluates how registered assumptions (``schemas/assumption.schema.yaml``,
+Evaluates how registered assumptions (``schemas/assumption.schema.json``,
 modeled as ``Assumption`` in ``core/models.py``) affect the scientific
 strict-reproduction label of a reproduction, and records every decision for
 the audit trail. The vocabulary is frozen:
@@ -95,7 +95,7 @@ class StrictLabel(StrEnum):
     """Scientific strict-reproduction label for a reproduction.
 
     ``STRICT_WITH_ASSUMPTIONS`` is the exact value of the frozen
-    ``StrictStatusEffect`` enum (``schemas/assumption.schema.yaml``); the
+    ``StrictStatusEffect`` enum (``schemas/assumption.schema.json``); the
     other two labels follow the same spelling convention.
     """
 

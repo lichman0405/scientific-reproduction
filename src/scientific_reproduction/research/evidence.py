@@ -3,7 +3,7 @@
 Implements the **claim-specific evidence registry** deliverable: a
 deterministic, immutable data layer holding frozen
 ``core.models.ClaimSpecificEvidence`` records (the model mirroring
-``schemas/evidence.schema.yaml``) and answering claim-scoped lookups for the
+``schemas/evidence.schema.json``) and answering claim-scoped lookups for the
 evidence rule engine (``core/rules/evidence.py``, DEV-M2-G03). The frozen
 spec grounds this module:
 
@@ -32,7 +32,7 @@ Normative readings
   is the opaque string ``claim_id`` on ``ClaimSpecificEvidence``. The
   registry never interprets claim ids.
 * **Directness/Reliability vocabulary**: the frozen axes are the 0-4
-  integers of ``EvidenceAssessment`` (``schemas/evidence.schema.yaml``
+  integers of ``EvidenceAssessment`` (``schemas/evidence.schema.json``
   declares ``authority``/``reliability``/``directness`` as integers in
   [0, 4]). There is no Directness/Reliability StrEnum in the frozen model;
   the registry types the axes as ``int`` and rejects out-of-range values at
@@ -107,7 +107,7 @@ class EvidenceRegistryError(ValueError):
     """Base error for the claim-specific evidence registry.
 
     Raised when a registration violates the frozen evidence-record shape
-    (``ClaimSpecificEvidence`` / ``schemas/evidence.schema.yaml``) or the
+    (``ClaimSpecificEvidence`` / ``schemas/evidence.schema.json``) or the
     registry's identity rules. Stable messages: every message names the
     offending value and the reason.
     """

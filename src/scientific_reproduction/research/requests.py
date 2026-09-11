@@ -3,7 +3,7 @@ and auditable result linkage (DEV-M5-G02).
 
 Implements the **Research Request lifecycle** deliverable over the frozen
 ``ResearchRequest`` model (``core/models.py``,
-``schemas/research-request.schema.yaml``). The frozen spec grounds this
+``schemas/research-request.schema.json``). The frozen spec grounds this
 module:
 
 * ``09-RESEARCH-SUBSYSTEM.md`` section 3 ("Research Requests"): *Only
@@ -14,7 +14,7 @@ module:
   families and minimum directness/reliability.
 * ``agent-contracts/RESEARCH.md``: during execution the Research Agent
   must *respond only to formal Supervisor Research Requests*.
-* ``schemas/research-request.schema.yaml``: the frozen request vocabulary
+* ``schemas/research-request.schema.json``: the frozen request vocabulary
   -- ``requested_by`` is the constant ``"supervisor"`` and ``status`` is
   one of ``OPEN`` / ``SEARCHING`` / ``COMPLETE`` / ``EXHAUSTED``.
 * Frozen acceptance: *Research Request objects* are a milestone
@@ -662,7 +662,7 @@ def issue_research_request(
         RequestIssuanceError: a value is invalid (empty ``request_id``,
             empty ``question``, empty ``origin_refs``, out-of-range
             ``minimum_reliability`` / ``minimum_directness`` (0..4 per
-            ``schemas/research-request.schema.yaml``), empty
+            ``schemas/research-request.schema.json``), empty
             ``issued_at``). Stable messages.
     """
     if not isinstance(request_id, str):
@@ -728,7 +728,7 @@ def issue_research_request(
         if not 0 <= minimum_reliability <= 4:
             raise RequestIssuanceError(
                 "issue_research_request: minimum_reliability must be between "
-                f"0 and 4 (research-request.schema.yaml), got {minimum_reliability}"
+                f"0 and 4 (research-request.schema.json), got {minimum_reliability}"
             )
     if minimum_directness is not None:
         if isinstance(minimum_directness, bool) or not isinstance(
@@ -741,7 +741,7 @@ def issue_research_request(
         if not 0 <= minimum_directness <= 4:
             raise RequestIssuanceError(
                 "issue_research_request: minimum_directness must be between "
-                f"0 and 4 (research-request.schema.yaml), got {minimum_directness}"
+                f"0 and 4 (research-request.schema.json), got {minimum_directness}"
             )
     if not isinstance(issued_at, str):
         raise TypeError(

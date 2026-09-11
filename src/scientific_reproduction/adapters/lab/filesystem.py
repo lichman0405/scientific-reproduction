@@ -38,7 +38,7 @@ Outgoing flow (AC-01)
 ---------------------
 ``dispatch`` writes the package to ``outgoing/<RUN_ID>/`` **after** the
 real schema gate (``core.schema_validation.validate_and_reject`` against
-``schemas/lab-execution-package.schema.yaml``) accepts it: a malformed
+``schemas/lab-execution-package.schema.json``) accepts it: a malformed
 package is refused loudly and nothing is written. With the workspace
 root injected (``workspace_root``), ``dispatch`` additionally resolves
 the package's ``goal_id`` against the registered goal store through
@@ -225,7 +225,7 @@ class FilesystemLabAdapter(LabAdapter):
         """Dispatch one Experiment Execution Package to the outgoing path.
 
         The package is schema-gated on the way out: ``validate_and_reject``
-        against ``schemas/lab-execution-package.schema.yaml`` (the real
+        against ``schemas/lab-execution-package.schema.json`` (the real
         schema validation API); a malformed package raises
         ``SchemaValidationError`` loudly and **nothing** is written.
         With ``workspace_root`` set, the package's Goal reference is then

@@ -58,7 +58,7 @@ Freeze metadata (normative reading, locked here)
 ------------------------------------------------
 The frozen ``AnalysisProtocolOrResult`` model declares only ``frozen``
 (no ``frozen_at``/``frozen_commit``/parent fields -- ``core/models.py``,
-``schemas/analysis.schema.yaml``), so the freeze stamp follows the
+``schemas/analysis.schema.json``), so the freeze stamp follows the
 DEV-M4-G04 convention for models without freeze fields: the metadata is
 carried by the :class:`ProtocolFreezeResult` / :class:`ProtocolVersion`
 objects and persisted as extra keys of the versioned record file. The
@@ -1491,7 +1491,7 @@ def _write_versioned(
 
     The versioned record file carries the schema fields plus the freeze/
     version metadata as extra schema-permitted keys
-    (``schemas/analysis.schema.yaml`` ``additionalProperties: true``);
+    (``schemas/analysis.schema.json`` ``additionalProperties: true``);
     ``None`` metadata values are omitted (the ``to_dict()`` convention).
     """
     data = record.to_dict()

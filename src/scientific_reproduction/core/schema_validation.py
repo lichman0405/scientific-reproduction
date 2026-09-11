@@ -1,7 +1,7 @@
 """Schema validation adapter against the frozen product schemas (DEV-M1-G01).
 
 Validates plain objects (dicts) against the normative JSON Schemas in
-``schemas/<name>.schema.yaml`` using ``jsonschema`` (draft 2020-12). This is
+``schemas/<name>.schema.json`` using ``jsonschema`` (draft 2020-12). This is
 the persistence gate: schema-invalid objects are rejected before they are
 written (AC-03 of DEV-M1-G01).
 
@@ -11,8 +11,8 @@ Schemas are part of the installed repository. The schemas directory is
 resolved relative to this package (``<repo>/schemas``), which works for
 both the source checkout and an installed package; an explicit override is
 available via the ``SCIENTIFIC_REPRODUCTION_SCHEMAS_DIR`` environment
-variable. Loading is **lazy**: the YAML schema and the ``jsonschema``
-library are imported on first use, and loaded schemas are cached.
+variable. Loading is **lazy**: the ``jsonschema`` validator and the
+schema is imported on first use, and loaded schemas are cached.
 
 Missing files are not silently ignored: a missing schema raises
 ``SchemaNotFoundError`` with the expected path in the message.
@@ -20,6 +20,7 @@ Missing files are not silently ignored: a missing schema raises
 
 from __future__ import annotations
 
+import json
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -27,13 +28,12 @@ from typing import Any
 
 # Imported lazily inside the functions that need them so that a missing
 # optional dependency never breaks importing this module.
-_yaml: Any = None
 _jsonschema: Any = None
 
 SCHEMAS_DIR_ENV = "SCIENTIFIC_REPRODUCTION_SCHEMAS_DIR"
 
-#: schema stem -> filename, e.g. "project" -> "project.schema.yaml".
-#: All 23 normative object types from schemas/*.schema.yaml.
+#: schema stem -> filename, e.g. "project" -> "project.schema.json".
+#: All 23 normative object types from schemas/*.schema.json.
 KNOWN_OBJECT_TYPES = frozenset(
     {
         "acceptance-criteria",
@@ -78,11 +78,19 @@ class SchemaValidationError(ValueError):
     def __init__(self, obj_type: str, errors: list[str]) -> None:
         self.obj_type = obj_type
         self.errors = list(errors)
-        super().__init__(f"{obj_type}: {len(self.errors)} schema validation error(s)")
+        # Field-level detail in the message: sessions otherwise have to
+        # re-derive "which field, why" with their own jsonschema debugging
+        # (a recurring cost across every reproduction project).
+        detail = "; ".join(self.errors[:10])
+        if len(self.errors) > 10:
+            detail += f"; ... ({len(self.errors) - 10} more)"
+        super().__init__(
+            f"{obj_type}: {len(self.errors)} schema validation error(s): {detail}"
+        )
 
 
 def schemas_dir() -> Path:
-    """Return the directory holding ``*.schema.yaml`` files.
+    """Return the directory holding ``*.schema.json`` files.
 
     Resolution order:
       1. ``SCIENTIFIC_REPRODUCTION_SCHEMAS_DIR`` environment variable;
@@ -95,20 +103,15 @@ def schemas_dir() -> Path:
     return Path(__file__).resolve().parents[3] / "schemas"
 
 
-def _load_yaml_schema(obj_type: str) -> dict[str, Any]:
-    global _yaml
-    if _yaml is None:
-        import yaml  # type: ignore[import-untyped]
-
-        _yaml = yaml
-    schema_path = schemas_dir() / f"{obj_type}.schema.yaml"
+def _load_json_schema(obj_type: str) -> dict[str, Any]:
+    schema_path = schemas_dir() / f"{obj_type}.schema.json"
     if not schema_path.is_file():
         raise SchemaNotFoundError(
             f"no schema for object type {obj_type!r}: expected file at "
             f"{schema_path} (set {SCHEMAS_DIR_ENV} to override the schemas dir)"
         )
     try:
-        loaded = _yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+        loaded = json.loads(schema_path.read_text(encoding="utf-8"))
     except Exception as exc:  # pragma: no cover - malformed schema file path
         raise SchemaNotFoundError(
             f"could not load schema {schema_path}: {exc}"
@@ -133,7 +136,7 @@ def load_schema(obj_type: str) -> dict[str, Any]:
         raise ValueError(
             f"unknown object type {obj_type!r}; expected one of: {known}"
         )
-    return _load_yaml_schema(obj_type)
+    return _load_json_schema(obj_type)
 
 
 def _validator_for(schema: dict[str, Any]) -> Any:
@@ -146,7 +149,7 @@ def _validator_for(schema: dict[str, Any]) -> Any:
 
 
 def validate_object(obj_type: str, data: dict[str, Any]) -> list[str]:
-    """Validate ``data`` against ``schemas/<obj_type>.schema.yaml``.
+    """Validate ``data`` against ``schemas/<obj_type>.schema.json``.
 
     Returns a list of human-readable validation error messages; an empty
     list means the object is valid. Raises ``SchemaNotFoundError`` when the

@@ -5,15 +5,15 @@ data tables plus pure functions. It performs no I/O, uses no randomness,
 and never consults the environment: the same inputs always produce the
 same answers, on every platform and Python version (AC-03 of DEV-M2-G01).
 
-Normative sources (all frozen; the enums in ``schemas/*.schema.yaml`` are
+Normative sources (all frozen; the enums in ``schemas/*.schema.json`` are
 authoritative for the state sets):
 
-* Project phases -- ``schemas/project.schema.yaml`` (``project_phase``
+* Project phases -- ``schemas/project.schema.json`` (``project_phase``
   enum) and ``04-PROJECT-LIFECYCLE.md`` section 2 (the phase list, given in
   mainline order); section 1 states that ``project_phase`` and
   ``reproduction_outcome`` are strictly separate, so no outcome value is a
   phase.
-* Run lifecycle -- ``schemas/run.schema.yaml`` (``lifecycle_state`` enum)
+* Run lifecycle -- ``schemas/run.schema.json`` (``lifecycle_state`` enum)
   and ``05-GOAL-RUN-SCHEMA.md`` section 7 ("Recommended Run lifecycle",
   given in mainline order; scientific PASS/FAIL is a review decision stored
   separately, not a lifecycle state); ``13-EXECUTION-MONITOR.md`` section 5
@@ -50,7 +50,7 @@ Run lifecycle (10 members):
 * ``CANCELLED`` (run abandoned before any result) from every pre-result
   state: ``CREATED``, ``READY``, ``DISPATCHED``, ``RUNNING_EXTERNAL``.
 * ``INVALIDATED`` (results produced but not trustworthy; cf. the
-  ``invalidate_run_on`` field of ``schemas/retry-policy.schema.yaml``) from
+  ``invalidate_run_on`` field of ``schemas/retry-policy.schema.json``) from
   every result-bearing state: ``RESULT_AVAILABLE``, ``ANALYZING``,
   ``SUBMITTED_FOR_REVIEW``.
 * ``CLOSED``, ``CANCELLED`` and ``INVALIDATED`` are terminal: no outgoing

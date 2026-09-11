@@ -375,7 +375,7 @@ class HypothesisCandidate:
     opaque non-empty strings, like every ref in the research subsystem).
     ``assessment`` is the (source, claim) evidence assessment of the
     candidate -- the frozen ``core.models.EvidenceAssessment`` of
-    ``schemas/evidence.schema.yaml``, exactly what the sibling evidence
+    ``schemas/evidence.schema.json``, exactly what the sibling evidence
     data layer (``research/evidence.py``) stores. The eligibility threshold
     evaluates the candidate's assessment: the Reliability/Directness rules
     read precisely its ``reliability`` and ``directness`` axes (AC-03).
@@ -704,7 +704,7 @@ class SaturationRecord:
     every assessment; per the normative reading the closure layer composes
     it with the operational-rule verdict (see the module docstring).
     ``required_zero_novelty_cycles`` is the frozen, configurable saturation
-    rule (``schemas/closure-contract.schema.yaml``: integer, minimum 1,
+    rule (``schemas/closure-contract.schema.json``: integer, minimum 1,
     default 2 -- mirrored by ``core.models.ClosureLiterature``); *frozen*
     here means it is a recorded field of the record and of every
     assessment, not a runtime-adjustable knob.

@@ -1,7 +1,7 @@
 """Typed core object models for all normative project objects (DEV-M1-G01).
 
 Every model is a frozen dataclass whose field names are the **exact keys**
-of the corresponding frozen product schema in ``schemas/<name>.schema.yaml``
+of the corresponding frozen product schema in ``schemas/<name>.schema.json``
 (see ``schema_name`` for the mapping). Each model:
 
 * mirrors the schema's REQUIRED and OPTIONAL fields with correct types and
@@ -112,7 +112,7 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# Enums -- values are frozen from schemas/*.schema.yaml, do not invent.
+# Enums -- values are frozen from schemas/*.schema.json, do not invent.
 # ---------------------------------------------------------------------------
 
 
@@ -368,6 +368,12 @@ class GateType(StrEnum):
     SCOPE_GATE = "SCOPE_GATE"
     TERMINATION_GATE = "TERMINATION_GATE"
     EXTERNAL_CONTACT_GATE = "EXTERNAL_CONTACT_GATE"
+    # v0.3.1 (local, evidence-interpretation gate): an ambiguous digitized
+    # reading (which figure marker a data point is, which of several
+    # candidate values an extraction admits) must be picked to continue.
+    # Not a boundary decision: the run keeps going under the recorded
+    # default_safe_action and the human confirms once at close-out.
+    EVIDENCE_INTERPRETATION_GATE = "EVIDENCE_INTERPRETATION_GATE"
 
 
 class GateStatus(StrEnum):
@@ -739,7 +745,7 @@ class GoalContract(CoreModel):
     ``execution_constraints`` carries the structured SS4 execution
     constraints (hardware/environment constraints, forbidden changes,
     safety notes). Both keys are schema-required at the persistence gate
-    (``schemas/goal.schema.yaml``), so every record the freeze writes
+    (``schemas/goal.schema.json``), so every record the freeze writes
     carries them; goal records written before the fields existed load
     through the documented accept-and-migrate path (see the field
     comments).
@@ -1080,6 +1086,9 @@ class HumanGate(CoreModel):
     requested_decision: str | None = None
     evidence_refs: list[str] = field(default_factory=list)
     default_safe_action: str | None = None
+    # v0.3.1 (local): the human's answer once the gate is resolved (the
+    # approved reading/value or the rejection note); None until resolved.
+    resolution_note: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1121,6 +1130,11 @@ class ReproductionRequirement(CoreModel):
     criticality: Criticality
     goal_ids: list[str]
     outcome: RequirementOutcome
+    # v0.2.3 (2026-09-04): optional localized rendering of the claim
+    # statement. `statement` stays the canonical English wording; the zh
+    # summary renderer prefers this field when present (never machine-
+    # translated, always author-supplied).
+    statement_zh: str | None = None
     criticality_assessment_ref: str | None = None
     method_reproducibility: MethodReproducibility | None = None
 
@@ -1168,7 +1182,7 @@ class StatisticalDesign(CoreModel):
     is frozen BEFORE data generation).
 
     The first-class record behind ``AcceptanceCriteria.statistical_design_ref``
-    (``schemas/statistical-design.schema.yaml``): one record per goal,
+    (``schemas/statistical-design.schema.json``): one record per goal,
     registered in the goal-contract family registry (``planning.plan``
     ``register_statistical_design``, ``designs/<design_id>.json``) and
     frozen by the plan freeze. ``margin_basis`` records the SS8 basis
@@ -1214,7 +1228,7 @@ class ResearchRequest(CoreModel):
 
 
 # ---------------------------------------------------------------------------
-# Registry: schema stem (schemas/<name>.schema.yaml) -> model class
+# Registry: schema stem (schemas/<name>.schema.json) -> model class
 # ---------------------------------------------------------------------------
 
 MODEL_REGISTRY: dict[str, type[CoreModel]] = {

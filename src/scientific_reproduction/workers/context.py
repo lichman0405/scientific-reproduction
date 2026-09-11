@@ -2,7 +2,7 @@
 
 Implements the **goal execution context package generator** deliverable:
 a deterministic generator that builds the frozen
-``core.models.GoalExecutionContextPackage`` (``schemas/worker-context.schema.yaml``)
+``core.models.GoalExecutionContextPackage`` (``schemas/worker-context.schema.json``)
 for a dynamic worker from the **frozen Goal Contract** plus the goal's
 explicitly relevant sources, evidence, upstream outputs and policies
 (``05-GOAL-RUN-SCHEMA.md`` SS8). The module also implements the
@@ -25,13 +25,13 @@ Normative grounding (locked readings)
 * ``06-EVIDENCE-SYSTEM.md`` SS6: ``ClaimSpecificEvidence.used_by`` holds
   the Goals/decisions using the evidence as opaque refs -- the frozen
   linkage that makes an evidence record *relevant* to a goal.
-* ``schemas/retry-policy.schema.yaml`` (``core.models.AutomaticRetryPolicy``):
+* ``schemas/retry-policy.schema.json`` (``core.models.AutomaticRetryPolicy``):
   the goal's required policy record; ``allowed_engineering_failures`` are
   the engineering retries the worker may take on its own,
   ``supervisor_required_changes`` the failures whose retry is explicitly
   prohibited without a Supervisor change (the "explicit prohibitions" of
   SS8).
-* ``schemas/worker-context.schema.yaml``: the package model's exact fields.
+* ``schemas/worker-context.schema.json``: the package model's exact fields.
 
 "Frozen" Goal Contract (M4-G04/M4-G05 semantics)
 ------------------------------------------------
@@ -78,7 +78,7 @@ Execution packages (issue #160)
 -------------------------------
 ``execution_package_refs`` binds the worker context to the stored
 execution package(s) the worker executes -- a first-class schema
-property (``schemas/worker-context.schema.yaml``), no longer an
+property (``schemas/worker-context.schema.json``), no longer an
 ``additionalProperties`` pass-through. The generator resolves every
 provided ref against the workspace execution-package state dirs
 (``lab/`` then ``compute/`` -- the canonical storage of
@@ -103,7 +103,7 @@ The goal's declared dependencies are the explicit upstream references
 are the **required upstream results**. Each reference is the deterministic
 string ``"<upstream_goal_id>#<output>"``, where the output name is the
 ``name`` key of an output object (the frozen ``GoalContract.outputs`` is
-a list of objects per ``schemas/goal.schema.yaml``); output objects
+a list of objects per ``schemas/goal.schema.json``); output objects
 without a string ``name`` are not returnable artifacts and are skipped.
 Dependency goal records are read through the real registered registry
 (``planning.plan.read_goal``); an unregistered dependency goal raises the
@@ -1064,7 +1064,7 @@ def _output_names(outputs: Sequence[Any]) -> tuple[str, ...]:
     """The deterministic output names of a goal's declared outputs.
 
     ``GoalContract.outputs`` is a list of objects
-    (``schemas/goal.schema.yaml``); an output object contributes its
+    (``schemas/goal.schema.json``); an output object contributes its
     ``name`` key when that key is a string. Output objects that carry no
     string ``name`` are not returnable artifacts and are skipped
     (documented). Sorted, distinct, deterministic.

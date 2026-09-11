@@ -5,7 +5,7 @@ translation from a frozen computation design (force fields, k-point
 meshes, cutoffs, convergence criteria) to the input files a worker
 creates was unrecorded, and ``RunContext`` carried no scientific
 parameters. ``ComputeExecutionPackage``
-(``schemas/compute-execution-package.schema.yaml``,
+(``schemas/compute-execution-package.schema.json``,
 ``core.models.ComputeExecutionPackage``) closes that gap: the
 worker-facing artifact that carries the frozen Goal's scientific
 parameters, the input-file creation instructions derived from them, the
@@ -30,7 +30,7 @@ from scientific_reproduction.core.models import ComputeExecutionPackage, GoalCon
 from scientific_reproduction.core.schema_validation import validate_and_reject
 
 #: The schema name of the runtime compute execution package
-#: (``schemas/compute-execution-package.schema.yaml``).
+#: (``schemas/compute-execution-package.schema.json``).
 COMPUTE_EXECUTION_PACKAGE_SCHEMA: str = "compute-execution-package"
 
 #: Fixed input-file creation instruction, identical for every frozen
@@ -81,7 +81,7 @@ def validate_compute_execution_package(
     """Schema-gate a runtime compute execution package; return its dict.
 
     The single handoff gate (``LocalComputeAdapter.prepare``): validates
-    the package against ``schemas/compute-execution-package.schema.yaml``
+    the package against ``schemas/compute-execution-package.schema.json``
     before anything is persisted and returns the canonical plain dict
     for the adapter to write.
 

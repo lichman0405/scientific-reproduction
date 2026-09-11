@@ -1,7 +1,7 @@
 """Dependency, execution-gate and acceptance-gate evaluation rules (DEV-M2-G02).
 
 Pure logic implementing the frozen dependency semantics of ``05-GOAL-RUN-SCHEMA.md``
-section 5 against the frozen dependency item of ``schemas/goal.schema.yaml``
+section 5 against the frozen dependency item of ``schemas/goal.schema.json``
 (model: ``core.models.GoalDependency`` / ``core.models.DependencyType``).
 No LLM, no randomness, no wall-clock dependence: the same inputs always
 yield the same assessments on every platform and Python version.
@@ -14,7 +14,7 @@ Normative sources (all frozen)
   before execution starts?") and ``acceptance_gate`` ("must upstream evidence
   be valid before this Goal may close?"); the split "allows safe parallelism
   without invalidating final evidence".
-* ``schemas/goal.schema.yaml`` -- the dependency item shape: ``goal_id``,
+* ``schemas/goal.schema.json`` -- the dependency item shape: ``goal_id``,
   ``type`` in ``{hard_gate, soft_dependency, informational}``, optional
   ``execution_gate`` / ``acceptance_gate`` booleans (default ``false``).
 * ``17-FDM201-REFERENCE-CASE.md`` -- soft dependency example ("PXRD can begin
@@ -169,7 +169,7 @@ RECORD_FIELDS: tuple[str, ...] = (
 class DependencyRecord:
     """One goal dependency plus its upstream resolution state.
 
-    Mirrors ``schemas/goal.schema.yaml`` (``goal_id``, ``type``,
+    Mirrors ``schemas/goal.schema.json`` (``goal_id``, ``type``,
     ``execution_gate``, ``acceptance_gate``) and adds the two-axis upstream
     resolution state answering the spec's two gate questions
     (``05-GOAL-RUN-SCHEMA.md`` section 5):

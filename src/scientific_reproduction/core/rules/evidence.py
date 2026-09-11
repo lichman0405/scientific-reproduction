@@ -1,7 +1,7 @@
 """Deterministic Authority/Reliability/Directness evidence rules (DEV-M2-G03).
 
 Pure logic implementing the frozen evidence rubric of ``06-EVIDENCE-SYSTEM.md``
-against the frozen assessment structure of ``schemas/evidence.schema.yaml``
+against the frozen assessment structure of ``schemas/evidence.schema.json``
 (model: ``core.models.EvidenceAssessment``). No LLM, no randomness, no
 wall-clock dependence: every public function returns the same answer for the
 same inputs on every platform and Python version.
@@ -492,7 +492,7 @@ def assess(
     Implements the Source x Claim rule (06-EVIDENCE-SYSTEM.md SS1): an
     assessment always binds a source to a claim, never a global score. The
     returned ``EvidenceAssessment`` is the frozen core model whose
-    ``to_dict()`` satisfies ``schemas/evidence.schema.yaml``.
+    ``to_dict()`` satisfies ``schemas/evidence.schema.json``.
 
     Deterministic derivation:
     * reliability -- from ``checklist`` via ``reliability_score`` (AC-01);

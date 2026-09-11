@@ -24,8 +24,8 @@ keys or lifecycle plumbing. The frozen spec grounds this module:
   ``OPEN``, and lifecycle moves go through the normative rule table of
   ``research.requests`` (R-REQ-S0/C1/E1; no-op transitions are never
   legal, R-REQ-D1);
-* ``schemas/source.schema.yaml``, ``schemas/evidence.schema.yaml``,
-  ``schemas/research-request.schema.yaml``: records are persisted
+* ``schemas/source.schema.json``, ``schemas/evidence.schema.json``,
+  ``schemas/research-request.schema.json``: records are persisted
   through the schema-validating state backend as canonical JSON.
 
 Workspace layout (normative)
@@ -229,6 +229,20 @@ class DuplicateSourceError(SourceRegistryError):
 
 
 class SourceNotFoundError(SourceRegistryError):
+    """Raised when an evidence record references an unregistered source."""
+
+
+class AssumptionAsEvidenceError(StateHelperError):
+    """Raised when an evidence record declares a claim id with the
+    ``ASSUMPTION-`` prefix.
+
+    Assumptions have their own record type (``assumptions/``, schema
+    ``assumption.schema.json``) and must not be registered as evidence:
+    the AC-01 trace chain requires every evidence claim to reach an
+    Analysis -> Run -> Artifact chain, which an assumption (by definition
+    without a run) can never satisfy -- it would fail finalization and
+    get deleted, losing the audit record (observed in the v3 run)."""
+    
     """Raised when a referenced source is not registered.
 
     Raised by reads (``read_source``) and by ``register_evidence`` when
@@ -370,7 +384,7 @@ def register_source(
     """Register one source record at ``sources/<source_id>.json``.
 
     The research role's source authoring entry: the record is
-    schema-shaped (``schemas/source.schema.yaml``), canonical-JSON
+    schema-shaped (``schemas/source.schema.json``), canonical-JSON
     persisted through the atomic state backend, and audited with one
     ``source.recorded`` event under the deterministic key
     ``source.recorded:<source_id>``. The acquisition outcome
@@ -536,6 +550,15 @@ def register_evidence(
     event_log = _resolve_event_log(project_root, event_log)
     model = _coerce_evidence(evidence)
     validate_evidence_record(model)
+    if model.claim_id.startswith("ASSUMPTION-"):
+        raise AssumptionAsEvidenceError(
+            "evidence "
+            f"{model.evidence_id!r} declares claim {model.claim_id!r} with the "
+            "ASSUMPTION- prefix; assumptions are registered in assumptions/ "
+            "(schema assumption.schema.json), not as evidence -- evidence "
+            "claims must trace to Analysis -> Run -> Artifact (AC-01), which "
+            "an assumption never satisfies"
+        )
     _require_actor_stamp(actor, recorded_at)
     source_store = _source_store(project_root)
     if not source_store.exists("source", model.source_id):

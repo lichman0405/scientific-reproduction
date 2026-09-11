@@ -646,7 +646,7 @@ class SSHJobRecord:
 
     Field names are the exact JSON keys of the persisted record
     (``to_dict`` / ``from_dict`` round-trip them). The record is a
-    runtime record -- there is no ``schemas/job.schema.yaml`` -- so
+    runtime record -- there is no ``schemas/job.schema.json`` -- so
     ``from_dict`` validates against this documented contract instead
     (like ``core.leases``), with stable errors.
     """
