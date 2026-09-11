@@ -3,7 +3,7 @@
 ``IDENTITY`` / ``TIMESTAMP`` pin every deterministic input the backing
 ``initialize_project`` call takes, so each test exercises the deterministic
 path. The inventory records themselves carry no timestamp fields
-(``schemas/inventory-item.schema.yaml``, ``schemas/requirement.schema.yaml``),
+(``schemas/inventory-item.schema.json``, ``schemas/requirement.schema.json``),
 so state-content assertions compare exact bytes.
 """
 

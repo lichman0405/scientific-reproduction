@@ -20,7 +20,7 @@ Public API
   per project; a second registration raises ``TargetAlreadyRegisteredError``
   with a stable message. At initialization the primary target is always
   registered (the frozen ``Project`` schema makes ``primary_target`` a
-  required single object, ``schemas/project.schema.yaml``), so on an
+  required single object, ``schemas/project.schema.json``), so on an
   unmodified project this API always rejects -- it exists to make the
   one-primary invariant an enforced behavior, not just a schema property.
 * ``register_target_metadata`` -- primary target metadata registration:
@@ -196,10 +196,10 @@ INIT_EVENT_TYPE: str = "project.initialized"
 #: (``01-PRODUCT-REQUIREMENTS.md`` SS4 step 1).
 INIT_EVENT_ACTOR: str = "user"
 
-#: Initial project phase of a fresh project (``schemas/project.schema.yaml``).
+#: Initial project phase of a fresh project (``schemas/project.schema.json``).
 INITIAL_PHASE: ProjectPhase = ProjectPhase.INITIALIZING
 
-#: Initial reproduction outcome (``schemas/project.schema.yaml``).
+#: Initial reproduction outcome (``schemas/project.schema.json``).
 INITIAL_OUTCOME: ReproductionOutcome = ReproductionOutcome.UNDETERMINED
 
 #: Initial plan version: plan versions start at ``v1`` and drafts are the
@@ -210,7 +210,7 @@ INITIAL_PLAN_VERSION: str = "v1-draft"
 #: Default domain pack for v0.1 (``16-MATERIALS-CHEMISTRY-DOMAIN-PACK.md``).
 DEFAULT_DOMAIN_PACK: str = "materials-chemistry"
 
-#: The v0.1 state backend (``schemas/project.schema.yaml`` const).
+#: The v0.1 state backend (``schemas/project.schema.json`` const).
 DEFAULT_STATE_BACKEND: Literal["filesystem"] = "filesystem"
 
 #: Deterministic default author/committer identity for the init audit
@@ -694,7 +694,7 @@ def register_primary_target(
     The one-primary enforcement point: a project already carrying a
     primary target rejects any registration with a stable
     ``TargetAlreadyRegisteredError``, and the frozen ``Project`` model
-    (``schemas/project.schema.yaml``) structurally allows exactly one
+    (``schemas/project.schema.json``) structurally allows exactly one
     ``primary_target`` object. Because ``initialize_project`` always
     registers the primary target at creation, this API rejects on every
     unmodified project -- it exists to enforce the invariant; the write

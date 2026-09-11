@@ -188,6 +188,7 @@ def make_acceptance(
     *,
     goal_id: str = "GOAL-1",
     statistical_design_ref: str | None = None,
+    evidence_refs: tuple[str, ...] = (),
 ) -> AcceptanceCriteria:
     """Build a schema-valid draft acceptance record (version ``v1-draft``)."""
     return AcceptanceCriteria(
@@ -208,6 +209,7 @@ def make_acceptance(
         },
         confidence=Confidence.LOW,
         statistical_design_ref=statistical_design_ref,
+        evidence_refs=list(evidence_refs),
     )
 
 
@@ -259,13 +261,17 @@ def make_statistical_design(
     )
 
 
-def build_complete_workspace(root: Path) -> Path:
+def build_complete_workspace(
+    root: Path, *, acceptance_evidence_refs: tuple[str, ...] = ()
+) -> Path:
     """Initialize a project with a fully mapped, freeze-eligible state.
 
     Two formally reported items mapped to two requirements (one goal)
     and the full goal-contract family drafts: goal ``GOAL-1`` with
     acceptance ``ACC-1`` (referencing statistical design ``DESIGN-1``),
     analysis protocol ``ANL-1`` and closure contract ``CLS-1``.
+    ``acceptance_evidence_refs`` lets callers populate the trace-chain
+    link (T6 warnings; empty by default, like the product fixtures).
     """
     init_project(root)
     register_inventory_item(
@@ -288,7 +294,12 @@ def build_complete_workspace(root: Path) -> Path:
     register_statistical_design(root, make_statistical_design("DESIGN-1"))
     register_acceptance(
         root,
-        make_acceptance("ACC-1", goal_id="GOAL-1", statistical_design_ref="DESIGN-1"),
+        make_acceptance(
+            "ACC-1",
+            goal_id="GOAL-1",
+            statistical_design_ref="DESIGN-1",
+            evidence_refs=acceptance_evidence_refs,
+        ),
     )
     register_analysis_protocol(root, make_analysis("ANL-1"))
     register_closure_contract(root, make_closure("CLS-1"))
@@ -1846,3 +1857,30 @@ def test_freeze_plan_frozen_commit_none_outside_git_repository(tmp_path):
     assert result.frozen_commit is None
     assert result.frozen_plan.frozen_commit is None
     assert result.frozen_plan.frozen_at == "2026-06-01T00:00:00Z"
+
+
+def test_freeze_warns_empty_acceptance_evidence_refs_without_blocking(
+    tmp_path,
+):
+    """T6 (v0.3.1 local): an acceptance with empty ``evidence_refs``.
+
+    The completeness audit does not require the trace-chain links
+    (bootstrap-state-authoring.md §6 marks them optional), so the freeze
+    proceeds -- but the result carries a per-acceptance warning that the
+    finalization gate would report TRACE_INCOMPLETE for it later.
+    """
+    root = build_complete_workspace(tmp_path)
+    result = freeze_complete(root)
+    assert any(
+        "ACC-1: acceptance.evidence_refs is empty" in w
+        for w in result.warnings
+    )
+
+
+def test_freeze_warnings_empty_when_evidence_refs_populated(tmp_path):
+    """T6: declaring the acceptance's evidence links silences the warning."""
+    root = build_complete_workspace(
+        tmp_path, acceptance_evidence_refs=("EV-ACC-1",)
+    )
+    result = freeze_complete(root)
+    assert result.warnings == ()

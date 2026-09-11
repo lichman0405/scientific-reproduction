@@ -578,7 +578,7 @@ def test_fdm201_assumptions_register_46_entries_with_consistent_classification()
 
 def test_fdm201_assumptions_core_schema_validates():
     # Every frozen assumption record validates against the core assumption
-    # schema (assumption.schema.yaml: assumption_id, parameter,
+    # schema (assumption.schema.json: assumption_id, parameter,
     # classification, rationale, source_refs; classification/strict-status
     # enums) -- the registry schema vocabulary for the register.
     assumptions = _load_yaml(ASSUMPTIONS_YAML)

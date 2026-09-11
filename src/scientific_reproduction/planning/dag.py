@@ -20,8 +20,8 @@ and plan nodes to the resource gaps that block them, grounded in:
   resource_ids, acceptance), ``GoalDependency`` (goal_id, type,
   execution_gate, acceptance_gate), ``Resource`` (availability_state,
   blocks_goal_ids), ``AvailabilityState``;
-* ``schemas/goal.schema.yaml`` (the dependency item shape) and
-  ``schemas/plan.schema.yaml`` (the plan record shape);
+* ``schemas/goal.schema.json`` (the dependency item shape) and
+  ``schemas/plan.schema.json`` (the plan record shape);
 * ``planning/plan.py`` (DEV-M4-G04): ``read_plan`` / ``list_goals`` -- the
   DAG is a pure function of the registered state;
 * ``planning/resources.py`` (DEV-M4-G05): ``load_resource_registry`` and
