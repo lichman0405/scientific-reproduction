@@ -33,3 +33,6 @@ Thumbs.db
 *.key
 .env
 .env.*
+
+# release artifacts built by scripts/package_dist.py
+dist/
