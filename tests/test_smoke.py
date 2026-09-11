@@ -16,5 +16,5 @@ def test_package_version_available() -> None:
     assert isinstance(scientific_reproduction.__version__, str)
     # the version is defined in one place (src/.../__init__.py); this
     # assertion guards the package version against drift (pyproject.toml
-    # must stay in sync -- see scripts/package_dist.py pre-check)
+    # must stay in sync)
     assert scientific_reproduction.__version__ == "0.3.1"
