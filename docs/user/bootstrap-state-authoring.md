@@ -35,7 +35,7 @@
 ## 2. 冻结前置条件(freeze_plan 的硬门槛)
 
 - 项目阶段已到 `REPRODUCTION_INVENTORY`(主线上);
-- 至少 1 条正式报告(fomral_report=true)条目已注册;
+- 至少 1 条正式报告(formal_report=true)条目已注册;
 - 完整度审计 PASS(100% 形式条目 MAPPED、无 AMBIGUOUS);
 - 计划 = 注册状态的确定性派生 `build_plan_v1(root)`(内容不得手工漂移);
 - 每个目标引用的 acceptance / analysis_protocol / closure_contract 全部已注册;

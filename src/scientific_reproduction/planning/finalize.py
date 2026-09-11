@@ -226,10 +226,18 @@ def check_finalization(
                 f"{m.get('artifact_id', mf.stem)} (file missing: {uri})"
             )
             continue
-        h = _hashlib.sha256()
-        with open(target, "rb") as fh:
-            for chunk in iter(lambda: fh.read(65536), b""):
-                h.update(chunk)
+        try:
+            h = _hashlib.sha256()
+            with open(target, "rb") as fh:
+                for chunk in iter(lambda: fh.read(65536), b""):
+                    h.update(chunk)
+        except OSError as exc:
+            # a locked / unreadable artifact is a gate failure with a named
+            # item, never an exception out of check_finalization
+            check.artifact_content_mismatches.append(
+                f"{m.get('artifact_id', mf.stem)} (unreadable: {uri} - {exc})"
+            )
+            continue
         if h.hexdigest() != rec_sha:
             check.artifact_content_mismatches.append(
                 f"{m.get('artifact_id', mf.stem)} (SHA drift: {uri})"

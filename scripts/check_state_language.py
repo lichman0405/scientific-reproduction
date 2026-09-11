@@ -61,7 +61,20 @@ def main() -> int:
         print(__doc__)
         return 2
     root = Path(sys.argv[1])
-    expect = sys.argv[2].split("=", 1)[1] if len(sys.argv) > 2 and sys.argv[2].startswith("--expect") else "zh"
+    argv = sys.argv[2:]
+    expect = "zh"
+    if argv:
+        if argv[0].startswith("--expect="):
+            expect = argv[0].split("=", 1)[1]
+        elif argv[0] == "--expect" and len(argv) > 1:
+            expect = argv[1]
+        else:
+            print("usage: check_state_language.py <workspace_root> "
+                  "[--expect zh|en]")
+            return 2
+    if expect not in ("zh", "en"):
+        print(f"unsupported --expect value: {expect!r} (expected 'zh' or 'en')")
+        return 2
     if not root.is_dir():
         print(f"not a directory: {root}")
         return 2

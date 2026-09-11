@@ -5,6 +5,7 @@ open requirements, evidence without used_by links, a failing audit
 validation, or missing report/summary/audit-package files must block
 ``COMPLETED`` with the offending items named (``FinalizationProhibitedError``).
 """
+import builtins
 import json
 from pathlib import Path
 
@@ -159,6 +160,27 @@ def test_check_blocks_artifact_sha_drift(tmp_path):
     check = check_finalization(root)
     assert not check.passed
     assert any("SHA drift" in item for item in check.artifact_content_mismatches)
+
+
+def test_check_blocks_unreadable_artifact_without_raising(tmp_path, monkeypatch):
+    """A locked artifact (Windows: the PDF is open elsewhere) is a named
+    gate failure, not an exception out of ``check_finalization``."""
+    root = make_project(tmp_path)
+    target = (root / "runs" / "run-1" / "GOAL-G1.json").resolve()
+    real_open = builtins.open
+
+    def locked_open(file, *args, **kwargs):
+        if Path(file).resolve() == target:
+            raise PermissionError(13, "the file is locked by another process")
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", locked_open)
+    check = check_finalization(root)
+    assert not check.passed
+    assert any(
+        "unreadable" in item and "GOAL-G1.json" in item
+        for item in check.artifact_content_mismatches
+    )
 
 
 def test_check_blocks_unrecorded_adjudication(tmp_path):
