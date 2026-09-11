@@ -239,7 +239,7 @@ def test_no_frozen_schema_forbids_additional_properties() -> None:
     unknown-key rejection path becomes exercisable through the write gate.
     """
     schemas_dir = Path(__file__).resolve().parents[2] / "schemas"
-    schema_files = sorted(schemas_dir.glob("*.schema.yaml"))
+    schema_files = sorted(schemas_dir.glob("*.schema.json"))
     assert schema_files, f"no schemas found under {schemas_dir}"
     for schema_file in schema_files:
         loaded = yaml.safe_load(schema_file.read_text(encoding="utf-8"))

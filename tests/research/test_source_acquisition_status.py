@@ -1,6 +1,6 @@
 """Tests for first-class acquisition status on source records (issue #134).
 
-The frozen ``ResearchSource`` model and ``schemas/source.schema.yaml``
+The frozen ``ResearchSource`` model and ``schemas/source.schema.json``
 carry an ``acquisition_status`` (``REGISTERED`` / ``OBTAINED`` /
 ``PARTIAL`` / ``UNAVAILABLE``, harmonized with the FDM-201 benchmark
 acquisition-log vocabulary) plus an optional stable

@@ -283,7 +283,7 @@ def test_ac01_score_and_reference_feed_the_evidence_handoff() -> None:
     # the frozen assessment schema and the sibling layers consume -- the
     # evidence registry (DEV-M5-G03) accepts the assessment built from it,
     # and the research request rule (DEV-M5-G02) accepts the score as
-    # minimum_reliability (0-4 per schemas/research-request.schema.yaml).
+    # minimum_reliability (0-4 per schemas/research-request.schema.json).
     assessment = evaluate_reliability(
         _record(checklist_ref="RCHK-AC01-HANDOFF")
     )

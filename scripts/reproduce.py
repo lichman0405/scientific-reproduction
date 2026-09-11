@@ -3,7 +3,7 @@
 
 Runs ``python -m scientific_reproduction.cli.reproduce`` from the bundled
 runtime under ``src/`` by prepending it to ``PYTHONPATH``. No pip install
-and no venv are required (the runtime is stdlib-only); Python 3.11+ is the
+and no venv are required (runtime deps: jsonschema only); Python 3.11+ is the
 only requirement.
 
 Usage:

@@ -10,10 +10,10 @@ inputs:
   - gas: C3H6
   - temperature_K: 298
 outputs:
-  - raw_isotherm_data
-  - instrument_metadata
-  - sample_metadata
-  - analysis_input_manifest
+  - artifact: raw_isotherm_data
+  - artifact: instrument_metadata
+  - artifact: sample_metadata
+  - artifact: analysis_input_manifest
 procedure:
   - action: verify sample activation state before adsorption
     inputs: ["sample: FDM-201 activated material"]

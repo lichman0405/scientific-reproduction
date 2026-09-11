@@ -99,6 +99,7 @@ from scientific_reproduction.research.state_helpers import (
     register_evidence,
     register_research_request,
     register_source,
+    AssumptionAsEvidenceError,
 )
 
 # ---------------------------------------------------------------------------
@@ -354,6 +355,19 @@ def test_register_source_crash_window_converges_exactly_once(tmp_path):
 # ---------------------------------------------------------------------------
 # register_evidence
 # ---------------------------------------------------------------------------
+
+
+def test_register_evidence_rejects_assumption_claim(tmp_path):
+    """Assumptions must live in assumptions/, not as evidence records
+    (AC-01 trace chain can never support an assumption claim)."""
+    root = init_project(tmp_path)
+    register_source(root, make_source("SRC-1"), actor=ACTOR, recorded_at=RECORDED_AT)
+    with pytest.raises(AssumptionAsEvidenceError):
+        register_evidence(
+            root,
+            make_evidence("EVID-ASM", claim_id="ASSUMPTION-X"),
+            actor=ACTOR, recorded_at=RECORDED_AT,
+        )
 
 
 def test_register_evidence_persists_and_audits(tmp_path):

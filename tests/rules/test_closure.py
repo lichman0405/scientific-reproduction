@@ -289,7 +289,7 @@ def test_closure_record_rejects_negative_counts() -> None:
 
 
 def test_closure_record_rejects_saturation_rule_below_schema_minimum() -> None:
-    # schemas/closure-contract.schema.yaml: required_zero_novelty_cycles
+    # schemas/closure-contract.schema.json: required_zero_novelty_cycles
     # minimum 1.
     with pytest.raises(ClosureRecordError):
         ClosureRecord(required_zero_novelty_cycles=0)

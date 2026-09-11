@@ -27,18 +27,11 @@ def _load_example(filename: str) -> dict[str, Any]:
 
 
 def _goal_example_normalized() -> dict[str, Any]:
-    """Load examples/fdm-201/goal.example.yaml and make it schema-conformant.
-
-    Known frozen-spec inconsistency (noted in the DEV-M1-G01 PR): the
-    example's ``outputs`` list contains bare strings, while
-    ``schemas/goal.schema.yaml`` requires ``items: {type: object}``. The
-    schema is normative, so the example items are wrapped as objects here;
-    ``test_schema_validation.py`` documents that the *raw* example fails
-    validation on exactly that field.
-    """
-    doc = _load_example("goal.example.yaml")
-    doc["outputs"] = [{"name": item} for item in doc["outputs"]]
-    return doc
+    """Load examples/fdm-201/goal.example.yaml (schema-conformant since
+    the 2026-09-01 local patch: outputs are object items per
+    ``schemas/goal.schema.json``). Kept under the original name so the
+    VALID_DOCS mapping stays stable."""
+    return _load_example("goal.example.yaml")
 
 
 VALID_DOCS: dict[str, dict[str, Any]] = {

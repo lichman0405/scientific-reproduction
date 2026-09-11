@@ -5,7 +5,7 @@ Covered behaviors:
   * AC-02 -- ``assess`` takes a source and a claim together and produces the
     structured Authority/Reliability/Directness triple as the frozen
     ``EvidenceAssessment`` model, whose serialized form satisfies
-    ``schemas/evidence.schema.yaml``; the same source against different
+    ``schemas/evidence.schema.json``; the same source against different
     claims and different sources against the same claim produce distinct
     (deterministic) assessments;
   * authority is rubric-derived from the source type with explicit override

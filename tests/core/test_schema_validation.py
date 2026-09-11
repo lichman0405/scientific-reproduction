@@ -59,12 +59,27 @@ def test_example_documents_from_fdm201_validate() -> None:
         assert validate_object(obj_type, VALID_DOCS[obj_type]) == []
 
 
-def test_raw_goal_example_inconsistency_is_caught_by_validation() -> None:
-    # Known frozen-spec inconsistency: examples/fdm-201/goal.example.yaml
-    # lists bare strings under "outputs", while schemas/goal.schema.yaml
-    # requires items: {type: object}. The schema is normative, so the raw
-    # example must FAIL validation on exactly that field (and the fixtures
-    # module normalizes it for use as a valid document).
+def test_schema_error_message_carries_field_details() -> None:
+    # The persistence gate must tell the caller WHICH field failed and why
+    # (sessions otherwise re-derive it with ad-hoc jsonschema debugging).
+    try:
+        validate_and_reject("requirement", {
+            "requirement_id": "R", "statement": "s", "criticality": "CRITICAL",
+            "goal_ids": [], "outcome": "OPEN",
+        })
+        raise AssertionError("expected SchemaValidationError")
+    except SchemaValidationError as exc:
+        assert "goal_ids" in str(exc)
+        assert "should be non-empty" in str(exc)
+        assert "inventory_items" in str(exc)
+        assert "2 schema validation error(s)" in str(exc)
+
+
+def test_raw_goal_example_validates_cleanly() -> None:
+    # The shipped goal example was aligned with the schema (2026-09-01
+    # local patch): outputs items are objects per schemas/goal.schema.json.
+    # The raw example must now validate with no errors on the outputs
+    # field (guarded again by tests/examples/test_examples_against_schemas).
     import yaml as _yaml
 
     raw = _yaml.safe_load(
@@ -73,8 +88,8 @@ def test_raw_goal_example_inconsistency_is_caught_by_validation() -> None:
         ).read_text(encoding="utf-8")
     )
     errors = validate_object("goal", raw)
-    assert errors
-    assert any("outputs" in error for error in errors)
+    assert not errors, f"goal.example.yaml must validate cleanly: {errors}"
+    assert all(isinstance(o, dict) for o in raw["outputs"])
 
 
 INVALID_CASES: dict[str, tuple[str, dict, str]] = {
@@ -308,7 +323,7 @@ def test_missing_schema_file_raises_clear_error(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv(SCHEMAS_DIR_ENV, str(tmp_path))
     load_schema.cache_clear()
     try:
-        with pytest.raises(SchemaNotFoundError, match="project.schema.yaml"):
+        with pytest.raises(SchemaNotFoundError, match="project.schema.json"):
             validate_object("project", {})
     finally:
         load_schema.cache_clear()
@@ -327,7 +342,7 @@ def test_schemas_dir_env_override_redirects(tmp_path, monkeypatch) -> None:
 
 def test_schemas_dir_resolution_points_at_repo_schemas() -> None:
     assert schemas_dir().is_dir()
-    assert (schemas_dir() / "project.schema.yaml").is_file()
+    assert (schemas_dir() / "project.schema.json").is_file()
 
 
 def test_load_schema_is_cached() -> None:

@@ -142,7 +142,7 @@ def test_assumptions_rulesets_are_versioned_and_total() -> None:
 
 def test_assumptions_strict_label_uses_frozen_vocabulary() -> None:
     # The strict-with-assumptions label is the exact frozen schema value
-    # (StrictStatusEffect enum in schemas/assumption.schema.yaml).
+    # (StrictStatusEffect enum in schemas/assumption.schema.json).
     assert StrictLabel.STRICT_WITH_ASSUMPTIONS.value == "STRICT_WITH_ASSUMPTIONS"
     assert (
         StrictLabel.STRICT_WITH_ASSUMPTIONS.value
