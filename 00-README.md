@@ -1,4 +1,4 @@
-# Scientific Reproduction Skill v0.3.1 (local line) — Implementation Specification
+# Scientific Reproduction Skill v0.3.1 — Implementation Specification
 
 ## Purpose
 

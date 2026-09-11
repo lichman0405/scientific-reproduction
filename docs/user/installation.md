@@ -2,8 +2,7 @@
 
 This guide is grounded in the real package metadata (`pyproject.toml`) and
 the repository verification entry point (`scripts/verify.py`). Every command
-below runs against the actual v0.3.1 release (zip distribution; the upstream
-repo line remains v0.2).
+below runs against the actual v0.3.1 release.
 
 ## Requirements
 

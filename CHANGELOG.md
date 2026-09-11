@@ -24,12 +24,10 @@ All notable changes are tracked here. This repository follows [Keep a Changelog]
   deterministic gate ids include the sorted `affected_refs`;
   `resolve_human_gate` uses `dataclasses.replace`; 「受影响/affected」 is a
   template key used by both renderers (no hardcoded Chinese in en mode).
-- **Packaging prep (zip distribution, not upstream)**: removed the
-  leftover `src/scientific_reproduction/tmp_analysis/` probe scripts
-  (2026-09-03 debugging; server absolute paths); version aligned to
-  `0.3.1` across `pyproject.toml`, `__version__` and the smoke tests;
-  `scripts/package_dist.py` -- one-command pre-check + zip build with an
-  exclusion list and a leakage pre-check (absolute paths / version drift).
+- **Release hygiene**: removed the leftover
+  `src/scientific_reproduction/tmp_analysis/` probe scripts (2026-09-03
+  debugging; server absolute paths); version aligned to `0.3.1` across
+  `pyproject.toml`, `__version__` and the smoke tests.
 
 ## [0.2.4] - runtime dependency contract fix
 

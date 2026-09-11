@@ -11,10 +11,9 @@ and non-negotiable architecture decisions.
 
 ## Get the skill
 
-This release (v0.3.1) ships as a **zip archive** — built by
-`scripts/package_dist.py` into `dist/scientific-reproduction-v0.3.1.zip`
-(the one-command packaging entry). The upstream release branch remains the
-source of the v0.2 line:
+Download the release archive from
+[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases),
+or clone the release branch:
 
 ```bash
 git clone --branch release/skill-v0.2.0 https://github.com/lichman0405/scientific-reproduction.git
@@ -22,8 +21,7 @@ git clone --branch release/skill-v0.2.0 https://github.com/lichman0405/scientifi
 
 > Note: the GitHub default branch is the release branch
 > (`release/skill-v0.2.0`) itself — there is no separate `main` branch.
-> For the v0.3.1 local line, always use the zip or this checkout; the
-> upstream clone stays on the v0.2 line.
+> Always use the release archive or the release branch.
 
 ## Install as a skill
 

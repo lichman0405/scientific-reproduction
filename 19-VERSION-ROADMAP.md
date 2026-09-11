@@ -1,10 +1,8 @@
 # 19 — Version Roadmap
 
-## Current state: v0.3.1 (local line, not upstream)
+## Current state: v0.3.1
 
-The shipped v0.3.1 line is the v0.2 base plus a local-only layer (see
-`LOCAL-CHANGES.md`; distribution is a **zip archive** via
-`scripts/package_dist.py`, never GitHub Releases):
+The v0.3.1 line is the v0.2 base plus:
 
 - human-readable delivery gates + v3.1 zh/complete summary rendering;
 - HumanGate registry (`planning/human_gates.py`) with close-out blocking
@@ -14,8 +12,8 @@ The shipped v0.3.1 line is the v0.2 base plus a local-only layer (see
 - freeze-time trace-chain warnings (empty `acceptance.evidence_refs`);
 - plain-SSH execution path in `docs/user/ssh-execution.md`;
 
-The v0.2 upstream line remains the baseline of record for everything
-documented below.
+The v0.2 line remains the baseline of record for everything documented
+below.
 
 ## v0.1 — Materials reproduction core
 
