@@ -19,9 +19,9 @@ dev = [
     "pytest-cov>=4",
     "ruff>=0.6",
     "mypy>=1.10",
-    # Schema validation validates against the frozen product schemas (YAML)
-    # in schemas/; jsonschema is the validator and PyYAML loads the schema
-    # files.
+    # Schema validation validates against the frozen product schemas (JSON)
+    # in schemas/; jsonschema is the validator. PyYAML remains for YAML test
+    # fixtures and example inputs.
     "jsonschema>=4.18",
     "PyYAML>=6.0",
     # Unicode PDF extraction assertions in tests/rendering/test_fonts.py
