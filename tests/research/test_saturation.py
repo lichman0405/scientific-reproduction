@@ -404,7 +404,7 @@ def test_saturation_ac02_non_expansion_cycle_breaks_the_consecutive_run() -> Non
 def test_saturation_ac02_required_cycle_count_is_the_frozen_configurable_rule() -> None:
     # "This is a governance rule ... it must be configurable and frozen":
     # the required count is the frozen field of the record and of the
-    # assessment (schemas/closure-contract.schema.yaml: minimum 1, default
+    # assessment (schemas/closure-contract.schema.json: minimum 1, default
     # 2) -- it is never an evaluation-time knob. With a frozen rule of 3,
     # two zero-novelty cycles are insufficient and three satisfy it.
     two = evaluate_saturation(_record(_cycle(0), _cycle(1), required=3))

@@ -1,4 +1,4 @@
-# Scientific Reproduction Skill v0.2 — Implementation Specification
+# Scientific Reproduction Skill v0.3.1 — Implementation Specification
 
 ## Purpose
 
@@ -48,7 +48,7 @@ human-readable report and a machine-auditable reproduction package.
 14. Dynamic worker sessions are created automatically by platform adapters whenever possible.
 15. Core scientific logic must be shared across agent platforms; platform-specific behavior is isolated behind adapters.
 
-## Distribution (v0.2 skill packaging)
+## Distribution (v0.3.1 zip packaging)
 
 This repository **is** the installable skill. The skill entry is
 [`SKILL.md`](SKILL.md) (Agent Skills standard: Claude Code, WorkBuddy), the

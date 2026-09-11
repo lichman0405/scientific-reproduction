@@ -24,6 +24,7 @@ a single word wider than the line breaks at character level.
 
 from __future__ import annotations
 
+import re
 from typing import Final, NamedTuple
 
 from scientific_reproduction.rendering.pdf import PdfDocument
@@ -69,25 +70,50 @@ class Heading(NamedTuple):
     page_index: int
 
 
+#: CJK ideographs / kana / punctuation / fullwidth forms: must be
+#: breakable per character, otherwise a space-less CJK run becomes one
+#: unbreakable "word" that blows up table columns and page margins.
+_CJK_BREAK_RE = re.compile(
+    r"([⺀-鿿豈-﫿　-〿＀-￯])"
+)
+
+
+def _breakable_tokens(text: str) -> list[str]:
+    """Tokenize text for line layout: space-separated ASCII words stay
+    intact; every CJK character/punctuation becomes its own token."""
+    tokens: list[str] = []
+    for word in text.split():
+        for part in _CJK_BREAK_RE.split(word):
+            if part:
+                tokens.append(part)
+    return tokens
+
+
 def _wrap(text: str, font: str, size: float, max_width: float) -> list[str]:
     """Word-wrap ``text`` into lines that fit ``max_width``.
 
-    A single word wider than the line breaks at character level; the
-    empty string wraps to no lines.
+    ASCII text breaks on spaces; CJK text additionally breaks per
+    character (no visible gaps are inserted). A single ASCII word wider
+    than the line breaks at character level; the empty string wraps to
+    no lines.
     """
     if not text:
         return []
     lines: list[str] = []
     current = ""
-    for word in text.split(" "):
-        candidate = word if not current else f"{current} {word}"
+    last_cjk: bool | None = None
+    for tok in _breakable_tokens(text):
+        cjk = bool(_CJK_BREAK_RE.match(tok))
+        glue = "" if not current or last_cjk or cjk else " "
+        candidate = current + glue + tok
         if text_width(candidate, font, size) <= max_width:
             current = candidate
+            last_cjk = cjk
             continue
         if not current:
-            # One word wider than the whole line: hard-char break.
+            # One ASCII word wider than the whole line: hard-char break.
             chunk = ""
-            for char in word:
+            for char in tok:
                 trial = chunk + char
                 if chunk and text_width(trial, font, size) > max_width:
                     lines.append(chunk)
@@ -95,9 +121,11 @@ def _wrap(text: str, font: str, size: float, max_width: float) -> list[str]:
                 else:
                     chunk = trial
             current = chunk
+            last_cjk = False
         else:
             lines.append(current)
-            current = word
+            current = tok
+            last_cjk = cjk
     if current:
         lines.append(current)
     return lines
@@ -287,6 +315,79 @@ class FlowLayout:
         if widths is None:
             widths = [self.content_width / ncols] * ncols
         column_widths = [float(width) for width in widths]
+        # ``widths`` are absolute points, never fractions. A fractional
+        # value would silently collapse every column to its token
+        # minimum (a column of 0.30 pt widens no one), turning the table
+        # into a narrow vertical run -- fail loudly instead.
+        if any(width < 1.0 for width in column_widths):
+            raise ValueError(
+                "table widths must be absolute points (got "
+                f"fraction-like widths {widths!r}); scale your "
+                "fractions by ``layout.content_width``"
+            )
+        # Every column must hold its widest unbreakable token so
+        # identifiers (goal/run/artifact ids) never break mid-token:
+        # satisfy the token minimums first, then hand the leftover width
+        # out proportionally to the requested widths. Only when the
+        # minimums together exceed the page width do columns shrink
+        # below a token minimum (breaking is then unavoidable).
+        minimums: list[float] = []
+        for column in range(ncols):
+            widest = text_width(headers[column], FONT_BOLD, BODY_SIZE)
+            for row in rows:
+                for token in _breakable_tokens(row[column]):
+                    widest = max(
+                        widest, text_width(token, cell_font, BODY_SIZE)
+                    )
+            minimums.append(widest + 2 * TABLE_ROW_PADDING)
+        # Start from the requested widths (the report renderer tunes
+        # them so phrases and identifiers stay intact) and grow each
+        # column that needs more room for its widest unbreakable token.
+        column_widths = [
+            max(requested_width, minimum)
+            for requested_width, minimum in zip(column_widths, minimums)
+        ]
+        total = sum(column_widths)
+        if total > self.content_width:
+            # Overflow: first give back slack, widest first, shrinking
+            # columns toward their token minimums -- no token breaks
+            # while any slack remains.
+            deficit = total - self.content_width
+            for index in sorted(
+                range(ncols),
+                key=lambda i: column_widths[i] - minimums[i],
+                reverse=True,
+            ):
+                if deficit <= 0:
+                    break
+                slack = column_widths[index] - minimums[index]
+                if slack <= 0:
+                    break
+                cut = min(slack, deficit)
+                column_widths[index] -= cut
+                deficit -= cut
+            if deficit > 0:
+                # Even the bare minimums exceed the page: not every
+                # token can stay intact. Sacrifice the widest columns
+                # first -- cut the largest minimums down to a floor of
+                # a few characters per line -- so short meaningful
+                # tokens (ids, timestamps, event types) keep their full
+                # width and only pathological oversized columns break.
+                floor = min(
+                    self.content_width / 12, self.content_width / ncols
+                )
+                for index in sorted(
+                    range(ncols),
+                    key=lambda i: column_widths[i],
+                    reverse=True,
+                ):
+                    if deficit <= 0:
+                        break
+                    if column_widths[index] <= floor:
+                        break
+                    cut = min(column_widths[index] - floor, deficit)
+                    column_widths[index] -= cut
+                    deficit -= cut
         x_edges = [self._margin_left]
         for width in column_widths:
             x_edges.append(x_edges[-1] + width)
@@ -451,11 +552,18 @@ class FlowLayout:
         self._top += line_height
 
     def toc_page_count(self, entries: int) -> int:
-        """Number of TOC pages for ``entries`` entries -- a pure function
-        of the entry count, so the report renderer knows the TOC size
-        before laying it out (two-pass rendering)."""
+        """Number of TOC pages for the title paragraph plus ``entries``
+        entries -- a pure function of the entry count, so the report
+        renderer knows the TOC size before laying it out (two-pass
+        rendering)."""
         if entries <= 0:
             return 0
         usable_height = PAGE_HEIGHT - self._margin_top - self._margin_bottom
-        per_page = int(usable_height // (BODY_SIZE * BODY_LINE_HEIGHT))
-        return (entries + per_page - 1) // per_page
+        body_line = BODY_SIZE * BODY_LINE_HEIGHT
+        title_height = HEADING_SIZES[1] * BODY_LINE_HEIGHT + _PARAGRAPH_GAP
+        first_capacity = max(int((usable_height - title_height) // body_line), 0)
+        if entries <= first_capacity:
+            return 1
+        remaining = entries - first_capacity
+        per_page = int(usable_height // body_line)
+        return 1 + (remaining + per_page - 1) // per_page

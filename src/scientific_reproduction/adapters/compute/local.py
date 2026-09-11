@@ -28,7 +28,7 @@ re-attaches to the underlying process by pid (the launcher's
 deterministic and a safe registry id.
 
 The durable record is a **runtime record, not a schema object**: no
-``schemas/job.schema.yaml`` exists, so -- like ``core.leases`` -- it is
+``schemas/job.schema.json`` exists, so -- like ``core.leases`` -- it is
 validated here against the documented :class:`JobRecord` contract
 instead of the ``FilesystemStateBackend`` schema gate.
 
@@ -664,7 +664,7 @@ class JobRecord:
 
     Field names are the exact JSON keys of the persisted record
     (``JobRecord.to_dict`` / ``from_dict`` round-trip them). The record
-    is a runtime record -- there is no ``schemas/job.schema.yaml`` -- so
+    is a runtime record -- there is no ``schemas/job.schema.json`` -- so
     ``from_dict`` validates against this documented contract instead
     (like ``core.leases``), with stable errors.
     """
@@ -1127,7 +1127,7 @@ class LocalComputeAdapter:
         """Schema-gate and persist the runtime execution package (issue #161).
 
         The handoff gate of ``prepare``: the package is validated against
-        ``schemas/compute-execution-package.schema.yaml`` **before**
+        ``schemas/compute-execution-package.schema.json`` **before**
         anything is written, then persisted as a durable record at
         ``<state_dir>/packages/<package_id>.json`` (canonical JSON via
         ``atomic_write``, like the job records). Idempotent for an

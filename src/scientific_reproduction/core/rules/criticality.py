@@ -1,7 +1,7 @@
 """Checklist-driven criticality classification rules (DEV-M2-G04).
 
 Classifies a reproduction Requirement as ``CRITICAL`` / ``REQUIRED`` /
-``SUPPORTING`` (values frozen in ``schemas/requirement.schema.yaml``, modeled
+``SUPPORTING`` (values frozen in ``schemas/requirement.schema.json``, modeled
 as ``Criticality`` in ``core/models.py``) from a **structured checklist** of
 deterministic boolean inputs. There is no LLM, no randomness and no
 wall-clock dependence anywhere in this module: the same checklist always

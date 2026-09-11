@@ -176,7 +176,7 @@ def _assumption(
     parameter: str,
     classification: AssumptionClassification,
 ) -> Assumption:
-    """One frozen Assumption Registry entry (schemas/assumption.schema.yaml)."""
+    """One frozen Assumption Registry entry (schemas/assumption.schema.json)."""
     return Assumption(
         assumption_id=assumption_id,
         parameter=parameter,

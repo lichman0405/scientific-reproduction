@@ -71,7 +71,7 @@ Example derivation (the axes of `examples/fdm-201/evidence.example.yaml`, A=4, R
 
 Weights are configurable and versioned. The reference implementation is
 `core/rules/evidence.py` (`ranking_score`, `RANKING_RULE_VERSION`,
-`RankingWeights`); `schemas/evidence.schema.yaml` allows `ranking_score` to be
+`RankingWeights`); `schemas/evidence.schema.json` allows `ranking_score` to be
 a number or `null`, so a record may omit the composite when it is not
 computed.
 

@@ -524,7 +524,7 @@ class LabAdapter(ABC):
         Args:
             execution_package: the frozen ``LabExecutionPackage`` record
                 or a schema-shaped mapping (validated against
-                ``schemas/lab-execution-package.schema.yaml`` on the way
+                ``schemas/lab-execution-package.schema.json`` on the way
                 out -- a malformed package is refused loudly, never
                 silently written).
             artifacts: optional companion files (name -> content) written

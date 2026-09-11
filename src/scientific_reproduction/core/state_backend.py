@@ -22,7 +22,7 @@ truth-source contract).
 Schema gate (AC-03)
 -------------------
 ``write`` validates the object against the frozen schema
-``schemas/<obj_type>.schema.yaml`` through
+``schemas/<obj_type>.schema.json`` through
 ``scientific_reproduction.core.schema_validation.validate_and_reject``
 (DEV-M1-G01) and raises ``SchemaValidationError`` *before* anything is
 persisted. Unknown ``obj_type`` values -- anything not in the normative

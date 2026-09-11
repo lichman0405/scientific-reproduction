@@ -46,7 +46,7 @@ in `20-ARCHITECTURE-DECISIONS.md`, and the role definitions in
 ## Runtime operations
 
 Delegate deterministic state, schema, lock, event and adapter operations to
-the bundled runtime through the zero-install CLI wrapper (no pip install
+the bundled runtime through the no-build CLI wrapper (only `jsonschema` needed
 needed; Python 3.11+ required):
 
 ```bash
@@ -111,7 +111,9 @@ stays network-free and deterministic.
    dependencies, resource closure) before any execution.
 5. **Execute** — delegate goals to worker sessions; record every run,
    attempt, and artifact in the workspace; wet-lab work hands off through
-   the filesystem LabAdapter (`lab/outgoing`, `lab/incoming`).
+   the filesystem LabAdapter (`lab/outgoing`, `lab/incoming`); compute
+   goals on a plain SSH server (no scheduler) follow
+   `docs/user/ssh-execution.md`.
 6. **Monitor and recover** — the Execution Monitor reconciles long-running
    runs and applies the L1–L3 recovery ladder (`08-STRICT-RECOVERY-CLOSURE.md`);
    each cycle it files a durable supervisor-inbox entry for every arrived
@@ -123,14 +125,31 @@ stays network-free and deterministic.
 7. **Analyze independently** — analysis is separated from execution; apply
    the frozen statistics and acceptance governance
    (`07-STATISTICS-AND-ACCEPTANCE.md`).
-8. **Report** — render the deterministic final report PDF
-   (`reporting.build_pdf_report`): executive summary with verdict callout
-   and the single most important number vs the frozen acceptance band,
-   target identity and scope counts, per-requirement outcomes with
-   evidence trails, governance exercised, and the audit trail with
-   checksums — plus the machine-auditable reproduction package with full
-   traceability. Both report files land in `reports/` and are registered
-   in the audit package with SHA-256 checksums.
+8. **Report (mandatory close-out, three deliverables)** — the project is
+   not complete until **all three** of these land in `reports/` and the
+   finalization gate passes:
+   1. **Report PDF** — render the deterministic final report
+      (`reporting.build_pdf_report(root, evidence=..., key_claims=...,
+      generated_at=..., language=..., out_dir=root/reports)`):
+      executive summary with verdict callout, per-requirement outcomes
+      with evidence trails, governance exercised, and the audit trail.
+   2. **Machine-auditable package** — assemble and **validate PASS**
+      (`reporting.audit.validate_package`; `build_audit_package` then
+      writes `reports/reproduction-audit-package.json`). AC-01/AC-02/
+      AC-03 must pass for every claim the evidence declares; a failing
+      validation means the project is **not** complete — repair the
+      links (evidence `used_by`, results, manifests) and re-run.
+   3. **Human-readable summary** — `reporting.human_summary.write_human_summary`
+      (state-derived Markdown with the claim-vs-value table).
+   Then close the project through the **finalization gate**:
+   `planning.finalize.finalize_project(root, generated_at=..., language=...,
+   actor=...)` — it re-checks open requirements, evidence `used_by`
+   completeness (incl. dangling refs), audit validation, report/summary
+   presence; raises `FinalizationProhibitedError` naming the missing
+   items and writes nothing until they are repaired; on PASS it writes
+   the audit package + summary and advances the phase to `COMPLETED`
+   (append-only event; the git checkpoint commit stays owned by the
+   Supervisor flow).
 
 ## Frozen data to respect
 
@@ -151,6 +170,10 @@ python scripts/smoke.py
 
 It checks the skill structure, imports the bundled runtime, and runs a real
 `reproduce init` for the reference DOI with output assertions.
+
+
+
+> **Authoring state records?** Read `docs/user/bootstrap-state-authoring.md` (registration order, freeze preconditions, real-world pitfalls, run state machine, result-package `metrics` spec, and the phase-advance API `planning.phase.advance_project_phase` with an init → PLAN_FROZEN walkthrough in §11). The human-readable summary (`reporting.human_summary`) derives its claim-vs-value table from result-package `metrics`.
 
 ## Platform notes
 

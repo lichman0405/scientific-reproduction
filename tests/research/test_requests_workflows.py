@@ -6,7 +6,7 @@ Acceptance coverage (exact AC test names below):
     exactly the six categories (paper / SI / data / structure / citations
     / related methods): the ordered workflow table has one step per
     category in the goal's canonical order; every one of the frozen
-    ``SourceType`` members (``schemas/source.schema.yaml``) maps to
+    ``SourceType`` members (``schemas/source.schema.json``) maps to
     exactly one category (total, disjoint); every 09-RESEARCH-SUBSYSTEM.md
     section 2 acquisition bullet is covered by exactly one step; the
     contract is versioned and frozen;

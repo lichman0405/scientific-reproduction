@@ -134,7 +134,7 @@ class SupervisorInboxEntry:
 
     Field names are the exact JSON keys of the persisted entry
     (``to_dict`` / ``from_dict`` round-trip them). There is no
-    ``schemas/*.schema.yaml`` for runtime monitoring state, so
+    ``schemas/*.schema.json`` for runtime monitoring state, so
     ``from_dict`` validates against this documented contract with
     stable errors, mirroring the checkpoint records.
     """

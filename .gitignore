@@ -33,3 +33,6 @@ Thumbs.db
 *.key
 .env
 .env.*
+
+# build artifacts
+dist/

@@ -233,7 +233,7 @@ def test_dag_ac01_resource_states_registered_and_round_trip(tmp_path: Path) -> N
 
 def test_dag_ac01_availability_state_vocabulary_is_frozen_enum(tmp_path: Path) -> None:
     # The four states are exactly the frozen AvailabilityState enum
-    # (schemas/resource.schema.yaml); nothing is redefined here.
+    # (schemas/resource.schema.json); nothing is redefined here.
     assert {s.value for s in AvailabilityState} == {
         "AVAILABLE",
         "PROCURE",

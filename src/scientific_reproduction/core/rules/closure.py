@@ -3,7 +3,7 @@
 Pure logic implementing the frozen Closure Contract of
 ``08-STRICT-RECOVERY-CLOSURE.md`` section 4 against the frozen
 ``ClosureContract`` / ``ClosureRecovery`` / ``ClosureLiterature`` models of
-``schemas/closure-contract.schema.yaml`` (``core.models``). No LLM, no
+``schemas/closure-contract.schema.json`` (``core.models``). No LLM, no
 randomness, no wall-clock dependence: the same inputs always yield the same
 closure decision on every platform and Python version, and every decision is
 recorded for the audit trail.
@@ -30,7 +30,7 @@ Normative sources (all frozen)
   closure scenario: strict failure statistically sufficient, QC valid, all
   eligible hypotheses tested/ruled out, research saturation met -> Closure
   Contract satisfied -> ``NOT_REPRODUCED``.
-* ``schemas/closure-contract.schema.yaml`` + ``core/models.py`` -- the frozen
+* ``schemas/closure-contract.schema.json`` + ``core/models.py`` -- the frozen
   input vocabulary (``ClosureContract``, ``ClosureRecovery``,
   ``ClosureLiterature``); nothing is invented here.
 * ``04-PROJECT-LIFECYCLE.md`` section 3 -- project-level aggregation: one or
@@ -220,7 +220,7 @@ class ClosureRecord:
     normative reading that a gate which is not satisfied -- whether failing
     or unknown -- blocks closure (AC-01). Counts mirror the frozen
     ``ClosureRecovery`` / ``ClosureLiterature`` models
-    (``schemas/closure-contract.schema.yaml``).
+    (``schemas/closure-contract.schema.json``).
 
     * ``statistics_sufficient`` -- statistical evidence is adequate to
       distinguish failure/non-equivalence from insufficient precision.

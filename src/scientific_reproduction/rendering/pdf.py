@@ -28,16 +28,26 @@ Design choices and why
   render time, and outline bookmarks track pre-reorder page indices and
   are remapped to the final order.
 
-Text encoding is WinAnsi (cp1252); characters cp1252 cannot represent
-render as ``?`` (deterministic). ``(`` ``)`` and backslash, plus control
-bytes, are emitted as octal escapes. Measurement uses the AFM width
-tables of ``rendering.style``.
+Text encoding is a *font backend* decision (see ``rendering.fonts``):
+the default ``Base14Backend`` keeps the historical WinAnsi (cp1252)
+path byte-identical -- characters cp1252 cannot represent render as
+``?`` (deterministic) -- while ``TrueTypeBackend`` embeds subsetted
+TrueType fonts and renders arbitrary Unicode (CJK, Greek, symbols) with
+a ``ToUnicode`` CMap so the text stays extractable and searchable.
+Measurement uses the same backend metrics, so wrapped layouts never
+overflow. ``language`` selects labels only; the *content* decides which
+backend a renderer must use.
 """
 
 from __future__ import annotations
 
 from typing import Final
 
+from scientific_reproduction.rendering.fonts import (
+    Base14Backend,
+    FontBackend,
+    TrueTypeBackend,
+)
 from scientific_reproduction.rendering.style import (
     FONT_BODY,
     FONT_FACES,
@@ -131,14 +141,17 @@ class Page:
 
     def text(self, x: float, y: float, text: str) -> None:
         """Draw ``text`` with its baseline at ``(x, y)`` (current font,
-        size and fill color)."""
+        size and fill color). The string bytes are produced by the
+        document's font backend."""
         tag = f"F{_FACES.index(self._font_name) + 1}"
-        escaped = _escape_text(text)
+        encoded = self._doc._backend.encode_text(text, self._font_name)
         op = (
             f"BT /{tag} {_num(self._font_size)} Tf "
             f"{_num(self._fill[0])} {_num(self._fill[1])} {_num(self._fill[2])} rg "
-            f"{_num(x)} {_num(y)} Td ("
-        ).encode("ascii") + escaped + b") Tj ET"
+            f"{_num(x)} {_num(y)} Td ".encode("ascii")
+            + encoded
+            + b" Tj ET"
+        )
         self._ops.append(op)
 
     def line(self, x1: float, y1: float, x2: float, y2: float) -> None:
@@ -199,7 +212,7 @@ class Page:
                     (
                         f"BT {_num(MARGIN_LEFT)} {_num(baseline)} Td "
                     ).encode("ascii")
-                    + _escape_text(footer_left)
+                    + self._doc._backend.encode_text(footer_left, FONT_BODY)
                     + b" Tj ET"
                 )
             if footer_right:
@@ -212,7 +225,7 @@ class Page:
                     (
                         f"BT {_num(right_x)} {_num(baseline)} Td "
                     ).encode("ascii")
-                    + _escape_text(footer_right)
+                    + self._doc._backend.encode_text(footer_right, FONT_BODY)
                     + b" Tj ET"
                 )
             parts.append(b"Q")
@@ -220,11 +233,24 @@ class Page:
 
 
 class PdfDocument:
-    """A deterministic PDF document: pages, outline and byte render."""
+    """A deterministic PDF document: pages, outline and byte render.
 
-    def __init__(self, title: str = "", producer: str = PRODUCER) -> None:
+    ``font_backend`` selects the text encoding path: the default
+    ``Base14Backend`` keeps the historical WinAnsi bytes, while
+    ``TrueTypeBackend`` embeds subsetted TrueType fonts and renders
+    arbitrary Unicode with a ToUnicode CMap.
+    """
+
+    def __init__(
+        self,
+        title: str = "",
+        producer: str = PRODUCER,
+        font_backend: FontBackend | None = None,
+    ) -> None:
         self.title = title
         self.producer = producer
+        self._backend: FontBackend = font_backend or Base14Backend()
+        self._render_programs: list[bytes] = []
         self._pages: list[Page] = []
         #: Bookmark (title, pre-reorder page index); remapped at render.
         self._bookmarks: list[tuple[str, int]] = []
@@ -285,6 +311,13 @@ class PdfDocument:
         pages = [self._pages[i] for i in order]
         total = len(pages)
 
+        # Embedded font programs are subset once per render (their bytes
+        # are a pure function of the draw sequence); object-number
+        # helpers below depend on the program count.
+        self._render_programs = (
+            [] if self._backend.is_base14 else self._backend.pdf_program_objects()
+        )
+
         parts: list[bytes] = []
         offsets: list[int] = []
 
@@ -297,7 +330,9 @@ class PdfDocument:
             return number
 
         def _offset() -> int:
-            return sum(len(part) for part in parts)
+            # Absolute position in the final output: the "%PDF-1.4\n"
+            # header (9 bytes) precedes the emitted objects.
+            return len(b"%PDF-1.4\n") + sum(len(part) for part in parts)
 
         # 1: catalog, 2: page tree.
         obj(
@@ -337,7 +372,7 @@ class PdfDocument:
                 footer_left=page.footer_left,
                 footer_right=(
                     page.footer_right.format(
-                        page=order.index(index) + 1, total=total
+                        page=index + 1, total=total
                     )
                     if page.footer_right
                     else ""
@@ -349,14 +384,48 @@ class PdfDocument:
                 + b"endstream"
             )
 
-        # Base-14 font objects (shared by every page).
-        for face in _FACES:
-            obj(
-                (
-                    f"<< /Type /Font /Subtype /Type1 /BaseFont /{face} "
-                    f"/Encoding /WinAnsiEncoding >>"
-                ).encode("ascii")
-            )
+        # Font resources. The base-14 path emits the four Type1 objects
+        # (byte-identical to the historical writer); the Unicode path
+        # emits embedded programs, Type0 fonts, CIDFontType2 descendants,
+        # descriptors and ToUnicode CMaps in a fixed order.
+        if self._backend.is_base14:
+            for body in self._backend.pdf_font_objects():
+                obj(body)
+        else:
+            backend = self._backend
+            # The Type0 API below is Unicode-path only (is_base14 False).
+            assert isinstance(backend, TrueTypeBackend)
+            for body in self._render_programs:
+                obj(body)
+            desc_numbers = [
+                self._descendant_object_number(i) for i in range(len(_FACES))
+            ]
+            touni_numbers = [
+                self._tounicode_object_number(i) for i in range(len(_FACES))
+            ]
+            for body in backend.type0_font_objects(
+                desc_numbers, touni_numbers
+            ):
+                obj(body)
+            for index, body in enumerate(
+                backend.face_descendant_bodies()
+            ):
+                obj(
+                    body.replace(
+                        b"@@FD@@",
+                        str(self._descriptor_object_number(index)).encode(
+                            "ascii"
+                        ),
+                    )
+                )
+            prog_numbers = [
+                self._program_object_number(k)
+                for k in range(len(self._render_programs))
+            ]
+            for body in backend.face_descriptor_bodies(prog_numbers):
+                obj(body)
+            for body in self._backend.pdf_tounicode_objects():
+                obj(body)
 
         # Outline root + items.
         if self._bookmarks:
@@ -381,7 +450,9 @@ class PdfDocument:
                 )
                 final_page = order.index(page_index)
                 obj(
-                    b"<< /Title (" + _escape_text(title) + b")" + (
+                    b"<< /Title "
+                    + self._backend.encode_literal(title)
+                    + (
                         f" /Parent {outline_root} 0 R {prev} {next_} "
                         f"/Dest [{_PAGES_OBJ + 1 + final_page} 0 R /FitH null] >>"
                     ).encode("ascii")
@@ -389,7 +460,9 @@ class PdfDocument:
         else:
             obj(b"<< /Type /Outlines /Count 0 >>")
 
-        # Cross-reference table and trailer.
+        # Cross-reference table and trailer. ``_offset()`` already counts
+        # the "%PDF-1.4\n" header, so the pointer names the byte where
+        # "xref" begins in the final output.
         startxref = _offset()
         xref = bytearray(
             f"xref\n0 {len(offsets) + 1}\n".encode("ascii")
@@ -406,9 +479,24 @@ class PdfDocument:
 
     # -- object-number helpers (all layout is fixed) --------------------------
 
+    def _program_count(self) -> int:
+        """Number of embedded font-program objects (0 on base-14)."""
+        return len(self._render_programs)
+
+    def _font_objects_start(self) -> int:
+        """Object number of the first font dictionary (F1)."""
+        return 2 + 2 * len(self._pages) + 1 + self._program_count()
+
     def _outline_root_number(self) -> int:
-        """Catalog/outline root object number (2 + pages + streams + fonts)."""
-        return 2 + 2 * len(self._pages) + len(_FACES)
+        """Object number of the outline root dict.
+
+        Base-14: catalog, pages, page dicts, content streams, 4 fonts,
+        then the root. Unicode adds programs (P), 4 descendants, 4
+        descriptors and 4 ToUnicode CMaps between the fonts and the
+        root.
+        """
+        extra = 0 if self._backend.is_base14 else 12
+        return self._font_objects_start() + len(_FACES) + extra
 
     def _content_stream_number(self, page_index: int) -> int:
         """Object number of page ``page_index``'s content stream."""
@@ -416,7 +504,23 @@ class PdfDocument:
 
     def _font_object_number(self, face_index: int) -> int:
         """Object number of font ``face_index``."""
-        return 2 + 2 * len(self._pages) + 1 + face_index
+        return self._font_objects_start() + face_index
+
+    def _program_object_number(self, index: int) -> int:
+        """Object number of embedded font program ``index``."""
+        return 2 + 2 * len(self._pages) + 1 + index
+
+    def _descendant_object_number(self, face_index: int) -> int:
+        """Object number of the CIDFontType2 descendant for ``face_index``."""
+        return self._font_objects_start() + len(_FACES) + face_index
+
+    def _descriptor_object_number(self, face_index: int) -> int:
+        """Object number of the FontDescriptor for ``face_index``."""
+        return self._font_objects_start() + 2 * len(_FACES) + face_index
+
+    def _tounicode_object_number(self, face_index: int) -> int:
+        """Object number of the ToUnicode CMap for ``face_index``."""
+        return self._font_objects_start() + 3 * len(_FACES) + face_index
 
     def _outline_item_number(self, index: int) -> int:
         """Object number of outline item ``index``."""

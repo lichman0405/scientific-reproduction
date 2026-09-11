@@ -22,7 +22,7 @@ from scientific_reproduction.artifacts.exceptions import ArtifactFileError
 _CHUNK_SIZE = 1024 * 1024
 
 #: A SHA-256 digest as hex: exactly 64 hex characters (case-insensitive,
-#: matching the ``sha256`` pattern in schemas/artifact-manifest.schema.yaml).
+#: matching the ``sha256`` pattern in schemas/artifact-manifest.schema.json).
 _HEX_DIGEST_PATTERN = re.compile(r"^[a-fA-F0-9]{64}$")
 
 

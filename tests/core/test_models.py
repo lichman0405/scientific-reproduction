@@ -37,7 +37,7 @@ def test_registry_covers_all_23_normative_types() -> None:
 
 def test_every_registry_name_has_a_schema_file() -> None:
     for name in m.MODEL_REGISTRY:
-        assert (schemas_dir() / f"{name}.schema.yaml").is_file(), (
+        assert (schemas_dir() / f"{name}.schema.json").is_file(), (
             f"no schema file for {name}"
         )
 
@@ -248,7 +248,7 @@ def test_sensible_defaults() -> None:
 
 
 def test_enum_member_counts_match_schemas() -> None:
-    # Exact counts from schemas/project.schema.yaml and schemas/run.schema.yaml.
+    # Exact counts from schemas/project.schema.json and schemas/run.schema.json.
     assert len(m.ProjectPhase) == 14
     assert len(m.LifecycleState) == 10
     # evidence assessment ranges are integers 0..4 (schema-enforced, tested
@@ -267,7 +267,7 @@ def test_enum_member_counts_match_schemas() -> None:
     assert len(m.ScientificReview) == 4
     assert len(m.RunType) == 5
     assert len(m.SourceType) == 14
-    # schemas/source.schema.yaml acquisition vocabulary (issue #134).
+    # schemas/source.schema.json acquisition vocabulary (issue #134).
     assert len(m.AcquisitionStatus) == 4
     assert len(m.UnavailabilityReason) == 4
 

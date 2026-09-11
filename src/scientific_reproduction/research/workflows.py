@@ -29,7 +29,7 @@ contract is the ordered workflow table :data:`BOOTSTRAP_WORKFLOW`: one
 :class:`BootstrapStep` per category, each step carrying the spec bullets
 it covers (``spec_items``) and the frozen ``SourceType`` members that
 realize it (``source_types``). Every one of the frozen source categories
-in ``core/models.SourceType`` (``schemas/source.schema.yaml``) maps to
+in ``core/models.SourceType`` (``schemas/source.schema.json``) maps to
 exactly one category, so the contract is **total**: any source a Research
 Agent acquires during bootstrap lands in exactly one step. The mapping is
 deterministic (a pure function of the frozen vocabulary), versioned

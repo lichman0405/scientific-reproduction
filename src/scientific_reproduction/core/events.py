@@ -14,7 +14,7 @@ Layout
 * ``events/<event_id>.json`` -- the event records themselves, persisted
   through the state backend (schema-validated, canonical JSON, atomic
   writes). Each record carries two log-managed additional properties
-  (both permitted by ``schemas/event.schema.yaml``'s
+  (both permitted by ``schemas/event.schema.json``'s
   ``additionalProperties: true``): ``sequence`` (the record's
   deterministic log position) and, when the event was appended with an
   idempotency key, ``idempotency_key``.
@@ -185,7 +185,7 @@ class ProjectEventLog:
 
         Args:
             event: the frozen ``ProjectEvent`` to record. The event must
-                satisfy ``schemas/event.schema.yaml``; schema-invalid
+                satisfy ``schemas/event.schema.json``; schema-invalid
                 events raise ``SchemaValidationError`` before anything is
                 persisted.
             idempotency_key: optional key identifying the *semantic*

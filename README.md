@@ -1,4 +1,4 @@
-# Scientific Reproduction Skill v0.2
+# Scientific Reproduction Skill v0.3.1
 
 An installable **skill** for agentic coding platforms (Claude Code, Codex,
 WorkBuddy): a packaged scientific workflow runtime that takes one target paper
@@ -12,7 +12,7 @@ and non-negotiable architecture decisions.
 ## Get the skill
 
 Download the release archive from
-[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.3),
+[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases),
 or clone the release branch:
 
 ```bash
@@ -41,8 +41,8 @@ The skill entry is [`SKILL.md`](SKILL.md); Codex reads
 python scripts/smoke.py
 ```
 
-The runtime is bundled and **zero-install**: `scripts/reproduce.py` runs it
-via `PYTHONPATH` — no venv, no pip.
+The runtime is bundled and needs **no build** — `scripts/reproduce.py` runs it via
+`PYTHONPATH`; the only runtime import is `jsonschema` (pure Python, pip-installable in seconds).
 
 ```bash
 python scripts/reproduce.py init 10.1039/D5TA00771B --root <workspace>

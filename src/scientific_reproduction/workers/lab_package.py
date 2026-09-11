@@ -4,7 +4,7 @@ Implements the runtime constructor behind the
 ``10-EXPERIMENT-SUBSYSTEM.md`` SS1 arrow "Worker -> create Experiment
 Execution Package": a pure, deterministic, schema-gated generator that
 derives the frozen ``core.models.LabExecutionPackage``
-(``schemas/lab-execution-package.schema.yaml``) from the **frozen Goal
+(``schemas/lab-execution-package.schema.json``) from the **frozen Goal
 Contract** plus the goal's registered resources. The worker no longer
 hand-authors the package JSON; the generator assembles the exact schema
 shape, refuses non-frozen goals, and the result is always checked by
@@ -27,7 +27,7 @@ Normative grounding (locked readings)
   (the ``name`` key of an output object, the same locked reading the
   worker-context generator applies to ``required_outputs`` in
   ``workers/context.py``);
-* ``schemas/lab-execution-package.schema.yaml``: the package shape the
+* ``schemas/lab-execution-package.schema.json``: the package shape the
   result must pass; the generator calls the real gate
   (``core.schema_validation.validate_and_reject``) on every output.
 
@@ -68,7 +68,7 @@ Derivation from the typed Goal fields (issue #156)
 --------------------------------------------------
 The frozen goal carries the typed procedure and execution constraints
 (issue #156 / PR #191, both schema-required in
-``schemas/goal.schema.yaml``), and the generator derives them from the
+``schemas/goal.schema.json``), and the generator derives them from the
 frozen record directly -- the stage-1 caller-injected ``procedure`` /
 ``prohibited_changes`` / ``safety_notes`` scaffolding is removed:
 
@@ -414,7 +414,7 @@ def _required_returns(goal: GoalContract) -> list[str]:
     """The required-return tokens derived from the goal's declared outputs.
 
     ``GoalContract.outputs`` is a list of objects
-    (``schemas/goal.schema.yaml``); an output object contributes its
+    (``schemas/goal.schema.json``); an output object contributes its
     ``name`` key when that key is a string -- the same locked reading
     the worker-context generator applies to ``required_outputs``
     (``workers/context.py``). Output objects without a string ``name``

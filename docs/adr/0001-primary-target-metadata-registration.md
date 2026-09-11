@@ -12,7 +12,7 @@
 For a local PDF target, `planning.init` registers only the file path on the
 primary target record: `parse_target_form` has no channel for the paper DOI,
 so the optional `doi`/`title` fields of the frozen `PrimaryTarget` model
-(`schemas/project.schema.yaml`) stay empty. Target identity is therefore not
+(`schemas/project.schema.json`) stay empty. Target identity is therefore not
 machine-usable for PDF targets — mirror collapse (`06-EVIDENCE-SYSTEM.md`
 section 7), evidence linking and the research bootstrap cannot key on the
 paper DOI — until research runs; in a real run the operator had to extract

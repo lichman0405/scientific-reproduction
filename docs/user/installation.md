@@ -2,23 +2,43 @@
 
 This guide is grounded in the real package metadata (`pyproject.toml`) and
 the repository verification entry point (`scripts/verify.py`). Every command
-below runs against the actual v0.2 release.
+below runs against the actual v0.3.1 release.
 
 ## Requirements
 
 - Python **3.11 or newer** (`pyproject.toml`: `requires-python = ">=3.11"`).
   The verification in this repository runs on Python 3.13 on Windows and is
   supported on POSIX as well.
+- **Platforms**: Windows 10/11, Linux (Debian/Ubuntu/Fedora/Arch), macOS —
+  all supported; the runtime is pure Python (no shell scripts), and every
+  command below works in PowerShell, Git Bash, and POSIX shells alike.
 - Git (the runtime records audit checkpoints in the project workspace).
 - A working `pip` and the `venv` module (standard library) — only needed for
   the developer install below; using the skill itself requires neither.
 - Network access on the first developer install only (to fetch the dev extras).
 
-The v0.1 runtime is intentionally **stdlib-only**: `pyproject.toml` declares
-`dependencies = []` and the package has no runtime dependencies. The `dev`
-extra installs the verification toolchain: `pytest`, `pytest-cov`, `ruff`,
-`mypy`, `jsonschema` and `PyYAML` (the last two validate the frozen schemas
-and benchmark data files).
+The runtime has a **single pure-Python dependency** (`jsonschema`, used by
+`core.schema_validation` to validate persisted records — see
+`pyproject.toml`: `dependencies = ["jsonschema>=4.18"]`); it has no build
+dependencies and installs in seconds. The `dev` extra installs the
+verification toolchain: `pytest`, `pytest-cov`, `ruff`, `mypy` and
+`PyYAML` (PyYAML validates the frozen benchmark data files).
+
+## Platform notes (CJK fonts)
+
+The Unicode PDF backend renders CJK text by **referencing fonts already on
+the host** (never bundled — see `assets/fonts/README.md`); no font setup is
+needed on these platforms:
+
+- **Windows**: Microsoft YaHei is used automatically (`C:\Windows\Fonts\msyh.ttc`).
+- **macOS**: PingFang / STHeiti are used automatically.
+- **Linux**: Noto Sans CJK and WenQuanYi are searched in the standard
+  `/usr/share/fonts/...` locations. If none is installed, install one with
+  your distro's package manager (e.g. `apt install fonts-noto-cjk` on
+  Debian/Ubuntu, `dnf install google-noto-sans-cjk-fonts` on Fedora), or pin
+  any font directory via `SCIENTIFIC_REPRODUCTION_FONT_DIR`. If no CJK font
+  is found the renderer fails loudly with an actionable message — it never
+  guesses or silently produces `?`.
 
 ## Use the skill with zero install
 

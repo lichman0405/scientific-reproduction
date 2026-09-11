@@ -1,8 +1,53 @@
 # Changelog
-
 All notable changes are tracked here. This repository follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions with a single immutable release line per version.
 
 ## [Unreleased]
+
+
+
+## [0.3.1] - 2026-09-05
+
+- **Human gates registry** (`planning/human_gates.py`): the frozen
+  `HumanGate` record finally has a registration/resolution surface
+  (`human-gates/` in the workspace). Evidence-interpretation ambiguity
+  (which data point a figure marker is, which of several candidate values
+  an extraction admits) is a new `EVIDENCE_INTERPRETATION_GATE` class that
+  does NOT pause the run: the Supervisor records the ambiguity plus a
+  concrete `default_safe_action`, execution continues, and COMPLETED
+  blocks until every OPEN gate is resolved at close-out -- the single
+  confirmation point.
+- **Human-readable summary** gains the "人工确认项" / "Human confirmation
+  items" section (zh/en, Markdown + PDF) listing every recorded gate with
+  its resolution.
+- **Review-pass fixes**: gate-type label lookup strips the `_GATE` suffix
+  before the template-key lookup (labels never matched before);
+  deterministic gate ids include the sorted `affected_refs`;
+  `resolve_human_gate` uses `dataclasses.replace`; 「受影响/affected」 is a
+  template key used by both renderers (no hardcoded Chinese in en mode).
+- **Release hygiene**: removed the leftover
+  `src/scientific_reproduction/tmp_analysis/` probe scripts (2026-09-03
+  debugging; server absolute paths); version aligned to `0.3.1` across
+  `pyproject.toml`, `__version__` and the smoke tests.
+
+## [0.2.4] - runtime dependency contract fix
+
+- **Schemas moved from YAML to JSON**: `schemas/*.schema.yaml` are now
+  `schemas/*.schema.json` (semantically identical, verified round-trip).
+  `core.schema_validation` loads them with the stdlib `json` module --
+  PyYAML is no longer a runtime import.
+- **Runtime dependencies**: `pyproject.toml` now declares
+  `dependencies = ["jsonschema>=4.18"]` (single pure-Python dep). The
+  previous `dependencies = []` + "stdlib-only" claim did not match
+  reality (yaml/jsonschema were imported at runtime, breaking clean
+  installs with `ModuleNotFoundError`).
+- **Fonts**: Unicode PDF backend resolves fonts from host system CJK
+  fonts (Windows YaHei / Linux Noto & WenQuanYi / macOS PingFang) before
+  the bundled dir; bundled Microsoft YaHei was removed (not
+  redistributable per Windows font license).
+- **CI**: test-lint-type matrix now covers ubuntu/windows/macos.
+- **Docs/verification**: `scripts/smoke.py` passes in a clean env with
+  only `jsonschema`; installation guide states the real minimal deps.
+
 
 ## [0.2.3] - 2026-08-24
 

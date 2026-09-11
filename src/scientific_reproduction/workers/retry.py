@@ -31,7 +31,7 @@ Normative grounding (locked readings)
   ``Action.ENGINEERING_RETRY``, and its SUPERVISOR routing is exactly
   the ``SCIENTIFIC_PARAMETER_CHANGE`` boundary (Supervisor-only).
 * ``05-GOAL-RUN-SCHEMA.md`` SS4/SS8 and
-  ``schemas/retry-policy.schema.yaml`` -- the goal's automatic retry
+  ``schemas/retry-policy.schema.json`` -- the goal's automatic retry
   policy is the contract: ``allowed_engineering_failures`` are the
   retries the worker may take on its own,
   ``supervisor_required_changes`` the retries explicitly prohibited
@@ -138,7 +138,7 @@ class MalformedRetryPolicyError(RetryPolicyError):
     The whitelist is the contract, so the contract must be well-formed:
     the failure-kind lists must be lists of non-empty strings and
     ``max_identical_retries`` must be None or a non-negative int
-    (``schemas/retry-policy.schema.yaml``). Stable messages name the
+    (``schemas/retry-policy.schema.json``). Stable messages name the
     offending policy and field.
     """
 

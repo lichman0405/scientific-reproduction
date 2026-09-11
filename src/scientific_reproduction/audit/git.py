@@ -222,7 +222,7 @@ AUDIT_CHECKPOINT_KINDS: frozenset[str] = frozenset(
 )
 
 #: Mapping from core ``ProjectEvent.event_type`` values (free-form
-#: strings, cf. ``schemas/event.schema.yaml``) to checkpoint kinds.
+#: strings, cf. ``schemas/event.schema.json``) to checkpoint kinds.
 #: Event types not listed here raise ``UnknownEventTypeError`` so that a
 #: new governance event can never silently bypass the audit mapping.
 EVENT_TYPE_TO_CHECKPOINT: dict[str, str] = {

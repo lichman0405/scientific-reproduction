@@ -2,7 +2,7 @@
 (DEV-M5-G01).
 
 Implements the **deduplication rules** deliverable over the frozen
-``ResearchSource`` model (``schemas/source.schema.yaml`` /
+``ResearchSource`` model (``schemas/source.schema.json`` /
 ``core/models.py``), grounded in ``06-EVIDENCE-SYSTEM.md`` section 7
 (*source identity using DOI/identifier/hash*; mirrors must not be treated
 as independent evidence) and the frozen acceptance rule (*duplicate DOI

@@ -75,7 +75,7 @@ accidental `git add -A` can pick up.
    `human-gates/`, `manifests/`, `locks/`, `lab/outgoing/`, `lab/incoming/`,
    `reports/`;
 2. writes the project state record `project.yaml` (JSON content, validated
-   against `schemas/project.schema.yaml`) with the primary target registered
+   against `schemas/project.schema.json`) with the primary target registered
    exactly once (the one-primary invariant, AC-01);
 3. appends the `project.initialized` event under `events/`;
 4. writes the starter `.gitignore` (nested repositories, large raw
@@ -160,7 +160,7 @@ commands and teammates receive frozen goal contracts (SS5).
 `Project -> Work Package -> Requirement -> Goal (Unit Process) -> Run`, and
 SS3: a Goal must be independently executable, observable, analyzable and
 reviewable, with explicit inputs and outputs. The frozen `GoalContract` schema
-(`schemas/goal.schema.yaml`) requires the track
+(`schemas/goal.schema.json`) requires the track
 (`STRICT_REPRODUCTION`/`RECOVERY`/`METHOD_REDESIGN`, `08-STRICT-RECOVERY-CLOSURE.md`),
 dependencies (`hard_gate`/`soft_dependency`/`informational`, with separate
 `execution_gate`/`acceptance_gate`), acceptance criteria, primary analysis
@@ -189,7 +189,7 @@ review decision stored separately, never a Run lifecycle state.
   goal-contract family (`<root>/acceptance/`, `<root>/designs/`,
   `<root>/protocols/`, `<root>/closure/`; the first, second and last
   directories are created on demand). The statistical design record
-  (`schemas/statistical-design.schema.yaml`) is the first-class record
+  (`schemas/statistical-design.schema.json`) is the first-class record
   behind `AcceptanceCriteria.statistical_design_ref`: the design is
   frozen before data generation (`07-STATISTICS-AND-ACCEPTANCE.md` SS9)
   and the plan freeze resolves every such reference;

@@ -543,7 +543,7 @@ def test_completeness_plan_inventory_audit_view_is_schema_compatible() -> None:
     assert view.ambiguous_items == 0
     assert view.coverage == pytest.approx(0.5)
     # The view round-trips and satisfies the frozen plan schema's
-    # inventory_audit sub-object (schemas/plan.schema.yaml), the shape the
+    # inventory_audit sub-object (schemas/plan.schema.json), the shape the
     # Plan freeze flow embeds into the plan record.
     assert PlanInventoryAudit.from_dict(view.to_dict()) == view
     validate_and_reject(

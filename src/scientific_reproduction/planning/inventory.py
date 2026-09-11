@@ -1,9 +1,9 @@
 """Reproduction Inventory registration and mapping rules (DEV-M4-G02).
 
 Implements the three deliverables of DEV-M4-G02 over the frozen models
-``ReproductionInventoryItem`` (``schemas/inventory-item.schema.yaml`` /
+``ReproductionInventoryItem`` (``schemas/inventory-item.schema.json`` /
 ``core/models.py``) and ``ReproductionRequirement``
-(``schemas/requirement.schema.yaml`` / ``core/models.py``):
+(``schemas/requirement.schema.json`` / ``core/models.py``):
 
 * **inventory registry** -- ``register_inventory_item`` registers items into
   the workspace ``inventory/`` directory
@@ -550,7 +550,7 @@ class ItemGoalMapping:
 
     Every edge preserves the item's provenance: ``inventory_id``,
     ``source_id`` and ``source_location`` (the item's source
-    location/provenance reference, ``schemas/inventory-item.schema.yaml``)
+    location/provenance reference, ``schemas/inventory-item.schema.json``)
     plus the requirement link that carries the edge.
     """
 
@@ -1049,6 +1049,12 @@ def close_requirement(
             f" or None, got {type(method_reproducibility).__name__}"
         )
     _require_closure_args(actor, at, reason)
+    if not (reason or "").strip():
+        raise RequirementClosureError(
+            "requirement cannot be closed with an empty reason: the closure "
+            "rationale is the only explanation the human summary and the "
+            "report carry (P22-B; write a reason even for trivially "
+            "reproduced requirements)")
     project_root = Path(root).resolve()
     _require_initialized(project_root)
     event_log = _resolve_event_log(project_root, event_log)

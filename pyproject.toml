@@ -4,12 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scientific-reproduction"
-version = "0.2.3"
+version = "0.3.1"
 description = "Scientific Reproduction Skill - deterministic runtime for auditable scientific reproduction (v0.1)"
 readme = "docs/README.md"
 requires-python = ">=3.11"
-# v0.1 runtime is intentionally stdlib-only; no runtime dependencies yet.
-dependencies = []
+# Runtime deps: jsonschema only (pure-Python, no build deps) -- used by
+# core.schema_validation to validate persisted records. CI/dev tooling
+# (pytest/ruff/mypy/PyYAML) lives in the dev extra.
+dependencies = ["jsonschema>=4.18"]
 
 [project.optional-dependencies]
 dev = [
@@ -17,11 +19,13 @@ dev = [
     "pytest-cov>=4",
     "ruff>=0.6",
     "mypy>=1.10",
-    # Schema validation validates against the frozen product schemas (YAML)
-    # in schemas/; jsonschema is the validator and PyYAML loads the schema
-    # files.
+    # Schema validation validates against the frozen product schemas (JSON)
+    # in schemas/; jsonschema is the validator. PyYAML remains for YAML test
+    # fixtures and example inputs.
     "jsonschema>=4.18",
     "PyYAML>=6.0",
+    # Unicode PDF extraction assertions in tests/rendering/test_fonts.py
+    "pypdf>=4",
 ]
 
 [tool.hatch.build.targets.wheel]

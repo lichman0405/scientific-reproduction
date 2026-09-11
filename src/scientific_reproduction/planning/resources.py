@@ -1,7 +1,7 @@
 """Resource registry and availability-state vocabulary (DEV-M4-G05).
 
 Implements the **Resource state representation** deliverable of DEV-M4-G05
-over the frozen ``Resource`` model (``schemas/resource.schema.yaml`` /
+over the frozen ``Resource`` model (``schemas/resource.schema.json`` /
 ``core/models.py``), grounded in:
 
 * ``01-PRODUCT-REQUIREMENTS.md`` SS5 step 7: the Supervisor "creates Work
@@ -17,9 +17,9 @@ over the frozen ``Resource`` model (``schemas/resource.schema.yaml`` /
   availability_state, blocks_goal_ids, estimated_cost, currency,
   human_gate_required, notes) and ``AvailabilityState`` -- the frozen enum
   with exactly the four availability states AVAILABLE / PROCURE /
-  OUTSOURCE / CAPABILITY_GAP (``schemas/resource.schema.yaml``
+  OUTSOURCE / CAPABILITY_GAP (``schemas/resource.schema.json``
   ``availability_state`` enum);
-* ``schemas/resource.schema.yaml``: the resource record shape
+* ``schemas/resource.schema.json``: the resource record shape
   (``availability_state`` required, ``blocks_goal_ids`` optional array).
 
 Registry (normative)
@@ -39,7 +39,7 @@ AC-01 (normative reading)
 -------------------------
 "AVAILABLE/PROCURE/OUTSOURCE/CAPABILITY_GAP states are representable": the
 four states are the frozen ``AvailabilityState`` enum of
-``schemas/resource.schema.yaml`` -- nothing is redefined -- and
+``schemas/resource.schema.json`` -- nothing is redefined -- and
 representability means the registry persists, reads back and lists a
 ``Resource`` in every state, round-tripping exactly.
 

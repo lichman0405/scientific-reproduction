@@ -17,7 +17,7 @@ frozen models and the registered M4-G02/G03 state, grounded in:
   (DRAFT/FROZEN/SUPERSEDED), ``PlanInventoryAudit``, and the
   goal-contract family ``GoalContract`` / ``AcceptanceCriteria`` /
   ``AnalysisProtocolOrResult`` / ``ClosureContract`` / ``GoalAcceptance``;
-* ``schemas/plan.schema.yaml``: the plan object shape (``inventory_audit``
+* ``schemas/plan.schema.json``: the plan object shape (``inventory_audit``
   sub-object, ``status`` enum DRAFT/FROZEN/SUPERSEDED,
   ``parent_plan_version`` / ``frozen_at`` / ``frozen_commit`` nullable);
 * ``planning/audit.py`` (DEV-M4-G03): ``audit_inventory_registry`` /
@@ -97,9 +97,9 @@ and ``closure/`` are created on demand by ``atomic_write`` -- normative
 reading: the tree template enumerates the init-time layout, and the
 per-object state-file convention (``14-STATE-GIT-ARTIFACTS.md`` SS3)
 applies to every record kind that has a schema
-(``schemas/acceptance-criteria.schema.yaml``,
-``schemas/statistical-design.schema.yaml``,
-``schemas/closure-contract.schema.yaml``; the FDM-201 example ships
+(``schemas/acceptance-criteria.schema.json``,
+``schemas/statistical-design.schema.json``,
+``schemas/closure-contract.schema.json``; the FDM-201 example ships
 ``examples/fdm-201/acceptance.example.yaml`` and
 ``examples/fdm-201/statistical-design.example.yaml``). Registration is
 immutable-functional like the M4-G02 registry: a record id can be
@@ -870,7 +870,7 @@ def register_acceptance(
     """Register one acceptance criteria draft at ``acceptance/<id>.json``.
 
     Same registration contract as :func:`register_goal`
-    (``schemas/acceptance-criteria.schema.yaml``; the FDM-201 example
+    (``schemas/acceptance-criteria.schema.json``; the FDM-201 example
     ``examples/fdm-201/acceptance.example.yaml``). Duplicate ids raise
     ``DuplicateAcceptanceError``.
 
@@ -903,7 +903,7 @@ def register_analysis_protocol(
     """Register one analysis protocol draft at ``protocols/<id>.json``.
 
     Same registration contract as :func:`register_goal`
-    (``schemas/analysis.schema.yaml``; the version field is
+    (``schemas/analysis.schema.json``; the version field is
     ``protocol_version``, defaulting to ``INITIAL_PLAN_VERSION`` for
     drafts). Duplicate ids raise ``DuplicateAnalysisProtocolError``.
 
@@ -936,7 +936,7 @@ def register_closure_contract(
     """Register one closure contract draft at ``closure/<id>.json``.
 
     Same registration contract as :func:`register_goal`
-    (``schemas/closure-contract.schema.yaml``; the model carries no
+    (``schemas/closure-contract.schema.json``; the model carries no
     version field, so drafts default ``frozen`` to False only). Duplicate
     ids raise ``DuplicateClosureContractError``.
 
@@ -969,7 +969,7 @@ def register_statistical_design(
     """Register one statistical design draft at ``designs/<id>.json``.
 
     Same registration contract as :func:`register_goal`
-    (``schemas/statistical-design.schema.yaml``; the first-class record
+    (``schemas/statistical-design.schema.json``; the first-class record
     behind ``AcceptanceCriteria.statistical_design_ref`` --
     07-STATISTICS-AND-ACCEPTANCE.md SS9 freezes the design BEFORE data
     generation). Duplicate ids raise ``DuplicateStatisticalDesignError``.

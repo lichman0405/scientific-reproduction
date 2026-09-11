@@ -143,7 +143,7 @@ only after a formal strict failure/inconclusive state:
 
 Recovery is recorded structurally: every goal contract carries its track
 (`STRICT_REPRODUCTION` / `RECOVERY` / `METHOD_REDESIGN`,
-`schemas/goal.schema.yaml`), assumptions are registered in the assumption
+`schemas/goal.schema.json`), assumptions are registered in the assumption
 registry (`A0_TECHNICAL_DEFAULT`, `A1_METHODOLOGICAL_DEFAULT`,
 `A2_SCIENTIFIC_ASSUMPTION`; A2 must not be silently used inside strict
 reproduction), and a plan revision produces a new versioned draft
@@ -207,7 +207,7 @@ a single point of failure (`10-EXPERIMENT-SUBSYSTEM.md` SS1,
 - `dispatch(execution_package)` — writes the package to
   `outgoing/<RUN_ID>/` **after** the real schema gate
   (`core.schema_validation.validate_and_reject` against
-  `schemas/lab-execution-package.schema.yaml`); a malformed package is
+  `schemas/lab-execution-package.schema.json`); a malformed package is
   refused loudly and nothing is written. Dispatch is exactly-once, and the
   `dispatch_id` is a deterministic pure function of the package identity.
   The adapter never touches the Run record: the **dispatching worker

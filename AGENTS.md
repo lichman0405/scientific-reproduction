@@ -10,7 +10,7 @@ file adds the Codex-specific operating instructions.
 1. Treat this directory as the skill root. All relative paths below are
    relative to it.
 2. Delegate every deterministic operation to the bundled runtime through the
-   zero-install CLI wrapper (no pip install needed; Python 3.11+ required):
+   no-build CLI wrapper (only `jsonschema`; Python 3.11+ required):
 
    ```bash
    python scripts/reproduce.py init <PDF|DOI|URL> --root <workspace>

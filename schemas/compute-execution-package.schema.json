@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ComputeExecutionPackage",
+  "type": "object",
+  "required": [
+    "package_id",
+    "project_id",
+    "goal_id",
+    "goal_version",
+    "run_id",
+    "objective",
+    "scientific_parameters",
+    "input_files",
+    "declared_outputs",
+    "software_environment",
+    "resource_requirements"
+  ],
+  "properties": {
+    "package_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "goal_id": {
+      "type": "string"
+    },
+    "goal_version": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "track": {
+      "enum": [
+        "STRICT_REPRODUCTION",
+        "RECOVERY",
+        "METHOD_REDESIGN"
+      ]
+    },
+    "objective": {
+      "type": "string"
+    },
+    "scientific_parameters": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "input_files": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "declared_outputs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "software_environment": {
+      "type": "object"
+    },
+    "resource_requirements": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

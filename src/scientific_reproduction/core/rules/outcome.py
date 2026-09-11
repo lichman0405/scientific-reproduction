@@ -2,8 +2,8 @@
 
 Pure logic implementing the frozen outcome aggregation rules of
 ``04-PROJECT-LIFECYCLE.md`` sections 4-6 against the frozen outcome
-vocabulary of ``schemas/requirement.schema.yaml`` (``RequirementOutcome`` /
-``MethodReproducibility`` / ``Criticality``) and ``schemas/project.schema.yaml``
+vocabulary of ``schemas/requirement.schema.json`` (``RequirementOutcome`` /
+``MethodReproducibility`` / ``Criticality``) and ``schemas/project.schema.json``
 (``ReproductionOutcome``; modeled in ``core.models``). No LLM, no randomness,
 no wall-clock dependence: the same inputs always yield the same assessments
 on every platform and Python version, and every decision is recorded for the
@@ -253,7 +253,7 @@ REQUIREMENT_RECORD_FIELDS: tuple[str, ...] = (
 class RequirementOutcomeRecord:
     """One phase-independent Requirement outcome input.
 
-    Mirrors the frozen requirement vocabulary (``schemas/requirement.schema.yaml``;
+    Mirrors the frozen requirement vocabulary (``schemas/requirement.schema.json``;
     ``core.models.ReproductionRequirement``): the Requirement's id, its
     ``Criticality`` and its final ``RequirementOutcome`` (``OPEN`` when the
     Requirement has not been individually determined). There is no
@@ -332,7 +332,7 @@ class MethodReproducibilityRecord:
     """One per-Requirement method-reproducibility rating input.
 
     The per-Requirement/Goal category of ``04-PROJECT-LIFECYCLE.md`` section 6
-    (``schemas/requirement.schema.yaml`` ``method_reproducibility`` enum;
+    (``schemas/requirement.schema.json`` ``method_reproducibility`` enum;
     ``core.models.MethodReproducibility``). Scientific outcome and method
     reproducibility are strictly separate axes (section 6), so this record
     carries only the reproducibility rating, never an outcome or a phase.

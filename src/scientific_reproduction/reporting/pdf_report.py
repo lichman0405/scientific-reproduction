@@ -85,6 +85,7 @@ issue requires report files to be registered with checksums).
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from dataclasses import dataclass
@@ -133,7 +134,17 @@ from scientific_reproduction.planning.plan import (
     list_statistical_designs,
 )
 from scientific_reproduction.rendering import FlowLayout, PdfDocument
-from scientific_reproduction.rendering.style import FONT_BOLD, HEADING_SIZES
+from scientific_reproduction.rendering.fonts import (
+    Base14Backend,
+    FontBackend,
+    FontConfig,
+    TrueTypeBackend,
+)
+from scientific_reproduction.rendering.style import (
+    FONT_BOLD,
+    HEADING_SIZES,
+    measure_backend,
+)
 from scientific_reproduction.reporting.audit import (
     AuditCorruptError,
     AuditNotInitializedError,
@@ -334,21 +345,46 @@ def _headline_metric(
 
     The first analysis result (sorted by result id) referencing a
     CRITICAL requirement supplies the value, its recorded confidence
-    interval and the frozen acceptance tolerance; everything falls back
-    to explicit "not recorded" text -- never invented.
+    interval and the frozen acceptance tolerance; results that carry at
+    least one of the two (a measurement) rank ahead of bare audit
+    scores, and when no result carries either, the summary prints an
+    explicit N/A marker -- an unadorned audit score is never headlined
+    as "the" number, and nothing is ever invented.
     """
     critical_ids = {
         requirement.requirement_id
         for requirement in requirements
         if requirement.criticality is Criticality.CRITICAL
     }
+    bands_by_id = {
+        criteria.acceptance_id: criteria for criteria in acceptance
+    }
+
+    def interpretable(result: ResultRecord) -> bool:
+        """Whether the result's number carries an uncertainty interval
+        or a frozen acceptance tolerance -- a bare audit score alone
+        cannot serve as the headline number."""
+        uncertainty = result.uncertainty or {}
+        has_ci = all(
+            uncertainty.get(key) is not None
+            for key in ("confidence_level", "lower", "upper")
+        )
+        criteria = (bands_by_id.get(result.acceptance_ref)
+                    if result.acceptance_ref is not None else None)
+        has_band = bool(
+            criteria
+            and criteria.criteria
+            and criteria.criteria[0].get("tolerance") is not None
+        )
+        return has_ci or has_band
+
     hits = sorted(
         (
             result
             for result in results
             if critical_ids & set(result.requirement_refs)
         ),
-        key=lambda result: result.result_id,
+        key=lambda result: (not interpretable(result), result.result_id),
     )
     if not hits:
         return report.no_critical_hit
@@ -384,6 +420,10 @@ def _headline_metric(
             band += report.band_ref_tpl.format(band_ref=band_ref)
     else:
         band = report.band_not_recorded
+    if interval == report.ci_not_recorded and band == report.band_not_recorded:
+        # No measurement-type result exists: an unadorned audit score is
+        # not a number the summary may headline as "the" result.
+        return report.headline_na
     return report.headline_tpl.format(
         name=name,
         value=value,
@@ -487,6 +527,42 @@ def _request_transitions_cell(
 # ---------------------------------------------------------------------------
 
 
+def _content_needs_unicode(*values: Any) -> bool:
+    """True when any rendered string contains a character outside cp1252.
+
+    Walks dataclasses, dicts, lists and tuples recursively; strings are
+    checked for cp1252 encodability. The scan covers the language-pack
+    labels and every data record the report renders, so the backend
+    choice is a pure function of the content -- never of ``language``.
+    """
+    for value in values:
+        if _walk_needs_unicode(value):
+            return True
+    return False
+
+
+def _walk_needs_unicode(value: Any) -> bool:
+    if isinstance(value, str):
+        try:
+            value.encode("cp1252")
+        except UnicodeEncodeError:
+            return True
+        return False
+    if isinstance(value, dict):
+        return any(
+            _walk_needs_unicode(key) or _walk_needs_unicode(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return any(_walk_needs_unicode(item) for item in value)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return any(
+            _walk_needs_unicode(getattr(value, field.name))
+            for field in dataclasses.fields(value)
+        )
+    return False
+
+
 def _render_pdf(
     *,
     project: Project,
@@ -515,6 +591,101 @@ def _render_pdf(
 ) -> tuple[bytes, tuple[PdfReportSection, ...], int]:
     """Render the report document and return (pdf bytes, sections, pages).
 
+    The encoding path is decided by the CONTENT, never by the language
+    pack: content that WinAnsi cannot represent renders through the
+    embedded-TrueType Unicode backend (CJK, Greek, symbols), and the
+    base-14 path stays byte-identical for ASCII-only content. The
+    strict base-14 fallback raises instead of degrading, so a scan
+    miss can never silently turn text into '?'.
+    """
+    needs_unicode = _content_needs_unicode(
+        pack.report,
+        project,
+        summary,
+        package,
+        goals,
+        acceptance,
+        protocols,
+        designs,
+        closures,
+        plans,
+        requirements,
+        inventory,
+        results,
+        manifests,
+        decisions,
+        events,
+        evidence,
+        sources,
+        source_records,
+        requests,
+        head,
+        commits,
+        generated_at,
+    )
+    backend: FontBackend
+    if needs_unicode:
+        backend = TrueTypeBackend(FontConfig.default())
+    else:
+        backend = Base14Backend(strict=True)
+    with measure_backend(backend):
+        return _render_pdf_impl(
+            backend=backend,
+            project=project,
+            summary=summary,
+            package=package,
+            goals=goals,
+            acceptance=acceptance,
+            protocols=protocols,
+            designs=designs,
+            closures=closures,
+            plans=plans,
+            requirements=requirements,
+            inventory=inventory,
+            results=results,
+            manifests=manifests,
+            decisions=decisions,
+            events=events,
+            evidence=evidence,
+            sources=sources,
+            source_records=source_records,
+            requests=requests,
+            head=head,
+            commits=commits,
+            generated_at=generated_at,
+            pack=pack,
+        )
+
+
+def _render_pdf_impl(
+    *,
+    backend: FontBackend,
+    project: Project,
+    summary: OutcomeSummary,
+    package: AuditPackage,
+    goals: Sequence[GoalContract],
+    acceptance: Sequence[AcceptanceCriteria],
+    protocols: Sequence[Any],
+    designs: Sequence[StatisticalDesign],
+    closures: Sequence[ClosureContract],
+    plans: Sequence[Any],
+    requirements: Sequence[ReproductionRequirement],
+    inventory: Sequence[Any],
+    results: Sequence[ResultRecord],
+    manifests: Sequence[Any],
+    decisions: Sequence[SupervisorDecision],
+    events: Sequence[ProjectEvent],
+    evidence: EvidenceRegistry,
+    sources: Sequence[str],
+    source_records: Sequence[ResearchSource],
+    requests: Sequence[ResearchRequest],
+    head: str | None,
+    commits: int | None,
+    generated_at: str,
+    pack: TemplatePack,
+) -> tuple[bytes, tuple[PdfReportSection, ...], int]:
+    """Layout and byte-render with a fixed font backend (see _render_pdf).
+
     The content sections are laid out first (recording their
     creation-order page indices), then the table of contents is laid out
     and moved to the front via ``reorder_pages`` -- TOC page count is a
@@ -524,7 +695,8 @@ def _render_pdf(
     """
     report = pack.report
     doc = PdfDocument(
-        title=report.doc_title_tpl.format(project_id=project.project_id)
+        title=report.doc_title_tpl.format(project_id=project.project_id),
+        font_backend=backend,
     )
     layout = FlowLayout(
         doc,
@@ -1229,16 +1401,25 @@ def _render_pdf(
 
     # -- table of contents (laid out last, moved to the front) ----------------------
     layout.page_break()
-    toc_start = len(doc.pages)
+    # The page_break above guarantees the TOC starts on the last page
+    # (either it created a fresh page or the layout was already at the
+    # top of one); capturing it as ``len - 1`` keeps the creation-order
+    # index of the TOC's first page for the front move below.
+    toc_start = len(doc.pages) - 1
     layout.paragraph(report.toc_title, font=FONT_BOLD, size=HEADING_SIZES[1])
     toc_pages = layout.toc_page_count(len(laid_out))
     for index, (title, page_index) in enumerate(laid_out, 1):
         layout.toc_entry(index, title, toc_pages + page_index + 1)
     actual_toc_pages = len(doc.pages) - toc_start
-    if actual_toc_pages:
-        doc.reorder_pages(
-            list(range(toc_start, len(doc.pages))) + list(range(0, toc_start))
+    if actual_toc_pages != toc_pages:
+        raise PdfReportError(
+            f"TOC laid out onto {actual_toc_pages} page(s) but the"
+            f" estimate said {toc_pages}; entry page numbers would be"
+            " wrong -- refusing to render"
         )
+    doc.reorder_pages(
+        list(range(toc_start, len(doc.pages))) + list(range(0, toc_start))
+    )
     sections = tuple(
         PdfReportSection(title, actual_toc_pages + page_index + 1)
         for title, page_index in laid_out
@@ -1412,8 +1593,40 @@ def build_pdf_report(
     if out_dir is not None:
         out_path = Path(out_dir)
         out_path.mkdir(parents=True, exist_ok=True)
-        (out_path / PDF_FILENAME).write_bytes(pdf_bytes)
-        (out_path / JSON_FILENAME).write_text(
-            report.to_canonical_json(), encoding="utf-8"
-        )
+        _write_report_files(out_path, PDF_FILENAME, pdf_bytes, report)
     return report
+
+
+def _write_report_files(
+    out_path: Path,
+    pdf_filename: str,
+    pdf_bytes: bytes,
+    report: "PdfReport",
+) -> Path:
+    """Write the PDF and its JSON sidecar, degrading gracefully on lock.
+
+    The primary filename may be locked by an open viewer (WPS/Acrobat hold
+    an exclusive lock on Windows); instead of failing the whole render we
+    write to ``<name>.v2.pdf``, ``.v3.pdf`` ... and return the actual path.
+    The JSON sidecar is written next to the actual PDF with a matching
+    name, so the pair stays consistent and the audit trail always points
+    at real files.
+    """
+    target = out_path / pdf_filename
+    try:
+        target.write_bytes(pdf_bytes)
+    except PermissionError:
+        stem = target.stem
+        suffix = target.suffix
+        candidate = out_path / f"{stem}.v2{suffix}"
+        n = 2
+        while candidate.exists():
+            n += 1
+            candidate = out_path / f"{stem}.v{n}{suffix}"
+        candidate.write_bytes(pdf_bytes)
+        target = candidate
+    # JSON sidecar mirrors the actual PDF file name so file and metadata
+    # never diverge after a lock-degraded write.
+    sidecar = target.with_suffix(".json")
+    sidecar.write_text(report.to_canonical_json(), encoding="utf-8")
+    return target

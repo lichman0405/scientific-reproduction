@@ -85,7 +85,7 @@ record at the same version is rejected.
 
 Since issue #156 every frozen goal contract carries the typed
 ``procedure`` and ``execution_constraints`` fields (schema-required,
-``schemas/goal.schema.yaml``): the freeze persists them on the frozen
+``schemas/goal.schema.json``): the freeze persists them on the frozen
 record. Goal records written before the fields existed are accepted and
 migrated on read (the model reads them with an explicitly empty
 procedure / empty constraints); the freeze rewrites them carrying both
@@ -135,6 +135,7 @@ messages are stable. Errors follow the ``planning/plan.py`` convention
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -388,6 +389,12 @@ class PlanFreezeResult:
     closure_contracts: tuple[ClosureContract, ...]
     frozen_at: str
     frozen_commit: str | None
+    #: non-blocking trace-chain warnings (v0.3.1 local): recorded links
+    #: that a complete trace chain will require but that the freeze gate
+    #: does NOT check (docs/user/bootstrap-state-authoring.md §6) -- the
+    #: finalization gate would report TRACE_INCOMPLETE later. Displaying
+    #: them at freeze time turns a late rejection into an early repair.
+    warnings: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -620,7 +627,55 @@ def freeze_plan(
     )
     register_plan(project_root, frozen_plan)
 
+    # Reflect the frozen plan version in project.yaml (U4): the freeze
+    # previously persisted plans/v1.json while project.yaml kept
+    # ``current_plan_version`` at the draft value until a session manually
+    # updated it -- sessions routinely missed that step, leaving COMPLETED
+    # projects pointing at the draft. Deterministic: uses frozen_at.
+    _update_current_plan_version(project_root, frozen_plan.version, frozen_at)
+
     return _frozen_goal_family(project_root, frozen_plan)
+
+
+def _freeze_trace_warnings(project_root: Path) -> tuple[str, ...]:
+    """Non-blocking trace-chain warnings computed at freeze time.
+
+    The AC-01 trace chain needs two links that the product schemas mark
+    optional (bootstrap-state-authoring.md §6): acceptance
+    ``evidence_refs`` and result ``requirement_refs``. Acceptances are
+    registered before the freeze; results are not, so only the
+    acceptance side is checked here -- as a warning (the v0.3.1 local
+    policy: the freeze gate stays permissive, the finalization gate
+    remains the hard checker).
+    """
+    missing: list[str] = []
+    for acceptance in list_acceptance(project_root):
+        if not acceptance.evidence_refs:
+            missing.append(
+                f"{acceptance.acceptance_id}: acceptance.evidence_refs is"
+                " empty -- the AC-01 claim->acceptance trace needs it"
+                " (bootstrap-state-authoring.md §6); the finalization gate"
+                " would report TRACE_INCOMPLETE"
+            )
+    return tuple(sorted(missing))
+
+
+def _update_current_plan_version(
+    root: Path, version: str, at: str
+) -> None:
+    """Rewrite ``project.yaml``'s ``current_plan_version`` (JSON record).
+
+    The project record is a plain JSON file (despite the .yaml extension);
+    this is the freeze-time transition that keeps it in sync with the
+    registered plan registry. No event is appended here -- the freeze
+    flow's own checkpoint owns auditing.
+    """
+    from scientific_reproduction.core.atomic import atomic_write
+    project_path = root / "project.yaml"
+    project = json.loads(project_path.read_text(encoding="utf-8"))
+    project["current_plan_version"] = version
+    project["updated_at"] = at
+    atomic_write(project_path, json.dumps(project, indent=2, ensure_ascii=False))
 
 
 # ---------------------------------------------------------------------------
@@ -1254,6 +1309,7 @@ def _frozen_goal_family(
         closure_contracts=closure,
         frozen_at=frozen_at,
         frozen_commit=frozen_commit,
+        warnings=_freeze_trace_warnings(project_root),
     )
 
 

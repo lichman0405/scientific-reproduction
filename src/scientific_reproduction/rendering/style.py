@@ -30,7 +30,7 @@ neutral gray, so an unknown value never renders green or red.
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Final, Protocol
 
 #: A4 portrait page geometry, in PDF points (1/72 inch).
 PAGE_WIDTH: Final[float] = 595.28
@@ -233,15 +233,19 @@ HELVETICA_BOLD_WIDTHS: Final[dict[str, float]] = {
 }
 
 #: Common cp1252 punctuation/symbols with fixed approximate widths
-#: (1/1000 em) for both faces; every other non-ASCII character falls back
-#: to ``EXTENDED_FALLBACK_WIDTH``. Values are deterministic, which is what
-#: byte-identical rendering requires.
+#: (1/1000 em) for both faces. Keys are the characters themselves:
+#: layout measures raw text, so byte-slot keys could never be hit
+#: (P16b). Characters cp1252 can draw but this table omits keep the
+#: ``EXTENDED_FALLBACK_WIDTH`` approximation; characters cp1252 cannot
+#: draw at all are estimated at a full em inside ``text_width_afm``.
+#: Values are deterministic, which is what byte-identical rendering
+#: requires.
 EXTENDED_WIDTHS: Final[dict[str, float]] = {
-    "\x80": 0.556, "\x85": 0.556, "\x8e": 0.556, "\x9f": 0.556,  # control-ish slots
-    "\x91": 0.222, "\x92": 0.222, "\x93": 0.333, "\x94": 0.333,  # quotes
-    "\x95": 0.556,  # bullet
-    "\x96": 0.556,  # en dash
-    "\x97": 1.0,  # em dash
+    "€": 0.556, "…": 0.556, "Ž": 0.556, "Ÿ": 0.556,  # € … Ž Ÿ
+    "‘": 0.222, "’": 0.222, "“": 0.333, "”": 0.333,  # ' ' " "
+    "•": 0.556,  # bullet
+    "–": 0.556,  # en dash
+    "—": 1.0,  # em dash
     "\xa0": 0.278,  # nbsp
     "\xa1": 0.333,  # inverted !
     "\xa9": 0.737,  # copyright
@@ -276,7 +280,9 @@ EXTENDED_WIDTHS: Final[dict[str, float]] = {
     "\xfd": 0.5, "\xff": 0.5, "μ": 0.556,  # micro sign
 }
 
-#: Width (1/1000 em) used for any character without a recorded width.
+#: Width (1/1000 em) used for ASCII / cp1252-drawable characters without
+#: a recorded width. Characters cp1252 cannot draw are estimated at a
+#: full em instead -- see ``text_width_afm``.
 EXTENDED_FALLBACK_WIDTH: Final[float] = 0.556
 
 #: Face -> width table (italic faces share their upright widths).
@@ -288,17 +294,86 @@ _FACE_WIDTHS: Final[dict[str, dict[str, float]]] = {
 }
 
 
-def text_width(text: str, font: str, size: float) -> float:
-    """Width of ``text`` in points at ``size`` using the AFM tables.
+class MeasureBackend(Protocol):
+    """The one thing ``text_width`` needs from a font backend.
 
-    Unknown fonts and unknown characters degrade deterministically:
-    characters outside the width table use ``EXTENDED_FALLBACK_WIDTH``.
+    Declared structurally so this module keeps no import of
+    ``rendering.fonts`` (that module imports ``style``): any object with
+    a matching ``measure`` is accepted.
+    """
+
+    def measure(self, text: str, font: str, size: float) -> float: ...
+
+
+#: Active measurement backend (set by renderers through the
+#: ``measure_backend`` context manager). ``None`` = the built-in AFM
+#: tables below. Measurement must use the same font metrics the PDF
+#: writer embeds, or wrapped layouts will overflow their boxes.
+_measure_backend: MeasureBackend | None = None
+
+
+class measure_backend:
+    """Context manager installing a font backend for ``text_width``.
+
+    Renderers that draw through a non-default backend (the Unicode
+    TrueType path) wrap their layout phase in this context so wrapping
+    decisions use the embedded fonts' real advances.
+    """
+
+    def __init__(self, backend: MeasureBackend) -> None:
+        self._backend = backend
+
+    def __enter__(self) -> None:
+        global _measure_backend
+        self._previous = _measure_backend
+        _measure_backend = self._backend
+
+    def __exit__(self, *exc: object) -> None:
+        global _measure_backend
+        _measure_backend = self._previous
+
+
+def text_width(text: str, font: str, size: float) -> float:
+    """Width of ``text`` in points at ``size``.
+
+    With an active measurement backend, the backend's real font metrics
+    are used (consistent with the embedded fonts); otherwise the
+    built-in Helvetica AFM tables apply. Unknown fonts and unknown
+    characters degrade deterministically: characters outside the width
+    table use ``EXTENDED_FALLBACK_WIDTH``, except characters cp1252
+    cannot draw, which are estimated at a full em (see
+    ``text_width_afm``).
+    """
+    if _measure_backend is not None:
+        return _measure_backend.measure(text, font, size)
+    return text_width_afm(text, font, size)
+
+
+def text_width_afm(text: str, font: str, size: float) -> float:
+    """Width via the built-in Helvetica AFM tables (legacy path).
+
+    Characters without a width entry are estimated in two tiers:
+    characters the base-14 writer can draw (cp1252) but this table
+    omits (``æ``, ``§``, ``Š``, ...) keep the documented
+    ``EXTENDED_FALLBACK_WIDTH`` approximation; anything cp1252 cannot
+    draw (CJK, fullwidth forms, ``≤``, emoji, ...) is estimated at a
+    full em (1.0) instead -- the one estimate that never under-measures.
+    Under-measuring made the layout engine skip line wraps and overflow
+    table cells (observed in the human summary PDF, Chinese labels
+    overlapping the neighbouring column).
     """
     table = _FACE_WIDTHS.get(font, HELVETICA_WIDTHS)
     total = 0.0
     for char in text:
         width = table.get(char)
         if width is None:
-            width = EXTENDED_WIDTHS.get(char, EXTENDED_FALLBACK_WIDTH)
+            width = EXTENDED_WIDTHS.get(char)
+            if width is None:
+                try:
+                    char.encode("cp1252")
+                except UnicodeEncodeError:
+                    width = 1.0  # not drawable by base-14: full em, never under
+                else:
+                    width = EXTENDED_FALLBACK_WIDTH
         total += width
     return total * size

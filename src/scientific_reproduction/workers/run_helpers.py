@@ -274,7 +274,7 @@ def register_run(
     """Register one Run record at ``runs/<run_id>.json``.
 
     The worker/monitor run authoring entry: the record is
-    schema-shaped (``schemas/run.schema.yaml``), canonical-JSON
+    schema-shaped (``schemas/run.schema.json``), canonical-JSON
     persisted through the atomic state backend, and audited with one
     ``run.recorded`` event under the deterministic key
     ``run.recorded:<run_id>``. The record's own timestamps

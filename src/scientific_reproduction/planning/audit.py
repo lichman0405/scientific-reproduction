@@ -12,7 +12,7 @@ DEV-M4-G02 mapping rules (``planning/inventory.py``), grounded in:
 * ``core/models.py``: ``MappingStatus`` / ``ReproductionInventoryItem`` /
   ``ReproductionRequirement`` as the data, ``PlanInventoryAudit`` as the
   frozen counts shape, ``AuditStatus`` (PASS/FAIL) as the verdict
-  vocabulary (the exact enum of ``schemas/plan.schema.yaml``
+  vocabulary (the exact enum of ``schemas/plan.schema.json``
   ``inventory_audit.status``);
 * ``planning/inventory.py`` (DEV-M4-G02): ``evaluate_item_mapping`` (the
   ordered rule table R-MAP-X1/A1/M1/U1 -> EXCLUDED_NONFORMAL / AMBIGUOUS /
@@ -61,7 +61,7 @@ record carrying:
 
 * ``verdict`` -- the freeze-eligibility decision as the frozen
   ``AuditStatus`` (PASS/FAIL; the exact enum values of the frozen plan
-  schema, ``schemas/plan.schema.yaml`` ``inventory_audit.status``);
+  schema, ``schemas/plan.schema.json`` ``inventory_audit.status``);
 * ``summary`` -- the ``InventorySummary`` counts (the vocabulary of the
   frozen ``PlanInventoryAudit`` / ``InventorySummary``: total /
   formally_reported / mapped / unmapped / ambiguous / excluded_nonformal
@@ -80,14 +80,14 @@ requires the offending item ids. The record therefore exposes
 ``PlanInventoryAudit`` view (counts + ``status`` = verdict) that the Plan
 freeze flow (DEV-M4-G04) embeds into the ``plan`` record -- the only
 frozen place the audit result is persisted
-(``schemas/plan.schema.yaml`` ``inventory_audit`` sub-object).
+(``schemas/plan.schema.json`` ``inventory_audit`` sub-object).
 
 Persistence and git boundary (normative reading)
 ------------------------------------------------
 This module is a **pure evaluator over in-memory state**: it persists
 nothing and performs no Git operations. Rationale: ``schemas/`` has no
 standalone audit schema (``core.schema_validation`` knows 23 object
-types; ``plan.schema.yaml`` defines ``inventory_audit`` only as a nested
+types; ``plan.schema.json`` defines ``inventory_audit`` only as a nested
 sub-object of the Plan), ``templates/PROJECT-TREE.template.txt`` has no
 ``audit/`` directory, and the inventory models carry no timestamp fields
 -- a standalone persisted audit record would require inventing both a
@@ -243,7 +243,7 @@ class CompletenessAudit:
         """Return the frozen ``PlanInventoryAudit`` view of this record.
 
         Schema-compatible with the ``inventory_audit`` sub-object of
-        ``schemas/plan.schema.yaml`` (``core/models.py``): the counts are
+        ``schemas/plan.schema.json`` (``core/models.py``): the counts are
         the summary's and ``status`` is the verdict. The Plan freeze flow
         (DEV-M4-G04) embeds this view into the Plan record -- the only
         frozen place the audit result is persisted (see the module

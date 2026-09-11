@@ -279,7 +279,7 @@ def test_event_replay_does_not_advance_sequence(tmp_path) -> None:
 def test_schema_invalid_event_rejected_before_persistence(tmp_path) -> None:
     base = tmp_path / "state"
     log = ev.ProjectEventLog(base)
-    # payload must be an object per schemas/event.schema.yaml.
+    # payload must be an object per schemas/event.schema.json.
     bad = _event(1, payload=[])
     with pytest.raises(SchemaValidationError):
         log.append(bad)
