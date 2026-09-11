@@ -134,8 +134,8 @@ messages are stable. Errors follow the ``planning/plan.py`` convention
 """
 
 from __future__ import annotations
-import json
 
+import json
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path

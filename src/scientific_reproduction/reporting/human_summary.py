@@ -36,6 +36,7 @@ Design rules (unchanged from v1, aligned with the locked architecture):
 from __future__ import annotations
 
 import json
+import re as _re
 from pathlib import Path
 from typing import Any
 
@@ -280,7 +281,6 @@ _GROUP_KEYWORDS = {
 }
 _GROUP_ORDER = ("grp_claim", "grp_internal", "grp_struct")
 _DEFAULT_GROUP = "grp_obs"
-import re as _re
 
 
 def _strip_lead_tag(rationale: str) -> str:
@@ -519,7 +519,9 @@ def _a2_flag_for(root: Path, req: dict, goals: dict[str, dict],
     linked: list[str] = []
     for g in goals.values():
         if rid in (g.get("requirement_ids") or []):
-            linked.append(g.get("goal_id"))
+            gid = g.get("goal_id")
+            if gid is not None:
+                linked.append(gid)
     if not linked:
         linked = list(req.get("goal_ids") or [])
     flagged: list[str] = []
@@ -528,7 +530,9 @@ def _a2_flag_for(root: Path, req: dict, goals: dict[str, dict],
             continue
         affected = set(a.get("affected_goal_ids") or [])
         if affected & set(linked):
-            flagged.append(a.get("assumption_id"))
+            aid = a.get("assumption_id")
+            if aid is not None:
+                flagged.append(aid)
     if not flagged:
         sim_goal = next((g for g in linked if "SIM-" in g), None)
         if sim_goal:
@@ -536,7 +540,9 @@ def _a2_flag_for(root: Path, req: dict, goals: dict[str, dict],
                 affected = set(a.get("affected_goal_ids") or [])
                 linked_match = (affected & set(linked)) or (not affected and not linked)
                 if linked_match and a.get("strict_status_effect") is None:
-                    flagged.append(a.get("assumption_id"))
+                    aid = a.get("assumption_id")
+                    if aid is not None:
+                        flagged.append(aid)
                     if warnings is not None:
                         warnings.append(
                             f"{a.get('assumption_id')}: A2 assumption on synthetic"
@@ -861,7 +867,7 @@ def _collect(root: Path, language: str) -> dict:
         r.get("requirement_id") for r in closed
         if r.get("outcome") == "NOT_REPRODUCED"
         and _is_internal_nature(_rationale_for_requirement(
-            r.get("requirement_id", ""), decisions, r.get("goal_ids"),
+            r.get("requirement_id", ""), decisions, r.get("goal_ids") or [],
             language=language))
     }
     def _states_claim_conflict(dec) -> bool:
@@ -918,9 +924,9 @@ def _collect(root: Path, language: str) -> dict:
         internal_hits = [d for d in grouped.get("grp_internal", [])
                          if rid in (d.get("affected_refs") or [])]
         raw_rationale = _rationale_for_requirement(
-            rid, decisions, r.get("goal_ids"), language=language)
+            rid, decisions, r.get("goal_ids") or [], language=language)
         rationale = _rationale_for_requirement(
-            rid, decisions, r.get("goal_ids"),
+            rid, decisions, r.get("goal_ids") or [],
             decision_labels if language == "zh" else None,
             language=language)
         if not internal_hits and r.get("outcome") == "NOT_REPRODUCED"                 and _is_internal_nature(raw_rationale):
@@ -1588,10 +1594,11 @@ def build_human_summary(
     if d["human_gates"]:
         for g in d["human_gates"]:
             gsep = "— " if language == "zh" else " — "
+            gate_label = (_gate_type_label(language, g['gate_type'])
+                          + _sep_zh(language)
+                          + _gate_status_label(language, g['status']))
             line = (f"- **{g['gate_id']}**"
-                    f"{_paren(language, _gate_type_label(language, g['gate_type'])
-                              + _sep_zh(language)
-                              + _gate_status_label(language, g['status']))}"
+                    f"{_paren(language, gate_label)}"
                     f"{gsep}{g['trigger']}")
             if g["affected_refs"]:
                 line += (f"{_sep_zh(language)}{L(language, 'gates_affected_label')}"
@@ -1871,10 +1878,11 @@ def build_human_summary_pdf(
     needs_unicode = any(ord(ch) > 127 for s in texts for ch in s)
     if needs_unicode:
         from scientific_reproduction.rendering.fonts import (
+            FontBackend,
             FontConfig,
             TrueTypeBackend,
         )
-        backend = TrueTypeBackend(FontConfig.default())
+        backend: FontBackend = TrueTypeBackend(FontConfig.default())
     else:
         from scientific_reproduction.rendering.fonts import Base14Backend
         backend = Base14Backend(strict=True)
@@ -1882,7 +1890,9 @@ def build_human_summary_pdf(
     with measure_backend(backend):
         doc = PdfDocument(title=_pdf_text(_tpl(language, "title")), font_backend=backend)
         layout = FlowLayout(doc)
-        L = lambda lang, key: _pdf_text(_tpl(lang, key))
+
+        def L(lang: str, key: str) -> str:
+            return _pdf_text(_tpl(lang, key))
 
         layout.heading(L(language, "title"), level=1)
         layout.paragraph(_pdf_text(_tpl(language, "generated_suffix")) +
@@ -1973,10 +1983,11 @@ def build_human_summary_pdf(
         if d["human_gates"]:
             for g in d["human_gates"]:
                 gsep = "— " if language == "zh" else " — "
+                gate_label = (_gate_type_label(language, g['gate_type'])
+                              + _sep_zh(language)
+                              + _gate_status_label(language, g['status']))
                 text = (f"{g['gate_id']}"
-                        f"{_paren(language, _gate_type_label(language, g['gate_type'])
-                                  + _sep_zh(language)
-                                  + _gate_status_label(language, g['status']))}"
+                        f"{_paren(language, gate_label)}"
                         f"{gsep}{g['trigger']}")
                 if g["affected_refs"]:
                     text += (f"{_sep_zh(language)}{L(language, 'gates_affected_label')}"

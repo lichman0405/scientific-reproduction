@@ -30,7 +30,7 @@ neutral gray, so an unknown value never renders green or red.
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Final, Protocol
 
 #: A4 portrait page geometry, in PDF points (1/72 inch).
 PAGE_WIDTH: Final[float] = 595.28
@@ -294,11 +294,22 @@ _FACE_WIDTHS: Final[dict[str, dict[str, float]]] = {
 }
 
 
+class MeasureBackend(Protocol):
+    """The one thing ``text_width`` needs from a font backend.
+
+    Declared structurally so this module keeps no import of
+    ``rendering.fonts`` (that module imports ``style``): any object with
+    a matching ``measure`` is accepted.
+    """
+
+    def measure(self, text: str, font: str, size: float) -> float: ...
+
+
 #: Active measurement backend (set by renderers through the
 #: ``measure_backend`` context manager). ``None`` = the built-in AFM
 #: tables below. Measurement must use the same font metrics the PDF
 #: writer embeds, or wrapped layouts will overflow their boxes.
-_measure_backend: object | None = None
+_measure_backend: MeasureBackend | None = None
 
 
 class measure_backend:
@@ -309,7 +320,7 @@ class measure_backend:
     decisions use the embedded fonts' real advances.
     """
 
-    def __init__(self, backend: object) -> None:
+    def __init__(self, backend: MeasureBackend) -> None:
         self._backend = backend
 
     def __enter__(self) -> None:

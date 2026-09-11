@@ -208,7 +208,14 @@ class FontBackend:
 
     def pdf_font_objects(self) -> list[bytes]:
         """Bodies of the font dictionary objects, one per logical face
-        (F1..F4), in canonical order."""
+        (F1..F4), in canonical order.
+
+        Base-14 emits self-contained Type1 dictionaries. The Unicode path
+        additionally has to reference each face's descendant-font and
+        ToUnicode objects, so ``TrueTypeBackend`` exposes those bodies
+        through ``type0_font_objects`` instead (rendering.pdf dispatches
+        on ``is_base14``).
+        """
         raise NotImplementedError
 
     def pdf_program_objects(self) -> list[bytes]:
@@ -815,13 +822,11 @@ class TrueTypeBackend(FontBackend):
         x_max = max(h[3] for h in headers)
         y_max = max(h[4] for h in headers)
         head[36:44] = struct.pack(">hhhh", x_min, y_min, x_max, y_max)
-        head = bytes(head)
 
         # hhea: numberOfHMetrics = numGlyphs, advanceWidthMax real ------------
         hhea = bytearray(_table_bytes(font.tables, font.font_data, "hhea"))
         hhea[10:12] = struct.pack(">H", max(font.advances[old] for old in order))
         hhea[34:36] = struct.pack(">H", num_glyphs)
-        hhea = bytes(hhea)
 
         # maxp: version 0.5 carries only numGlyphs (valid for CJK fonts) ------
         maxp = struct.pack(">IH", 0x00005000, num_glyphs)
@@ -858,8 +863,8 @@ class TrueTypeBackend(FontBackend):
                 extra[tag] = _table_bytes(font.tables, font.font_data, tag)
 
         tables: dict[str, bytes] = {
-            "head": head,
-            "hhea": hhea,
+            "head": bytes(head),
+            "hhea": bytes(hhea),
             "maxp": maxp,
             "hmtx": bytes(hmtx_new),
             "loca": loca_new,
@@ -948,10 +953,16 @@ class TrueTypeBackend(FontBackend):
             )
         return bodies
 
-    def pdf_font_objects(
+    def type0_font_objects(
         self, desc_numbers: list[int], touni_numbers: list[int]
     ) -> list[bytes]:
-        """Type0 font dictionary bodies in F1..F4 order."""
+        """Type0 font dictionary bodies in F1..F4 order.
+
+        ``desc_numbers`` / ``touni_numbers`` are the writer's object
+        numbers for the descendant-font and ToUnicode objects, one per
+        face. Not part of the ``FontBackend`` contract: only the Unicode
+        path emits Type0 dictionaries.
+        """
         bodies: list[bytes] = []
         for index, (face, program) in enumerate(
             zip(_style.FONT_FACES, self._programs_in_face_order())

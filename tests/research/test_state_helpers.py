@@ -82,6 +82,7 @@ from scientific_reproduction.research.state_helpers import (
     RESEARCH_REQUEST_TRANSITION_EVENT_TYPE,
     SOURCE_RECORDED_EVENT_TYPE,
     SOURCE_STATE_DIR,
+    AssumptionAsEvidenceError,
     DuplicateRequestError,
     DuplicateSourceError,
     EvidenceNotFoundError,
@@ -99,7 +100,6 @@ from scientific_reproduction.research.state_helpers import (
     register_evidence,
     register_research_request,
     register_source,
-    AssumptionAsEvidenceError,
 )
 
 # ---------------------------------------------------------------------------

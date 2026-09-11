@@ -43,8 +43,11 @@ from __future__ import annotations
 
 from typing import Final
 
-from scientific_reproduction.rendering import fonts as _fonts
-from scientific_reproduction.rendering.fonts import Base14Backend, FontBackend
+from scientific_reproduction.rendering.fonts import (
+    Base14Backend,
+    FontBackend,
+    TrueTypeBackend,
+)
 from scientific_reproduction.rendering.style import (
     FONT_BODY,
     FONT_FACES,
@@ -311,7 +314,7 @@ class PdfDocument:
         # Embedded font programs are subset once per render (their bytes
         # are a pure function of the draw sequence); object-number
         # helpers below depend on the program count.
-        self._render_programs: list[bytes] = (
+        self._render_programs = (
             [] if self._backend.is_base14 else self._backend.pdf_program_objects()
         )
 
@@ -389,6 +392,9 @@ class PdfDocument:
             for body in self._backend.pdf_font_objects():
                 obj(body)
         else:
+            backend = self._backend
+            # The Type0 API below is Unicode-path only (is_base14 False).
+            assert isinstance(backend, TrueTypeBackend)
             for body in self._render_programs:
                 obj(body)
             desc_numbers = [
@@ -397,12 +403,12 @@ class PdfDocument:
             touni_numbers = [
                 self._tounicode_object_number(i) for i in range(len(_FACES))
             ]
-            for body in self._backend.pdf_font_objects(
+            for body in backend.type0_font_objects(
                 desc_numbers, touni_numbers
             ):
                 obj(body)
             for index, body in enumerate(
-                self._backend.face_descendant_bodies()
+                backend.face_descendant_bodies()
             ):
                 obj(
                     body.replace(
@@ -416,7 +422,7 @@ class PdfDocument:
                 self._program_object_number(k)
                 for k in range(len(self._render_programs))
             ]
-            for body in self._backend.face_descriptor_bodies(prog_numbers):
+            for body in backend.face_descriptor_bodies(prog_numbers):
                 obj(body)
             for body in self._backend.pdf_tounicode_objects():
                 obj(body)

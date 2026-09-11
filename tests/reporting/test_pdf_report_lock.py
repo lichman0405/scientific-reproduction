@@ -8,8 +8,6 @@ with the actual file that was written.
 import json
 from pathlib import Path
 
-import pytest
-
 from scientific_reproduction.reporting.pdf_report import (
     JSON_FILENAME,
     PDF_FILENAME,

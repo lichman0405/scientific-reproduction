@@ -369,7 +369,8 @@ def _headline_metric(
             uncertainty.get(key) is not None
             for key in ("confidence_level", "lower", "upper")
         )
-        criteria = bands_by_id.get(result.acceptance_ref)
+        criteria = (bands_by_id.get(result.acceptance_ref)
+                    if result.acceptance_ref is not None else None)
         has_band = bool(
             criteria
             and criteria.criteria

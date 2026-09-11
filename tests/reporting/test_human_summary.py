@@ -13,12 +13,12 @@ import json
 import pytest
 
 from scientific_reproduction.reporting.human_summary import (
+    SummaryConsistencyError,
     build_human_summary,
     build_human_summary_pdf,
-    SummaryConsistencyError,
     write_human_summary,
-    write_human_summary_pdf,
     write_human_summary_both,
+    write_human_summary_pdf,
 )
 
 GOAL_WITH_METRICS = {
@@ -176,7 +176,7 @@ def test_governance_decisions_not_shown_as_findings(tmp_path):
 
 def test_no_decisions_is_stated_as_unrecorded(tmp_path):
     root = _make_project(tmp_path)
-    import shutil, os as _os
+    import os as _os
     for f in _os.listdir(root + "/decisions"):
         _os.remove(root + "/decisions/" + f)
     md = build_human_summary(root, generated_at="2026-01-01T00:00:00Z", language="zh")
@@ -210,6 +210,7 @@ def test_language_packs_both_render(tmp_path):
 def _pdf_text_content(data: bytes) -> str:
     """Extract decoded text from deterministic PDF bytes via pypdf."""
     import io
+
     from pypdf import PdfReader
     reader = PdfReader(io.BytesIO(data))
     return "\n".join(p.extract_text() or "" for p in reader.pages)
@@ -260,7 +261,6 @@ def test_legend_bilingual_and_no_project_examples(tmp_path):
     root = _make_project(tmp_path)
     en = build_human_summary(root, generated_at="2026-01-01T00:00:00Z", language="en")
     zh = build_human_summary(root, generated_at="2026-01-01T00:00:00Z", language="zh")
-    cjk = lambda s: any("一" <= c <= "鿿" for c in s)
     assert "## 一句话结论" in zh
     assert "## 产出覆盖矩阵" in zh
     i_zh = zh.index("## 产出覆盖矩阵")
@@ -297,7 +297,7 @@ def test_internal_inconsistency_badge_on_requirement_row(tmp_path):
     paper-internal-inconsistency badge on that requirement row."""
     md = build_human_summary(_make_project(tmp_path),
                              generated_at="2026-01-01T00:00:00Z", language="zh")
-    rows = [l for l in md.split(chr(10)) if l.startswith('| REQ-A ')]
+    rows = [line for line in md.split(chr(10)) if line.startswith('| REQ-A ')]
     assert rows and "论文内部不一致" in rows[0]
 
 
@@ -306,7 +306,7 @@ def test_internal_badge_on_not_reproduced_by_self_data(tmp_path):
     inconsistency carries the internal badge (v4/C)."""
     md = build_human_summary(_make_project(tmp_path),
                              generated_at="2026-01-01T00:00:00Z", language="zh")
-    rows = [l for l in md.split(chr(10)) if l.startswith("| REQ-C ")]
+    rows = [line for line in md.split(chr(10)) if line.startswith("| REQ-C ")]
     assert rows and "论文内部不一致" in rows[0]
 
 
@@ -404,7 +404,10 @@ def test_internal_finding_without_affected_refs_raises(tmp_path):
 def test_heading_clipped_at_word_boundary():
     """Derived headings are never sliced mid-word: Latin clips at word
     boundaries with an ellipsis, CJK at the char limit (G-fix v0.3.1)."""
-    from scientific_reproduction.reporting.human_summary import _clip_heading, _item_title
+    from scientific_reproduction.reporting.human_summary import (
+        _clip_heading,
+        _item_title,
+    )
     long = ("Calibration equation: the equation printed INSIDE Fig. 5 reads "
             "y = 0.0927x - 1.2168 with R2 = 0.9787 (OCR conf 0.97); the main "
             "text (p.4) quotes y = 0.0927x - 1.1268.")
@@ -432,7 +435,7 @@ def test_requirement_rationale_falls_back_to_goal_review(tmp_path):
                              language="zh")
     appendix = md.split("## 附录 A：需求裁决详情")[1]
     assert "max error 16.99% exceeds the 15% claim" in appendix
-    row = [l for l in md.split(chr(10)) if l.startswith("| REQ-C ")]
+    row = [line for line in md.split(chr(10)) if line.startswith("| REQ-C ")]
     assert row and "max error 16.99%" in row[0]
     # REQ-B has no decision at all -> the explicit placeholder stays
     assert "未记录裁决理由" in md
@@ -529,7 +532,7 @@ def test_matrix_duplicate_rationale_tagged(tmp_path):
     dec2["affected_refs"] = ["REQ-C", "REQ-E"]
     (Path(root) / "decisions" / "DEC-2.json").write_text(_j.dumps(dec2), encoding="utf-8")
     md = build_human_summary(root, generated_at="2026-01-01T00:00:00Z", language="zh")
-    rows = [l for l in md.split(chr(10)) if l.startswith("| REQ-" )]
+    rows = [line for line in md.split(chr(10)) if line.startswith("| REQ-")]
     assert len([r for r in rows if "同 REQ-C 的裁决理由" in r]) == 1
     # the first row keeps the plain full rationale, no pointer
     c_row = [r for r in rows if r.startswith("| REQ-C ")][0]

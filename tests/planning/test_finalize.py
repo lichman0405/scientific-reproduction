@@ -48,10 +48,11 @@ def make_project(tmp_path: Path, *, open_req=False, no_used_by=False,
     if not open_req:
         # sanctioned closure: emits the requirement.outcome.updated event
         # that the finalization gate (U6) requires
-        from scientific_reproduction.planning.inventory import close_requirement
         from scientific_reproduction.core.models import (
-            RequirementOutcome, MethodReproducibility,
+            MethodReproducibility,
+            RequirementOutcome,
         )
+        from scientific_reproduction.planning.inventory import close_requirement
         close_requirement(
             root, "REQ-1", RequirementOutcome.REPRODUCED,
             method_reproducibility=MethodReproducibility.DIRECTLY_REPRODUCIBLE,

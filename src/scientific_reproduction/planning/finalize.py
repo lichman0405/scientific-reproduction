@@ -27,8 +27,8 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Sequence
 
+from scientific_reproduction.core.rules.lifecycle import ProjectPhase
 from scientific_reproduction.reporting.audit import (
     build_audit_package,
     validate_package,
@@ -36,7 +36,6 @@ from scientific_reproduction.reporting.audit import (
 from scientific_reproduction.reporting.human_summary import write_human_summary_both
 from scientific_reproduction.research.evidence import EvidenceRegistry
 from scientific_reproduction.research.state_helpers import list_evidence
-from scientific_reproduction.core.rules.lifecycle import ProjectPhase
 
 REPORTS_DIR = "reports"
 AUDIT_PACKAGE_FILENAME = "reproduction-audit-package.json"
