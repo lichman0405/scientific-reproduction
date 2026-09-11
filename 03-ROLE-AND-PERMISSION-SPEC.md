@@ -133,3 +133,18 @@ The Human Gate is for major boundary decisions, not routine micro-management. Hu
 - transition into Method Redesign if the defined policy requires explicit PI approval;
 - external contact;
 - formal project termination under defined non-reproduction scope.
+
+Evidence-interpretation ambiguity is the seventh gate class
+(`EVIDENCE_INTERPRETATION_GATE`, v0.3.1 local): an ambiguous digitized
+reading (which figure marker a data point is, which of several candidate
+values an extraction admits) that must be picked to continue. Unlike the
+six boundary classes above, this gate does NOT pause the run: it records
+the ambiguity plus a concrete `default_safe_action`, execution continues,
+and the human confirms once at project close-out (COMPLETED is blocked
+while any gate is OPEN -- the finalization gate is the single
+confirmation point). A confirmed paper-internal inconsistency (text vs
+figure value that cannot both be right) is NOT a gate; it is closed as
+the requirement's internal-inconsistency finding. The human's decision is
+recorded on the gate record (`resolution_note`), in the human summary, and
+on the affected requirement's rationale, so the audit trail shows which
+reading was picked and where it was applied.

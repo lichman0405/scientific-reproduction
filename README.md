@@ -1,4 +1,4 @@
-# Scientific Reproduction Skill v0.2
+# Scientific Reproduction Skill v0.3.1
 
 An installable **skill** for agentic coding platforms (Claude Code, Codex,
 WorkBuddy): a packaged scientific workflow runtime that takes one target paper
@@ -11,9 +11,10 @@ and non-negotiable architecture decisions.
 
 ## Get the skill
 
-Download the release archive from
-[GitHub Releases](https://github.com/lichman0405/scientific-reproduction/releases/tag/v0.2.3),
-or clone the release branch:
+This release (v0.3.1) ships as a **zip archive** — built by
+`scripts/package_dist.py` into `dist/scientific-reproduction-v0.3.1.zip`
+(the one-command packaging entry). The upstream release branch remains the
+source of the v0.2 line:
 
 ```bash
 git clone --branch release/skill-v0.2.0 https://github.com/lichman0405/scientific-reproduction.git
@@ -21,7 +22,8 @@ git clone --branch release/skill-v0.2.0 https://github.com/lichman0405/scientifi
 
 > Note: the GitHub default branch is the release branch
 > (`release/skill-v0.2.0`) itself — there is no separate `main` branch.
-> Always use the release archive or the release branch.
+> For the v0.3.1 local line, always use the zip or this checkout; the
+> upstream clone stays on the v0.2 line.
 
 ## Install as a skill
 
@@ -41,8 +43,8 @@ The skill entry is [`SKILL.md`](SKILL.md); Codex reads
 python scripts/smoke.py
 ```
 
-The runtime is bundled and **zero-install**: `scripts/reproduce.py` runs it
-via `PYTHONPATH` — no venv, no pip.
+The runtime is bundled and needs **no build** — `scripts/reproduce.py` runs it via
+`PYTHONPATH`; the only runtime import is `jsonschema` (pure Python, pip-installable in seconds).
 
 ```bash
 python scripts/reproduce.py init 10.1039/D5TA00771B --root <workspace>

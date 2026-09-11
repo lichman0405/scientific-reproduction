@@ -57,28 +57,28 @@ recorded as ADRs under `docs/adr/` (see `docs/adr/README.md`).
 
 | Schema | Title | Purpose |
 |---|---|---|
-| [`schemas/project.schema.yaml`](../../schemas/project.schema.yaml) | ReproductionProject | One reproduction project (one target paper). |
-| [`schemas/plan.schema.yaml`](../../schemas/plan.schema.yaml) | ReproductionPlan | Reproduction plan incl. resource/procurement planning. |
-| [`schemas/goal.schema.yaml`](../../schemas/goal.schema.yaml) | GoalContract | `/goal` Unit Process contract. |
-| [`schemas/run.schema.yaml`](../../schemas/run.schema.yaml) | Run | One execution instance of a goal. |
-| [`schemas/requirement.schema.yaml`](../../schemas/requirement.schema.yaml) | ReproductionRequirement | Requirement with checklist-derived criticality. |
-| [`schemas/inventory-item.schema.yaml`](../../schemas/inventory-item.schema.yaml) | ReproductionInventoryItem | Reproduction inventory item. |
-| [`schemas/acceptance-criteria.schema.yaml`](../../schemas/acceptance-criteria.schema.yaml) | AcceptanceCriteria | Frozen acceptance criteria. |
-| [`schemas/statistical-design.schema.yaml`](../../schemas/statistical-design.schema.yaml) | StatisticalDesign | Frozen statistical design (07-SS9), referenced by `statistical_design_ref`. |
-| [`schemas/closure-contract.schema.yaml`](../../schemas/closure-contract.schema.yaml) | ClosureContract | Stopping/closure governance. |
-| [`schemas/assumption.schema.yaml`](../../schemas/assumption.schema.yaml) | Assumption | Assumption (incl. A2 Scientific Assumption). |
-| [`schemas/resource.schema.yaml`](../../schemas/resource.schema.yaml) | Resource | Resource/procurement item. |
-| [`schemas/human-gate.schema.yaml`](../../schemas/human-gate.schema.yaml) | HumanGate | Human-gate trigger record. |
-| [`schemas/source.schema.yaml`](../../schemas/source.schema.yaml) | ResearchSource | Research source record. |
-| [`schemas/evidence.schema.yaml`](../../schemas/evidence.schema.yaml) | ClaimSpecificEvidence | Source × Claim specific evidence record. |
-| [`schemas/analysis.schema.yaml`](../../schemas/analysis.schema.yaml) | AnalysisProtocolOrResult | Analysis protocol/result record. |
-| [`schemas/decision.schema.yaml`](../../schemas/decision.schema.yaml) | SupervisorDecision | Supervisor scientific decision record. |
-| [`schemas/research-request.schema.yaml`](../../schemas/research-request.schema.yaml) | ResearchRequest | Research request record. |
-| [`schemas/retry-policy.schema.yaml`](../../schemas/retry-policy.schema.yaml) | AutomaticRetryPolicy | Whitelisted automatic-retry policy. |
-| [`schemas/event.schema.yaml`](../../schemas/event.schema.yaml) | ProjectEvent | Append-only project event. |
-| [`schemas/artifact-manifest.schema.yaml`](../../schemas/artifact-manifest.schema.yaml) | ArtifactManifest | External-artifact manifest with checksums. |
-| [`schemas/lab-execution-package.schema.yaml`](../../schemas/lab-execution-package.schema.yaml) | LabExecutionPackage | Lab execution package for wet-lab handoff. |
-| [`schemas/worker-context.schema.yaml`](../../schemas/worker-context.schema.yaml) | GoalExecutionContextPackage | Goal execution context handed to a worker. |
+| [`schemas/project.schema.json`](../../schemas/project.schema.json) | ReproductionProject | One reproduction project (one target paper). |
+| [`schemas/plan.schema.json`](../../schemas/plan.schema.json) | ReproductionPlan | Reproduction plan incl. resource/procurement planning. |
+| [`schemas/goal.schema.json`](../../schemas/goal.schema.json) | GoalContract | `/goal` Unit Process contract. |
+| [`schemas/run.schema.json`](../../schemas/run.schema.json) | Run | One execution instance of a goal. |
+| [`schemas/requirement.schema.json`](../../schemas/requirement.schema.json) | ReproductionRequirement | Requirement with checklist-derived criticality. |
+| [`schemas/inventory-item.schema.json`](../../schemas/inventory-item.schema.json) | ReproductionInventoryItem | Reproduction inventory item. |
+| [`schemas/acceptance-criteria.schema.json`](../../schemas/acceptance-criteria.schema.json) | AcceptanceCriteria | Frozen acceptance criteria. |
+| [`schemas/statistical-design.schema.json`](../../schemas/statistical-design.schema.json) | StatisticalDesign | Frozen statistical design (07-SS9), referenced by `statistical_design_ref`. |
+| [`schemas/closure-contract.schema.json`](../../schemas/closure-contract.schema.json) | ClosureContract | Stopping/closure governance. |
+| [`schemas/assumption.schema.json`](../../schemas/assumption.schema.json) | Assumption | Assumption (incl. A2 Scientific Assumption). |
+| [`schemas/resource.schema.json`](../../schemas/resource.schema.json) | Resource | Resource/procurement item. |
+| [`schemas/human-gate.schema.json`](../../schemas/human-gate.schema.json) | HumanGate | Human-gate trigger record. |
+| [`schemas/source.schema.json`](../../schemas/source.schema.json) | ResearchSource | Research source record. |
+| [`schemas/evidence.schema.json`](../../schemas/evidence.schema.json) | ClaimSpecificEvidence | Source × Claim specific evidence record. |
+| [`schemas/analysis.schema.json`](../../schemas/analysis.schema.json) | AnalysisProtocolOrResult | Analysis protocol/result record. |
+| [`schemas/decision.schema.json`](../../schemas/decision.schema.json) | SupervisorDecision | Supervisor scientific decision record. |
+| [`schemas/research-request.schema.json`](../../schemas/research-request.schema.json) | ResearchRequest | Research request record. |
+| [`schemas/retry-policy.schema.json`](../../schemas/retry-policy.schema.json) | AutomaticRetryPolicy | Whitelisted automatic-retry policy. |
+| [`schemas/event.schema.json`](../../schemas/event.schema.json) | ProjectEvent | Append-only project event. |
+| [`schemas/artifact-manifest.schema.json`](../../schemas/artifact-manifest.schema.json) | ArtifactManifest | External-artifact manifest with checksums. |
+| [`schemas/lab-execution-package.schema.json`](../../schemas/lab-execution-package.schema.json) | LabExecutionPackage | Lab execution package for wet-lab handoff. |
+| [`schemas/worker-context.schema.json`](../../schemas/worker-context.schema.json) | GoalExecutionContextPackage | Goal execution context handed to a worker. |
 
 ## Agent role contracts (`agent-contracts/`)
 

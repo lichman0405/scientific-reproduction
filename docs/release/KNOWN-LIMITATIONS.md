@@ -35,7 +35,7 @@ Verified against `docs/operations/adapters-slurm.md`; each traces to real code:
 
 - **Evidence registry is in-memory** — `research.evidence.EvidenceRegistry` has no v0.1 durable store; audit/traceability APIs take the registry as an explicit input.
 - **No decision registry** — Supervisor decisions are recorded only as event payloads in v0.1; the report-traceability chain represents that hop via the requirement records the claim's evidence is used by.
-- **No `register_assumption` / `register_human_gate` convenience helpers** — assumption and human-gate registration flows through the existing registries without dedicated helpers.
+- **No `register_assumption` convenience helper** — assumption registration flows through the existing registries without a dedicated helper; human-gate registration now has one (`planning.human_gates.register_human_gate` / `resolve_human_gate`, v0.3.1 local), assumptions do not yet.
 - **Inventory-registry repair semantics are immutable-functional** — audits and repairs are applied functionally.
 - **Failed-run visibility** — the frozen Run vocabulary has no "failed" state; scientific PASS/FAIL is a review decision stored separately, and abandoned/invalidated runs are recorded by the terminal states `CANCELLED` / `INVALIDATED`, which the audit package maps (plus `ScientificReview.FAIL`) to `FAILED` so failed runs stay visible in the machine-auditable package.
 

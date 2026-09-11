@@ -9,7 +9,7 @@
 
 ## Context
 
-`schemas/acceptance-criteria.schema.yaml` declares `statistical_design_ref`
+`schemas/acceptance-criteria.schema.json` declares `statistical_design_ref`
 as a free-form string with no target record type: no schema, registry, or
 model exists for statistical designs, so `07-STATISTICS-AND-ACCEPTANCE.md`
 SS9's freeze mandate (metrics, margin, replication design, primary method,
@@ -25,7 +25,7 @@ were the only SS9 artifact without one.
 
 Statistical design becomes a first-class goal-contract record:
 
-- a frozen schema `schemas/statistical-design.schema.yaml`
+- a frozen schema `schemas/statistical-design.schema.json`
   (one `StatisticalDesign` record per goal; the SS8 margin-basis categories
   are the enum vocabulary of `margin_basis`);
 - a `StatisticalDesign` `CoreModel` registered in `MODEL_REGISTRY` /

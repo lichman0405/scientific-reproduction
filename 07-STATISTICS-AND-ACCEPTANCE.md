@@ -85,7 +85,7 @@ Every numeric margin or decision threshold must record its basis:
 
 The basis category is recorded machine-checkably in the frozen statistical
 design record (SS9) as `margin_basis` — the five SS8 categories are the
-enum vocabulary of `schemas/statistical-design.schema.yaml`
+enum vocabulary of `schemas/statistical-design.schema.json`
 (`target_paper_error` / `reproduction_literature` /
 `instrument_uncertainty` / `domain_threshold` / `scientific_judgment`).
 
@@ -106,12 +106,12 @@ Before data generation, freeze:
 
 The frozen design is a **first-class record**: one
 `StatisticalDesign` record per goal, validated against the frozen
-`schema` `schemas/statistical-design.schema.yaml` and registered through
+`schema` `schemas/statistical-design.schema.json` and registered through
 the goal-contract family registry at `designs/<design_id>.json`
 (`planning.plan.register_statistical_design`; per-object state files,
 `14-STATE-GIT-ARTIFACTS.md` SS3). The acceptance criteria of the Goal
 reference it via `statistical_design_ref`
-(`schemas/acceptance-criteria.schema.yaml`); the plan freeze requires
+(`schemas/acceptance-criteria.schema.json`); the plan freeze requires
 every such reference to resolve to a registered design record and freezes
 the design together with the rest of the goal-contract family
 (`planning.freeze`), so a statistical design is never unvalidated or
